@@ -117,12 +117,86 @@ THE FIX (src/pdfdrill/heading_cleanup.py)
   orthogonal to the mover above, which is about a LABELLED footnote's own
   paragraph residue, not an unlabelled body.
 
-  Tests added (tests/test_footnote_dedup.py, appended, each confirmed
-  failing first): `test_extract_shortens_text_and_flags_the_paragraph`,
-  `test_materialize_never_reintroduces_an_already_extracted_footnote_body`
-  (end-to-end, the REAL TiddlyWikiProjector, no mock), and
-  `test_without_the_flag_materialize_would_have_reintroduced_it` (the
-  regression pin — removing just the flag reproduces the duplicate).
+  Tests added (tests/test_footnote_dedup.py, appended). Exactly which fail
+  without the fix, checked directly (not assumed — see fix round 1 below
+  for how this table itself was corrected): `test_extract_shortens_text_
+  and_flags_the_paragraph`, `test_materialize_never_reintroduces_an_
+  already_extracted_footnote_body` (end-to-end, the REAL TiddlyWiki
+  projector, no mock), `test_a_regenerated_unlabelled_paragraph_is_
+  adopted_not_duplicated`, and `test_adopt_target_merges_two_refnum_less_
+  extents_that_overlap` — all four fail on 7bc6f63b (pre-fix) with only the
+  new test file overlaid, and pass post-fix. `test_without_the_flag_
+  materialize_would_have_reintroduced_it` is NOT among these: it strips
+  `footnote_extracted` itself before asserting, so it passes identically
+  pre-fix and post-fix by construction — it pins the FLAG, not the fix (see
+  fix round 1).
+
+FIX ROUND 1 — three findings from review (task-650-review.md), all real
+  1. IMPORTANT, under-scoped by the review's own "minor" rating (the
+     coordinator's own read, checked before deciding rather than deferred
+     to): `TiddlyWikiProjector._transclude_paragraph` (docops/projectors/
+     tiddlywiki.py:1518, called from `_emit_tiddlers` for every real
+     Paragraph tiddler) reads the SAME stale wide `surface` Realization
+     `materialize_transclusions` was gated against — and was NOT gated
+     itself. `materialize_transclusions` only copies the projector's
+     rendering INTO `props["text"]`; the projector's OWN output (the
+     actual `.tiddlers.json` a reader opens) was never protected. MEASURED
+     before deciding (rule 14): on penev_A, for all 3 `footnote_extracted`
+     Paragraphs, the emitted tiddler text differed from `props["text"]`
+     100% of the time (3 of 3) — each one still carried its extracted
+     footnote body, marker replaced by `{{<fn>||FN}}`, permanently and
+     deterministically (never breaking the count/title-set idempotency
+     this task measures, which is exactly why it slipped through). One
+     example, obj_f4efb16b3039 (`penev_A_PARA_0022`):
+       props["text"]: "sensory stimulus \(\phi\), which we previously
+                       denoted with \(\phi(\mathbf{x})\). Therefore,"
+       emitted      : "\footnotetext{\n{{penev_A_FN0011||FN}} We wish to
+                       thank Prof. M. J. Feigenbaum for the suggestion of
+                       this clarifying language ... Sections are based on
+                       {{penev_A_REF_Feigenbaum1997||CIT}} ..." (1000+
+                       chars, the whole extracted block)
+     This is the user-visible defect 636 was chartered against, in a
+     consumer this task's own commit message wrongly described as gated
+     ("materialize_transclusions...skips such a paragraph, exactly like it
+     already skips a translated one" — true of the helper, false of "the
+     projector"). Fixed: `_transclude_paragraph` now checks
+     `footnote_extracted` first and falls back to
+     `latex_sectioning_to_wikitext(para.props.get("text", ""))` — the same
+     fallback the function already uses when a Paragraph has no `surface`
+     Realization at all. Re-measured after the fix: 0 of 3 mismatch on
+     penev_A. Test: `test_the_production_tiddler_is_also_gated_not_just_
+     the_helper` (tests/test_footnote_dedup.py), confirmed failing without
+     this specific fix by reverting just tiddlywiki.py and re-running it in
+     isolation (fails: emitted text carries the stale footnotetext block;
+     passes with the fix restored).
+  2. MINOR. Added the missing adversarial negative test for the
+     empty-refnum adoption path: two DIFFERENT, non-overlapping refnum-less
+     footnotes on the same page must not merge.
+     `test_adopt_target_never_merges_two_non_overlapping_refnum_less_
+     footnotes` (tests/test_footnote_dedup.py) — pins that
+     `covered_anchors(doc, obj) & want` (anchor overlap, not mere page+
+     empty-refnum match) is what keeps them apart, next to the existing
+     positive case and the numbered-vs-refnum-less negative case.
+  3. MINOR — evidence discipline. The sentence above ("Tests added...each
+     confirmed failing first") was wrong: `test_without_the_flag_
+     materialize_would_have_reintroduced_it` passes on BOTH pre-fix and
+     post-fix code, because it manually pops `footnote_extracted` itself
+     before asserting — it never depends on whether the fix exists, only on
+     whether the FLAG (once present) is respected. Corrected above to name
+     exactly which four tests fail pre-fix and to say what the fifth test
+     actually pins (the flag's own effect, not the fix). The test's
+     docstring is corrected the same way.
+
+  Both code fixes verified by reverting each in isolation and re-running
+  its own test (failed for the stated reason), then restoring.
+
+  FULL SUITE (fix round 1): PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src
+  python3 -m pytest tests/ -q -p no:cacheprovider -> 3372 passed, 0 failed
+  (3370 before this round's 2 new tests — finding 1's
+  `test_the_production_tiddler_is_also_gated_not_just_the_helper` and
+  finding 2's `test_adopt_target_never_merges_two_non_overlapping_
+  refnum_less_footnotes`; finding 3 corrected an existing test's docstring
+  and this file's own prose, adding nothing; no regressions).
 
 THE REFERENCE SIDE (task's item 2) — ALREADY FIXED, VERIFIED NOT REOPENED
   Read first, per the brief: tasks/010.report.md (stub creation moved to one
@@ -237,20 +311,32 @@ WHAT IS OPEN
   - `heading_cleanup.clean_heading_residuals` shortens a Paragraph's text
     (strips a leading LaTeX sectioning command) the same way
     `extract_footnote_paragraphs` used to — without touching the `surface`
-    Realization either. It was not observed to duplicate anything on
-    penev_A/Steerable (no new Section/Paragraph objects appeared across
-    three drills on either document), but it was not given the same
-    `footnote_extracted`-style guard, and the mechanism that made
-    `extract_footnote_paragraphs` unsafe applies to it structurally. Named,
-    not fixed — outside this task's Footnote/Reference charter and the
-    corpus in hand does not exercise it.
+    Realization AND without setting `footnote_extracted` or any guard of
+    its own. Given fix round 1's finding 1, this means BOTH readers of the
+    stale span (`materialize_transclusions` and, now confirmed the more
+    important one, `TiddlyWikiProjector._transclude_paragraph` — the real
+    output) are exposed for THIS shortener, not just the helper. It was not
+    observed to duplicate or misrender anything on penev_A/Steerable (no
+    new Section/Paragraph objects appeared across three drills on either
+    document, and neither corpus document's `clean_heading_residuals` path
+    was checked tiddler-by-tiddler the way the footnote path now is).
+    Named, not fixed — outside this task's Footnote/Reference charter and
+    the corpus in hand does not exercise the count-visible half of it, but
+    fix round 1's own measurement method (compare emitted tiddler text
+    against `props["text"]` for every object the shortener touched) is
+    exactly how to check it and was not run here.
   - The cross-detector citekey case mismatch out/648.txt already named
     (`detect_author_year_in_objects` folds to lowercase,
     `detect_author_year_citations` preserves case) is still open and still
     not reachable on penev_A/Steerable (neither carries `.bbl`/`.bib` gold).
+  - Review finding 4 (INSPECT.txt / `expect=`) needed no action: the
+    reviewer confirmed both documents' INSPECT.txt files already match
+    HANDOVER-RULES rule 20 (bare paths, nothing else) and that no
+    `expect=` convention exists anywhere in the repo — this task's own
+    brief's premise for that file was wrong, not the files.
 
 FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
-tests/ -q -p no:cacheprovider -> 3370 passed, 0 failed.
+tests/ -q -p no:cacheprovider -> 3372 passed, 0 failed (fix round 1).
 
 EVIDENCE
   ~/pdfdrill-library/penev_A/out/650/{script.py,runs.json,messages.txt,
@@ -261,4 +347,7 @@ EVIDENCE
   {script.py,runs.json,messages.txt,INSPECT.txt,fresh/A1.json,fresh/A2.json,
   fresh/A3.json}
   src/pdfdrill/heading_cleanup.py, src/docmodel/footnote_extent.py,
-  tests/test_footnote_dedup.py — this repo, this commit.
+  src/docops/projectors/tiddlywiki.py (fix round 1),
+  tests/test_footnote_dedup.py — this repo, this commit + fix round 1.
+  task-650-review.md (the review this round answers) — coordinator's
+  scratchpad, not this repo.

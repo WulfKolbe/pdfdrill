@@ -1526,6 +1526,18 @@ class TiddlyWikiProjector(BaseProjector):
         bibkey: str,
     ) -> str:
         """Rebuild paragraph text from raw lines, applying transclusions."""
+        # 650 fix round 1 — a Paragraph `heading_cleanup.
+        # extract_footnote_paragraphs` shortened still carries its ORIGINAL
+        # `surface` Realization (nothing narrows it to match the shorter
+        # text), so reading it here renders the already-extracted footnote
+        # body straight into this Paragraph's own tiddler — the real,
+        # production output a reader sees, permanently, not just the
+        # `materialize_transclusions` copy-back helper this flag already
+        # gated. Confirmed live on penev_A: all 3 `footnote_extracted`
+        # paragraphs emitted their stale wide span here before this guard.
+        # `props["text"]` is the correct, current text; render THAT.
+        if para.props.get("footnote_extracted"):
+            return latex_sectioning_to_wikitext(para.props.get("text", ""))
         surface = next(
             (r for r in para.realizations
              if r.stream == "mathpix_lines" and r.role == "surface"

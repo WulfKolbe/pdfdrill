@@ -34,6 +34,7 @@ from docmodel.modules.paragraph import ParagraphProcessor
 from docops.base import OperatorConfig
 from docops.projectors import footnotes as fnres
 from docops.projectors.latex import LaTeXProjector
+from docops.projectors.tiddlywiki import TiddlyWikiProjector
 from pdfdrill import heading_cleanup as hc
 
 
@@ -352,6 +353,30 @@ def test_adopt_target_never_merges_a_refnum_less_body_into_a_numbered_one():
     assert fx.adopt_target(doc, 4, "", {a1}, ()) is None
 
 
+def test_adopt_target_never_merges_two_non_overlapping_refnum_less_footnotes():
+    """650 review, finding 2 — the adversarial case the empty-refnum path
+    invites: two DIFFERENT, unrelated refnum-less footnotes on the SAME
+    page (page + anchor-overlap only, no refnum equality, is the whole
+    guard once both sides are refnum-less). `covered_anchors(doc, obj) &
+    want` is what keeps them apart — pinned directly rather than trusted by
+    inspection, since the positive case
+    (`test_adopt_target_merges_two_refnum_less_extents_that_overlap`) only
+    proves overlap DOES merge, not that its absence does NOT."""
+    doc = Document()
+    doc.meta["bibkey"] = "T"
+    from docmodel.core import Realization
+    st = doc.ensure_stream("mathpix_lines")
+    a1 = st.append(id="a1", type="text")
+    a2 = st.append(id="a2", type="text")           # a DIFFERENT, disjoint line
+    host = DocObject(type="Footnote", props={"refnum": "", "page": 4})
+    host.add_realization(Realization(stream="mathpix_lines",
+                                     start=a1, end=a1, role="surface"))
+    doc.add(host)
+    # `want` names a2's extent, not a1's — no overlap with the existing
+    # refnum-less Footnote's own anchors.
+    assert fx.adopt_target(doc, 4, "", {a2}, ()) is None
+
+
 # ------------------------------------------------------------- the body text
 
 def test_body_text_prefers_the_cleaned_realization_and_never_both():
@@ -598,9 +623,16 @@ def test_materialize_never_reintroduces_an_already_extracted_footnote_body():
 
 
 def test_without_the_flag_materialize_would_have_reintroduced_it():
-    """The regression this fixes, confirmed still reproducible by removing
-    JUST the flag — proof the flag (not something else) is what protects the
-    paragraph, and a faithful pin against the flag being dropped by accident."""
+    """NOT a "confirmed failing first" test — it strips the flag itself
+    (`p.props.pop("footnote_extracted", None)`), so it exercises the SAME
+    code path with the guard manually defeated and passes identically
+    pre-fix and post-fix (650 review, finding 3). What it pins: the flag
+    itself, not merely its side effect — proof that popping JUST this one
+    prop (nothing else) reopens the duplicate, so a future edit that
+    accidentally drops the flag (renames it, forgets to set it on some
+    branch, etc.) fails this test even though `extract_footnote_paragraphs`
+    and `materialize_transclusions` themselves are both otherwise
+    unchanged."""
     doc = _built(_mathpix_block_with_trailing_prose())
     hc.extract_footnote_paragraphs(doc)
     for p in doc.objects_of_type("Paragraph"):
@@ -614,6 +646,37 @@ def test_without_the_flag_materialize_would_have_reintroduced_it():
     n2 = hc.extract_footnote_paragraphs(doc)
     assert n2 == 1
     assert len(_fn(doc)) == 2                     # the duplicate this fixes
+
+
+def test_the_production_tiddler_is_also_gated_not_just_the_helper():
+    r"""650 review, finding 1 — `materialize_transclusions` is a COPY-BACK
+    helper into `props["text"]`; the REAL output a reader sees is
+    `TiddlyWikiProjector._transclude_paragraph`, called from `_emit_tiddlers`
+    for every Paragraph tiddler. It reads a Paragraph's `surface`
+    Realization directly and, before this fix, had NO knowledge of
+    `footnote_extracted` at all — so the flagged paragraph's OWN tiddler
+    (not just its `props["text"]` copy) kept emitting the extracted
+    footnote body forever, deterministically, on every run. Confirmed live
+    on penev_A: all 3 `footnote_extracted` paragraphs mismatched between
+    `props["text"]` and the emitted tiddler before this round's gate, 0
+    after. Reproduced here with the REAL projector end to end, no mock."""
+    doc = _built(_mathpix_block_with_trailing_prose())
+    hc.extract_footnote_paragraphs(doc)
+    para = doc.objects_of_type("Paragraph")[0]
+    assert para.props["footnote_extracted"] is True
+    assert para.props["text"] == "Prose continues right after."
+
+    proj = TiddlyWikiProjector(
+        OperatorConfig(op="projector", classname="TiddlyWikiProjector"))
+    title, _inv = proj._assign_titles(doc, doc.meta.get("bibkey", "DOC"))
+    import json as _json
+    tiddlers = _json.loads(proj.project(doc))
+    by_title = {t["title"]: t.get("text", "") for t in tiddlers}
+    emitted = by_title.get(title[para.id])
+
+    assert emitted == "Prose continues right after."
+    assert "\\footnotetext" not in emitted
+    assert "Thanks Feigenbaum" not in emitted
 
 
 if __name__ == "__main__":
