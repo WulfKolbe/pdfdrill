@@ -684,14 +684,22 @@ def _mathpix_block_footnotetext_mid_line(
         refnum="5", body="hidden body.",
         lead="Leading prose before the note.",
         trail="trailing prose after."):
-    r"""650 review round 2 — the shape `_narrow_surface_to_remaining` cannot
-    represent: no `footnote`-typed PARENT line at all (nothing here breaks
+    r"""A shape `_narrow_surface_to_remaining` cannot represent: no
+    `footnote`-typed PARENT line at all (nothing here breaks
     ParagraphProcessor's grouping), and the `\footnotetext{...}` sits
     MID-STRING inside an ordinary `text`-typed line's own content, with
     real prose surviving on BOTH sides in the same merged Paragraph.
     "Prose, then a removed span, then more prose" cannot be one contiguous
-    Realization — this is the case the `footnote_extracted` flag fallback
-    still exists for."""
+    Realization, so the generic exact-match-or-refuse logic correctly
+    refuses here too.
+
+    650 review round 3, finding 7 — this is NOT the shape penev_A's own
+    remaining fallback paragraph actually is (the review traced it: a
+    SUB-LINE fragment left by the footnote's own tail-consumption, pinned
+    separately by `_mathpix_block_with_sub_line_tail_fragment` below).
+    Kept as a second, independently-constructed case the same
+    refuse-don't-guess logic must also get right — not a claim about what
+    the real corpus exercises."""
     return [
         {"id": "L1", "type": "text", "text_display": lead},
         {"id": "L2", "type": "text",
@@ -709,6 +717,116 @@ def test_narrowing_fails_on_the_mid_line_shape_and_the_flag_engages():
     assert "Leading prose before the note." in para.props["text"]
     assert "trailing prose after." in para.props["text"]
     assert "\\footnotetext" not in para.props["text"]
+
+
+def _mathpix_block_with_sub_line_tail_fragment(
+        refnum="3", body="Body text that runs to the very end of the line.",
+        stray="}"):
+    r"""650 review round 3, finding 7 — the ACTUAL shape penev_A's one
+    remaining `footnote_extracted` fallback paragraph is, traced from its
+    real MathPix lines: the footnote's own LAST segment (no "next" label to
+    bound it, so `_footnote_extents` lets it run to the end of the group —
+    the SAME over-reach that lets a footnote's body absorb real paper
+    prose, a separate, pre-existing data-quality gap out of 650's scope)
+    ends with a STRAY closing brace beyond `_balanced`'s own match — MathPix
+    emitted one closing `}` too many. `_balanced` matches the FIRST brace
+    that returns depth to 0 (the footnote's own genuine close), so the
+    SECOND, extra `}` lands in `text[pos:]` as a lone SUB-LINE FRAGMENT on
+    the SAME anchor as the body's own tail — not a whole surviving line.
+    `_narrow_surface_to_remaining` only matches WHOLE lines
+    (`_para_lines`), so a fragment of one line can never match, and it
+    correctly refuses — for this reason, not "prose on both sides"
+    (`_mathpix_block_footnotetext_mid_line`, a different, independently
+    real shape the same logic also gets right)."""
+    return [
+        {"id": "blk", "type": "footnote", "text": "",
+         "children_ids": ["c1"]},
+        {"id": "c1", "type": "text",
+         "text_display": "\\footnotetext{\\({ }^{%s}\\) %s}%s"
+                         % (refnum, body, stray)},
+    ]
+
+
+def test_the_real_corpus_fallback_shape_is_a_sub_line_fragment():
+    """The actual penev_A trigger (finding 7), not the assumed one — the
+    surviving text is a SUB-LINE fragment of the footnote's own tail line,
+    which `_narrow_surface_to_remaining`'s whole-line match cannot find,
+    so it correctly refuses and the flag engages."""
+    doc = _built(_mathpix_block_with_sub_line_tail_fragment())
+    n = hc.extract_footnote_paragraphs(doc)
+    assert n == 1                                          # the footnote body
+    para = doc.objects_of_type("Paragraph")[0]
+    assert para.props["text"] == "}"                       # the stray fragment
+    assert para.props["footnote_extracted"] is True         # fallback engaged
+    assert doc.meta["footnote_not_narrowed"] == 1            # finding 6's counter
+    surf = next(r for r in para.realizations
+               if r.stream == "mathpix_lines" and r.role == "surface")
+    st = doc.streams["mathpix_lines"]
+    c1 = next(a for a in st.anchors if st.payload[a].get("id") == "c1")
+    assert (surf.start, surf.end) == (c1, c1)               # left WIDE, un-narrowed
+    fn = _fn(doc)[0]
+    assert fn.props["refnum"] == "3"
+    assert "Body text" in fn.props["content"]
+
+
+def test_footnote_not_narrowed_reaches_status_and_conserve():
+    """650 review round 3, finding 6 — the narrowing refusal is counted the
+    same way its siblings (`footnote_orphan_tail`/`footnote_span_not_
+    located`/`footnote_adopted`) are: a `doc.meta` counter, surfaced by
+    `conserve`'s `footnote_refusals` and by `status`'s
+    `_format_footnote_refusals` — not a count that only per-object
+    inspection could ever notice moving."""
+    from pdfdrill.commands import _format_footnote_refusals
+    from docops import conserve as C
+
+    doc = _built(_mathpix_block_with_sub_line_tail_fragment())
+    hc.extract_footnote_paragraphs(doc)
+    assert doc.meta["footnote_not_narrowed"] == 1
+
+    assert C.conserve(doc)["footnote_refusals"]["not_narrowed"] == 1
+
+    lines = _format_footnote_refusals(doc.meta)
+    assert any("not narrowed" in l and "1" in l for l in lines)
+    assert _format_footnote_refusals({})  == []              # silent when 0
+    assert _format_footnote_refusals({"footnote_not_narrowed": 0}) == []
+
+
+def _mathpix_block_malformed_brace(
+        refnum="7", body="an unterminated body with no closing brace at all"):
+    r"""650 review round 3, finding 8 — an unbalanced `\footnotetext{`:
+    `_balanced` never finds a matching close (returns -1), so nothing is
+    extracted (the `end < 0` branch appends the rest of `text` verbatim and
+    breaks). `remaining` ends up identical to the original `text`, and the
+    `_norm_ws(remaining) != _norm_ws(text)` gate (heading_cleanup.py:441-
+    446) must recognise "nothing changed" and skip BOTH flagging and
+    narrowing — an unbalanced, one-line MathPix LaTeX glitch is a real
+    (if rare) OCR artifact, not a synthetic edge case."""
+    return [
+        {"id": "L1", "type": "text",
+         "text_display": "\\footnotetext{\\({ }^{%s}\\) %s"
+                         % (refnum, body)},          # no closing brace
+    ]
+
+
+def test_a_malformed_unclosed_footnotetext_changes_nothing():
+    doc = _built(_mathpix_block_malformed_brace())
+    para_before = doc.objects_of_type("Paragraph")[0]
+    original_text = para_before.props["text"]
+    surf_before = next(r for r in para_before.realizations
+                       if r.stream == "mathpix_lines" and r.role == "surface")
+    before_span = (surf_before.start, surf_before.end)
+
+    n = hc.extract_footnote_paragraphs(doc)
+
+    assert n == 0                                   # nothing was extracted
+    assert len(_fn(doc)) == 0                        # no Footnote minted
+    para = doc.objects_of_type("Paragraph")[0]
+    assert para.props["text"] == original_text       # byte-identical
+    assert "footnote_extracted" not in para.props    # not flagged
+    assert not doc.meta.get("footnote_not_narrowed") # not counted as a refusal
+    surf = next(r for r in para.realizations
+               if r.stream == "mathpix_lines" and r.role == "surface")
+    assert (surf.start, surf.end) == before_span     # Realization untouched
 
 
 def test_without_the_flag_materialize_would_have_reintroduced_it():

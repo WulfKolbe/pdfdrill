@@ -313,6 +313,7 @@ def extract_footnote_paragraphs(doc) -> int:
     orphan = 0
     unlocated = 0
     adopted = 0
+    not_narrowed = 0
     taken: set[str] = set()
     drop: list[str] = []
     add: list[DocObject] = []
@@ -468,19 +469,37 @@ def extract_footnote_paragraphs(doc) -> int:
                 # using their ORDINARY path, which is now scoped
                 # correctly and renders transclusions intact.
                 if not _narrow_surface_to_remaining(doc, o, remaining):
-                    # Narrowing failed (prose on BOTH sides of the removed
-                    # span, or some other shape one contiguous Realization
-                    # cannot represent) — fall back to the flag, the same
-                    # "this field was edited, don't re-derive it" signal
-                    # `text_source`/`is_translated` already give a
-                    # translated paragraph. Kept as its own flag (not
+                    # Narrowing failed — not necessarily "prose on both
+                    # sides" (the shape this comment originally assumed):
+                    # 650 review round 3 traced the one real penev_A case
+                    # and found a SUB-LINE fragment instead — the footnote
+                    # body's own tail-consumption (the LAST segment, with no
+                    # "next" label to bound it, per `_footnote_extents`)
+                    # absorbs the rest of the last line, leaving `remaining`
+                    # a stray fragment of that line (e.g. a lone "}") that
+                    # is not a whole-line suffix `_narrow_surface_to_
+                    # remaining`'s exact, whole-line match can find. Either
+                    # shape — sub-line fragment or genuinely disjoint
+                    # prose — refuses the same way and falls back to the
+                    # flag, the same "this field was edited, don't re-derive
+                    # it" signal `text_source`/`is_translated` already give
+                    # a translated paragraph. Kept as its own flag (not
                     # `text_source`) so a footnote-shortened paragraph is
                     # never mistaken for a translated one by
                     # `classify.has_translation`/`docinspect.
                     # element_translations`, which key on that exact twin.
                     # `materialize_transclusions`/`_transclude_paragraph`
                     # still check it, for exactly this fallback case.
+                    #
+                    # 650 review round 3, finding 6 — counted the same way
+                    # its siblings below (`orphan`/`unlocated`/`adopted`)
+                    # are, so a rise in how often this fallback engages
+                    # (re-losing surviving transclusions at smaller scale,
+                    # the way round 1 did at full scale) moves a real
+                    # metric instead of requiring per-object inspection to
+                    # notice.
                     o.props["footnote_extracted"] = True
+                    not_narrowed += 1
             o.props["text"] = remaining
         else:
             drop.append(o.id)
@@ -497,6 +516,9 @@ def extract_footnote_paragraphs(doc) -> int:
     if adopted:
         doc.meta["footnote_adopted"] = \
             int(doc.meta.get("footnote_adopted") or 0) + adopted
+    if not_narrowed:
+        doc.meta["footnote_not_narrowed"] = \
+            int(doc.meta.get("footnote_not_narrowed") or 0) + not_narrowed
     return n
 
 

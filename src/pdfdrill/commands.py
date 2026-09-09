@@ -13953,8 +13953,8 @@ def _model_status_lines(sc: "Sidecar") -> list[str]:
 
 
 def _format_footnote_refusals(meta: dict) -> list[str]:
-    """636's two refusals and 637's adoptions, for `status` (pure). Silent
-    when all three are 0.
+    """636's two refusals, 637's adoptions, and 650's narrowing refusal, for
+    `status` (pure). Silent when all four are 0.
 
     `footnote_orphan_tail` — a footnote body that ran on past a number
     REPEATING one already emitted from the same block. A second object would
@@ -13964,12 +13964,18 @@ def _format_footnote_refusals(meta: dict) -> list[str]:
     `footnote_span_not_located` — a lifted footnote whose number is on no
     single line of its paragraph, so it keeps the paragraph's own claim
     instead of an invented sub-anchor.
+    `footnote_not_narrowed` — a footnote-shortened Paragraph whose surviving
+    text is not an exact whole-line suffix/prefix of the original (650
+    review round 3, finding 6): its `surface` Realization stays wide and
+    `footnote_extracted` gates rendering instead, at the cost of that
+    paragraph's own transclusions.
 
-    Both were written to `doc.meta` and read by nothing, which is the shape
+    All were written to `doc.meta` and read by nothing, which is the shape
     645 named: a count nothing prints is a count nobody reads."""
     orphan = int((meta or {}).get("footnote_orphan_tail") or 0)
     unloc = int((meta or {}).get("footnote_span_not_located") or 0)
     adopted = int((meta or {}).get("footnote_adopted") or 0)
+    not_narrowed = int((meta or {}).get("footnote_not_narrowed") or 0)
     out = []
     if orphan or unloc:
         bits = []
@@ -13986,6 +13992,11 @@ def _format_footnote_refusals(meta: dict) -> list[str]:
     if adopted:
         out.append(f"  footnote bodies adopted by an existing Footnote: "
                    f"{adopted} (one object per footnote, not two — 637)")
+    if not_narrowed:
+        out.append(f"  footnote paragraph(s) not narrowed: {not_narrowed} "
+                   f"(surviving text was not a whole-line suffix/prefix; "
+                   f"that paragraph's own transclusions are not rendered — "
+                   f"650)")
     return out
 
 

@@ -450,6 +450,16 @@ def conserve(doc: Document) -> dict:
             # cleanup filled into a Footnote that already existed rather than
             # creating a second object for.
             "adopted": int(doc.meta.get("footnote_adopted") or 0),
+            # 650 review round 3, finding 6 — a footnote-shortened Paragraph
+            # whose surviving text `_narrow_surface_to_remaining` could NOT
+            # map to an exact whole-line suffix/prefix of the original
+            # (e.g. a sub-line fragment left by the footnote's own
+            # tail-consumption): the `surface` Realization is left wide and
+            # `footnote_extracted` gates rendering instead, at the cost of
+            # that paragraph's own transclusions. A sibling refusal, counted
+            # the same way, so a rise in how often it fires shows up here
+            # rather than needing per-object inspection to notice.
+            "not_narrowed": int(doc.meta.get("footnote_not_narrowed") or 0),
         },
     }
 
@@ -531,6 +541,13 @@ def format_report(res: dict, limit: int = _MAX_EXAMPLES) -> str:
         L.append(f"footnote bodies adopted: {ref['adopted']} filled into a "
                  f"Footnote that already held that body (one object per "
                  f"footnote, not two — 637)")
+    if ref.get("not_narrowed"):
+        L.append(f"footnote paragraph(s) not narrowed: {ref['not_narrowed']} "
+                 f"whose surviving text was not an exact whole-line "
+                 f"suffix/prefix of the original — the `surface` Realization "
+                 f"stays wide and `footnote_extracted` gates rendering "
+                 f"instead, at the cost of that paragraph's own "
+                 f"transclusions (650)")
     L.append(f"claims: {anch['claims']} covering, {anch['inline_skipped']} inline "
              f"(sub-anchor offset — does not claim its line); "
              f"container types not claiming: {', '.join(anch['containers_excluded'])}")
