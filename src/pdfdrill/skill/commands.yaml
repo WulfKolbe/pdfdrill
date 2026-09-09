@@ -1743,6 +1743,10 @@ commands:
     flag: --no-compile
     type: flag
     help: with --pdf, write the .tex without running xelatex
+  - name: budget_mb
+    flag: --budget-mb
+    type: str
+    help: size budget per built PDF in MB (655; default 20 — over budget re-encodes down a floored ladder)
   typed: true
 - name: residuals
   section: Reporting
@@ -1803,6 +1807,10 @@ commands:
     flag: --timeout
     type: int
     help: with --measure, per-page compare timeout in seconds (default 900)
+  - name: budget_mb
+    flag: --budget-mb
+    type: str
+    help: size budget per built PDF in MB (655; default 20 — over budget re-encodes down a floored ladder)
   typed: true
 - name: reporttex
   section: Introspection (fast, no extraction)

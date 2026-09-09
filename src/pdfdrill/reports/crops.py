@@ -5,6 +5,16 @@ page, region keys). Those records are built HERE from rows — the package
 never reads a tiddler. Equations with a CDN uri are downloaded; anything
 without one (tables, images, a formula's HOST LINE) is rendered from the
 PDF (461, 530). Cached files are reused.
+
+655 — after every crop is fetched/rendered at full size, a size BUDGET is
+applied per KIND: each of `gate.PUBLISHED_FILES`'s `evidence-<kind>.pdf` is
+a separate file with its own crops, so the rung that keeps
+`evidence-formula.pdf` under budget is decided from formula rows' crops
+alone, not the whole document's. `residuals.pdf` draws a small SUBSET of
+the same equation/formula rows and simply inherits whichever copy (full or
+already-scaled) that row was given here — it is always a fraction of a
+population already brought under budget, so it needs no budget of its own.
+See `reports.budget` for the ladder and the rung choice.
 """
 from __future__ import annotations
 
@@ -12,9 +22,15 @@ import dataclasses
 from pathlib import Path
 
 from .. import report_tex as rt
+from . import budget as _budget
 from .rows import FormulaRow
 
 CROPS_DIR = "report-crops"
+#: 655 — scaled copies live in a SEPARATE directory, same reason `scale_crops`
+#: itself never overwrites its source: `report.pdf`'s tables and the CDN
+#: equation crops read CROPS_DIR directly, and a document whose rung is
+#: already 1.0 must leave it byte-for-byte untouched.
+CROPS_DIR_B = "report-crops-b"
 #: 644 — the substring `render_crops` filters titles by, built from the title
 #: scheme's own prefixes for the kinds a report has rows for.
 def _kinds_all() -> tuple:
@@ -52,23 +68,66 @@ def records(rows: dict) -> list:
     return out
 
 
+def _apply_budget(lst: list, crops: Path, crops_b: Path, budget_mb: float):
+    """One kind's rows, all crops already at full size in `crops`. Returns
+    (rows with `crop`/`px_width` possibly repointed into `crops_b`, note or
+    "" when the rung is 1.0 -- nothing scaled, nothing to say).
+
+    Titles come from the rows' OWN resolved crop paths (already run through
+    `crop_file`'s bibkey-history lookup), never re-derived from `identifier`
+    directly — a renamed document's crop may not be filed under its current
+    bibkey (264)."""
+    titles = sorted({r.crop.stem for r in lst if r.crop is not None})
+    if not titles:
+        return lst, ""
+    scale, quality, total, over = _budget.choose_rung(crops, titles,
+                                                       budget_mb=budget_mb)
+    mb = total / (1024 * 1024)
+    if scale >= 1.0:
+        return lst, ""
+    widths = rt.scale_crops(crops, crops_b, titles, scale=scale,
+                            quality=quality, force=True)
+    out = [dataclasses.replace(r, crop=crops_b / ("%s.jpg" % r.crop.stem),
+                               px_width=str(widths[r.crop.stem]))
+           if r.crop is not None and r.crop.stem in widths else r
+           for r in lst]
+    note = "scale=%.2f q=%d %.1fMB%s" % (
+        scale, quality, mb, " OVER BUDGET" if over else "")
+    return out, note
+
+
 def ensure_crops(rows: dict, doc_dir: Path, pdf: Path, *, bibkey: str,
-                 history=None, images: bool = True):
-    """Returns (rows with `crop` set, one-line note)."""
+                 history=None, images: bool = True,
+                 budget_mb: float = _budget.CROP_BUDGET_MB):
+    """Returns (rows with `crop` set, one-line note).
+
+    655 — after every crop is fetched/rendered, each KIND's rows are checked
+    against `budget_mb` (default `reports.budget.CROP_BUDGET_MB`, the
+    user's own stated comfort) independently, since each kind is a
+    SEPARATE published PDF. A kind already under budget is left pointing at
+    its full-size crop, byte-identical; one that is not is repointed at a
+    scaled copy in `CROPS_DIR_B`, with `px_width` set to the ORIGINAL pixel
+    width so the physical size on the page does not move (`crop_cell`)."""
     if not images:
         return rows, "images: off"
     doc_dir = Path(doc_dir)
     crops = doc_dir / CROPS_DIR
+    crops_b = doc_dir / CROPS_DIR_B
     recs = records(rows)
     ok, cached, failed = rt.download_crops(recs, crops)
     r_ok, r_cached, r_skip = rt.render_crops(recs, crops, Path(pdf),
                                              kinds=KINDS_ALL)
-    out = {}
+    out, budget_notes = {}, []
     for kind, lst in rows.items():
-        out[kind] = [dataclasses.replace(
+        lst = [dataclasses.replace(
             r, crop=rt.crop_file(crops, r.identifier, bibkey, history))
             for r in lst]
+        out[kind], note = _apply_budget(lst, crops, crops_b, budget_mb)
+        if note:
+            budget_notes.append("%s %s" % (kind, note))
     note = ("crops: %d fetched, %d cached, %d failed; %d rendered from the "
             "PDF, %d cached, %d skipped" % (ok, cached, failed, r_ok, r_cached,
                                             r_skip))
+    if budget_notes:
+        note += "; budget (%.0fMB): %s" % (budget_mb, "; ".join(budget_notes))
     return out, note

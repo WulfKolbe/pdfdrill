@@ -648,13 +648,21 @@ B_CROP_QUALITY = 75
 
 def scale_crops(src_dir: Path, dst_dir: Path, titles,
                 scale: float = B_CROP_SCALE,
-                quality: int = B_CROP_QUALITY) -> dict:
+                quality: int = B_CROP_QUALITY,
+                force: bool = False) -> dict:
     r"""Downsampled copies for B. Returns {title: ORIGINAL pixel width}.
 
     The originals are left alone: `report.pdf`'s tables and the CDN equation
     crops read the same directory, and shrinking them there would silently
     redraw every other artefact. The returned widths are what `crop_cell`
     must be told, so the smaller file is still SET at the original size.
+
+    `force=True` (655) skips the mtime cache below. Without it, a rebuild
+    that lands on a DIFFERENT rung than the previous one (a bigger corpus, a
+    changed budget) would see `dst` newer than `src` and silently keep the
+    OLD rung's bytes under the NEW rung's name -- `reports.budget` always
+    passes `force=True` for exactly this reason; a caller happy to reuse a
+    same-rung rebuild across runs can leave it False.
     """
     # PIL is a LAZY import in this module — the module-level `Image` is None
     # until something binds it, and reading it here silently produced zero
@@ -674,7 +682,8 @@ def scale_crops(src_dir: Path, dst_dir: Path, titles,
         try:
             with _Image.open(s_) as im:
                 widths[t] = im.size[0]
-                if d_.is_file() and d_.stat().st_mtime >= s_.stat().st_mtime:
+                if not force and d_.is_file() \
+                        and d_.stat().st_mtime >= s_.stat().st_mtime:
                     continue
                 w = max(1, int(im.size[0] * scale))
                 h = max(1, int(im.size[1] * scale))

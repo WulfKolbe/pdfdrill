@@ -10,6 +10,15 @@ def _jpg(d: Path, name: str):
     (d / name).write_bytes(b"\xff\xd8" + b"0" * 600)
 
 
+def _real_jpg(d: Path, name: str, w=400, h=300):
+    """A PIL-openable JPEG -- unlike `_jpg` above, this one survives an
+    actual re-encode, needed by every 655 budget test below."""
+    from PIL import Image
+    d.mkdir(exist_ok=True)
+    Image.new("RGB", (w, h), color=(90, 140, 200)).save(
+        d / name, "JPEG", quality=95)
+
+
 def test_records_are_built_from_rows():
     h = HostLine(page=3, confidence=0.9, region={"top_left_x": 1, "top_left_y": 2,
                                                  "width": 30, "height": 4})
@@ -100,3 +109,122 @@ def test_download_crops_fetches_pic_and_dia_not_para(tmp_path, monkeypatch):
     assert ok == 1 and failed == 0
     assert (dest / "D_PIC_0001.jpg").is_file()
     assert not (dest / "D_PARA_0001.jpg").exists()
+
+
+# ---------------------------------------------------------------------- #
+# 655 — the size budget, applied per KIND inside ensure_crops.
+# ---------------------------------------------------------------------- #
+
+def _budget_setup(tmp_path, monkeypatch, *, formula_w=400, formula_h=300):
+    """A formula row whose crop is a REAL, sizeable JPEG (so it can be
+    genuinely over budget and genuinely re-encoded) and a table row whose
+    crop is the tiny placeholder used elsewhere in this file (so it stays
+    trivially under budget). Returns (rows, crops_dir, orig_bytes)."""
+    def fake_download(records, dest, **kw):
+        return 0, 0, 0
+
+    def fake_render(records, dest, pdf, kinds=("_TAB",), **kw):
+        for r in records:
+            if r["title"] == "D_FO0001":
+                _real_jpg(dest, "D_FO0001.jpg", w=formula_w, h=formula_h)
+            elif r["title"] == "D_TAB_001":
+                _jpg(dest, "D_TAB_001.jpg")
+        return len(records), 0, 0
+
+    monkeypatch.setattr(C.rt, "download_crops", fake_download)
+    monkeypatch.setattr(C.rt, "render_crops", fake_render)
+    h = HostLine(page=3, confidence=0.9, region={"top_left_x": 1, "top_left_y": 2,
+                                                 "width": formula_w, "height": formula_h})
+    rows = {"equation": [],
+            "formula": [FormulaRow(identifier="D_FO0001", latex="P", host_line=h)],
+            "table": [TableRow(identifier="D_TAB_001", latex="", page="5",
+                               region={"top_left_x": 1, "top_left_y": 1,
+                                       "width": 9, "height": 9})],
+            "image": []}
+    return rows
+
+
+def test_a_kind_under_budget_selects_full_scale_and_copies_nothing(tmp_path, monkeypatch):
+    rows = _budget_setup(tmp_path, monkeypatch)
+    out, note = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf", bibkey="D",
+                               budget_mb=1000.0)   # comfortably over both
+    crops = tmp_path / C.CROPS_DIR
+    assert out["formula"][0].crop == crops / "D_FO0001.jpg"
+    assert out["formula"][0].px_width == ""        # untouched -> no override
+    assert out["table"][0].crop == crops / "D_TAB_001.jpg"
+    assert not (tmp_path / C.CROPS_DIR_B).exists()  # nothing to scale, nothing copied
+    assert "budget" not in note
+
+
+def test_a_kind_over_budget_scales_and_the_other_kind_is_untouched(tmp_path, monkeypatch):
+    rows = _budget_setup(tmp_path, monkeypatch)
+    crops = tmp_path / C.CROPS_DIR
+    # Discover the real on-disk size first (655 rule: measure, don't guess),
+    # then pick a budget the formula crop alone cannot meet at full size.
+    C.rt.download_crops([], crops)
+    C.rt.render_crops([{"title": "D_FO0001"}, {"title": "D_TAB_001"}], crops,
+                      tmp_path / "D.pdf", kinds=())
+    full_size = (crops / "D_FO0001.jpg").stat().st_size
+    before_bytes = (crops / "D_FO0001.jpg").read_bytes()
+    table_before = (crops / "D_TAB_001.jpg").read_bytes()
+    budget_mb = (full_size / 2) / (1024 * 1024)
+
+    out, note = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf", bibkey="D",
+                               budget_mb=budget_mb)
+
+    fr = out["formula"][0]
+    assert fr.crop.parent == tmp_path / C.CROPS_DIR_B
+    assert fr.crop.is_file()
+    assert fr.px_width == "400"                    # the ORIGINAL pixel width
+    assert "formula scale=" in note
+
+    # the source crop is never touched, at any scale
+    assert (crops / "D_FO0001.jpg").read_bytes() == before_bytes
+
+    # the OTHER kind, comfortably under budget on its own, is untouched
+    tr = out["table"][0]
+    assert tr.crop == crops / "D_TAB_001.jpg"
+    assert tr.px_width == ""
+    assert (crops / "D_TAB_001.jpg").read_bytes() == table_before
+
+
+def test_physical_size_on_the_page_is_unchanged_by_scaling(tmp_path, monkeypatch):
+    """655 item 5 — assert on the emitted `width=` STRING, not on the image:
+    `crop_cell` must set the same physical width whether or not the crop
+    behind it was downsampled."""
+    rows = _budget_setup(tmp_path, monkeypatch)
+    crops = tmp_path / C.CROPS_DIR
+    C.rt.render_crops([{"title": "D_FO0001"}], crops, tmp_path / "D.pdf", kinds=())
+    full_size = (crops / "D_FO0001.jpg").stat().st_size
+    before_cell = C.rt.crop_cell(crops, tmp_path, "D_FO0001", px2mm=0.1,
+                                 col_mm=1000.0, bibkey="D")
+
+    out, _ = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf", bibkey="D",
+                            budget_mb=(full_size / 2) / (1024 * 1024))
+    fr = out["formula"][0]
+    assert fr.crop.parent == tmp_path / C.CROPS_DIR_B   # sanity: it WAS scaled
+    after_cell = C.rt.crop_cell(fr.crop.parent, tmp_path, fr.crop.stem,
+                                px_width=fr.px_width, px2mm=0.1, col_mm=1000.0,
+                                bibkey="D")
+    import re
+    before_w = re.search(r"width=([\d.]+)mm", before_cell).group(1)
+    after_w = re.search(r"width=([\d.]+)mm", after_cell).group(1)
+    assert before_w == after_w
+
+
+def test_floor_reached_is_reported_over_budget_in_the_note(tmp_path, monkeypatch):
+    rows = _budget_setup(tmp_path, monkeypatch)
+    out, note = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf", bibkey="D",
+                               budget_mb=1e-9)     # unreachable by any rung
+    fr = out["formula"][0]
+    assert fr.crop.parent == tmp_path / C.CROPS_DIR_B
+    import pdfdrill.reports.budget as budget_mod
+    assert fr.px_width == "400"
+    assert "OVER BUDGET" in note
+    # never below the floor
+    from PIL import Image
+    with Image.open(tmp_path / C.CROPS_DIR / "D_FO0001.jpg") as im:
+        orig_w = im.size[0]
+    with Image.open(fr.crop) as im:
+        scaled_w = im.size[0]
+    assert scaled_w == round(orig_w * budget_mod.CROP_LADDER[-1][0])

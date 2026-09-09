@@ -5361,13 +5361,22 @@ def cmd_conserve(pdf: Path, json_out: bool = False, limit: int = 10) -> str:
 def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
                  all_kinds: bool = False, images: bool = True,
                  paper: str = "a3", landscape: bool = True,
-                 compile_pdf: bool = True) -> str:
+                 compile_pdf: bool = True,
+                 budget_mb: "float | None" = None) -> str:
     """Evidence listing: every object of one kind in six columns, HTML by
     default, --pdf for the xelatex build through the document's own preamble.
-    Inline formulas show their HOST LINE's page, confidence and picture."""
+    Inline formulas show their HOST LINE's page, confidence and picture.
+
+    655 — `--pdf` embeds crops full size only while the resulting file stays
+    under `budget_mb` (default `reports.budget.CROP_BUDGET_MB`, 20 MB —
+    "I have loaded pdf files with 10-20MB without problems from Github.io");
+    a document over budget is re-encoded down the measured ladder, floored
+    at scale 0.42/quality 70 so the crop stays legible, and reported OVER
+    BUDGET if even the floor does not fit."""
     from . import report_tex as rt
     from .reports import KINDS
     from .reports import evidence as EV
+    from .reports.budget import CROP_BUDGET_MB
     from .reports.crops import ensure_crops
     from .reports.from_document import build_rows
     if not all_kinds and kind not in KINDS:
@@ -5387,8 +5396,10 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
     ink = rt.load_ink(ink_path) if ink_path.is_file() else {}
     rows = build_rows(doc, bibkey, ink=ink,
                       lines_path=lines_path if lines_path.exists() else None)
-    rows, crop_note = ensure_crops(rows, doc_dir, pdf, bibkey=bibkey,
-                                   history=_bibkey_history(sc), images=images)
+    rows, crop_note = ensure_crops(
+        rows, doc_dir, pdf, bibkey=bibkey, history=_bibkey_history(sc),
+        images=images,
+        budget_mb=budget_mb if budget_mb is not None else CROP_BUDGET_MB)
     # counted from the FULL row dict, independent of which kind(s) this call
     # actually renders — the old cmd_report's FormulaReportProjector counted
     # every inline Formula / display Equation in the document the same way.
@@ -5436,12 +5447,21 @@ def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
                   conf: "float | None" = None, pages: "int | None" = None,
                   images: bool = True, paper: str = "a3",
                   landscape: bool = True, compile_pdf: bool = True,
-                  timeout: int = 900) -> str:
+                  timeout: int = 900,
+                  budget_mb: "float | None" = None) -> str:
     """The action list: only rows with something open, worst first.
     --measure runs the ink chain first (the existing inkreport chain,
-    unchanged; the measure build is still report.pdf)."""
+    unchanged; the measure build is still report.pdf).
+
+    655 — `residuals.pdf` draws its rows from the same equation/formula
+    population `evidence` budgets; it is always a small subset, so it needs
+    no budget check of its own and simply inherits whatever crop (full size
+    or already scaled) `ensure_crops` gave that row. `budget_mb` is
+    threaded through only so a caller building both from one script can
+    keep them consistent."""
     from . import report_tex as rt
     from .reports import residuals as RS
+    from .reports.budget import CROP_BUDGET_MB
     from .reports.crops import ensure_crops
     from .reports.from_document import build_rows
     out = []
@@ -5462,8 +5482,10 @@ def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
     ink = rt.load_ink(ink_path) if ink_path.is_file() else {}
     rows = build_rows(doc, bibkey, ink=ink,
                       lines_path=lines_path if lines_path.exists() else None)
-    rows, crop_note = ensure_crops(rows, doc_dir, pdf, bibkey=bibkey,
-                                   history=_bibkey_history(sc), images=images)
+    rows, crop_note = ensure_crops(
+        rows, doc_dir, pdf, bibkey=bibkey, history=_bibkey_history(sc),
+        images=images,
+        budget_mb=budget_mb if budget_mb is not None else CROP_BUDGET_MB)
     found = RS.findings(rows, doc_dir)
     selected = RS.select(rows, found,
                          conf=conf if conf is not None else rt.CONF_THRESHOLD)

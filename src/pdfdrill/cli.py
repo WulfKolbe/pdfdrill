@@ -1214,10 +1214,12 @@ def _do_breport(args):
 
 def _do_evidence(args):
     """pdfdrill evidence <pdf> --kind equation|formula|table|image [--pdf]
-    [--all-kinds] [--no-images] [--paper a4|a3] [--portrait] [--no-compile]"""
+    [--all-kinds] [--no-images] [--paper a4|a3] [--portrait] [--no-compile]
+    [--budget-mb F]  — 655: crop size budget per built PDF, default 20"""
     from .commands import cmd_evidence
     kind, args = _opt(args, "--kind")
     paper, args = _opt(args, "--paper")
+    budget, args = _opt(args, "--budget-mb")
     pdf_args = [a for a in args if a not in ("--pdf", "--all-kinds",
                                              "--no-images", "--portrait",
                                              "--no-compile")]
@@ -1226,17 +1228,20 @@ def _do_evidence(args):
                         images="--no-images" not in args,
                         paper=paper or "a3",
                         landscape="--portrait" not in args,
-                        compile_pdf="--no-compile" not in args)
+                        compile_pdf="--no-compile" not in args,
+                        budget_mb=float(budget) if budget is not None else None)
 
 
 def _do_residuals(args):
     """pdfdrill residuals <pdf> [--pdf] [--measure] [--conf F] [--pages N]
-    [--no-images] [--paper a4|a3] [--portrait] [--no-compile] [--timeout S]"""
+    [--no-images] [--paper a4|a3] [--portrait] [--no-compile] [--timeout S]
+    [--budget-mb F]  — 655: crop size budget per built PDF, default 20"""
     from .commands import cmd_residuals
     conf, args = _opt(args, "--conf")
     npages, args = _opt(args, "--pages")
     paper, args = _opt(args, "--paper")
     timeout, args = _opt(args, "--timeout")
+    budget, args = _opt(args, "--budget-mb")
     pdf_args = [a for a in args if a not in ("--pdf", "--measure", "--no-images",
                                              "--portrait", "--no-compile")]
     return cmd_residuals(_pdf(pdf_args), pdf_out="--pdf" in args,
@@ -1247,7 +1252,8 @@ def _do_residuals(args):
                          paper=paper or "a3",
                          landscape="--portrait" not in args,
                          compile_pdf="--no-compile" not in args,
-                         timeout=int(timeout) if timeout is not None else 900)
+                         timeout=int(timeout) if timeout is not None else 900,
+                         budget_mb=float(budget) if budget is not None else None)
 
 
 def _do_report(args):

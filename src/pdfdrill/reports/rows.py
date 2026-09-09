@@ -31,6 +31,11 @@ class EvidenceRow:
     notes: tuple = ()
     cdn_url: str = ""
     region: dict = field(default_factory=dict)
+    #: 655 -- an EXPLICIT width WINS over the crop file's own (crop_cell,
+    #: report_tex.py:712). Was EquationRow-only (538); every row kind can
+    #: now be routed through `reports.budget`'s scaled copies, so every kind
+    #: needs somewhere to carry the ORIGINAL pixel width forward.
+    px_width: str = ""
 
     @property
     def shown_page(self) -> str:
@@ -44,7 +49,6 @@ class EvidenceRow:
 @dataclass(frozen=True)
 class EquationRow(EvidenceRow):
     eqnum: str = ""
-    px_width: str = ""
     ink: Optional[dict] = None
 
     @property
