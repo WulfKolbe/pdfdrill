@@ -23,7 +23,7 @@ def ordered(rows: list, kind: str) -> list:
 
 def build(rows_by_kind: dict, kind: str, fmt: str, *, doc_dir, pdf, bibkey,
           history, px2mm, paper, landscape, compile_pdf,
-          budget_mb: "float | None" = None) -> dict:
+          budget_mb: "float | None" = None, rung=None) -> dict:
     if kind not in KINDS:
         raise ValueError("kind must be one of %s, not %r" % (", ".join(KINDS), kind))
     if fmt not in FORMATS:
@@ -59,4 +59,10 @@ def build(rows_by_kind: dict, kind: str, fmt: str, *, doc_dir, pdf, bibkey,
         res["bytes"], res["over_budget"] = _budget.check_artifact(
             res["out"], budget_mb=budget_mb)
         res["budget_mb"] = budget_mb
+        # 655 review round 2 -- `rung` is the REAL `(scale, quality)` (or
+        # None) `ensure_crops` chose for THIS kind, passed in by the
+        # caller (it, not this function, ran `choose_rung`). Carried here
+        # so `_evidence_line` can describe the actual state instead of
+        # assuming every over-budget document sits at the floor.
+        res["rung"] = rung
     return res

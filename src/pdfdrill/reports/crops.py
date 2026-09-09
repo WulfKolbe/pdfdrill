@@ -78,7 +78,14 @@ def records(rows: dict) -> list:
 def _apply_budget(lst: list, crops: Path, crops_b: Path, budget_mb: float):
     """One kind's rows, all crops already at full size in `crops`. Returns
     (rows with `crop`/`px_width` possibly repointed into `crops_b`, note or
-    "" when the rung is 1.0 -- nothing scaled, nothing to say).
+    "" when the rung is 1.0, rung).
+
+    `rung` is `(scale, quality)` when this kind was scaled, else `None` --
+    the ACTUAL choice made, for a caller to report truthfully later (655
+    review round 2: a hardcoded "floored at 0.42/q70" in the OVER BUDGET
+    message was true for gilmore and false for two of the other three real
+    cases, because nothing had ever threaded the real rung anywhere a
+    message could read it back).
 
     Titles come from the rows' OWN resolved crop paths (already run through
     `crop_file`'s bibkey-history lookup), never re-derived from `identifier`
@@ -86,12 +93,12 @@ def _apply_budget(lst: list, crops: Path, crops_b: Path, budget_mb: float):
     bibkey (264)."""
     titles = sorted({r.crop.stem for r in lst if r.crop is not None})
     if not titles:
-        return lst, ""
+        return lst, "", None
     scale, quality, total, over = _budget.choose_rung(crops, titles,
                                                        budget_mb=budget_mb)
     mb = _budget._mb_for_bytes(total)   # DECIMAL MB (655 review round 1, finding 1)
     if scale >= 1.0:
-        return lst, ""
+        return lst, "", None
     widths = rt.scale_crops(crops, crops_b, titles, scale=scale,
                             quality=quality, force=True)
     out = [dataclasses.replace(r, crop=crops_b / ("%s.jpg" % r.crop.stem),
@@ -105,13 +112,18 @@ def _apply_budget(lst: list, crops: Path, crops_b: Path, budget_mb: float):
     # so here rather than reusing that phrase for a different claim.
     note = "scale=%.2f q=%d %.1fMB predicted%s" % (
         scale, quality, mb, " (floor, still over budget predicted)" if over else "")
-    return out, note
+    return out, note, (scale, quality)
 
 
 def ensure_crops(rows: dict, doc_dir: Path, pdf: Path, *, bibkey: str,
                  history=None, images: bool = True,
                  budget_mb: float = _budget.CROP_BUDGET_MB):
-    """Returns (rows with `crop` set, one-line note).
+    """Returns (rows with `crop` set, one-line note, rungs).
+
+    `rungs` is `{kind: (scale, quality) | None}`, one entry per kind in
+    `rows`, ALWAYS present (655 review round 2) so a caller reporting
+    "OVER BUDGET" later can say which rung the document is actually AT
+    instead of assuming one.
 
     655 — after every crop is fetched/rendered, each KIND's rows are checked
     against `budget_mb` (default `reports.budget.CROP_BUDGET_MB`, the
@@ -121,7 +133,7 @@ def ensure_crops(rows: dict, doc_dir: Path, pdf: Path, *, bibkey: str,
     scaled copy in `CROPS_DIR_B`, with `px_width` set to the ORIGINAL pixel
     width so the physical size on the page does not move (`crop_cell`)."""
     if not images:
-        return rows, "images: off"
+        return rows, "images: off", {}
     doc_dir = Path(doc_dir)
     crops = doc_dir / CROPS_DIR
     crops_b = doc_dir / CROPS_DIR_B
@@ -129,14 +141,15 @@ def ensure_crops(rows: dict, doc_dir: Path, pdf: Path, *, bibkey: str,
     ok, cached, failed = rt.download_crops(recs, crops)
     r_ok, r_cached, r_skip = rt.render_crops(recs, crops, Path(pdf),
                                              kinds=KINDS_ALL)
-    out, budget_notes = {}, []
+    out, budget_notes, rungs = {}, [], {}
     for kind, lst in rows.items():
         lst = [dataclasses.replace(
             r, crop=rt.crop_file(crops, r.identifier, bibkey, history))
             for r in lst]
         # 655 review round 1, finding 5 -- a distinct name from the final
         # `note` below: this one is per-KIND and never read after the loop.
-        out[kind], kind_note = _apply_budget(lst, crops, crops_b, budget_mb)
+        out[kind], kind_note, rungs[kind] = _apply_budget(lst, crops, crops_b,
+                                                          budget_mb)
         if kind_note:
             budget_notes.append("%s %s" % (kind, kind_note))
     note = ("crops: %d fetched, %d cached, %d failed; %d rendered from the "
@@ -144,4 +157,4 @@ def ensure_crops(rows: dict, doc_dir: Path, pdf: Path, *, bibkey: str,
                                             r_skip))
     if budget_notes:
         note += "; budget (%.0fMB): %s" % (budget_mb, "; ".join(budget_notes))
-    return out, note
+    return out, note, rungs

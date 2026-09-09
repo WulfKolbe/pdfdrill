@@ -1,9 +1,14 @@
 655 — a size budget for the evidence PDFs; wiring the dead downsampler
 =====================================================================
-(fix round 1 of 5, addressing task-655-review.md's four blocking findings
-against commit 8d035bd6; this text REPLACES the round-0 report, which
-contained a real unit bug and an apples-to-oranges number the review
-caught — see "WHAT THE REVIEW CAUGHT" below for what was wrong and why.)
+(fix round 2 of 5. Round 1 addressed task-655-review.md's four blocking
+findings against commit 8d035bd6; round 1's re-review found five of six
+findings genuinely fixed and verified against real rebuilt artefacts, and
+raised ONE new blocking finding, fixed in "FIX ROUND 2" at the end of this
+file. The numbers below are UNCHANGED from round 1 — round 2 touched only
+how a message describes state, not what was built. This text otherwise
+REPLACES the round-0 report, which contained a real unit bug and an
+apples-to-oranges number the review caught — see "WHAT THE REVIEW CAUGHT"
+below for what was wrong and why.)
 
 THE USER'S WORDS, both quoted and both acted on. On the size budget: "use
 the size budget ... I have loaded pdf files with 10-20MB without problems
@@ -277,3 +282,137 @@ WHAT WAS NOT DONE
   deliberately NOT implemented, per the review's explicit instruction.
 * The pre-existing `report-crops-b/` debris (dated 2026-09-03, before this
   task existed) noted in round 0 is unaffected by this round's changes.
+
+========================================================================
+FIX ROUND 2 (this round) — the OVER BUDGET message named the wrong rung
+========================================================================
+
+WHAT THE RE-REVIEW FOUND. Round 1's re-review confirmed five of six
+findings fixed and verified against real rebuilt artefacts (corpus totals
+recomputed independently and matched out/655.txt exactly; check_artifact's
+output checked byte-for-byte against gilmore/johnston/0902.0431; the
+residuals fix confirmed genuinely exercised — 0902.0431's residuals.tex has
+19 references to the scaled crop directory, zero to the full-size one).
+
+ONE new BLOCKING finding: `commands.py`'s `_evidence_line` built its OVER
+BUDGET message with the literal string "(floored at scale 0.42/q70; see
+reports.budget)" REGARDLESS of which rung the document actually landed on.
+Gilmore genuinely is at the floor, so its line happened to read true by
+coincidence. 0902.0431 and johnston are both at 0.60/q72 — their lines
+FALSELY claimed the floor. `cmd_residuals`'s equivalent branch carried no
+such parenthetical at all, which is what told the reviewer this was a
+copy-paste artefact rather than something derived from state: a message
+built from real numbers CANNOT accidentally omit the same clause in one of
+its two nearly-identical call sites while stating it as a hardcoded literal
+in the other.
+
+THE FIX. The rung a kind actually landed on was never surfaced past
+`ensure_crops`'s free-text note — nothing downstream could report it
+truthfully because nothing HELD it as state. Threaded it through instead:
+
+  `reports/crops.py`:
+    `_apply_budget` now returns a THIRD value, `(scale, quality)` or `None`
+    (rung 1.0 / nothing scaled), alongside the rows and the note.
+    `ensure_crops` now returns a THIRD value, `rungs: {kind: rung|None}`,
+    one entry for every kind in `rows`, always present.
+
+  `reports/budget.py`:
+    `rung_phrase(rung) -> str` — ONE place that turns a rung into words.
+    `None` -> "at full size (no crop was re-encoded for this kind)".
+    A real rung -> "at scale S.SS/qQQ", with "(the floor)" appended ONLY
+    when `scale` matches `CROP_LADDER[-1]` (never the literal 0.42 again).
+
+  `reports/evidence.py`:
+    `build(..., rung=None)` — the caller (which ran `choose_rung` via
+    `ensure_crops`, upstream) passes the real rung for THIS kind; stored
+    verbatim as `res["rung"]`, alongside `bytes`/`over_budget`/`budget_mb`.
+
+  `reports/residuals.py`:
+    residuals.pdf can mix equation AND formula rows, so there is no single
+    "the rung" the way `evidence-<kind>.pdf` has one. `select()`'s
+    `_with_crop` now also stamps `_kind` (`rows.row_kind`) onto each
+    corrected pair. A new `_kinds_present(selected)` derives, from the ROW
+    OBJECTS actually in this specific build (SECTIONS[1:] plus corrected
+    pairs' `_kind`), exactly which of {"equation","formula"} contributed a
+    row. `build(..., rungs=None)` stores `res["rungs"] = {k: rungs.get(k)
+    for k in sorted(_kinds_present(selected))}` — named ONLY for kinds
+    genuinely present, each with its own real rung.
+
+  `commands.py`:
+    `cmd_evidence` passes `rung=rungs.get(k)` into `EV.build`; `_evidence_
+    line` calls `rung_phrase(r.get("rung"))` instead of a literal string.
+    `cmd_residuals` passes `rungs=rungs` into `RS.build` and, when over
+    budget, joins `"%s %s" % (kind, rung_phrase(rung))` for every kind in
+    `r["rungs"]` — now carrying the SAME information `_evidence_line` does,
+    derived the same way, in both branches, as asked.
+
+CHECKED THE REST OF THE MESSAGE for anything else asserted rather than
+derived (the reviewer's instruction, given this is the third instance of a
+claim that did not survive checking in this task family): `%.1fMB
+compiled` reads `r["bytes"]`, the real `check_artifact` result; `%.1fMB
+budget` reads `r["budget_mb"]`, the value actually passed in; "see
+reports.budget" is a pointer, not a factual claim. Only the rung clause was
+hardcoded. `grep`'d the rest of `commands.py`/`evidence.py`/`residuals.py`/
+`crops.py` for "0.42" and "floored at" — the only other occurrences are in
+docstrings describing the GENERAL policy (module-level, not a claim about
+any specific document's state), left as-is.
+
+TESTS ADDED (11, all new):
+  tests/test_reports_budget.py:
+    test_rung_phrase_names_a_non_floor_rung_without_calling_it_the_floor —
+      THE decisive test: (0.60, 72) must render as "at scale 0.60/q72",
+      never "floor". A floor-only test would have passed under the old
+      hardcoded string and missed this entirely.
+    test_rung_phrase_names_the_floor_only_when_it_is_the_floor
+    test_rung_phrase_of_none_is_full_size
+
+  tests/test_reports_evidence.py:
+    test_build_carries_the_real_rung_through_to_the_result — `evidence.
+      build` stores exactly the `rung` its caller passed, unmodified.
+    test_evidence_line_names_the_actual_rung_not_a_hardcoded_floor — a
+      0.60/q72 message must contain "0.60/q72" and must NOT contain "0.42"
+      or "floor".
+    test_evidence_line_names_the_floor_only_when_it_really_is_the_floor
+    test_evidence_line_over_budget_with_no_rung_says_full_size — the
+      edge case where a kind was never scaled (rung 1.0) yet the compiled
+      PDF still exceeds budget from apparatus overhead alone.
+
+  tests/test_reports_residuals.py:
+    test_build_names_only_the_rungs_of_kinds_actually_present — with rows
+      of both kinds, `res["rungs"]` must contain BOTH equation and formula,
+      each its own real rung, and nothing for table/image (never present).
+    test_build_without_rungs_arg_still_names_the_kinds_present — `rungs=
+      None` must not crash; every kind present reports `None` (full size).
+
+Full suite: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+tests/ -q -p no:cacheprovider` -> 3431 passed, 0 failed.
+
+RE-VERIFIED AGAINST THE REAL BUILT FILES (not merely asserted): re-ran
+`pdfdrill evidence <pdf> --all-kinds --pdf` for all three genuinely
+over-budget documents. The tool's OWN printed lines now read:
+
+  0902.0431:
+    Wrote .../evidence-formula.pdf: 3170 rows (116 pages, 0 errors,
+    0 demoted) -- OVER BUDGET: 21.3MB compiled > 20.0MB budget
+    (at scale 0.60/q72; see reports.budget)
+
+  johnston-linear-matrix-algebra:
+    Wrote .../evidence-formula.pdf: 5143 rows (207 pages, 0 errors,
+    1 demoted) -- OVER BUDGET: 20.8MB compiled > 20.0MB budget
+    (at scale 0.60/q72; see reports.budget)
+
+  gilmore-lie-groups (the user's own example):
+    Wrote .../evidence-formula.pdf: 3473 rows (259 pages, 0 errors,
+    0 demoted) -- OVER BUDGET: 20.4MB compiled > 20.0MB budget
+    (at scale 0.42/q70 (the floor); see reports.budget)
+
+0902.0431 and johnston now correctly say 0.60/q72 — NOT the floor; gilmore
+correctly still says the floor, because it genuinely is one. Byte counts
+are unchanged from round 1 (this round changed no crop, no rung selection,
+no compiled content — only how the message describes the rung already
+chosen). `residuals --pdf` re-run on 0902.0431 (the one document with real
+corrected pairs) to confirm the new `rungs`-threading code path runs
+without error on a real document: residuals.pdf stayed under budget (no
+OVER BUDGET line), as before.
+
+Log: ~/pdfdrill-library/out/655/reverify_round2.{py,log}.

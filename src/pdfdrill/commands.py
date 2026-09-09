@@ -5288,7 +5288,12 @@ def _evidence_line(r: dict, pdf_out: bool, compile_pdf: bool) -> str:
     (`reports.budget.check_artifact`, run after `compile_fixpoint`), never
     the crop-byte prediction `ensure_crops`'s note describes; this is the
     one place brief item 3's "reported OVER BUDGET, with its size" actually
-    fires."""
+    fires.
+
+    655 review round 2 — the rung named in the message is `r["rung"]`, the
+    REAL `(scale, quality)` (or `None`) `ensure_crops` chose for this kind,
+    never assumed: a hardcoded "floored at 0.42/q70" was true for gilmore
+    and false for 0902.0431/johnston (both landed at 0.60/q72)."""
     line = "Wrote %s: %d rows" % (r["out"], r["rows"])
     if not pdf_out:
         return line
@@ -5300,10 +5305,11 @@ def _evidence_line(r: dict, pdf_out: bool, compile_pdf: bool) -> str:
     else:
         return line + " (xelatex not installed; .tex written)"
     if r.get("over_budget"):
-        from .reports.budget import _mb_for_bytes
-        line += (" -- OVER BUDGET: %.1fMB compiled > %.1fMB budget (floored "
-                "at scale 0.42/q70; see reports.budget)"
-                % (_mb_for_bytes(r["bytes"]), r["budget_mb"]))
+        from .reports.budget import _mb_for_bytes, rung_phrase
+        line += (" -- OVER BUDGET: %.1fMB compiled > %.1fMB budget (%s; "
+                "see reports.budget)"
+                % (_mb_for_bytes(r["bytes"]), r["budget_mb"],
+                   rung_phrase(r.get("rung"))))
     return line
 
 
@@ -5436,7 +5442,7 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
     budget_mb_final = budget_mb if budget_mb is not None else CROP_BUDGET_MB
     rows = build_rows(doc, bibkey, ink=ink,
                       lines_path=lines_path if lines_path.exists() else None)
-    rows, crop_note = ensure_crops(
+    rows, crop_note, rungs = ensure_crops(
         rows, doc_dir, pdf, bibkey=bibkey, history=_bibkey_history(sc),
         images=images, budget_mb=budget_mb_final)
     # counted from the FULL row dict, independent of which kind(s) this call
@@ -5451,7 +5457,8 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
                      pdf=pdf, bibkey=bibkey, history=_bibkey_history(sc),
                      px2mm=px2mm, paper=paper, landscape=landscape,
                      compile_pdf=compile_pdf,
-                     budget_mb=budget_mb_final if pdf_out else None)
+                     budget_mb=budget_mb_final if pdf_out else None,
+                     rung=rungs.get(k))
         out.append(_evidence_line(r, pdf_out, compile_pdf))
     sc.set_evidence("evidence_kinds", list(KINDS if all_kinds else (kind,)))
     # spec 2026-09-06 (task 10 fix round) — `cmd_report`'s old body was the
@@ -5526,7 +5533,7 @@ def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
     budget_mb_final = budget_mb if budget_mb is not None else CROP_BUDGET_MB
     rows = build_rows(doc, bibkey, ink=ink,
                       lines_path=lines_path if lines_path.exists() else None)
-    rows, crop_note = ensure_crops(
+    rows, crop_note, rungs = ensure_crops(
         rows, doc_dir, pdf, bibkey=bibkey, history=_bibkey_history(sc),
         images=images, budget_mb=budget_mb_final)
     found = RS.findings(rows, doc_dir)
@@ -5537,7 +5544,8 @@ def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
                  px2mm=rt.auto_px2mm(pdf), paper=paper, landscape=landscape,
                  pages=(rt.PAGES_DEFAULT if pages is None else pages),
                  compile_pdf=compile_pdf,
-                 budget_mb=budget_mb_final if pdf_out else None)
+                 budget_mb=budget_mb_final if pdf_out else None,
+                 rungs=rungs)
     counts = ", ".join("%d %s" % (len(selected[k]), k) for k in RS.SECTIONS)
     out.append(crop_note)
     out.append("; ".join(RS.header_lines(doc_dir)))
@@ -5546,9 +5554,17 @@ def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
         line += " (%d pages, %d errors, %d demoted)" % (
             r["pages"], r["errors"], r["demoted"])
     if r.get("over_budget"):
-        from .reports.budget import _mb_for_bytes
-        line += (" -- OVER BUDGET: %.1fMB compiled > %.1fMB budget"
-                % (_mb_for_bytes(r["bytes"]), r["budget_mb"]))
+        # 655 review round 2 -- `r["rungs"]` names exactly the kinds this
+        # BUILD actually drew rows from, each with its own real rung;
+        # residuals.pdf can mix equation and formula, so there is no
+        # single "the rung" to assume the way evidence-<kind>.pdf has one.
+        from .reports.budget import _mb_for_bytes, rung_phrase
+        parts = "; ".join("%s %s" % (k, rung_phrase(rg))
+                          for k, rg in sorted((r.get("rungs") or {}).items()))
+        line += (" -- OVER BUDGET: %.1fMB compiled > %.1fMB budget (%s; "
+                "see reports.budget)"
+                % (_mb_for_bytes(r["bytes"]), r["budget_mb"],
+                   parts or "no scaled kind identified"))
     out.append(line)
     sc.set_evidence("residuals_path", str(r["out"].relative_to(pdf.parent)))
     sc.save()

@@ -93,14 +93,66 @@ def test_build_without_budget_mb_carries_no_verdict_at_all(tmp_path, monkeypatch
     assert "over_budget" not in r and "bytes" not in r
 
 
+def test_build_carries_the_real_rung_through_to_the_result(tmp_path, monkeypatch):
+    """655 review round 2 -- `evidence.build` does not compute a rung (that
+    is `ensure_crops`'s job, upstream); it must carry through EXACTLY the
+    `rung` its caller passed, unmodified, for `_evidence_line` to read
+    back later."""
+    import pdfdrill.reports.evidence as mod
+    monkeypatch.setattr(mod.rt, "compile_fixpoint", _fake_compile(21_000_000))
+    r = E.build(_rows(), "equation", "pdf", doc_dir=tmp_path,
+                pdf=tmp_path / "D.pdf", bibkey="D", history=None,
+                px2mm=None, paper="a3", landscape=True, compile_pdf=True,
+                budget_mb=20.0, rung=(0.60, 72))
+    assert r["rung"] == (0.60, 72)
+
+
 def test_evidence_line_shows_the_real_compiled_size_when_over_budget():
     from pdfdrill.commands import _evidence_line
     r = {"out": Path("evidence-formula.pdf"), "rows": 4594, "pages": 900,
         "errors": 0, "demoted": 0, "bytes": 20_400_000, "over_budget": True,
-        "budget_mb": 20.0}
+        "budget_mb": 20.0, "rung": (0.42, 70)}
     line = _evidence_line(r, pdf_out=True, compile_pdf=True)
     assert "OVER BUDGET" in line
     assert "20.4MB" in line and "20.0MB" in line
+
+
+def test_evidence_line_names_the_actual_rung_not_a_hardcoded_floor():
+    """655 review round 2 -- the message hardcoded "floored at scale
+    0.42/q70" regardless of the real rung; true for gilmore (genuinely at
+    the floor), false for 0902.0431/johnston (both 0.60/q72). A floor-only
+    test would still pass today and miss exactly this, so this one pins a
+    NON-floor rung."""
+    from pdfdrill.commands import _evidence_line
+    r = {"out": Path("evidence-formula.pdf"), "rows": 3170, "pages": 116,
+        "errors": 0, "demoted": 0, "bytes": 21_255_010, "over_budget": True,
+        "budget_mb": 20.0, "rung": (0.60, 72)}
+    line = _evidence_line(r, pdf_out=True, compile_pdf=True)
+    assert "0.60/q72" in line
+    assert "0.42" not in line and "floor" not in line
+
+
+def test_evidence_line_names_the_floor_only_when_it_really_is_the_floor():
+    from pdfdrill.commands import _evidence_line
+    r = {"out": Path("evidence-formula.pdf"), "rows": 3473, "pages": 259,
+        "errors": 0, "demoted": 0, "bytes": 20_445_344, "over_budget": True,
+        "budget_mb": 20.0, "rung": (0.42, 70)}
+    line = _evidence_line(r, pdf_out=True, compile_pdf=True)
+    assert "0.42/q70" in line and "the floor" in line
+
+
+def test_evidence_line_over_budget_with_no_rung_says_full_size():
+    """A kind whose crop-byte prediction already fit at rung 1.0 (nothing
+    scaled) can still land over budget purely from PDF apparatus overhead
+    (655 review round 1, finding 3) -- `rung` is then `None`, and the
+    message must say so truthfully rather than guessing a rung that was
+    never chosen."""
+    from pdfdrill.commands import _evidence_line
+    r = {"out": Path("evidence-formula.pdf"), "rows": 4, "pages": 1,
+        "errors": 0, "demoted": 0, "bytes": 20_100_000, "over_budget": True,
+        "budget_mb": 20.0, "rung": None}
+    line = _evidence_line(r, pdf_out=True, compile_pdf=True)
+    assert "full size" in line and "floor" not in line
 
 
 def test_evidence_line_says_nothing_extra_when_under_budget():

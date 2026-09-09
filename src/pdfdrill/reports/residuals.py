@@ -15,7 +15,7 @@ from .. import report_tex as rt
 from . import budget as _budget
 from . import html as H
 from . import tex as T
-from .rows import EquationRow
+from .rows import EquationRow, row_kind
 
 SECTIONS = ("corrected", "unresolved", "flagged", "lowconf", "doubted")
 CAPTIONS = {"corrected": "Corrected",
@@ -97,10 +97,14 @@ def select(rows_by_kind: dict, found: dict, *, conf: float = rt.CONF_THRESHOLD) 
     # SAME row's `.crop`/`.px_width` onto the pair here is what lets
     # `residuals.build` route the Corrected section through the budgeted
     # copy exactly like every other section already does via `index`.
+    # 655 review round 2 -- `_kind` rides along too, so `build` can report
+    # WHICH kind's rung actually governs a corrected pair's crop (a pair's
+    # own record carries no kind of its own; only its row does).
     def _with_crop(rec):
         r = index.get(rec.get("identifier"))
         return dict(rec, _crop=(r.crop if r is not None else None),
-                   _px_width=(r.px_width if r is not None else ""))
+                   _px_width=(r.px_width if r is not None else ""),
+                   _kind=(row_kind(r) if r is not None else None))
 
     corrected = [_with_crop(p) for p in (found.get("corrected") or [])]
     taken.update(p.get("identifier") for p in corrected if p.get("identifier"))
@@ -171,9 +175,24 @@ def _crop_for(corrected: list):
     return lookup
 
 
+def _kinds_present(selected: dict) -> set:
+    """655 review round 2 -- which of {"equation", "formula"} actually have
+    a row in THIS build, derived from the row objects/`_kind` `select`
+    already stamped -- residuals.pdf mixes both kinds, so "the rung" for
+    it is not one value; this is what lets `build` report exactly the
+    kinds that are really there instead of guessing or reporting all of
+    them regardless."""
+    kinds = set()
+    for k in SECTIONS[1:]:
+        kinds.update(row_kind(r) for r in selected.get(k) or [])
+    kinds.update(p.get("_kind") for p in selected.get("corrected") or []
+                if p.get("_kind"))
+    return kinds
+
+
 def build(selected: dict, fmt: str, *, doc_dir, pdf, bibkey, history, px2mm,
           paper, landscape, pages, compile_pdf,
-          budget_mb: "float | None" = None) -> dict:
+          budget_mb: "float | None" = None, rungs: "dict | None" = None) -> dict:
     doc_dir = Path(doc_dir)
     meta = header_lines(doc_dir)
     rest = _rest_line(selected.get("flagged_rest") or {})
@@ -248,4 +267,8 @@ def build(selected: dict, fmt: str, *, doc_dir, pdf, bibkey, history, px2mm,
         res["bytes"], res["over_budget"] = _budget.check_artifact(
             res["out"], budget_mb=budget_mb)
         res["budget_mb"] = budget_mb
+        # 655 review round 2 -- ONLY the kinds that actually contributed a
+        # row to this specific build, each with its REAL rung (or None);
+        # never a hardcoded assumption about which rung a document is at.
+        res["rungs"] = {k: (rungs or {}).get(k) for k in sorted(_kinds_present(selected))}
     return res

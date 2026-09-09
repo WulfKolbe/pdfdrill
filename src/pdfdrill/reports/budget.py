@@ -157,3 +157,26 @@ def check_artifact(pdf_path: "Path | str", budget_mb: float = CROP_BUDGET_MB):
         return 0, False
     size = pdf_path.stat().st_size
     return size, size > _bytes_for_mb(budget_mb)
+
+
+def rung_phrase(rung) -> str:
+    """A human phrase describing ONE already-chosen rung. `rung` is
+    `(scale, quality)` or `None` (rung 1.0 -- nothing was re-encoded for
+    this kind).
+
+    655 review round 2 -- the previous version of the OVER BUDGET message
+    (`commands._evidence_line`) hardcoded "floored at scale 0.42/q70"
+    regardless of which rung a document actually landed on; true for
+    gilmore (genuinely at the floor), false for 0902.0431 and johnston
+    (both 0.60/q72). This function exists so there is exactly ONE place
+    that turns a rung into words, called with the REAL rung a caller
+    already computed -- never re-derives one, never assumes the floor.
+    "the floor" is added only when `scale` actually equals the ladder's
+    last rung, checked against `CROP_LADDER` itself rather than repeating
+    the literal 0.42."""
+    if rung is None:
+        return "at full size (no crop was re-encoded for this kind)"
+    scale, quality = rung
+    floor_scale = CROP_LADDER[-1][0]
+    at_floor = " (the floor)" if abs(scale - floor_scale) < 1e-9 else ""
+    return "at scale %.2f/q%d%s" % (scale, quality, at_floor)

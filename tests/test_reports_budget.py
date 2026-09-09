@@ -109,3 +109,22 @@ def test_search_never_writes_to_disk(tmp_path, monkeypatch):
     B.choose_rung(tmp_path, ["A"], budget_mb=budget_mb)
     after = sorted(p.name for p in tmp_path.iterdir())
     assert before == after == ["A.jpg"]
+
+
+def test_rung_phrase_names_a_non_floor_rung_without_calling_it_the_floor():
+    """655 review round 2 -- `rung_phrase` must not assume the floor for
+    every scaled rung; only `CROP_LADDER[-1]` earns "(the floor)"."""
+    assert B.rung_phrase((0.60, 72)) == "at scale 0.60/q72"
+
+
+def test_rung_phrase_names_the_floor_only_when_it_is_the_floor():
+    scale, quality = B.CROP_LADDER[-1]
+    phrase = B.rung_phrase((scale, quality))
+    assert "(the floor)" in phrase
+    assert "%.2f/q%d" % (scale, quality) in phrase
+
+
+def test_rung_phrase_of_none_is_full_size():
+    phrase = B.rung_phrase(None)
+    assert "full size" in phrase
+    assert "floor" not in phrase and "0." not in phrase

@@ -234,3 +234,30 @@ def test_build_reports_over_budget_against_the_compiled_artefact(tmp_path, monke
     assert r["over_budget"] is True and r["bytes"] == 21_000_000
 
 
+def test_build_names_only_the_rungs_of_kinds_actually_present(tmp_path, monkeypatch):
+    """655 review round 2 -- residuals.pdf can mix equation and formula
+    rows, so there is no single "the rung"; `res["rungs"]` must name
+    exactly the kinds THIS build drew from (both, here -- `_rows()` has
+    both), each with its own REAL rung, and nothing for a kind (table,
+    image) that never appears."""
+    monkeypatch.setattr(R.rt, "compile_fixpoint", lambda p: (1, 0, 0))
+    s = R.select(_rows(), _found(), conf=0.1)
+    r = R.build(s, "pdf", doc_dir=tmp_path, pdf=tmp_path / "D.pdf", bibkey="D",
+               history=None, px2mm=None, paper="a3", landscape=True,
+               pages=10, compile_pdf=True, budget_mb=20.0,
+               rungs={"equation": (0.85, 75), "formula": (0.60, 72),
+                     "table": None, "image": None})
+    assert r["rungs"] == {"equation": (0.85, 75), "formula": (0.60, 72)}
+
+
+def test_build_without_rungs_arg_still_names_the_kinds_present(tmp_path, monkeypatch):
+    """`rungs=None` (a caller that never scaled anything) must not crash --
+    every kind present is reported as `None` (full size), truthfully."""
+    monkeypatch.setattr(R.rt, "compile_fixpoint", lambda p: (1, 0, 0))
+    s = R.select(_rows(), _found(), conf=0.1)
+    r = R.build(s, "pdf", doc_dir=tmp_path, pdf=tmp_path / "D.pdf", bibkey="D",
+               history=None, px2mm=None, paper="a3", landscape=True,
+               pages=10, compile_pdf=True, budget_mb=20.0)
+    assert r["rungs"] == {"equation": None, "formula": None}
+
+

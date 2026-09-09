@@ -68,7 +68,7 @@ def test_ensure_crops_calls_download_then_render_and_fills_crop(tmp_path, monkey
                                region={"top_left_x": 1, "top_left_y": 1,
                                        "width": 9, "height": 9})],
             "image": []}
-    out, note = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf", bibkey="D")
+    out, note, rungs = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf", bibkey="D")
     assert seen["render"][1] == ("_EQ", "_FO", "_TAB", "_DIA", "_PIC")
     assert out["equation"][0].crop == tmp_path / "report-crops" / "D_EQ0001.jpg"
     assert out["formula"][0].crop == tmp_path / "report-crops" / "D_FO0001.jpg"
@@ -80,7 +80,7 @@ def test_ensure_crops_calls_download_then_render_and_fills_crop(tmp_path, monkey
 def test_images_off_leaves_every_crop_none(tmp_path):
     rows = {"equation": [EquationRow(identifier="D_EQ0001", latex="x")],
             "formula": [], "table": [], "image": []}
-    out, note = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf",
+    out, note, rungs = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf",
                                bibkey="D", images=False)
     assert out["equation"][0].crop is None and note == "images: off"
 
@@ -146,7 +146,7 @@ def _budget_setup(tmp_path, monkeypatch, *, formula_w=400, formula_h=300):
 
 def test_a_kind_under_budget_selects_full_scale_and_copies_nothing(tmp_path, monkeypatch):
     rows = _budget_setup(tmp_path, monkeypatch)
-    out, note = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf", bibkey="D",
+    out, note, rungs = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf", bibkey="D",
                                budget_mb=1000.0)   # comfortably over both
     crops = tmp_path / C.CROPS_DIR
     assert out["formula"][0].crop == crops / "D_FO0001.jpg"
@@ -169,7 +169,7 @@ def test_a_kind_over_budget_scales_and_the_other_kind_is_untouched(tmp_path, mon
     table_before = (crops / "D_TAB_001.jpg").read_bytes()
     budget_mb = (full_size / 2) / (1024 * 1024)
 
-    out, note = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf", bibkey="D",
+    out, note, rungs = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf", bibkey="D",
                                budget_mb=budget_mb)
 
     fr = out["formula"][0]
@@ -199,7 +199,7 @@ def test_physical_size_on_the_page_is_unchanged_by_scaling(tmp_path, monkeypatch
     before_cell = C.rt.crop_cell(crops, tmp_path, "D_FO0001", px2mm=0.1,
                                  col_mm=1000.0, bibkey="D")
 
-    out, _ = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf", bibkey="D",
+    out, _, rungs = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf", bibkey="D",
                             budget_mb=(full_size / 2) / (1024 * 1024))
     fr = out["formula"][0]
     assert fr.crop.parent == tmp_path / C.CROPS_DIR_B   # sanity: it WAS scaled
@@ -219,7 +219,7 @@ def test_floor_reached_is_reported_as_a_prediction_not_a_verdict(tmp_path, monke
     checked against the real artefact). So this note says "predicted", not
     the bare "OVER BUDGET" a reader could mistake for a checked fact."""
     rows = _budget_setup(tmp_path, monkeypatch)
-    out, note = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf", bibkey="D",
+    out, note, rungs = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf", bibkey="D",
                                budget_mb=1e-9)     # unreachable by any rung
     fr = out["formula"][0]
     assert fr.crop.parent == tmp_path / C.CROPS_DIR_B
