@@ -5324,7 +5324,15 @@ def _keyless_math_steering(pdf_name: str, inline: int, eqs: int, bearing: bool,
 # no sidecar fact, no artefact. Its job is to make the failure VISIBLE, not
 # to fix anything it finds. The three counts are the whole claim the
 # pipeline makes ("no content lost, none mixed up") stated as a number.
-def cmd_conserve(pdf: Path, json_out: bool = False, limit: int = 10) -> str:
+#
+# 656 -- `--gate` turns the same measurement into a RATCHET: every
+# unreachable object is either a verified by-design route (`BY_DESIGN`) or a
+# violation whose count must match `conserve_baseline.json` exactly. A
+# mismatch (new type, more, or FEWER) prints the report and exits nonzero —
+# `raise SystemExit`, not a return value, is the only way a CLI command in
+# this project fails a build (`skill_cmd.run`'s `--check` is the precedent).
+def cmd_conserve(pdf: Path, json_out: bool = False, limit: int = 10,
+                 gate: bool = False) -> str:
     """Conservation audit of the emitted projection.
 
     unreachable objects  — DocObjects the TiddlyWiki projection never places
@@ -5336,9 +5344,16 @@ def cmd_conserve(pdf: Path, json_out: bool = False, limit: int = 10) -> str:
     The projection is built IN MEMORY from the model, never read from disk:
     a stale `.tiddlers.json` would make the audit measure the wrong thing.
     Pairs with 634, which measures the same surface from the input side.
+
+    `--gate` (656): classify `unreachable` into by-design vs violation and
+    check the violation counts against the checked-in baseline for this
+    document's bibkey (`docops.conserve.gate`). Exits nonzero on any
+    mismatch — a NEW violation type, an INCREASE, or a DECREASE (which means
+    the baseline itself is stale and must be updated, not silently accepted).
     """
     from docmodel.core import Document
     from docops.conserve import conserve, format_report
+    from docops.conserve import format_gate_report, gate as _conserve_gate
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
@@ -5352,6 +5367,16 @@ def cmd_conserve(pdf: Path, json_out: bool = False, limit: int = 10) -> str:
     with open(model_path, "r", encoding="utf-8") as f:
         doc = Document.from_dict(json.load(f))
     res = conserve(doc)
+    if gate:
+        g = _conserve_gate(doc, res=res)
+        if json_out:
+            out = _jsonio.dumps(g, indent=1)
+        else:
+            out = format_gate_report(g)
+        if not g["passed"]:
+            print(out)
+            raise SystemExit(1)
+        return out
     if json_out:
         return _jsonio.dumps(res, indent=1)
     return format_report(res, limit=limit)

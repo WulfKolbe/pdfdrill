@@ -1537,14 +1537,17 @@ def _do_booktoc(args):
 
 
 def _do_conserve(args):
-    """pdfdrill conserve <pdf> [--json] [--limit N]  — conservation audit of the projection"""
+    """pdfdrill conserve <pdf> [--json] [--limit N] [--gate]  — conservation
+    audit of the projection; --gate checks the violation counts against the
+    checked-in baseline and exits nonzero on any mismatch (656)."""
     from .commands import cmd_conserve
     lim, rest = _opt(args, "--limit")
-    rest = [a for a in rest if a != "--json"]
+    gate_on = "--gate" in rest
+    rest = [a for a in rest if a not in ("--json", "--gate")]
     if not rest:
         raise ValueError("No file specified.")
     return cmd_conserve(_drilled(rest), json_out="--json" in args,
-                        limit=int(lim) if lim else 10)
+                        limit=int(lim) if lim else 10, gate=gate_on)
 
 
 def _do_gaps(args):

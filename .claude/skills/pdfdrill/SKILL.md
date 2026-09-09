@@ -547,7 +547,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill markdown <md>` | Build a source-only model from LLM-summary Markdown (yt2tw route): sections/paragraphs/math/lists + cite{} commands linked to the gold ```bibtex appendix (or the numbered References list). --bibkey K |
 | `pdfdrill identifiers <pdf>` | Front-matter scan (scoped by the booktoc offset): checksum-valid ISBN/ISSN/DOI/arXiv + German ids + ALL-CAPS named-entity candidates (publisher/author) |
 | `pdfdrill booktoc <pdf>` | Greppable TOC with printed→PDF page alignment (front-matter offset from title↔section matches): grep a chapter/section name → its PDF page |
-| `pdfdrill conserve <pdf> [--json] [--limit LIMIT]` | CONSERVATION CHECK of the emitted projection (read-only, fixes nothing): three counts — objects the TiddlyWiki projection never places under a parent, mathpix_lines anchors no object claims, and anchors two or more objects both claim (the "this footnote carries its neighbour's text" class). The projection is built IN MEMORY from the model, never read from disk. Per-type breakdown + named examples; --json for the full record. Pairs with `residuals`, which measures the input side. |
+| `pdfdrill conserve <pdf> [--json] [--limit LIMIT] [--gate]` | CONSERVATION CHECK of the emitted projection (read-only, fixes nothing): three counts — objects the TiddlyWiki projection never places under a parent, mathpix_lines anchors no object claims, and anchors two or more objects both claim (the "this footnote carries its neighbour's text" class). The projection is built IN MEMORY from the model, never read from disk. Per-type breakdown + named examples; --json for the full record. --gate (656) turns it into a RATCHET: classifies unreachable objects as by-design (a verified route) or a violation, checks violation counts against the checked-in baseline (conserve_baseline.json), and exits nonzero on any new type, increase, or decrease (a stale baseline). Pairs with `residuals`, which measures the input side. |
 | `pdfdrill gaps <pdf>` | Report MISSING information (cohomology-as-linter): acronyms used but never expanded, undeclared math symbols, novelty claims without citations, unmatched in-text citations |
 | `pdfdrill llmtext <pdf> [--delimiter DELIMITER] [--no-split]` | Flat LLM dump: per unit the tiddler title + paragraph text / formula latex, document order, units split on double line breaks + separated by --delimiter (default %%%%); empty formulas skipped |
 | `pdfdrill quantities <pdf>` | Quantitative-layer report: quantities by kind (number/ratio/money/count/ named_metric/derivation), measurements, verification tally (verified/refuted/ uncheckable via VER.EQ.RECOMPUTE) + the top refuted item. Needs `pdfdrill enhance --only quantity,measurement,concepts` first |
@@ -665,6 +665,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-5814136c` before any build/extract command.
-DRILL-5814136c
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-e8ec9bb5` before any build/extract command.
+DRILL-e8ec9bb5
 <!-- PREFLIGHT-TOKEN:END -->

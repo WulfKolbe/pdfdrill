@@ -1,0 +1,31 @@
+{
+    "1811.06102": {
+        "Citation": 137,
+        "Proof": 8,
+        "Theorem": 26
+    },
+    "2602.12042v1": {
+        "Algorithm": 1,
+        "AlgorithmStep": 14,
+        "Citation": 254
+    },
+    "SteerableWaveletFramesBasedontheRieszTransform": {
+        "Citation": 64,
+        "List": 17
+    },
+    "kolbe2018hubbard": {
+        "Link": 106,
+        "List": 2
+    },
+    "narcissus": {
+        "Citation": 37,
+        "CodeListing": 29
+    },
+    "penev_A": {
+        "Citation": 81,
+        "List": 3
+    },
+    "penev_B": {
+        "Citation": 25
+    }
+}

@@ -79,11 +79,39 @@ fix round 1 and excluded nothing, because `cmd_lists` builds a List DocObject
 with no realization of any kind — an exclusion asserting a shape that does
 not exist is worse than no exclusion, since a reader takes it for a measured
 fact.
+
+656 — CONSERVE BECOMES A GATE
+------------------------------
+A transclusion audit (2026-09) found that `conserve` already catches every
+one of seven object types (Theorem, Proof, CodeListing, Algorithm,
+AlgorithmStep, List, Link — and, measured here, MathTail) that never reach
+the reader, and that nothing runs it: `cmd_conserve` was read-only, opt-in,
+and untested against the corpus. A full corpus scan (1,362 models) for this
+task found an EIGHTH: `Citation` fails the identical structural test (no row
+in `TITLE_SHAPES` at all — the same mechanism as the other eight, not the
+"marker rewritten to a REF transclusion" story the audit weighed and
+declined to resolve) — see `BY_DESIGN`'s own docstring below. It also found
+that the same corpus carries a much longer tail of OTHER unreachable types
+(Formula, Paragraph, Equation, ...) whose rate is nowhere near 100% — a
+working path with catalogued incidental gaps (645/646's own follow-ups),
+not a missing one; `OUT_OF_SCOPE` names them and why they are not this
+gate's business.
+
+This module gains `BY_DESIGN` (the reachability-side twin of
+`CONTAINER_TYPES`, same standard: name the route, verify it, or don't list
+it), `OUT_OF_SCOPE` (a working path, explicitly not ratcheted here),
+`gate()` (a RATCHET against a checked-in baseline of known violation counts
+— `conserve_baseline.json`, DATA not code) and `format_gate_report()`. None
+of this makes the nine violation types reachable — that is a separate,
+larger task — it makes their absence, and any FUTURE absence or new type,
+impossible to pass silently.
 """
 from __future__ import annotations
 
+import json
 import re
 from collections import Counter, defaultdict, deque
+from pathlib import Path
 from typing import Any
 
 from docmodel.core import Document
@@ -97,6 +125,101 @@ from docmodel.core import Document
 #: all, so the exclusion excluded nothing and asserted a shape that does not
 #: exist.
 CONTAINER_TYPES = ("Page",)
+
+# =========================================================================
+# 656 — THE GATE. CONTAINER_TYPES (above) answers "does this type CLAIM a
+# line" for the anchors half; BY_DESIGN answers the same question one level
+# up, for REACHABILITY: which object types are ALLOWED to have no tiddler
+# (or no reached tiddler) because their content demonstrably reaches the
+# reader some other, verified way — as opposed to a type that is simply
+# dropped and happens not to have been caught yet.
+#
+# THE STANDARD IS THE ONE `CONTAINER_TYPES` ALREADY SETS: an entry states the
+# ROUTE the content takes and where that route was VERIFIED, not that the
+# type "doesn't matter". `List` sat in `CONTAINER_TYPES` for exactly one
+# round, asserted nothing, and was removed — the same fate awaits any entry
+# here that stops being true. `Citation` is the sharpest case this repo has
+# for what does NOT qualify: its marker is rewritten to a `{{REF||CIT}}`
+# transclusion, so a citation's PRESENCE is felt in the page, but the
+# Citation DocObject's own printed text is replaced, not carried — the
+# transclusion-audit (2026-09) named this "arguably correct by design" and
+# explicitly declined to resolve it. Not substantiated, not listed here:
+# `Citation` is a VIOLATION type in the baseline below, like every other
+# unreachable type nobody has proven a route for.
+BY_DESIGN: dict[str, str] = {
+    "Page": "addressed by FIELD (`page`/`page_number` on the objects that "
+            "sit on it), never transcluded: `PAGE` has no entry in "
+            "`TEMPLATES` or `BLOCK_TEMPLATE` at all "
+            "(docops/projectors/tiddlywiki.py) — there is no shape for a "
+            "Page tiddler to take. Navigational addressing, not content.",
+    "TableCell": "folded into the parent Table's `raw_text` "
+                 "(docmodel/modules/table.py:60-61 joins every child "
+                 "cell/row's own `text`); the Table's own tiddler carries "
+                 "that text whenever no SVG/cdn image is rendered instead. "
+                 "Verified corpus-wide (transclusion-audit.md Q2): 0 of "
+                 "12,094 Table objects have BOTH a populated `raw_text` AND "
+                 "a rendered image that would shadow it — the case where a "
+                 "cell's text would actually be lost never occurs.",
+    "TableRow": "same mechanism, same corpus-wide verification as "
+                "TableCell.",
+    "Toc": "deliberately never emitted (262): the outline is REBUILT as the "
+           "`<bibkey>_TOC` fractal index straight from the Section tree "
+           "(tiddlywiki.py `_emit_tiddlers`, the '262' block), and that "
+           "rebuilt index is one of `reachability`'s own two ROOTS — the "
+           "walk already depends on the substitution existing. A frozen "
+           "Toc tiddler would duplicate it and go stale the moment a "
+           "section is retitled or renumbered.",
+    "Document": "the model's own `Document` DocObject (`docmodel/modules/"
+                "document_structure.py`'s `_create_document_root`, id=bibkey) "
+                "is a SUMMARY container: `total_pages`/`total_sections`/"
+                "`total_paragraphs`/`first_section_id` are corpus-verified "
+                "unread fields (`docmodel.prop_contract.NO_READER_REASON` — "
+                "\"consumers walk the flow instead\"/\"count the objects "
+                "instead\"), and its real structural role (listing every "
+                "top-level section) is independently duplicated by the "
+                "PROJECTOR'S OWN root tiddler (tiddlywiki.py, title=bibkey, "
+                "built from `doc.meta` + `inv[\"sections\"]`, not from this "
+                "DocObject at all — `reachability`'s other ROOT). Measured "
+                "corpus-wide at 100% unreachable (1358 of 1358, 1358 of 1358 "
+                "documents) — the identical rate BY_DESIGN's other four "
+                "entries show, for the identical reason: a second root "
+                "already carries what this object would.",
+}
+
+#: 656 — types explicitly OUT OF SCOPE for the ratchet below: they have a
+#: WORKING transclusion path (most instances of the type DO reach the
+#: reader — measured corpus-wide well under 100%, unlike BY_DESIGN's and the
+#: baseline's own types, which sit at ~100% for a provable structural
+#: reason) and their nonzero counts are a long tail of INCIDENTAL,
+#: already-catalogued per-document gaps: a paragraph/section that fell
+#: outside the reachable tree (`test_conserve.py`'s own (g), 646-g/646-j),
+#: a footnote/sidenote/list-item body whose containing marker's inline
+#: substitution never ran (`_transclude_paragraph` is the ONLY place
+#: `subs_by_line` is applied — 645-a), a dark TOC region (646-d), an
+#: overlapping citation group that lost a stub link (646-c). Ratcheting
+#: these HERE would freeze a large, separately-owned, already-tracked defect
+#: population under a task whose brief is explicit: "Do not make the seven
+#: types reachable. That is a separate task." — these are not the seven (or
+#: the ninth, Citation) and this gate does not adjudicate them.
+OUT_OF_SCOPE: dict[str, str] = {
+    t: ("has a working transclusion path (most instances reach the reader — "
+        "the transclusion-audit's own Type table marks it reachable in the "
+        "common case); its nonzero corpus-wide count is the incidental "
+        "class documented in 645-a/646-c/646-d/646-g/646-j (an orphan "
+        "paragraph/section, an un-substituted inline marker, a dark TOC "
+        "region, a lost citation-stub link) — a separately tracked defect "
+        "population, not a missing code path, and out of THIS gate's scope.")
+    for t in ("Formula", "Paragraph", "Equation", "ListItem", "Reference",
+             "Diagram", "Sidenote", "Footnote", "Section", "Table",
+             "Picture", "Abstract", "LtxCommand")
+}
+
+#: 656 — the checked-in RATCHET. {bibkey: {type: count}}, the exact
+#: unreachable-object count `conserve()` measured for that document's
+#: VIOLATION types (types in neither BY_DESIGN nor OUT_OF_SCOPE) the last
+#: time the baseline was reviewed. Data, not code — reviewing "did a count
+#: change" is a diff of numbers, not a code review. See `gate()`.
+BASELINE_PATH = Path(__file__).with_name("conserve_baseline.json")
 
 _TRANSCLUDE = re.compile(r"\{\{([^{}]+?)\}\}")
 _LINK_TO = re.compile(r"<\$link\s+to=\"([^\"]+)\"")
@@ -500,6 +623,161 @@ def _dark_anchors(doc: Document, reach: dict, claims: dict) -> dict:
     return {"count": n,
             "by_type": [{"types": list(k), "count": v}
                         for k, v in by_type.most_common()]}
+
+
+# ------------------------------------------------------------------ 656 gate
+
+def load_baseline() -> dict:
+    """{bibkey: {type: count}} as last recorded in `conserve_baseline.json`.
+
+    Missing file -> `{}`, the same "zero tolerance until someone looks"
+    posture `gate()` gives an unaudited bibkey: absence is not an exemption.
+    """
+    if not BASELINE_PATH.is_file():
+        return {}
+    return json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
+
+
+def classify_unreachable(reach: dict) -> dict:
+    """Partition `reach['unreachable']` into THREE buckets, counted per type.
+    A separate lens over the same list `reachability()` already returns —
+    none of `conserve()`'s three headline counts changes — so a human (or
+    `gate()`) can see the real drops first instead of drowning in
+    Page/TableCell/TableRow/Toc/Document, which is exactly the
+    signal-to-noise problem the transclusion-audit named in `cmd_conserve`'s
+    own output.
+
+      - `by_design`    — BY_DESIGN: a verified alternate route; not a defect.
+      - `out_of_scope` — OUT_OF_SCOPE: a working transclusion path with a
+        catalogued INCIDENTAL gap (645/646's own numbered follow-ups); not
+        ratcheted by THIS gate.
+      - `violations`   — everything else: a type with NO code path at all
+        (measured ~100% unreachable corpus-wide) that nobody has named a
+        route for. This is what `gate()` ratchets.
+    """
+    by_design: Counter = Counter()
+    out_of_scope: Counter = Counter()
+    violations: Counter = Counter()
+    for e in reach["unreachable"]:
+        t = e["type"]
+        if t in BY_DESIGN:
+            by_design[t] += 1
+        elif t in OUT_OF_SCOPE:
+            out_of_scope[t] += 1
+        else:
+            violations[t] += 1
+    return {"by_design": dict(by_design), "out_of_scope": dict(out_of_scope),
+            "violations": dict(violations)}
+
+
+def gate(doc: Document, res: "dict | None" = None,
+        baseline: "dict | None" = None) -> dict:
+    """656 — THE RATCHET. Every unreachable object is BY_DESIGN (a verified
+    route), OUT_OF_SCOPE (a working path with a catalogued incidental gap —
+    645/646's own follow-ups, not this gate's business), or a VIOLATION
+    whose count for this document's bibkey must match the checked-in
+    baseline EXACTLY.
+
+    `res` — a `conserve(doc)` result already computed by the caller, so this
+    does not project the document a second time; `conserve(doc)` if omitted.
+    `baseline` — `load_baseline()` if omitted.
+
+    A bibkey with NO row in the baseline is held to an EMPTY one: every
+    violation type it has is reported as NEW. An unaudited document gets
+    zero tolerance, not a silent pass — the same posture `type_contract`
+    takes with an unclaimed corpus type.
+
+    Four outcomes, not one boolean, because "it failed" is not an action:
+      - `new_types`   — a violation type with no baseline row at all: either
+        classify it (a real route -> BY_DESIGN) or record its count;
+      - `increased`   — MORE unreachable objects of a known type than the
+        baseline: a regression, or a change that earns a new baseline;
+      - `decreased`   — FEWER (including zero): good news that leaves the
+        baseline stale if not recorded — 646/656's own rule that a fixed
+        defect must not go on being "found" forever;
+      - `matched`     — exactly the baseline: reported too, so a PASS shows
+        the numbers it passed on rather than just the word.
+    `passed` is true only when `new_types`, `increased` and `decreased` are
+    all empty.
+    """
+    if res is None:
+        res = conserve(doc)
+    if baseline is None:
+        baseline = load_baseline()
+    bibkey = res["bibkey"]
+    cls = classify_unreachable(res["reachability"])
+    current = cls["violations"]
+    recorded = dict(baseline.get(bibkey, {}))
+
+    new_types = {t: n for t, n in current.items() if t not in recorded}
+    increased = {t: {"baseline": recorded[t], "now": current[t]}
+                for t in current
+                if t in recorded and current[t] > recorded[t]}
+    decreased = {t: {"baseline": recorded[t], "now": current.get(t, 0)}
+                for t in recorded
+                if current.get(t, 0) < recorded[t]}
+    matched = {t: n for t, n in current.items()
+              if t in recorded and current[t] == recorded[t]}
+    passed = not (new_types or increased or decreased)
+    return {
+        "bibkey": bibkey,
+        "passed": passed,
+        "has_baseline_row": bibkey in baseline,
+        "by_design": cls["by_design"],
+        "out_of_scope": cls["out_of_scope"],
+        "violations": current,
+        "baseline": recorded,
+        "new_types": new_types,
+        "increased": increased,
+        "decreased": decreased,
+        "matched": matched,
+    }
+
+
+def format_gate_report(g: dict) -> str:
+    """The prose `cmd_conserve --gate` prints: verdict first, then every
+    reason a FAIL fired (new/increased/decreased, worst first), THEN the
+    quiet classes (matched baseline, by-design) — real violations before
+    housekeeping, per the transclusion-audit's own signal-to-noise finding.
+    """
+    L: list[str] = []
+    verdict = "PASS" if g["passed"] else "FAIL"
+    row_note = "" if g["has_baseline_row"] else "  (no baseline row for this bibkey — zero tolerance)"
+    L.append(f"conserve --gate {g['bibkey']}: {verdict}{row_note}")
+    for t in sorted(g["new_types"]):
+        n = g["new_types"][t]
+        L.append(f"  NEW unreachable type: {t} ({n} object{'s' if n != 1 else ''}) "
+                 f"— not in BY_DESIGN and not in the baseline. Either name the "
+                 f"verified route (BY_DESIGN) or record {n} in "
+                 f"conserve_baseline.json.")
+    for t in sorted(g["increased"]):
+        d = g["increased"][t]
+        L.append(f"  INCREASED: {t} {d['baseline']} -> {d['now']} — a "
+                 f"regression, unless this is an intentional change that "
+                 f"needs a new baseline number.")
+    for t in sorted(g["decreased"]):
+        d = g["decreased"][t]
+        if d["now"] == 0:
+            L.append(f"  FIXED: {t} {d['baseline']} -> 0 — remove it from "
+                     f"conserve_baseline.json rather than leaving a stale "
+                     f"entry (a fixed defect must not go on being \"found\").")
+        else:
+            L.append(f"  DROPPED: {t} {d['baseline']} -> {d['now']} — update "
+                     f"the baseline to the new, lower count.")
+    if g["matched"]:
+        L.append("  at baseline: "
+                 + ", ".join(f"{t}={n}" for t, n in sorted(g["matched"].items())))
+    if g["by_design"]:
+        L.append("  by design (not counted against the gate): "
+                 + ", ".join(f"{t}={n}" for t, n in sorted(g["by_design"].items())))
+    if g.get("out_of_scope"):
+        L.append("  out of scope (working path, incidental gaps tracked "
+                 "elsewhere — 645/646): "
+                 + ", ".join(f"{t}={n}" for t, n in sorted(g["out_of_scope"].items())))
+    if not (g["new_types"] or g["increased"] or g["decreased"] or g["matched"]
+           or g["by_design"] or g.get("out_of_scope")):
+        L.append("  no unreachable objects of any kind.")
+    return "\n".join(L)
 
 
 # --------------------------------------------------------------- rendering

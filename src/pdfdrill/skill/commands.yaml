@@ -2229,7 +2229,11 @@ commands:
     anchors no object claims, and anchors two or more objects both claim (the "this
     footnote carries its neighbour''s text" class). The projection is built IN MEMORY
     from the model, never read from disk. Per-type breakdown + named examples; --json
-    for the full record. Pairs with `residuals`, which measures the input side.'
+    for the full record. --gate (656) turns it into a RATCHET: classifies unreachable
+    objects as by-design (a verified route) or a violation, checks violation counts
+    against the checked-in baseline (conserve_baseline.json), and exits nonzero on
+    any new type, increase, or decrease (a stale baseline). Pairs with `residuals`,
+    which measures the input side.'
   offline_ok: true
   positionals:
   - name: pdf
@@ -2246,6 +2250,11 @@ commands:
     type: int
     default: 10
     help: named examples per finding class
+  - name: gate
+    flag: --gate
+    type: flag
+    help: 'ratchet mode (656): check violation counts against the checked-in
+      baseline and exit nonzero on any mismatch'
   typed: true
   requires:
   - model

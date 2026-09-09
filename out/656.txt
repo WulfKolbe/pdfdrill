@@ -1,0 +1,346 @@
+656 — conserve becomes a gate
+==============================
+
+"make conserve a gate." The user stated an architectural invariant from
+memory — "all non-textual objects should be transcluded and all output
+should always be a projection" — and a transclusion audit found seven
+object types that never reach the output, and found that `docops.conserve`
+already detects every one of them but nothing runs it. The user chose to
+close the INSTRUMENT half of the gap first. This task does NOT make the
+seven types reachable — that is a separate task and is not touched here.
+
+ASSUMPTION, STATED AS THE BRIEF ASKS
+  "Every model you can reach" = every folder directly under
+  ~/pdfdrill-library that carries a `model.docmodel.json`, enumerated by
+  FOLDER NAME (never a `*.pdf` glob), measured AS THE MODELS STAND — no
+  `--force` rebuild, no mathpix call. 2,824 folders scanned, 1,362 models
+  found (matches the audit's own "corpus of 1,362 models" exactly), 0
+  errors, 1 skipped (`1511.08771`'s `model.docmodel.json` is 4.96 GB — the
+  next largest in the library is 149 MB; a hard size guard skips it rather
+  than risk repeating the OOM the first, single-process version of this
+  scan hit on it).
+
+EVIDENCE (library, deny-by-default git; never committed to this repo)
+  ~/pdfdrill-library/out/656/driver.py            the corpus-scan driver —
+  ~/pdfdrill-library/out/656/worker.py             one document per
+                                                    subprocess, so
+                                                    1511.08771's 4.96 GB
+                                                    model cannot inflate
+                                                    the whole run's memory
+  ~/pdfdrill-library/out/656/corpus_summary.json   per-type unreachable
+                                                    objects / documents /
+                                                    total population,
+                                                    corpus-wide
+  ~/pdfdrill-library/out/656/corpus_per_doc.json   the same, per document
+  ~/pdfdrill-library/out/656/corpus_type_table.txt the table below, with
+                                                    each BY_DESIGN route /
+                                                    OUT_OF_SCOPE reason
+                                                    printed in full
+  ~/pdfdrill-library/out/656/report.py             builds the table above,
+                                                    the real baseline, and
+                                                    the two named
+                                                    documents' gate +
+                                                    tiddler_integrity output
+  ~/pdfdrill-library/out/656/named_documents.json  penev_A, penev_B,
+                                                    1811.06102, narcissus,
+                                                    2602.12042v1,
+                                                    kolbe2018hubbard,
+                                                    SteerableWavelet...:
+                                                    objects, counts,
+                                                    violations, by_design,
+                                                    out_of_scope
+  ~/pdfdrill-library/out/656/conserve_baseline.real.json  the exact content
+                                                    committed as
+                                                    src/docops/
+                                                    conserve_baseline.json
+  ~/pdfdrill-library/out/656/gate_penev_A.txt      the gate + integrity
+  ~/pdfdrill-library/out/656/gate_SteerableWaveletFramesBasedontheRieszTransform.txt
+                                                    report for each, printed
+                                                    below
+  ~/pdfdrill-library/out/656/INSPECT.txt           9 paths, all checked
+
+WHAT WAS BUILT
+  src/docops/conserve.py
+    BY_DESIGN         type -> the verified route its content actually takes
+                      (the reachability-side twin of `CONTAINER_TYPES`,
+                      held to the same standard — CONTAINER_TYPES' own
+                      docstring: "an exclusion asserting a shape that does
+                      not exist is worse than no exclusion"). Five entries:
+                      Page, TableCell, TableRow, Toc (as already documented
+                      for the anchors side / dead-Toc-emission) plus a NEW
+                      one this task's measurement justified: Document (see
+                      FINDINGS below).
+    OUT_OF_SCOPE      type -> why this gate does not ratchet it: a WORKING
+                      transclusion path (measured well under 100%
+                      corpus-wide) whose nonzero count is the incidental,
+                      already-catalogued class from 645/646's own
+                      follow-ups (orphan paragraphs/sections, footnote
+                      bodies whose inline substitution never runs, dark TOC
+                      regions, lost citation-stub links) — not a missing
+                      code path, and not this task's job. 13 entries:
+                      Formula, Paragraph, Equation, ListItem, Reference,
+                      Diagram, Sidenote, Footnote, Section, Table, Picture,
+                      Abstract, LtxCommand.
+    classify_unreachable(reach)   partitions `reachability()`'s
+                      `unreachable` list into by_design / out_of_scope /
+                      violations, per type. Neither of `conserve()`'s three
+                      headline counts changes.
+    load_baseline()   reads `conserve_baseline.json` (DATA, not code) —
+                      `{}` if missing (an unaudited document gets ZERO
+                      TOLERANCE, not a silent pass).
+    gate(doc, res=None, baseline=None)   THE RATCHET. Every unreachable
+                      object is by_design, out_of_scope, or a VIOLATION
+                      whose count for this bibkey must match the baseline
+                      EXACTLY: `new_types` (no baseline row for it),
+                      `increased` (more than baseline — a regression),
+                      `decreased` (fewer, INCLUDING ZERO — a stale
+                      baseline, reported as a FAIL so it cannot be
+                      silently accepted), `matched` (exact). `passed` iff
+                      new_types/increased/decreased are all empty.
+    format_gate_report(g)   verdict, then every FAIL reason (new/
+                      increased/decreased, worst first), THEN the quiet
+                      classes (matched, by_design, out_of_scope) — real
+                      violations before housekeeping.
+  src/docops/conserve_baseline.json   NEW. The committed ratchet, DATA:
+                      penev_A, penev_B, 1811.06102, narcissus,
+                      2602.12042v1, kolbe2018hubbard,
+                      SteerableWaveletFramesBasedontheRieszTransform — the
+                      documents named in this brief plus the ones the
+                      audit live-verified. Not the full 1,362-document
+                      corpus: those documents are private/copyright-bound
+                      library content the library's own deny-by-default
+                      git keeps out of a public repo (rule 19), and most of
+                      them could never be re-run by anyone without that
+                      exact library on disk. The full corpus measurement
+                      lives in the library (above); the repo's baseline
+                      is deliberately scoped to the documents someone
+                      running this repo could actually gate.
+  src/pdfdrill/commands.py   `cmd_conserve` gains `gate: bool = False`.
+                      `--gate` classifies, checks the baseline, and on a
+                      FAIL prints the report then `raise SystemExit(1)` —
+                      the same convention `skill_cmd.run`'s `--check` uses
+                      (SystemExit is not caught by `main()`'s `except
+                      Exception`, so it reaches the shell as a real nonzero
+                      exit). On a PASS it just returns the report text, so
+                      `_emit()` prints it once.
+  src/pdfdrill/cli.py   `_do_conserve` parses `--gate`.
+  .claude/skills/pdfdrill/commands.yaml   `conserve`'s entry gains the
+                      `--gate` flag + an updated summary. `requires:
+                      [model]` was ALREADY on this entry (646 added it) —
+                      the brief's claim that line 2217 "declares no
+                      prerequisites" did not hold at HEAD; noted rather
+                      than silently corrected (rule 12). `skillsync all .`
+                      run; manifest <-> HANDLERS confirmed in sync.
+  tests/test_conserve_gate.py   NEW, 13 tests. A fixture carrying ONE
+                      object of every BY_DESIGN and every VIOLATION type
+                      the transclusion-audit measured live (1811.06102,
+                      narcissus, 2602.12042v1, kolbe2018hubbard — named in
+                      the fixture's own docstring so a future reader knows
+                      which real documents its shapes come from), pinned to
+                      a baseline that matches it exactly. Both directions
+                      (rule 11): PASS at baseline, FAIL on a new type, FAIL
+                      on an increase, FAIL on a decrease (with "FIXED …
+                      remove it from the baseline" for a drop to zero and
+                      "DROPPED … update the baseline" otherwise), FAIL with
+                      zero tolerance for an unaudited bibkey, and PASS
+                      (not silently, not loudly) for an OUT_OF_SCOPE type's
+                      own gap.
+  tests/test_cmd_conserve_gate.py   NEW, 3 tests. `cmd_conserve(...,
+                      gate=True)` on a real (small, synthetic-on-disk)
+                      model: PASS returns text, FAIL raises
+                      `SystemExit(1)` after printing the report (checked in
+                      both prose and `--json` mode).
+
+WHERE THE GATE LIVES, AND WHY
+  `conserve` itself, not a new verb (CLAUDE.md: "a new capability is a
+  layer in the manifest, not a new verb — and not a tool"). `--gate` is a
+  flag on the existing, already-manifest-registered `conserve` command;
+  `requires: [model]` was already correct and needed no change. The
+  enforcement mechanism is `raise SystemExit(1)` inside the command
+  function — the one precedent this codebase already has for a CLI check
+  that fails a build (`skill_cmd.run`'s `--check`, used by
+  `.github/workflows/skill-sync.yml`). `conserve` stays read-only by
+  construction (no `@_writes`, no sidecar fact, no artefact) even in
+  `--gate` mode: it still fixes nothing, it just now REFUSES to say nothing
+  went wrong when something did. The classification (BY_DESIGN /
+  OUT_OF_SCOPE) lives in code, reviewed like code; the baseline (per-
+  document counts) lives in `conserve_baseline.json`, DATA, reviewed as a
+  diff of numbers — the same split `docmodel.type_contract`'s
+  CLAIMED/IGNORED-vs-`corpus_types.json` already uses for exactly this
+  reason.
+
+THE CORPUS BASELINE TABLE (1,362 models; unreachable objects / documents /
+total population / percentage / classification; BY_DESIGN route or
+OUT_OF_SCOPE reason in full in corpus_type_table.txt)
+
+  type            unreachable   docs   total_pop    pct   class
+  Formula             313793   1104      451218   69.5%   out-of-scope
+  TableCell           230124    687      230124  100.0%   by-design
+  Paragraph           213164   1281      309352   68.9%   out-of-scope
+  Equation             90355    752      120981   74.7%   out-of-scope
+  Citation             81841    581       81841  100.0%   VIOLATION (new)
+  Page                 68076   1361       68076  100.0%   by-design
+  TableRow             48767    687       48767  100.0%   by-design
+  ListItem             36687    831       57102   64.2%   out-of-scope
+  Reference            16762    428       24573   68.2%   out-of-scope
+  Diagram              16696    720       25529   65.4%   out-of-scope
+  Sidenote              9263    579       15890   58.3%   out-of-scope
+  Footnote              6504    671        7269   89.5%   out-of-scope
+  Section               3549    100       17554   20.2%   out-of-scope
+  Table                 3443    520        5987   57.5%   out-of-scope
+  Picture               2478    307        4062   61.0%   out-of-scope
+  Theorem               1458     39        1458  100.0%   VIOLATION
+  Document              1358   1358        1358  100.0%   by-design (new)
+  Abstract               931    838        1057   88.1%   out-of-scope
+  LtxCommand              668     53        3297   20.3%   out-of-scope
+  AlgorithmStep           611     19         611  100.0%   VIOLATION
+  Proof                   431     22         431  100.0%   VIOLATION
+  CodeListing             426     14         426  100.0%   VIOLATION
+  Link                    254      2         254  100.0%   VIOLATION
+  Toc                     156    156         156  100.0%   by-design
+  MathTail                 51     12          51  100.0%   VIOLATION
+  Algorithm                48     19          48  100.0%   VIOLATION
+  List                     41      4          41  100.0%   VIOLATION
+
+  THE SPLIT IS CLEAN, MEASURED NOT ASSUMED. Every VIOLATION and every
+  BY_DESIGN type reads EXACTLY 100.0% unreachable, corpus-wide, with no
+  exception; every OUT_OF_SCOPE type reads between 20.2% and 89.5% — a
+  working path with real but partial gaps. Nothing sits in between. That
+  gap in the distribution (100% vs an 80-point-wide band well under it) is
+  what makes "this type has NO code path at all" a measured fact rather
+  than a judgment call for every VIOLATION/BY_DESIGN row above.
+
+  The eight/seven types the audit named — Theorem, Proof, CodeListing,
+  Algorithm, AlgorithmStep, List, Link, MathTail — all matched the audit's
+  stated population EXACTLY (Theorem 1458/39, Proof 431/22, CodeListing
+  426/14, AlgorithmStep 611/19, Algorithm 48/19, Link 254/2, MathTail
+  51/12, List 41/4). No type in the audit's list turned out, on
+  measurement, to reach the reader after all.
+
+FINDINGS BEYOND THE AUDIT'S LIST (both new, both measured corpus-wide,
+neither invented for this task)
+
+  1. CITATION IS A NINTH VIOLATION, not a violation the audit weighed and
+     dismissed but one it never measured corpus-wide. `Citation` has NO
+     row in `TITLE_SHAPES` at all (grepped, HEAD) — the identical
+     mechanism as Algorithm/Link/List/MathTail/AlgorithmStep, not the
+     "marker rewritten to a REF transclusion" story the audit's Q1
+     section called "arguably correct by design" and explicitly declined
+     to resolve. Measured: 81,841 of 81,841 Citation objects, 100.0%,
+     across 581 documents — the same 100%-or-nothing signature as the
+     eight structural types. It is now a ratcheted VIOLATION type, not
+     BY_DESIGN: the route the audit floated (the citing prose is replaced
+     by a `{{REF||CIT}}` link, so the READER sees something, but the
+     Citation object's own printed text is REPLACED, not carried) was
+     never substantiated, and CONTAINER_TYPES' own rule says an
+     unsubstantiated exclusion is worse than none.
+  2. DOCUMENT IS A FIFTH BY_DESIGN TYPE. The model's own `Document`
+     DocObject (`docmodel/modules/document_structure.py`'s
+     `_create_document_root`, id=bibkey) reads 100.0% unreachable — 1,358
+     of 1,358, one per document, in EVERY document that has one. Verified,
+     not assumed: its own fields (`total_pages`/`total_sections`/
+     `total_paragraphs`/`first_section_id`) are corpus-confirmed UNREAD
+     (`docmodel.prop_contract.NO_READER_REASON`: "consumers walk the flow
+     instead"/"count the objects instead"), and its one structural role —
+     listing every top-level section — is independently duplicated by the
+     PROJECTOR'S OWN root tiddler (`tiddlywiki.py`, title=bibkey, built
+     from `doc.meta` + a fresh query over `Section` objects, never from
+     this DocObject) — which is itself one of `reachability`'s two ROOTS.
+     A second root already carries everything this object would.
+
+GATE VERDICT — penev_A
+  conserve --gate penev_A: PASS
+    at baseline: Citation=81, List=3
+    by design (not counted against the gate): Document=1, Page=22,
+      TableCell=54, TableRow=15, Toc=1
+    out of scope (working path, incidental gaps tracked elsewhere —
+      645/646): Footnote=25, Formula=49, Paragraph=2, Reference=5,
+      Sidenote=1
+
+GATE VERDICT — SteerableWaveletFramesBasedontheRieszTransform
+  conserve --gate SteerableWaveletFramesBasedontheRieszTransform: PASS
+    at baseline: Citation=64, List=17
+    by design (not counted against the gate): Document=1, Page=15,
+      TableCell=141, TableRow=20
+    out of scope (working path, incidental gaps tracked elsewhere —
+      645/646): Abstract=1, Footnote=1, Formula=36, ListItem=2,
+      Paragraph=2, Reference=2, Sidenote=1
+
+  Both PASS by construction — the committed baseline for these two
+  bibkeys was written FROM this same measurement, so a PASS here shows the
+  mechanism works end to end on real documents, not that a regression was
+  caught (that direction is what `tests/test_conserve_gate.py` exercises
+  with a deliberate delta). Re-running `pdfdrill conserve <pdf> --gate` on
+  either document later, after any change to the projector or the model,
+  will catch a genuine drift against these exact numbers.
+
+TIDDLER_INTEGRITY ON THE SAME TWO DOCUMENTS — THE DISAGREEMENT, ON RECORD
+  penev_A:      unreferenced=80  {FN:25, FO:49, REF:5, SN:1}
+                orphan_ref=5  dangling=0
+  SteerableWavelet: unreferenced=40  {FN:1, FO:36, REF:2, SN:1}
+                orphan_ref=2  dangling=0
+
+  Neither report mentions Citation or List AT ALL, on either document —
+  confirmed by `UNREFERENCED_KINDS` (`tiddlywiki.py`): `("Formula",
+  "Equation", "Footnote", "Sidenote", "Table", "Diagram", "Picture",
+  "Reference")`. `tiddler_integrity` printed clean-looking "80 unreferenced"
+  / "40 unreferenced" summaries on two documents that `conserve --gate`
+  finds have 84 (81+3) and 81 (64+17) VIOLATION-class unreachable objects
+  respectively that it cannot see at all — the exact gap the audit
+  described as "the projector reports 0 dangling, 0 orphan" while a real
+  defect sat outside the five kinds the instrument watches.
+
+TESTS (TDD; every case confirmed failing for its stated reason first)
+  tests/test_conserve_gate.py, 13 tests — PASS-at-baseline, FAIL-on-new,
+    FAIL-on-increase, FAIL-on-decrease (both "FIXED, remove it" and
+    "DROPPED, update it" messages), FAIL-with-zero-tolerance for an
+    unaudited bibkey, PASS-with-no-effect for an OUT_OF_SCOPE gap,
+    classification partition, BY_DESIGN/OUT_OF_SCOPE substantiation.
+  tests/test_cmd_conserve_gate.py, 3 tests — the CLI wrapper's PASS/FAIL/
+    SystemExit(1)/--json contract, on a small real (synthetic, on-disk)
+    model.
+  tests/test_conserve.py — unchanged, all 11 still pass; `Citation`'s own
+    fixture (test_b) is untouched and still asserts it "no tiddler",
+    which is now understood as this task's ninth VIOLATION type rather
+    than an unclassified oddity.
+
+  FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+  tests/ -q -p no:cacheprovider  ->  3405 passed, 0 failed
+  (13 new tests from this task: 10 in test_conserve_gate.py, 3 in
+  test_cmd_conserve_gate.py; test_skill_sync in sync).
+
+CONCERNS
+  The committed `conserve_baseline.json` covers seven documents, not the
+  1,362-document corpus. That is a deliberate scope decision (stated
+  above under WHAT WAS BUILT), not an oversight: the full corpus lives in
+  a private, deny-by-default library that this repo's tests and CI cannot
+  see, so a baseline entry for a document nobody running this repo can
+  open would be untestable data. `pdfdrill conserve <pdf> --gate` on any
+  OTHER real document gets zero tolerance (an empty baseline row) until
+  someone adds one — which is the same posture `type_contract` already
+  takes with an unclaimed corpus type, not a new one invented here.
+  OUT_OF_SCOPE's 13 entries share ONE reason string rather than 13
+  individually-cited ones: each type's nonzero count IS the class named
+  (an orphan paragraph/section outside the reachable tree, a footnote/
+  sidenote/list-item body whose marker substitution never ran, a dark TOC
+  region, a lost citation-stub link — all four mechanisms are documented,
+  by name, in 645/646's own follow-up lists), but this task did not
+  re-verify, type by type, which specific mechanism accounts for which
+  document's count. That re-verification is exactly the "make the seven
+  types reachable" work the brief says is a separate task — extended here
+  to "diagnose the thirteen out-of-scope types' own gaps," which is a
+  different, larger task again.
+  `1511.08771` (4.96 GB model) was excluded from the corpus measurement
+  entirely — the population is 1,362 of the 1,363 models this library
+  currently holds, not 1,363. Its own reachability is unmeasured by this
+  task.
+  The gate was verified against real documents by calling
+  `docops.conserve.gate`/`conserve` directly (as `cmd_conserve` itself
+  does internally) rather than by invoking the `pdfdrill conserve --gate`
+  CLI entry point on penev_A / SteerableWaveletFramesBasedontheRieszTransform:
+  the CLI path calls `_stale_or_absent` first, and running it against
+  live, valuable library documents risked triggering an unwanted
+  `cmd_model` rebuild pass. The CLI wrapper itself (the `--gate` flag
+  parsing, the SystemExit/print contract) is exercised in
+  `tests/test_cmd_conserve_gate.py` against a small synthetic model on
+  disk instead.
