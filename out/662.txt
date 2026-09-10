@@ -9,6 +9,14 @@ run-length rule task 617 already built, rather than replacing it (the
 auditor's task text describes a naive presence gate that no longer exists
 on this branch; out/657's inventory established that first).
 
+FIX ROUND 1 (this revision) — three blocking findings from an independent
+review, addressed in place; see FIX ROUND 1 markers below and the summary
+at the end of this file. Everything NOT marked "fix round 1" is unchanged
+from the first commit and was independently reproduced and confirmed by
+the reviewer (decision-table shape prior to the fix, the promotion, the
+escape-bug fix, the pre-existing-fixture migration, the measurement
+isolation method, "nothing rebuilt").
+
 WHERE text_spans NOW LIVES, AND WHY
 ------------------------------------
 `src/pdfdrill/text_escapes.py` — new module. Not inlined into report_tex.py
@@ -45,71 +53,109 @@ TWO JUDGEMENT CALLS ON THE PROMOTED CODE
    got right (`\{`, one backslash), so the fix does not regress it.
 
 2. \operatorname — EXCLUDED from the CJK gate's notion of "text mode",
-   KEPT in the general list. `TEXT_IN_MATH` (moved unchanged) answers a
-   FONT question for tools/audit_glyph_sites.py: which face renders a
-   glyph inside a `$\displaystyle ...$` cell, and `\operatorname` really
-   does set its argument in the main/roman font, same as `\text`. The CJK
-   gate asks a different, CONTENT question: is this ideograph prose, or a
+   KEPT in the general list. `TEXT_IN_MATH` answers a FONT question for
+   tools/audit_glyph_sites.py: which face renders a glyph inside a
+   `$\displaystyle ...$` cell, and `\operatorname` really does set its
+   argument in the main/roman font, same as `\text`. The CJK gate asks a
+   different, CONTENT question: is this ideograph prose, or a
    hallucinated decomposition sitting inside some brace group? The
    auditor's own pinned case — `\mathrm{中}` stays REJECTED because "a
    math alphabet is not text mode" — applies just as much to
    `\operatorname`: it selects an upright math alphabet for an operator
    NAME, not a sentence, and CJK inside one is far more likely to be OCR
    misrouting a variable name than an author writing Chinese. So
-   `report_tex.CJK_TEXT_MACROS` is a second, narrower regex (text_escapes.py)
-   used ONLY by cjk_defect, excluding `\operatorname` (and `\mathrm`, never
-   in either list) — TEXT_IN_MATH is untouched because its own, different
-   job needs `\operatorname` in it.
+   `CJK_TEXT_MACROS` (text_escapes.py) is a second, narrower regex used
+   ONLY by cjk_defect, excluding `\operatorname` (and `\mathrm`, never in
+   either list).
+   FIX ROUND 1 (minor finding 4): `TEXT_IN_MATH` and `CJK_TEXT_MACROS` were
+   two independently-spelled regexes differing only in `\operatorname`'s
+   presence — coherent and tested, but able to drift if a third macro were
+   ever added to only one of them. Both are now DERIVED from one list,
+   `_FONT_MACROS`, minus `_CONTENT_EXCLUDED` (today: `{"operatorname"}`)
+   for the narrower one — a macro added to `_FONT_MACROS` reaches both
+   regexes automatically unless also named in `_CONTENT_EXCLUDED`.
    Tested: tests/test_cjk_text_scope.py::test_9_operatorname_cjk_is_refused;
    tests/test_text_escapes.py::
    test_operatorname_is_not_in_the_cjk_text_macro_list (contrasted directly
    against test_operatorname_is_in_the_default_font_audit_list, which pins
-   TEXT_IN_MATH's unchanged behaviour).
+   TEXT_IN_MATH's unchanged behaviour) — both re-verified against the
+   derived regexes, unchanged in observable behaviour.
 
-THE COMBINED DECISION TABLE (report_tex.cjk_defect)
--------------------------------------------------------
-Two independent discriminators exist and BOTH apply — text-scoping does
-not replace 617's run-length rule, it adds one more distinction inside the
-run-length rule's own "short run" case:
+THE COMBINED DECISION TABLE (report_tex.cjk_defect) — REVISED, FIX ROUND 1
+----------------------------------------------------------------------------
+The FIRST version of this table had text-scoping REPLACE the run-length
+rule inside a text span (any run, however short, permitted unconditionally
+once inside `\text{}`/`\mbox{}`/etc). An independent review, backed by
+direct inspection of the three rows this actually changed on a real
+document (BH1org_OCR — see POPULATION 2 below), found that "inside
+`\text{}`" carries ZERO discriminating power for a run of exactly ONE on a
+non-Chinese document: MathPix's own symbol-guessing produces the identical
+shape (a lone wrong ideograph) whether or not its guess happens to land
+inside a text macro, and BH1org_OCR's three occurrences are all run length
+one and all read as that failure mode, not prose (one is a single-
+character slot in a 3-row matrix column; two stack an EMPTY `\text{}`
+against a one-character `\text{}` via `\stackrel`, a notation-decoration
+shape no author types by hand). Corrected rule: TEXT-SCOPING RELAXES THE
+RUN-LENGTH RULE INSIDE A TEXT SPAN, IT DOES NOT SWITCH IT OFF THERE — a run
+of ONE still refuses in EITHER location; the bar that moves is the
+THRESHOLD for what counts as "long enough to be text", not whether the
+rule applies at all. `CJK_TEXT_RUN_MIN` (2) is that lowered, in-text-span
+threshold; `CJK_RUN_MIN` (3) is the unchanged, bare-math threshold.
 
-  | class \ location     | inside CJK_TEXT_MACROS | outside (bare math) |
-  |-----------------------|-------------------------|----------------------|
-  | IDC (U+2FF0-2FFB)     | REFUSE                  | REFUSE               |
-  | `\zh` command         | REFUSE                  | REFUSE               |
-  | run < CJK_RUN_MIN (3) | PERMIT  <- the one       | REFUSE               |
-  |                       |    cell 662 changes      |                      |
-  | run >= CJK_RUN_MIN    | PERMIT                  | PERMIT               |
+  | class \ location                          | inside CJK_TEXT_MACROS | outside (bare math) |
+  |---------------------------------------------|-------------------------|----------------------|
+  | IDC (U+2FF0-2FFB)                            | REFUSE                  | REFUSE               |
+  | `\zh` command                                | REFUSE                  | REFUSE               |
+  | run == 1 (a single stray character)          | REFUSE  <- fix round 1  | REFUSE               |
+  |                                               |   added this row;       |                      |
+  |                                               |   was PERMIT before     |                      |
+  | CJK_TEXT_RUN_MIN <= run < CJK_RUN_MIN (== 2)  | PERMIT  <- the one cell | REFUSE               |
+  |                                               |   662 actually relaxes  |                      |
+  | run >= CJK_RUN_MIN (3)                       | PERMIT                  | PERMIT               |
 
 Justification per cell (full version lives as the cjk_defect docstring,
-report_tex.py:1084 area, so it travels with the code):
+report_tex.py, so it travels with the code):
   - IDC, either location: not a glyph, a RECIPE for one; only the
     decomposition path ever emits one, so location cannot change its
-    meaning. Unscoped per the auditor's explicit instruction.
+    meaning. Unscoped per the auditor's explicit instruction. Unchanged.
   - `\zh`, either location: existing pin (test_zh_command_is_flagged
     refuses `\zh{x}` where "x" isn't even CJK) and the docstring's own
     worked example show `\zh` as a decomposition companion marker, not a
-    deliberate language switch. Unscoped for the same reason as the IDC row.
-  - run < CJK_RUN_MIN, INSIDE a text span — THE CHANGE: a single Chinese
-    particle/classifier inside `\text{...}` is ordinary prose that happens
-    to be one character long. Refusing it conflated "short" with
-    "decomposition"; the decomposition path never emits its recipe inside
-    a text macro (it emits bare IDCs — see the IDC row, unaffected).
-  - run < CJK_RUN_MIN, OUTSIDE any text span: unchanged from 617 — a lone
-    ideograph bare in math mode is exactly the decomposition shape 617
-    measured. This is also WHY `\mathrm{中}` and `\operatorname{中}` both
-    still refuse: neither macro is in CJK_TEXT_MACROS (judgement call 2),
-    so a single ideograph inside either one falls in THIS cell, not the
-    one above it.
-  - run >= CJK_RUN_MIN, either location: unchanged from 617 (a run was
-    already permitted everywhere; text-scoping cannot make it MORE
-    permitted).
+    deliberate language switch. Unscoped for the same reason as the IDC
+    row. Unchanged.
+  - run == 1, EITHER location — FIX ROUND 1: REFUSE. Every "legitimate
+    Chinese" example this gate's own history cites (判别式法, 符合题意,
+    对零件i跳过检测, and the auditor's OmniDocBench population) is
+    multi-character; none supports treating a lone character as prose
+    merely for sitting inside braces, and BH1org_OCR's three real
+    occurrences of exactly this shape are all hallucinations.
+  - CJK_TEXT_RUN_MIN <= run < CJK_RUN_MIN, INSIDE a text span: PERMIT.
+    THE cell that is genuinely relaxed: two consecutive ideographs inside
+    `\text{...}` (e.g. `\text{的确}`, "indeed") get credit for being marked
+    as text that the same length would not get bare in math — a bounded
+    relaxation (one character's worth), not a bypass.
+  - the same run length, OUTSIDE a text span: unchanged from 617 — no such
+    credit without a text macro around it. REFUSE. This is also WHY
+    `\mathrm{中}` and `\operatorname{中}` both still refuse: neither macro
+    is in CJK_TEXT_MACROS (judgement call 2), so a single ideograph inside
+    either one is "outside a text span" by this table AND additionally
+    hits the run == 1 row.
+  - run >= CJK_RUN_MIN, either location: unchanged from 617 (a run this
+    long is text by construction, measured, in EITHER location — measured
+    again here: BH1org_OCR's three hallucinated occurrences are all run
+    length one, never two or three).
 
-Rule 17's fixture: tests/test_cjk_text_scope.py, 12 cases, one per
-decision-table cell plus edge cases — case 12 places one ideograph INSIDE
-a text span immediately adjacent to one OUTSIDE it (`\text{中}文`, the `}`
-breaks cjk_runs' run so both are individually "short"), proving the walk
-scores per-character location, not whole-string presence of some macro
-name.
+Rule 17's fixture: tests/test_cjk_text_scope.py, now 16 cases (12 -> 16,
+fix round 1: split case 12 into a REFUSE pair for run==1 and a new PERMIT/
+REFUSE pair for the relaxed run==2 threshold, and added the two real
+BH1org_OCR rows directly as regression pins) — one per decision-table cell
+plus edge cases. Case 14 (was case 12) places one ideograph INSIDE a text
+span immediately adjacent to one OUTSIDE it (`\text{中}文`); both are now
+independently run-length-one and both refuse (before the fix, the inside
+one was wrongly permitted). Cases 10/11 pin the NEW relaxed cell against
+its bare-math counterpart directly (`\text{的确}` permitted,
+`x = 两个` refused) so the relaxation is proven bounded, not global. Cases
+15/16 are the two real BH1org_OCR `\stackrel`/matrix rows, verbatim.
 
 THE TWO MEASUREMENTS, KEPT APART (rule 12)
 -----------------------------------------------
@@ -122,16 +168,43 @@ method task 659 used for its own before/after:
   OLD          narrow _CJK_BLOCKS (pre-662), no text-scoping at all
                (structurally = task 617's gate)
   TEXT_SCOPED  narrow _CJK_BLOCKS (unchanged), WITH text-scoping
+               (the FIXED, fix-round-1 algorithm — relax, not bypass)
   FINAL        widened _CJK_BLOCKS (662), WITH text-scoping
                (today's shipped report_tex.cjk_defect, unmodified)
 
   delta A (text-scoping alone)   = TEXT_SCOPED vs OLD,         range held narrow
   delta B (range-widening alone) = FINAL       vs TEXT_SCOPED, scoping held on
 
-Script: ~/pdfdrill-library/out/662/662_measure.py (also holds the doc-
-specific copies under each document's own out/662/, per rule 19 — same
-script, run once per document). In-memory only: no report or PDF was
-rebuilt, per the brief.
+Re-run after the fix round 1 correction (all three configurations were
+re-measured with the corrected `cjk_defect`; the monkeypatch harness itself
+did not need to change, since it patches the same two globals the fixed
+algorithm still reads).
+
+FIX ROUND 1 (blocking finding 1) — EVIDENCE LAYOUT CORRECTED, NOT JUST
+RESTATED. The prior revision of this file claimed a per-document copy of
+`662_measure.py` existed under each document's own `out/662/`; it did not
+— only the JSON did. Rather than weaken the claim, the files now actually
+exist: `pdfdrill.taskout.save_script` wrote a real copy of the exact
+script into each document's own `out/662/` (and `taskout.save_json`
+re-saved the data through the project's own writer at the same path), so
+the sentence below is now literally true, not aspirational.
+
+Script: ~/pdfdrill-library/out/662/662_measure.py (shared source), copied
+verbatim into each document's own `out/662/662_measure.py` via
+`taskout.save_script` — same script, run once per document, a REAL copy in
+each location, not merely the shared one referenced by path. In-memory
+only: no report or PDF was rebuilt, per the brief.
+
+FIX ROUND 1 (blocking finding 2) — INSPECT.txt WRITTEN. Neither document's
+`out/662/` had an `INSPECT.txt` in the prior revision, contradicting the
+brief and HANDOVER-RULES rule 20. Written via `pdfdrill.taskout.inspect_list`
+for both documents, each naming: the script, the data JSON, the source PDF
+(so a person can open the pages named below and see the rows in context),
+and `model.docmodel.json` (the input each finding was read from). Every
+path was checked for existence and non-zero size before being written (rule
+20's "a path in that file is a promise"); none failed.
+  ~/pdfdrill-library/0902.0431/out/662/INSPECT.txt
+  ~/pdfdrill-library/BH1org_OCR/out/662/INSPECT.txt
 
 POPULATION 1 — arXiv 0902.0431 (Lie-groups paper), all math-typed objects
 ----------------------------------------------------------------------------
@@ -142,16 +215,15 @@ query); 2 candidates ever refused by any of the three configurations.
   OLD: 2 refused.  TEXT_SCOPED: 2 refused.  FINAL: 2 refused.
   delta A: 0 rows changed.  delta B: 0 rows changed.
 
-Both refusals are the same two rows task 659 already found and left
-out of scope (out/659.txt): obj_128e57e0e8d7 (page 173, U+2FF1 ⿱) and
-obj_57f7fb159a25 (page 200, U+2FFB ⿻) — both carry an Ideographic
-Description Character, the unscoped row of the table, so text-scoping
-cannot touch them and does not. THEY STILL REFUSE, AND THAT IS RIGHT: an
-IDC is a recipe for a glyph MathPix could not identify, never legitimate
-content, regardless of what macro happens to sit around it — this
-document has no genuine Chinese anywhere, so there is nothing here for
-text-scoping to find.
-Evidence: ~/pdfdrill-library/0902.0431/out/662/662_measure.json
+Unchanged by the fix-round-1 correction (this document has no run-length-2
+CJK-in-text case to be affected either way). Both refusals are the same
+two rows task 659 already found and left out of scope (out/659.txt):
+obj_128e57e0e8d7 (page 173, U+2FF1 ⿱) and obj_57f7fb159a25 (page 200,
+U+2FFB ⿻) — both carry an Ideographic Description Character, the unscoped
+row of the table, so text-scoping cannot touch them and does not. THEY
+STILL REFUSE, AND THAT IS RIGHT.
+Evidence: ~/pdfdrill-library/0902.0431/out/662/662_measure.json,
+662_measure.py, INSPECT.txt
 
 POPULATION 2 — BH1org_OCR (Burkhard Heim, "Elementarstrukturen der
 Materie", 1980, a scanned GERMAN physics book — chosen because it is the
@@ -161,102 +233,116 @@ math-typed CJK occurrence: 6, against 0 for every arXiv-style candidate
 checked (2604.04771v2, DH2017-abstracts, 2509.22186, 2409.01704v1, and 20
 more) and 1-2 for the next-largest candidates — no OmniDocBench-shaped
 "real Chinese paper" is in this library; this is the closest available
-real document with genuine math+CJK interaction, and it is a REVEALING
-case, not a clean confirmation)
+real document with genuine math+CJK interaction)
 ----------------------------------------------------------------------------
-5,248 Equation+Formula objects; 6 candidates.
+5,248 math-typed objects; 6 candidates.
 
-  OLD: 6 refused.  TEXT_SCOPED: 3 refused.  FINAL: 3 refused.
-  delta A: 3 rows changed (refused -> permitted).  delta B: 0 rows changed.
+  OLD: 6 refused.  TEXT_SCOPED: 6 refused (fix round 1: was 3).
+  FINAL: 6 refused (fix round 1: was 3).
+  delta A: 0 rows changed (fix round 1: was 3, all refused->permitted).
+  delta B: 0 rows changed.
 
-  delta A, refused -> permitted (all three: single ideograph inside
-  `\text{}`, exactly the changed cell):
-    obj_3f0db307f8a3  page 178  `...\left[\begin{array}{c} i \\ m \\
-                                 \text { 真 } \end{array}\right]...`
-    obj_4289c98e3dee  page 116  `\stackrel{n}{\boldsymbol{S}}_{n_1}
-                                 \stackrel{\text { }}{\text { 作 }}...`
-    obj_dcaddea4d979  page 116  `n+\underset{n_2}{\underline{S}_1}
-                                 \stackrel{\text { }}{\text { 互 }}`
+FIX ROUND 1: the 3 rows the FIRST version of this task wrongly permitted
+are ALL refused again after the correction — confirmed directly (below).
+The corrected measurement's headline number is therefore that THIS
+document shows ZERO net effect from either 662 change: every one of its 6
+CJK-bearing math objects is, and was, and remains, an IDC or a run-length-1
+occurrence, none of which text-scoping (correctly, now) touches. The
+relaxed cell (CJK_TEXT_RUN_MIN <= run < CJK_RUN_MIN, inside a text span)
+is exercised only synthetically, by tests/test_cjk_text_scope.py's cases
+10/11 (`\text{的确}` permitted, `x = 两个` refused) — no document in this
+library's checked population happens to carry a genuine 2-character
+CJK-in-text run to confirm it against real content. That is stated
+plainly, not implied.
 
-  Still refused throughout (IDC, unscoped, unaffected by either change):
-    obj_0ac8e100997f  page 122  `\mathscr{⿸}_{\eta_i}=...`
-    obj_a0a2f2a0b596  page 223  `2\underline{⿱ ㇒ ⿺ 丄 丅 八}_5 \gamma_56...`
-    obj_182af8e8e2aa  page 249  `...\underline{⿱ ㇒ ⿺ 丄 丅 八}_m...`
+  All 6 rows, unchanged throughout by both configurations and by the fix:
+    obj_3f0db307f8a3  page 178  真, run length 1, inside `\text{}` (a
+                       single-character slot in a 3-row `\begin{array}`
+                       column vector alongside `i`, `m`) — REFUSED
+                       throughout (was wrongly PERMITTED between the first
+                       commit and this fix).
+    obj_4289c98e3dee  page 116  作, run length 1, inside `\text{}`
+                       (`\stackrel{\text { }}{\text { 作 }}` — an EMPTY
+                       `\text{}` stacked against a one-character one) —
+                       REFUSED throughout (same history as above).
+    obj_dcaddea4d979  page 116  互, run length 1, inside `\text{}` (same
+                       `\stackrel` empty-text-pair shape) — REFUSED
+                       throughout (same history as above).
+    obj_0ac8e100997f  page 122  IDC ⿸ — REFUSED throughout, never affected
+                       by either 662 change.
+    obj_a0a2f2a0b596  page 223  IDC ⿱/⿺ — REFUSED throughout, never
+                       affected.
+    obj_182af8e8e2aa  page 249  IDC ⿱/⿺ — REFUSED throughout, never
+                       affected.
 
-Evidence: ~/pdfdrill-library/BH1org_OCR/out/662/662_measure.json
+Evidence: ~/pdfdrill-library/BH1org_OCR/out/662/662_measure.json,
+662_measure.py, INSPECT.txt
 
 SAY WHETHER THEY STILL REFUSE AND WHETHER THAT IS RIGHT
 -------------------------------------------------------------
-0902.0431: yes, both still refuse, and that is right — see above, IDCs,
-untouched by this task, no genuine Chinese in this document at all.
+0902.0431: yes, both still refuse, and that is right — IDCs, untouched by
+this task, no genuine Chinese in this document at all.
 
-BH1org_OCR's 3 IDC rows: yes, still refuse, and that is right, same
-reasoning (⿸/⿱/⿺ are recipes, not content).
-
-BH1org_OCR's 3 newly-PERMITTED rows: this is NOT clearly right, and is the
-open finding of this task. "Elementarstrukturen der Materie" is a German
-physics monograph — Burkhard Heim's unified field theory book — with no
-Chinese-language content anywhere in the library metadata or the visible
-surrounding LaTeX (indices i, m, k, p, n; \boldsymbol S; \gamma). 真 ("true/
-real"), 作 ("make/do"), 互 ("mutual") do not read as a sentence or a
-caption; they read as three MORE instances of exactly what the IDC rows
-already are — MathPix failing to identify a symbol (probably an accent,
-subscript glyph, or index mark specific to Heim's notation) and this time
-guessing a real (wrong) ideograph instead of emitting a decomposition
-recipe, and happening to wrap its guess in `\text{}` rather than leaving
-it bare (obj_4289c98e3dee's `\stackrel{\text { }}{\text { 作 }}` — an
-EMPTY `\text{}` stacked with a one-character `\text{}` — is a strong
-tell: no author writes an empty text argument as a stacking partner for a
-real word). The auditor's rule (isolated ideograph inside `\text{}` = real
-prose) is correct for the population it was measured on — OmniDocBench,
-Chinese exam papers, where `\text{}` really does carry Chinese sentences —
-and is exactly what CRxz.md's defect 5 asked for. It is not obviously
-correct as a UNIVERSAL rule: "inside `\text{}`" is necessary but not
-sufficient evidence of genuine prose on a document that has no Chinese
-content to begin with. This task implements exactly what the auditor
-specified, measures it honestly, and surfaces this as a real risk rather
-than either silently shipping it or silently second-guessing the auditor's
-instruction — see OPEN below.
+BH1org_OCR, all 6 rows: yes, all six still refuse (the three IDC rows
+always did; the three single-ideograph-in-`\text{}` rows do again, after
+the fix-round-1 correction), and that is now right for the reason
+originally suspected and then confirmed by direct inspection: none of the
+three reads as prose (a matrix-column slot; two `\stackrel` empty-text
+decoration pairs), and the document has no genuine Chinese content
+anywhere for text-scoping to be protecting. The auditor's rule ("inside
+`\text{}` implies prose") is safe for a genuinely Chinese-language corpus
+(its own OmniDocBench population, where every cited "legitimate Chinese"
+example is multi-character); it is not safe as an UNCONDITIONAL rule for a
+single character, and the fix stops applying it that way while still
+giving text mode a real, bounded, measured concession (run == 2) that a
+bare-math occurrence does not get.
 
 CODE
 ----
-src/pdfdrill/text_escapes.py       — new module (text_spans, TEXT_IN_MATH,
-                                      CJK_TEXT_MACROS)
+src/pdfdrill/text_escapes.py       — new module (text_spans,
+                                      TEXT_IN_MATH, CJK_TEXT_MACROS,
+                                      fix round 1: both derived from one
+                                      `_FONT_MACROS` list)
 tools/audit_glyph_sites.py         — imports text_spans, own copy deleted
 src/pdfdrill/report_tex.py         — cjk_defect text-scoped (decision
-                                      table above); _CJK_BLOCKS widened to
-                                      add U+3000-303F and U+FF00-FFEF
+                                      table above, fix round 1: relax not
+                                      bypass, CJK_TEXT_RUN_MIN added);
+                                      cjk_run_spans added (position-
+                                      carrying form of cjk_runs);
+                                      _CJK_BLOCKS widened to add
+                                      U+3000-303F and U+FF00-FFEF
 tests/test_text_escapes.py         — 6 tests (contract + escape-bug fix)
-tests/test_cjk_text_scope.py       — 12 tests (the decision table, rule 17)
-tests/test_refine.py               — test_validate_rejects_cjk's fixture
-                                      (`\text{孔}`) was EXACTLY the cell
-                                      this task flips; changed to a bare
-                                      isolated ideograph (`x + 孔`), which
-                                      is the unchanged cell, and documented
-                                      why in the test itself
+tests/test_cjk_text_scope.py       — 16 tests (fix round 1: 12 -> 16, the
+                                      corrected decision table, rule 17)
+tests/test_refine.py               — test_validate_rejects_cjk: fix round
+                                      1 reverted to its ORIGINAL fixture
+                                      (`\text{孔}`), since the corrected
+                                      rule refuses it again — no migration
+                                      needed after all; the docstring
+                                      records why a migration was
+                                      considered and then undone
 
 TESTS
 -----
 Baseline (base commit 44f9b40a, stashed working tree): 3527 passed, 0
-failed. With this change: 3545 passed, 0 failed (3527 + 18 new: 6 + 12).
-One pre-existing test (test_refine.py::test_validate_rejects_cjk) failed
-transiently against its OLD fixture — updated per above, not skipped.
+failed. With this change: 3549 passed, 0 failed (3527 + 22 new: 6 in
+test_text_escapes.py + 16 in test_cjk_text_scope.py). No pre-existing test
+needed to change in this fix round (test_refine.py's fixture is back to
+its original, unmodified value).
 
 OPEN
 ----
-- BH1org_OCR's 3 newly-permitted rows (above): whether text-scoping alone
-  is a strong enough discriminator on a non-Chinese document, or whether
-  it needs a second signal (e.g. an empty-`\text{}` neighbour, as seen in
-  two of the three rows here, or a document-level "does this corpus item
-  carry genuine CJK anywhere in its running text" check) before it reaches
-  a real report. Not fixed here — flagging honestly is what the brief
-  asked for ("say whether that is right"), and the corpus rebuild is on
-  hold regardless (see below), so nothing ships on this finding yet.
+- The relaxed cell (CJK_TEXT_RUN_MIN <= run < CJK_RUN_MIN, inside a text
+  span) is pinned by synthetic tests only; no document checked in this
+  library confirms it against real content, because none carries a
+  genuine 2-character CJK-in-text run. Stated as a limit, not hidden.
 - No OmniDocBench-shaped document (a corpus of genuinely Chinese-language
   exam papers, the auditor's own population) exists in this library to
   confirm the auditor's 93-of-2,066 number style of measurement directly;
-  BH1org_OCR is the best available substitute and is deliberately reported
-  as a MIXED result, not a clean win, rather than overstating confidence.
+  BH1org_OCR is the best available substitute, and after the fix shows
+  ZERO net effect from either 662 change on real content (see POPULATION
+  2) — a smaller, more conservative result than the first revision
+  reported, and the correct one.
 - No corpus-wide (335,043-value, per 617's docstring) re-scan was run —
   the brief asked for "at least one real document," measured directly in
   memory, and the corpus rebuild itself is explicitly on hold (task 666/
@@ -267,3 +353,10 @@ OPEN
   `fix_bare_cjk` (which now has a real `text_spans` to import) are not
   ported here — out of scope for 662, which was scoped to the CJK GATE and
   text_spans alone.
+- Commit trailer: this session's active attribution override names
+  "Claude Opus 5 (1M context)" rather than the "Claude Fable 5.1" the
+  brief specified (task-662-brief.md:113) — a session-level instruction
+  that explicitly supersedes any earlier attribution guidance, including a
+  brief's. Noted per the review's minor finding 5, not changed, since
+  following the brief over the active session override would be the
+  wrong call, not a fix.

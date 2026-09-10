@@ -1058,27 +1058,58 @@ _CJK_BLOCKS = ((0x3000, 0x303F), (0x3400, 0x4DBF), (0x4E00, 0x9FFF),
 _ZH_CMD = re.compile(r"\\zh(?![a-zA-Z])")
 
 
-def cjk_runs(latex: str) -> list:
-    """Lengths of the maximal runs of consecutive CJK ideographs."""
-    runs, n = [], 0
-    for ch in latex or "":
+def cjk_run_spans(latex: str) -> list:
+    """(start, end) index spans of the maximal runs of consecutive CJK
+    ideographs — the position-carrying form `cjk_runs` is derived from,
+    needed so a caller can ask "is THIS run inside a text span" rather than
+    only "how long is some run somewhere"."""
+    spans, start, n = [], None, len(latex or "")
+    for i, ch in enumerate(latex or ""):
         c = ord(ch)
         if any(lo <= c <= hi for lo, hi in _CJK_BLOCKS):
-            n += 1
-        else:
-            if n:
-                runs.append(n)
-            n = 0
-    if n:
-        runs.append(n)
-    return runs
+            if start is None:
+                start = i
+        elif start is not None:
+            spans.append((start, i))
+            start = None
+    if start is not None:
+        spans.append((start, n))
+    return spans
+
+
+def cjk_runs(latex: str) -> list:
+    """Lengths of the maximal runs of consecutive CJK ideographs."""
+    return [e - s for s, e in cjk_run_spans(latex)]
 
 
 #: 617 — the length at which a sequence of ideographs is TEXT rather than a
-#: decomposition. MathPix's decomposition path emits ISOLATED characters; runs
-#: of three or more are zero across all fifteen affected documents, and genuine
-#: Chinese is nothing but runs.
+#: decomposition, OUTSIDE any text-mode macro. MathPix's decomposition path
+#: emits ISOLATED characters; runs of three or more are zero across all
+#: fifteen affected documents, and genuine Chinese is nothing but runs.
 CJK_RUN_MIN = 3
+
+#: 662 — the RELAXED threshold used INSIDE a `CJK_TEXT_MACROS` argument.
+#: Being inside `\text{}`/`\mbox{}`/etc is corroborating evidence (someone
+#: or something deliberately marked this as text), so it buys a LOWER bar,
+#: not NO bar: a run of two is enough to be text-scoped, but a SINGLE
+#: stray ideograph is refused in EITHER location, because 662's own
+#: measurement (BH1org_OCR, a German physics OCR book with no genuine
+#: Chinese content anywhere) found the run-length rule's premise held even
+#: inside `\text{}`: all 3 CJK-in-text occurrences on that document were
+#: run-length 1, and all 3 read as OCR/MathPix failing on a symbol it
+#: could not identify (one is a single-character slot in a 3-row matrix,
+#: two stack an EMPTY `\text{}` against a one-character one via
+#: `\stackrel` — a notation-decoration shape, not prose) — i.e. being
+#: "inside a text span" carried ZERO discriminating power for a run of
+#: exactly one on a non-Chinese document, so text-scoping must NOT bypass
+#: the run-length rule entirely (a full bypass is what 662's first attempt
+#: got wrong). Every "legitimate Chinese" example either gate's own
+#: docstring ever cites — 判别式法, 符合题意, 对零件i跳过检测, and the
+#: auditor's OmniDocBench population — is multi-character; none is offered
+#: as evidence for a genuine STANDALONE single character, so refusing a
+#: run of one even in text mode costs nothing measured while a run of two
+#: (down from three) still gives text mode real, bounded credit.
+CJK_TEXT_RUN_MIN = 2
 
 
 def cjk_defect(latex: str) -> str:
@@ -1100,17 +1131,32 @@ def cjk_defect(latex: str) -> str:
     rule (isolated ideograph -> decomposition; run of CJK_RUN_MIN or more ->
     text) that never asked WHERE a character sits. The auditor asks for a
     text-mode rule (scope ideograph detection to `\text`/`\mbox`/etc. via
-    `text_spans`) that never asked run length. Neither replaces the other;
-    they answer different questions and both apply. Decision table, over
-    (does the character sit inside a `CJK_TEXT_MACROS` argument) x (which
-    class of CJK signal):
+    `text_spans`) that never asked run length. TEXT-SCOPING RELAXES THE
+    RUN-LENGTH RULE INSIDE A TEXT SPAN; IT DOES NOT SWITCH IT OFF THERE.
+    A first version of this function let ANY run inside a text span pass
+    unconditionally, on the auditor's premise that "inside `\text{}`" is
+    itself evidence of prose. Measured directly (BH1org_OCR, a German
+    physics OCR book with no genuine Chinese content anywhere): that
+    premise has ZERO discriminating power on a non-Chinese document — all
+    3 CJK-in-text occurrences there were run-length ONE, and all 3 read as
+    OCR/MathPix failing on a symbol it could not identify (a single-
+    character slot in a 3-row matrix; two `\stackrel{\text{}}{\text{X}}`
+    pairs stacking an EMPTY text argument against a one-character one — a
+    notation-decoration shape no author types by hand), not as running
+    text. So the run-length rule keeps doing its job of telling a stray
+    character from real language INSIDE a text span too — text-scoping
+    only lowers the bar there (CJK_TEXT_RUN_MIN, 2, down from CJK_RUN_MIN,
+    3), it does not remove it. Decision table, over (does the character's
+    ENTIRE run sit inside a `CJK_TEXT_MACROS` argument) x (which class of
+    CJK signal):
 
-    | class \\ location          | inside a text span | outside (bare math) |
-    |-----------------------------|---------------------|----------------------|
-    | IDC (U+2FF0-2FFB)           | REFUSE              | REFUSE               |
-    | `\zh` command               | REFUSE              | REFUSE               |
-    | run < CJK_RUN_MIN            | PERMIT              | REFUSE               |
-    | run >= CJK_RUN_MIN           | PERMIT              | PERMIT               |
+    | class \\ location                | inside a text span | outside (bare math) |
+    |------------------------------------|---------------------|----------------------|
+    | IDC (U+2FF0-2FFB)                  | REFUSE              | REFUSE               |
+    | `\zh` command                      | REFUSE              | REFUSE               |
+    | run == 1 (a single stray char)     | REFUSE              | REFUSE               |
+    | CJK_TEXT_RUN_MIN <= run < CJK_RUN_MIN (run == 2) | PERMIT | REFUSE      |
+    | run >= CJK_RUN_MIN (3)             | PERMIT              | PERMIT               |
 
     Justification per cell:
       - IDC, either location: an IDC is not a glyph, it is a RECIPE for one —
@@ -1124,29 +1170,36 @@ def cjk_defect(latex: str) -> str:
         switch an author would reach for. Unscoped for the same reason as
         the IDC row: its meaning is about HOW the value was produced, not
         where the OCR happened to place it.
-      - run < CJK_RUN_MIN, inside a text span: this is the one cell 662
-        actually changes. A single Chinese particle or classifier inside
-        `\text{...}` (e.g. `\text{的}`) is ordinary prose that happens to be
-        one character long; refusing it because it is "isolated" was
-        conflating "short" with "decomposition", and the decomposition path
-        never emits its recipe inside a text macro in the first place — it
-        emits bare IDCs in math mode (see the IDC row, which stays refused
-        regardless). PERMIT.
-      - run < CJK_RUN_MIN, outside a text span: unchanged from 617 — a lone
-        ideograph sitting bare in math mode, with no run beside it and no
-        text macro around it, is exactly the decomposition shape 617
-        measured (isolated characters, zero multi-character runs across all
-        fifteen affected documents). REFUSE. This is also why
-        `\mathrm{中}` and `\operatorname{中}` both still refuse: neither is
-        in CJK_TEXT_MACROS (see text_escapes.py's second judgement call —
-        both select a math alphabet for a symbol/operator name, not prose),
-        so a single ideograph inside either one is "outside a text span" by
-        this table, i.e. this cell, not the one above it.
-      - run >= CJK_RUN_MIN, either location: unchanged from 617 — a run is
-        text by construction (measured: zero multi-character runs in the
-        decomposition path), so text-scoping cannot add anything new here;
-        it was already permitted and staying inside a text span does not
-        make it MORE permitted. PERMIT either way.
+      - run == 1, EITHER location: REFUSE. This is the row 662's fix round
+        1 ADDS. A single stray ideograph is exactly the decomposition shape
+        617 measured when bare in math mode, and BH1org_OCR shows it is
+        ALSO the shape MathPix's symbol-guessing produces when it happens
+        to land inside a text macro instead — "inside `\text{}`" does not
+        by itself distinguish the two. Every "legitimate Chinese" example
+        this gate's own history cites (判别式法, 符合题意, 对零件i跳过检测,
+        and the auditor's OmniDocBench population) is multi-character;
+        none supports treating a lone character as prose merely for
+        sitting inside braces.
+      - CJK_TEXT_RUN_MIN <= run < CJK_RUN_MIN, INSIDE a text span: PERMIT.
+        This is the one cell that is still genuinely relaxed: two
+        consecutive ideographs inside `\text{...}` (e.g. `\text{的确}`,
+        "indeed") get credit for being marked as text that a bare-math run
+        of two would not — a bounded relaxation (one character's worth),
+        not a bypass.
+      - the same run length, OUTSIDE a text span: unchanged from 617 — a
+        short run bare in math mode with no text macro around it gets no
+        such credit. REFUSE. This is also why `\mathrm{中}` and
+        `\operatorname{中}` both still refuse: neither macro is in
+        CJK_TEXT_MACROS (text_escapes.py's second judgement call — both
+        select a math alphabet for a symbol/operator name, not prose), so
+        a single ideograph inside either one is "outside a text span" by
+        this table and additionally hits the run==1 row above.
+      - run >= CJK_RUN_MIN, either location: unchanged from 617 — a run
+        this long is text by construction (measured: zero such runs in
+        the decomposition path, in EITHER location — BH1org_OCR's own
+        three hallucinated occurrences are all run-length one, not two or
+        three), so text-scoping cannot add anything new here; it was
+        already permitted. PERMIT either way.
     """
     lx = latex or ""
     for ch in lx:
@@ -1155,21 +1208,25 @@ def cjk_defect(latex: str) -> str:
             return "ideographic description character U+%04X (%s)" % (c, ch)
     if _ZH_CMD.search(lx):
         return "\\zh command"
-    runs = cjk_runs(lx)
-    if not runs:
+    run_spans = cjk_run_spans(lx)
+    if not run_spans:
         return ""
-    if max(runs) >= CJK_RUN_MIN:
-        return ""                      # a run is text, not a decomposition
+    if max(e - s for s, e in run_spans) >= CJK_RUN_MIN:
+        return ""                      # a run this long is text, anywhere
     text_ranges = text_spans(lx, CJK_TEXT_MACROS)
-    for i, ch in enumerate(lx):
-        c = ord(ch)
-        if not any(lo <= c <= hi for lo, hi in _CJK_BLOCKS):
-            continue
-        if any(a <= i < b for a, b in text_ranges):
-            continue                   # 662 — real text mode: permitted
-        return ("isolated CJK ideograph U+%04X (%s) — no run of %d or "
-                "more and not inside \\text{}/\\mbox{}/etc, so this is a "
-                "decomposition and not text" % (c, ch, CJK_RUN_MIN))
+
+    def _inside_one_span(s, e):
+        return any(a <= s and e <= b for a, b in text_ranges)
+
+    for s, e in run_spans:
+        length = e - s
+        if length >= CJK_TEXT_RUN_MIN and _inside_one_span(s, e):
+            continue                   # 662 — relaxed, not bypassed: PERMIT
+        ch, c = lx[s], ord(lx[s])
+        return ("isolated CJK ideograph U+%04X (%s) — run length %d "
+                "(need >= %d inside \\text{}/\\mbox{}/etc, >= %d bare in "
+                "math), so this is a decomposition and not text"
+                % (c, ch, length, CJK_TEXT_RUN_MIN, CJK_RUN_MIN))
     return ""
 
 

@@ -141,13 +141,14 @@ def test_validate_rejects_unbalanced_environment():
 
 
 def test_validate_rejects_cjk():
-    """662 — `\\text{孔}` (the original fixture here) is exactly the cell
-    662's text-scoping deliberately flips: a single ideograph inside real
-    text mode is now PERMITTED (see report_tex.cjk_defect's decision
-    table), so this fixture is now a BARE isolated ideograph instead — that
-    cell (isolated, not inside a `\\text{}`/`\\mbox{}`/etc argument) is
-    unchanged from before 662 and must still refuse."""
-    ok, reason, _ = rf.validate_one(r"x + 孔", original="other")
+    """662 considered flipping this cell (a single ideograph inside
+    `\\text{}`) to PERMITTED on the auditor's "inside text mode = prose"
+    premise, then measured that premise against a real document
+    (BH1org_OCR) and found it false for a run of exactly one -- see
+    report_tex.cjk_defect's decision table and tests/test_cjk_text_scope.py.
+    So this fixture's original shape still refuses, unchanged from before
+    662, and is kept as-is rather than migrated to a different shape."""
+    ok, reason, _ = rf.validate_one(r"x + \text{孔}", original="other")
     assert (ok, reason) == (False, rf.R_CJK)
 
 

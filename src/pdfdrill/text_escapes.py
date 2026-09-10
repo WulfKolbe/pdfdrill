@@ -46,23 +46,41 @@ TWO JUDGEMENT CALLS made while promoting it, not while writing it fresh:
    more likely to be OCR misrouting a variable name than an author writing
    Chinese. So `CJK_TEXT_MACROS`, used ONLY by the CJK gate's text-scoping,
    deliberately excludes `\operatorname` — narrower than `TEXT_IN_MATH`,
-   which stays as-is because its own (correct) job needs it.
+   which stays as-is because its own (correct) job needs it. Both regexes
+   are DERIVED from the one `_FONT_MACROS` list below (662 fix round 1),
+   so a third macro added to one cannot silently fail to reach the other —
+   it reaches both unless also listed in `_CONTENT_EXCLUDED`.
 """
 import re
+
+#: 662 fix round 1 (minor finding 4) — ONE list, so the two regexes below
+#: cannot drift apart by hand-editing only one of them. `_CONTENT_EXCLUDED`
+#: names the macros that answer FONT_MACROS' font question ("which face
+#: renders this glyph") differently from the CJK gate's content question
+#: ("is this prose") — today just `\operatorname`, see judgement call 2
+#: below. Add a macro here once; it reaches TEXT_IN_MATH automatically and
+#: CJK_TEXT_MACROS unless also named in `_CONTENT_EXCLUDED`.
+_FONT_MACROS = ("text", "textrm", "textnormal", "textit", "textbf", "mbox",
+                "operatorname")
+_CONTENT_EXCLUDED = frozenset({"operatorname"})
+
+
+def _macro_re(names):
+    return re.compile(r"\\(?:%s)\s*\{" % "|".join(names))
+
 
 #: Macros whose brace argument sets in TEXT mode inside `$...$`, on the main
 #: font. Used by tools/audit_glyph_sites.py to decide which glyphs in a math
 #: span are actually rendered by the text (not math) font — a font question.
-TEXT_IN_MATH = re.compile(
-    r"\\(?:text|textrm|textnormal|textit|textbf|mbox|operatorname)\s*\{")
+TEXT_IN_MATH = _macro_re(_FONT_MACROS)
 
 #: The narrower list used to decide whether an ideograph sits in TEXT mode
 #: for `report_tex.cjk_defect`'s text-scoping — a content question, not a
-#: font question. Excludes `\operatorname` (and `\mathrm`, never in either
-#: list): both select a math alphabet for a symbol/operator name, not prose.
-#: See judgement call 2 above.
-CJK_TEXT_MACROS = re.compile(
-    r"\\(?:text|textrm|textnormal|textit|textbf|mbox)\s*\{")
+#: font question. DERIVED from `_FONT_MACROS` minus `_CONTENT_EXCLUDED`
+#: (today: `\operatorname`, and `\mathrm`, never in either list): both
+#: select a math alphabet for a symbol/operator name, not prose. See
+#: judgement call 2 below.
+CJK_TEXT_MACROS = _macro_re(m for m in _FONT_MACROS if m not in _CONTENT_EXCLUDED)
 
 
 def text_spans(s, macro_re=TEXT_IN_MATH):
