@@ -154,8 +154,27 @@ BUILD TIMESTAMPS, AND WHAT report.ink.json RECORDS ABOUT ITS CROP
    2026-09-01" - i.e. residuals.pdf, built Sep 9, is still citing an ink
    measurement taken against a report.pdf snapshot from Sep 5 that no
    longer exists under that name. Stated as measured fact (the header
-   text plus the three build-phase JSON sidecars), not a diagnosis of
-   consequence.
+   text plus the three build-phase JSON sidecars).
+
+   AMENDED BY TASK 667: this is EXPECTED BY DESIGN, not a defect - the
+   interpretation this section originally left open. `_inkreport_chain`'s
+   own comment names the mechanism: "The measure build is scaffolding; the
+   reading build is the artefact." The 458pp phase=measure build exists
+   ONLY to be measured and is destroyed the moment the phase=reading build
+   replaces it, on every single run, always - so a report.pdf vanishing
+   under the name `measured_against` recorded is the normal outcome of the
+   two-phase design, not evidence particular to this document or this gap
+   in time. 667 checked this is not a hidden false-pass by a different
+   route: `reports.gate.timestamp_gate` compares the ink's `model_sha256`
+   against the MODEL on disk (never the vanished PDF's own checksum,
+   which the old gate did compare and was deliberately changed away from -
+   see gate.py's module docstring), and on this document the model has not
+   changed since the Sep 5 measurement, so timestamp_gate correctly reports
+   READY on that axis. What this section's measurement actually exposed was
+   a DIFFERENT, real gap - no per-row record of WHICH crop was measured -
+   which 667 closed (`report.ink.json`'s rows now carry `crop_sha256`;
+   `reports.gate.crop_gate` refuses by name when a published row's crop no
+   longer matches it). See out/667.txt.
 
    Per-row, report.ink.json's 1,460 rows (e.g. the EQ0528 row) carry:
    id, report_page, line, L (5-element ink array), R (5-element ink

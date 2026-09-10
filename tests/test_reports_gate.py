@@ -140,35 +140,64 @@ def _crop_doc(tmp_path, *, measured_bytes=b"crop-bytes-v1" * 50,
 
 def test_crop_gate_passes_when_the_displayed_crop_is_the_one_measured(tmp_path):
     d = _crop_doc(tmp_path)
-    ok, detail = G.crop_gate(d)
+    r = G.crop_gate(d)
+    ok, detail = r                      # still a plain 2-tuple to unpack
     assert ok and "1 row(s) checked" in detail
+    assert r.verified is True           # PASSED because it looked and found nothing
 
 
 def test_crop_gate_refuses_by_name_when_the_crop_changed(tmp_path):
     d = _crop_doc(tmp_path, measured_bytes=b"crop-bytes-v1" * 50,
                  on_disk_bytes=b"crop-bytes-v2-rescaled-differently" * 50)
-    ok, detail = G.crop_gate(d)
+    r = G.crop_gate(d)
+    ok, detail = r
     assert not ok
     assert "D_EQ0001" in detail and "crop changed since it was measured" in detail
+    assert r.verified is True           # a REFUSAL is also a verified result
 
 
 def test_crop_gate_refuses_by_name_when_the_crop_is_gone(tmp_path):
     d = _crop_doc(tmp_path, present=False)
-    ok, detail = G.crop_gate(d)
+    r = G.crop_gate(d)
+    ok, detail = r
     assert not ok
     assert "D_EQ0001" in detail and "no longer on disk" in detail
+    assert r.verified is True
 
 
 def test_crop_gate_passes_vacuously_when_ink_predates_667(tmp_path):
     """A measurement taken before this task recorded no crop_sha256 at all;
     absence must not be read as a mismatch (rule 5) or every document
-    measured before 667 would refuse on this check alone."""
+    measured before 667 would refuse on this check alone.
+
+    667 fix round 1 — `ok=True` here and `ok=True` in the passing case above
+    are the SAME boolean over two different claims ("nothing to compare" vs
+    "compared and it matched"), and `commands.publish_ready`'s own stated
+    principle is that a check unable to see its input FAILS rather than
+    passing quietly. `.verified` is the structural signal that keeps this
+    departure honest: False here (nothing was armed to check), True above
+    (something was checked, and it was fine)."""
     d = tmp_path / "D"
     d.mkdir()
     (d / "report.ink.json").write_text(json.dumps(
         {"rows": [{"id": "D_EQ0001", "code": "K|0"}]}))
-    ok, detail = G.crop_gate(d)
+    r = G.crop_gate(d)
+    ok, detail = r
     assert ok and "before 667" in detail
+    assert r.verified is False
+
+
+def test_crop_gate_verified_flag_survives_a_bare_2tuple_unpack(tmp_path):
+    """A caller that only ever wrote `ok, detail = some_gate(doc_dir)` — every
+    existing caller of every gate in this module — must keep working
+    unchanged; `GateStatus` is still exactly a 2-tuple by content and
+    equality, `.verified` is additional."""
+    d = _crop_doc(tmp_path)
+    r = G.crop_gate(d)
+    assert r == (True, r[1])
+    assert len(r) == 2
+    ok, detail = r                      # would raise ValueError if this were a 3-tuple
+    assert (ok, detail) == tuple(r)
 
 
 def test_crop_gate_reused_via_checklist(tmp_path):
@@ -178,6 +207,7 @@ def test_crop_gate_reused_via_checklist(tmp_path):
     checks = G.checklist(d)
     assert "crop" in checks and checks["crop"][0] is False
     assert "D_EQ0001" in checks["crop"][1]
+    assert checks["crop"].verified is True
 
 
 # ---------------------------------------------------------------- 634

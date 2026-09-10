@@ -18,6 +18,27 @@ PUBLISHED_FILES = ("evidence-equation.pdf", "evidence-formula.pdf",
                    "evidence-table.pdf", "evidence-image.pdf", "residuals.pdf")
 FIX = "run `pdfdrill residuals --measure --pdf <pdf>`"
 
+
+class GateStatus(tuple):
+    """(ok, detail), plus `.verified` — a check that PASSED because it looked
+    and found nothing wrong, versus one that passed because it had nothing to
+    look AT, are different claims and `ok` alone cannot carry both. `detail`
+    can say the difference in prose, but prose is not something a caller can
+    branch on without re-parsing it (667 fix round 1 — see `crop_gate`, the
+    one gate this project has that ever passes on absent evidence rather than
+    failing, per commands.publish_ready's own stated principle).
+
+    Still exactly a 2-tuple everywhere a 2-tuple is expected —
+    `ok, detail = crop_gate(...)`, `checks[k][0]`, `for k, (ok, why) in
+    checks.items()` — every existing caller of every OTHER gate in this file
+    is unaffected; `.verified` is additional, not a replacement for the
+    2-tuple contract those callers already rely on.
+    """
+    def __new__(cls, ok: bool, detail: str, verified: bool):
+        self = super().__new__(cls, (ok, detail))
+        self.verified = verified
+        return self
+
 #: fix round 1 (reviewer-found) — `inkconvert.identifiers()` tries its EQ
 #: pattern FIRST and returns as soon as it matches ANYTHING, by design (its
 #: own docstring: "no existing report's pairing can change"). A residuals.tex
@@ -201,16 +222,25 @@ glyphs_gate = compile_gate
 #: Rows measured before 667 carry no `crop_sha256` at all — absence is not
 #: evidence of a mismatch (rule 5: no plausible default for an unknown), so
 #: this check passes vacuously on them rather than refusing every document
-#: measured before the field existed.
-def crop_gate(doc_dir, bibkey: str = "", history=None) -> tuple:
+#: measured before the field existed. That is a DELIBERATE departure from
+#: publish_ready's own stated principle ("a check that cannot see its input
+#: FAILS rather than passing quietly", commands.py:1624-1628) — every other
+#: gate in this file honours it, this one does not, because failing outright
+#: would un-publish every document measured before this task. `ok=True`
+#: alone cannot say WHICH of the two passes this is, so it does not have to:
+#: `GateStatus.verified` carries that, structurally — see out/667.txt for the
+#: argument against the principle this departs from, made explicitly rather
+#: than left for a reader to rediscover.
+def crop_gate(doc_dir, bibkey: str = "", history=None) -> "GateStatus":
     doc_dir = Path(doc_dir)
     ink = _ink(doc_dir)
     rows = ink.get("rows") or []
     if not rows:
-        return True, "no measured rows to check"
+        return GateStatus(True, "no measured rows to check", verified=False)
     tagged = [r for r in rows if r.get("crop_sha256")]
     if not tagged:
-        return True, "ink carries no crop identity (measured before 667)"
+        return GateStatus(True, "ink carries no crop identity (measured "
+                          "before 667)", verified=False)
     crops = doc_dir / "report-crops"
     mismatched = []
     for r in tagged:
@@ -224,10 +254,12 @@ def crop_gate(doc_dir, bibkey: str = "", history=None) -> tuple:
                               "(measured %s, now %s)"
                               % (ident, str(r["crop_sha256"])[:12], str(got)[:12]))
     if mismatched:
-        return False, ("%d row(s) show a crop the ink did not measure: %s"
-                       % (len(mismatched), "; ".join(mismatched[:8])))
-    return True, ("%d row(s) checked, every displayed crop is the one "
-                 "measured" % len(tagged))
+        return GateStatus(False, ("%d row(s) show a crop the ink did not "
+                                  "measure: %s" % (len(mismatched),
+                                                   "; ".join(mismatched[:8]))),
+                          verified=True)
+    return GateStatus(True, ("%d row(s) checked, every displayed crop is "
+                             "the one measured" % len(tagged)), verified=True)
 
 
 def checklist(doc_dir, bibkey: str = "", history=None) -> dict:

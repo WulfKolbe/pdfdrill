@@ -63,6 +63,65 @@ WHAT WAS BUILT
    residuals.pdf -- one new key on the existing five-key surface, not a
    parallel gate.
 
+FIX ROUND 1 (REVIEW) -- THE VACUOUS PASS, MADE STRUCTURAL, ARGUED AGAINST
+THE PRINCIPLE IT DEPARTS FROM
+------------------------------------------------------------------------------
+   `commands.py:1624-1628` states publish_ready's own principle: "a check
+   that cannot see its input FAILS rather than passing quietly... the whole
+   point of a gate is to be harder to satisfy than the thing it guards."
+   Every other gate in reports/gate.py honours it. `crop_gate` does not: a
+   row with no `crop_sha256` at all (measured before 667) passes, `ok=True`,
+   rather than failing on absent evidence.
+
+   THE ARGUMENT FOR DEPARTING. Failing outright on absent evidence, applied
+   here, means every document measured before this task -- all of them,
+   today -- goes from READY to NOT READY the moment this code ships, for a
+   field that did not exist when they were measured and that nothing asked
+   them to backfill. That is not "harder to satisfy than the thing it
+   guards"; the "thing it guards" (a published row showing a picture nobody
+   measured) has not become more likely to be true of any of these
+   documents -- the CHECK became stricter, not the DOCUMENTS worse. Refusing
+   on that basis would be the coverage-gate mistake in the opposite
+   direction: 630B already establishes (gate.py, coverage_gate) that a row
+   which is UNMEASURABLE BY NATURE (a straddling row) must not be treated as
+   a row that fails measurement -- and a row measured under an OLDER SCHEMA
+   is the same shape of exception: absent BY CONSTRUCTION, not absent
+   because something went wrong.
+
+   WHAT DOES NOT CHANGE. The principle is right for every gate that CAN see
+   its input and chooses not to look, or looks and finds nothing -- that is
+   exactly the failure mode 213 named (glyphs silently discarded) and every
+   other gate here still refuses on it. `crop_gate` is not claiming that
+   principle is wrong; it is claiming this ONE input (a field 667 itself
+   introduces) is not "input the check failed to see", it is "input that
+   does not exist yet for a reason unrelated to whether the guarded property
+   holds."
+
+   THE GAP THE REVIEWER NAMED. Granting the departure, `ok=True` still means
+   two different things -- "compared, and it matched" vs. "nothing to
+   compare" -- and only `detail`'s prose says which. A caller checking
+   `if not ok:` cannot tell a verified pass from an unarmed one without
+   parsing a string that this file makes no promise to keep stable.
+
+   THE FIX. `gate.GateStatus`, a `tuple` subclass: still exactly `(ok,
+   detail)` for every existing 2-tuple consumer (`ok, detail = gate(...)`,
+   `checks[k][0]`/`[1]`, `for k, (ok, why) in checks.items()` -- unpacking a
+   3-tuple where 2 are expected raises, so the shape had to stay a 2-tuple,
+   not grow one), plus a `.verified` attribute: False when nothing was
+   armed to check (both of `crop_gate`'s vacuous-pass branches), True when a
+   row's crop was actually compared against disk -- whether that comparison
+   passed or refused. A caller that wants the OLD gate's guarantee back
+   ("this is meaningless unless verified") now has a structural test for it
+   (`result.verified`) instead of a substring match on `detail`. Tests:
+   tests/test_reports_gate.py::test_crop_gate_verified_flag_survives_a_bare_2tuple_unpack
+   (the 2-tuple contract holds), and every crop_gate test now also asserts
+   `.verified` (True on both the matching and the refusing real comparison,
+   False on both no-rows and no-crop_sha256).
+
+   Only `crop_gate` returns `GateStatus`; every other gate in this file is
+   untouched and keeps returning a plain tuple, because none of them departs
+   from the principle -- there was nothing for them to structurally flag.
+
 REUSED / EXTENDED / BYPASSED, PER THE THREE EXISTING COMPARISONS NAMED
 ------------------------------------------------------------------------------
    Read before writing anything: `regionink.py:267`, `inkconvert.py:223/323`
@@ -111,6 +170,16 @@ THE SECOND FAILURE -- DECIDED: DOES NOT GET ITS OWN NEW GATE
    `crop_gate` now supplies and which -- unlike a whole-PDF-existence check
    -- can genuinely tell a benign case from a bad one.
 
+   FIX ROUND 1 (REVIEW) -- out/666.txt lines 132-158 still read as though the
+   vanished 458pp report.pdf were a defect, because that section was written
+   before this decision existed. Amended out/666.txt to say, in
+   `_inkreport_chain`'s own words, that the measure build is scaffolding
+   destroyed by design on every run -- the measurement in that section (the
+   timestamps, the sha256, the mtimes) is untouched; only the interpretation
+   changed, and it now points here and to `timestamp_gate`/`crop_gate` for
+   what actually checks the two real questions the vanished name once
+   seemed to raise.
+
 TESTED BOTH DIRECTIONS
 ------------------------------------------------------------------------------
    Fixture-based (tests/test_reports_gate.py, tmp_path, no library document
@@ -146,8 +215,9 @@ TESTED BOTH DIRECTIONS
 
 REGRESSION -- EXISTING PUBLISHREADY/GATE TESTS, BY NAME
 ------------------------------------------------------------------------------
-   tests/test_reports_gate.py (20 tests, all pre-existing ones unmodified in
-   assertion, "crop" key addition is additive):
+   tests/test_reports_gate.py (21 tests, by name, current state after fix
+   round 1 -- pre-existing ones below are unmodified in assertion, "crop" key
+   addition is additive):
      test_matching_model_passes
      test_newer_model_fails_and_names_the_fix
      test_no_ink_fails
@@ -156,6 +226,12 @@ REGRESSION -- EXISTING PUBLISHREADY/GATE TESTS, BY NAME
      test_shown_identifiers_reads_every_ident_form_at_once
      test_coverage_gate_catches_an_unmeasured_corrected_pair
      test_artefacts_and_glyphs
+     test_crop_gate_passes_when_the_displayed_crop_is_the_one_measured
+     test_crop_gate_refuses_by_name_when_the_crop_changed
+     test_crop_gate_refuses_by_name_when_the_crop_is_gone
+     test_crop_gate_passes_vacuously_when_ink_predates_667
+     test_crop_gate_verified_flag_survives_a_bare_2tuple_unpack  (new, fix round 1)
+     test_crop_gate_reused_via_checklist
      test_tex_errors_pairs_a_bang_line_with_its_source_line_number
      test_tex_errors_ignores_the_underfull_hbox_wrap
      test_tex_errors_counts_two_real_errors
@@ -163,27 +239,35 @@ REGRESSION -- EXISTING PUBLISHREADY/GATE TESTS, BY NAME
      test_compile_gate_is_the_new_name_glyphs_gate_stays_an_alias
      test_publish_ready_uses_the_new_surface_when_residuals_exist
      test_handover_rows_survives_the_new_surface_and_names_its_checks
-     (+ 6 new crop_gate tests, listed above)
    tests/test_publish_ready.py -- all pre-existing, unmodified
    tests/test_publishcheck.py -- all pre-existing, unmodified
-   tests/test_inkconvert.py -- all pre-existing, unmodified (+ 2 new)
-   68 passed, 0 failed (these four files together).
+   tests/test_inkconvert.py -- all pre-existing, unmodified (+ 2 from
+     round 0: test_cmd_inkconvert_records_crop_sha256_and_rung_per_row,
+     test_cmd_inkconvert_records_none_when_no_crop_exists)
+   69 passed, 0 failed (these four files together, current state).
 
 FULL SUITE, BASE COMMIT VS. THIS CHANGE
 ------------------------------------------------------------------------------
-   Base (abf0a996, `git stash` before running):
-     3515 passed, 0 failed, 0 skipped
-   This change (working tree, `git stash pop` restored):
-     3522 passed, 0 failed, 0 skipped
-   Delta +7 == exactly the 7 new tests added: 5 in test_reports_gate.py
-   (test_crop_gate_passes_when_the_displayed_crop_is_the_one_measured,
-   test_crop_gate_refuses_by_name_when_the_crop_changed,
+   Round 0 (crop_gate itself): base abf0a996 (`git stash`) 3515 passed;
+   working tree 3522 passed. Delta +7 == the 7 new tests added that round:
+   5 in test_reports_gate.py (test_crop_gate_passes_when_the_displayed_crop_
+   is_the_one_measured, test_crop_gate_refuses_by_name_when_the_crop_changed,
    test_crop_gate_refuses_by_name_when_the_crop_is_gone,
    test_crop_gate_passes_vacuously_when_ink_predates_667,
    test_crop_gate_reused_via_checklist) + 2 in test_inkconvert.py
    (test_cmd_inkconvert_records_crop_sha256_and_rung_per_row,
-   test_cmd_inkconvert_records_none_when_no_crop_exists). No pre-existing
-   test's outcome changed either run.
+   test_cmd_inkconvert_records_none_when_no_crop_exists).
+
+   Round 1 (this fix round -- GateStatus/.verified, the out/666.txt
+   amendment). Tree moved to cd0d3b4e (665 fix round 1, unrelated files:
+   the preamble and a corpus scan script) -- linear on top of round 0's
+   commit, no rebase conflict. Base cd0d3b4e (`git stash`): 3523 passed.
+   Working tree (`git stash pop` restored) with this round's changes:
+   3524 passed. Delta +1 == the one new test
+   (test_crop_gate_verified_flag_survives_a_bare_2tuple_unpack); the other
+   four pre-existing crop_gate tests gained a `.verified` assertion each
+   without becoming new tests. No pre-existing test's outcome changed in
+   either round.
 
 VERDICT ON THE TWO NAMED DOCUMENTS, AS THEY STAND TODAY (no rebuild)
 ------------------------------------------------------------------------------
@@ -222,6 +306,12 @@ VERDICT ON THE TWO NAMED DOCUMENTS, AS THEY STAND TODAY (no rebuild)
    either currently-published document until the next `residuals --measure`
    run writes it. Zero currently-published documents are newly refused by
    this task.
+
+   FIX ROUND 1 -- re-ran both verdicts after adding `GateStatus`: both
+   documents' `checks["crop"]` now report `verified=False` on the same
+   `(True, "ink carries no crop identity (measured before 667)")` pair shown
+   above -- the structural signal the reviewer asked for, confirmed live on
+   the two documents this task is scored against, not only in fixtures.
 
 WHAT WAS NOT DONE
 ------------------------------------------------------------------------------
