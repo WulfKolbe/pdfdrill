@@ -521,16 +521,38 @@ class KeepEntry(NamedTuple):
     predicate: Optional[object] = None
 
 
+#: The EXACT translation-backup fields `pdfdrill translate`'s tiddler-level
+#: pass (`_translate_tiddler_file_inplace`, commands.py) writes -- and ONLY
+#: those. NOT a `k.endswith("_source")` suffix test: the projector itself
+#: writes a DIFFERENT `*_source` field, `ref_source`, on every stub
+#: Reference tiddler (`ref_source = ref.props.get("ref_source") or
+#: "citation"`, below) -- a plain provenance tag ("this stub came from a
+#: bare citation, not a filled bibliography entry"), not a translation
+#: backup. A suffix test caught it too: a resolved bibliography entry's
+#: OLD stub (`ref_source` present) read as "hand-edited" and its `text`
+#: KEEP_LIST entry fired, silently reverting the model's genuine,
+#: newer resolution back to "Reference not yet resolved: ..." -- verified
+#: live and fixed here (651 review, finding 1); see
+#: `test_resolved_reference_is_not_reverted_by_ref_source`.
+_TRANSLATION_MARKERS = ("text_source", "caption_source", "content_source",
+                        "translated_lang")
+
+
 def _is_hand_edited(old_tiddler: dict) -> bool:
-    """True if OLD's own prose carries a translation marker (`*_source` /
-    `translated_lang` -- written ONLY by `pdfdrill translate`'s tiddler-level
-    pass, `_translate_tiddler_file_inplace` in commands.py; `tiddlers` alone
-    never writes either) or was opened and saved inside TiddlyWiki after
-    being written (`modified` strictly newer than `created`). `_t()` above
-    stamps both identically on every freshly-projected tiddler, so any
-    daylight between them on the OLD file is edit history no rebuild can
-    have -- the model does not remember it."""
-    if any(k == "translated_lang" or k.endswith("_source") for k in old_tiddler):
+    """True if OLD's own prose carries a translation marker
+    (`_TRANSLATION_MARKERS` -- written ONLY by `pdfdrill translate`'s
+    tiddler-level pass, `_translate_tiddler_file_inplace` in commands.py;
+    `tiddlers` alone never writes any of them) or was opened and saved
+    inside TiddlyWiki after being written (`modified` strictly newer than
+    `created`). `_t()` above stamps both identically on every
+    freshly-projected tiddler, so any daylight between them on the OLD file
+    is edit history no rebuild can have -- the model does not remember it.
+
+    Deliberately NOT `any(k.endswith("_source") ...)`: that shape matches
+    `ref_source`, a field the projector itself writes on every stub
+    Reference tiddler (unrelated to translation), and did -- see the
+    constant's own comment above."""
+    if any(k in old_tiddler for k in _TRANSLATION_MARKERS):
         return True
     created, modified = old_tiddler.get("created"), old_tiddler.get("modified")
     return bool(created and modified and modified > created)
@@ -553,6 +575,12 @@ def _is_hand_edited(old_tiddler: dict) -> bool:
 #:     would matter only if the projector itself started writing a
 #:     same-named field, which `user_`/`note*` below cover for the reserved
 #:     wiki-author namespace, not for these.
+#:     NOT the same family as `ref_source`, below KEEP_LIST is checked, and
+#:     `_TRANSLATION_MARKERS`/`_is_hand_edited` are careful to name -- a
+#:     `*_source`-shaped name is NOT a reliable signature by itself; the
+#:     projector writes its OWN `ref_source` on every stub Reference
+#:     tiddler (a provenance tag, "citation" vs a filled bibliography
+#:     entry), completely unrelated to translation (651 review, finding 1).
 #:   `latex_pretail` / `latex_prepunct` / `edit_source` -- real enrichment
 #:     markers (`commands.ENRICHMENT_MARKERS`) a `model --force` destroys,
 #:     but the projector never puts any of the three onto a TIDDLER at all
@@ -635,6 +663,23 @@ _KEEP_PREFIXES = ("user_", "note")
 #: assumed safe.
 _TRANSCLUDE_FIELDS = ("text", "caption")
 
+#: Fields whose ABSENCE from the fresh tiddler IS the model's current
+#: answer, not "the model has nothing to say" -- the opposite failure from
+#: everything else here, found chasing 651 review finding 1 to its actual
+#: end. A Reference tiddler carries `stub`/`ref_source` ONLY while
+#: unresolved (`if is_stub: t["stub"] = "true"; t["ref_source"] = ...`,
+#: below); their absence means `bibliography`/`bibfetch` resolved it since
+#: the OLD build. Once `_is_hand_edited` no longer false-positives on
+#: `ref_source` (finding 1's own fix), the merge's baseline "absent from
+#: fresh -> restore" rule would STILL reattach `stub`/`ref_source` from a
+#: stale OLD stub onto an otherwise-correctly-resolved fresh tiddler --
+#: `text` right, `stub` wrong, self-contradictory. These two are therefore
+#: never restored merely because they are absent; the fresh (possibly
+#: absent) state stands. If both sides carry them, the ordinary rule
+#: (fresh wins unless on KEEP_LIST) is untouched -- this only overrides the
+#: absent-restore direction.
+_ABSENCE_IS_AUTHORITATIVE = ("stub", "ref_source")
+
 
 def _dangling_targets(value: str, titles: set) -> list:
     """Every `{{target...}}` in `value` whose target is not in `titles`."""
@@ -647,6 +692,44 @@ def _dangling_targets(value: str, titles: set) -> list:
         if target and target not in titles:
             out.append(target)
     return out
+
+
+def _stale_base_conflict(field: str, old_tiddler: dict, fresh_value) -> Optional[str]:
+    """None if OLD's hand-work still applies cleanly to the CURRENT model;
+    else the reason it might not (651 review, finding 2).
+
+    Checking that a restored value's OWN transclusion targets still resolve
+    (`_dangling_targets`) is not the same question as whether the CONTENT it
+    is a hand-edit OF has since moved -- a paragraph's underlying prose can
+    legitimately change between the OLD build and the FRESH one (an OCR fix,
+    a re-split, more lines merged in -- 650's own class of correction) with
+    every `{{...}}` target it carries still resolving fine. Blindly
+    restoring a hand-edit onto content that has moved discards the
+    correction silently, with none of the visibility `refused_dangling`/
+    `newly_orphaned` give the other two failure classes.
+
+    This CAN be caught, but only for the translation path: OLD's
+    `<field>_source` (`_TRANSLATION_MARKERS`) is the pre-translation
+    baseline the OLD build itself captured -- the exact value the model's
+    OWN untranslated projection produced for this title at THAT time. If
+    the model's CURRENT untranslated value (`fresh_value`, i.e. `t[field]`
+    before this restore) no longer matches that baseline, the underlying
+    content moved and the hand-edit is now translating/correcting
+    something the model has since superseded.
+
+    There is NO equivalent baseline for a bare wiki hand-edit with no
+    `_source` backup (only `modified` > `created`) -- nothing recorded what
+    the text looked like before the edit, so there is no fingerprint to
+    compare against and this returns None for that case. Named as a
+    remaining, unguardable risk in out/651.txt, not silently assumed safe."""
+    backup = old_tiddler.get(f"{field}_source")
+    if backup is None or backup == fresh_value:
+        return None
+    return (f"the model's CURRENT rendering of `{field}` no longer matches "
+            f"OLD's own pre-translation baseline (`{field}_source`) -- the "
+            f"underlying content moved between the two builds, so OLD's "
+            f"hand-edit may be translating/correcting text the model has "
+            f"since superseded.")
 
 
 def _keep_old(field: str, old_tiddler: dict) -> Optional[str]:
@@ -671,33 +754,45 @@ def merge_updated_tiddlers(fresh: list, old: list) -> dict:
     one is stale, not merely renamed) -- it is counted and returned, never
     silently dropped. A kept/restored `text`/`caption` that would dangle a
     transclusion (the model's object tree moved between the two builds) is
-    refused and counted instead of applied -- the `footnote_not_narrowed`
-    pattern (650): anything this merge refuses to do is counted, not silent.
+    refused and counted instead of applied; one whose OLD `<field>_source`
+    baseline no longer matches the model's CURRENT untranslated rendering
+    (the underlying content itself moved, not just a target -- 651 review,
+    finding 2) is refused and counted separately, for the SAME reason --
+    the `footnote_not_narrowed` pattern (650): anything this merge refuses
+    to do is counted, not silent. There is no equivalent guard for a bare
+    wiki hand-edit with no `_source` backup (`modified` > `created` alone)
+    -- see `_stale_base_conflict` and out/651.txt's own CONCERNS for why
+    that case has no fingerprint to check against.
 
     Mutates and returns the tiddlers in `fresh` in place; does not touch
     `old`. Returns {merged, restored, unmatched, unmatched_by_kind,
-    refused_dangling}:
+    refused_dangling, refused_stale_base, newly_orphaned}:
       merged            `fresh`, with matched tiddlers patched in place
       restored          {title: {field: reason}} -- every field this run changed
       unmatched         OLD titles with no match in `fresh`, sorted
       unmatched_by_kind {kind: count} via `parse_title` ("unparsed" for the rest)
-      refused_dangling  {title: {field: reason}} -- restores refused as unsafe
-    newly_orphaned    titles reachable in `fresh` before the merge that a
-                      restored `text`/`caption` made unreferenced -- the
-                      OTHER direction from `refused_dangling` (a restored
-                      value pointing at nothing, vs. a restored value that
-                      drops a citation/footnote marker the fresh prose still
-                      carried). Not refused -- the field itself is still
-                      hand-work and still wins -- but counted, not silent,
-                      the same `footnote_not_narrowed` pattern: measured
-                      live on penev_A (out/651.txt) when a hand-typed
-                      replacement paragraph did not carry the two `{{...
-                      ||CIT}}` markers its own fresh text did.
+      refused_dangling  {title: {field: reason}} -- restores refused: the OLD
+                        value's OWN transclusion target doesn't exist any more
+      refused_stale_base {title: {field: reason}} -- restores refused: OLD's
+                        pre-translation baseline no longer matches the
+                        model's current rendering, i.e. the CONTENT moved
+      newly_orphaned    titles reachable in `fresh` before the merge that a
+                        restored `text`/`caption` made unreferenced -- the
+                        OTHER direction from `refused_dangling` (a restored
+                        value pointing at nothing, vs. a restored value that
+                        drops a citation/footnote marker the fresh prose still
+                        carried). Not refused -- the field itself is still
+                        hand-work and still wins -- but counted, not silent,
+                        the same `footnote_not_narrowed` pattern: measured
+                        live on penev_A (out/651.txt) when a hand-typed
+                        replacement paragraph did not carry the two `{{...
+                        ||CIT}}` markers its own fresh text did.
     """
     all_titles = {t.get("title") for t in fresh}
     by_title = {t.get("title"): t for t in old if t.get("title")}
     restored: dict = {}
     refused: dict = {}
+    refused_stale: dict = {}
     matched_titles: set = set()
     unreferenced_before = set(tiddler_integrity(fresh)["unreferenced"])
     for t in fresh:
@@ -708,19 +803,29 @@ def merge_updated_tiddlers(fresh: list, old: list) -> dict:
         matched_titles.add(title)
         changes: dict = {}
         skipped: dict = {}
+        skipped_stale: dict = {}
         for field, ovalue in o.items():
             if field == "title":
                 continue
             present_in_new = field in t
+            if not present_in_new and field in _ABSENCE_IS_AUTHORITATIVE:
+                continue    # the model's absence IS the answer; never restore
             if present_in_new:
-                if t[field] == ovalue:
+                fresh_value = t[field]
+                if fresh_value == ovalue:
                     continue
                 why = _keep_old(field, o)
                 if not why:
                     continue
             else:
+                fresh_value = None
                 why = "restored (absent from the fresh projection)"
             if field in _TRANSCLUDE_FIELDS:
+                if present_in_new:
+                    stale = _stale_base_conflict(field, o, fresh_value)
+                    if stale:
+                        skipped_stale[field] = stale
+                        continue
                 bad = _dangling_targets(ovalue, all_titles)
                 if bad:
                     skipped[field] = (
@@ -734,6 +839,8 @@ def merge_updated_tiddlers(fresh: list, old: list) -> dict:
             restored[title] = changes
         if skipped:
             refused[title] = skipped
+        if skipped_stale:
+            refused_stale[title] = skipped_stale
     unmatched = sorted(set(by_title) - matched_titles)
     unmatched_by_kind: dict = {}
     for title in unmatched:
@@ -744,7 +851,8 @@ def merge_updated_tiddlers(fresh: list, old: list) -> dict:
     newly_orphaned = sorted(unreferenced_after - unreferenced_before)
     return {"merged": fresh, "restored": restored, "unmatched": unmatched,
             "unmatched_by_kind": dict(sorted(unmatched_by_kind.items())),
-            "refused_dangling": refused, "newly_orphaned": newly_orphaned}
+            "refused_dangling": refused, "refused_stale_base": refused_stale,
+            "newly_orphaned": newly_orphaned}
 
 
 def keep_list_report() -> list:

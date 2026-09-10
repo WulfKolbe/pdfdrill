@@ -335,3 +335,216 @@ FILES
 EVIDENCE
   ~/pdfdrill-library/penev_A/out/651/{script.py,old_hand_edited.tiddlers.json,
   result.json,update.json,update-unmatched.json,INSPECT.txt}
+
+FIX ROUND 1 — task-651-review.md, two BLOCKING findings + one MINOR, all
+addressed. Base d0ecbc08; the tree had moved to e551fa76 ("652: pdfdrill
+status --html") by the time of this round — rebased onto it (a clean
+fast-forward; nothing in 652 touched tiddlywiki.py/cli.py's `--update` code).
+
+  FINDING 1 (BLOCKING) — `_is_hand_edited`'s `k.endswith("_source")` check
+  matched `ref_source`, a field the projector writes on EVERY stub
+  Reference tiddler (`t["ref_source"] = ref.props.get("ref_source") or
+  "citation"`, tiddlywiki.py's Reference loop) -- unrelated to translation,
+  and the surrounding comment's claim that `*_source` fields are "written
+  ONLY by `_translate_tiddler_file_inplace`" was simply false for this one.
+  Reproduced live by the reviewer: a resolved bibliography entry's `text`
+  KEEP_LIST entry fired purely off the stale OLD stub's `ref_source`, and
+  the merge silently reverted the resolved citation back to "Reference not
+  yet resolved: ...".
+
+  FIX: `_is_hand_edited`'s translation-marker check is now an EXACT
+  membership test against a new constant, `_TRANSLATION_MARKERS =
+  ("text_source", "caption_source", "content_source", "translated_lang")`
+  -- never a suffix test. The false, over-broad docstring claim is
+  corrected (both on `_is_hand_edited` and on the KEEP_LIST header comment,
+  which now names `ref_source` explicitly as the counter-example a
+  `*_source`-shaped name is not a reliable signature by itself).
+
+  A SECOND, related defect found chasing this one to its actual end (the
+  fix above is necessary but not sufficient for the reviewer's own
+  reproduction): even with `_is_hand_edited` fixed, `text` correctly stops
+  reverting, but the GENERIC "field in OLD, absent from fresh -> restore
+  unconditionally" rule would still reattach `stub`/`ref_source`
+  THEMSELVES from the stale OLD stub onto the now-correctly-resolved fresh
+  tiddler -- `text` right, `stub: "true"` wrong, self-contradictory (a
+  reader or macro keying off `stub` would still show it as unresolved).
+  These two fields are set ONLY while a Reference is unresolved; their
+  ABSENCE from a fresh tiddler is the model's own current answer ("this
+  is resolved now"), not "the model has nothing to say" -- the opposite
+  failure shape from everything else in this file. New constant
+  `_ABSENCE_IS_AUTHORITATIVE = ("stub", "ref_source")`: the absent-restore
+  rule now skips these two entirely, in EITHER direction of drift.
+
+  Tests: `test_a_resolved_reference_is_not_reverted_by_the_old_stubs_ref_
+  source` (the reviewer's exact reproduction, both halves -- text stays
+  resolved AND stub/ref_source stay absent), `test_a_stub_reference_that_
+  is_still_a_stub_is_unaffected` (the OTHER state the review asked for),
+  `test_ref_source_alone_no_longer_trips_is_hand_edited` (the predicate,
+  directly, plus a check that real translation markers still do).
+
+  FINDING 2 (BLOCKING) — no guard existed for a title's own CONTENT having
+  moved between the OLD build and the FRESH one; `_dangling_targets` only
+  checks that a restored value's OWN `{{...}}` targets still resolve,
+  which is a different question. The evidence run's original wording
+  ("nothing about the model changed between the two builds... 650's whole
+  point, re-confirmed") was exactly the defect the review named: a run
+  that structurally cannot fail is not confirmation that the moved-content
+  case is handled, and it was standing in place of naming that case as a
+  fifth concern.
+
+  FIX, where a guard is actually possible: OLD's `<field>_source` (the
+  translation path) is the pre-translation baseline the OLD build itself
+  captured -- the model's OWN untranslated rendering at THAT time. New
+  `_stale_base_conflict(field, old_tiddler, fresh_value)`: if that baseline
+  no longer matches the model's CURRENT untranslated rendering
+  (`fresh_value`, i.e. `t[field]` before the restore), the underlying
+  content moved and the restore is REFUSED, counted under a new bucket,
+  `refused_stale_base` (parallel to `refused_dangling`, surfaced the same
+  way in the CLI note and `<bibkey>.update.json`).
+
+  NAMED, not guarded, because there is no fingerprint to guard with: a bare
+  wiki hand-edit with no `_source` backup (`modified` > `created` alone)
+  recorded nothing about what the text looked like before the edit, so
+  `_stale_base_conflict` cannot see a moved base for it and does not fire.
+  This is the fifth CONCERN the review asked for if no guard were possible
+  for the general case -- added below, in the same register as the other
+  four, replacing the old evidence framing.
+
+  Tests: `test_stale_base_conflict_is_refused_and_counted` (the hazard,
+  live), `test_unchanged_base_restores_normally` (the control -- the
+  ordinary case the whole feature exists for must still work),
+  `test_stale_base_conflict_has_no_signal_for_a_bare_wiki_edit` (documents
+  the remaining gap rather than silently passing over it). The FOUR
+  existing tests that happened to give OLD's `text_source` a value
+  DIFFERENT from the fresh text (an accident of the original fixtures, not
+  a deliberate case) were corrected to set a baseline that actually
+  matches the fresh side, since real translate output always would -- they
+  were incidentally exercising the NEW guard's refusal path, not what they
+  said they tested, and would otherwise have failed for the right reason
+  but the wrong stated one.
+
+  FINDING 3 (MINOR) — a bad/missing `--update` path returned before
+  `out_path.write_text(...)` ran, discarding the already-computed fresh
+  projection; a plain `pdfdrill tiddlers <pdf>` always writes one. FIX:
+  the fresh projection is now written UNCONDITIONALLY, before `--update`
+  is even attempted; both failure returns say so explicitly ("The fresh
+  projection was still written to ... (unmerged)"). Tests:
+  `test_cmd_tiddlers_update_missing_file_reports_cleanly` (extended to
+  assert the file's presence and size, not just the message) and new
+  `test_cmd_tiddlers_update_bad_json_still_writes_the_fresh_file` (the
+  other failure path -- a path that exists but fails to parse).
+
+  EVIDENCE RE-RUN, penev_A, four scenarios (A unchanged, B/C/D new --
+  `out/651/script.py`, `~/pdfdrill-library/penev_A/out/651/`):
+    A. Unchanged base (the original run, RELABELLED honestly): translation
+       + note restored, latex won back, 0 unmatched, 0 refused_stale_base.
+       Stated plainly now: this proves the ORDINARY case works, not that a
+       moved base is handled -- that is B.
+    B. OLD's `text_source` deliberately set to a WRONG baseline (simulating
+       an OCR fix between builds). Result: `refused_stale_base` fires for
+       `penev_A_PARA_0006.text`, the FRESH (corrected) text wins, not the
+       stale translation. Live, on this document, not a unit fixture.
+    C. penev_A's 52 References are ALL stubs (no `bibfetch`/Perplexity ever
+       ran on this corpus -- confirmed directly, and this task must not run
+       a paid command to manufacture evidence). `cmd_tiddlers` cannot be
+       fed a fake "fresh" (it always rebuilds from the real model), so this
+       calls `merge_updated_tiddlers` directly -- the exact function
+       `cmd_tiddlers` calls internally -- with OLD as this document's own,
+       REAL, unmodified stub tiddler for `penev_A_REF_Atick1995`, and FRESH
+       a hand-built resolved counterpart in the real projector shape.
+       Result: the resolved text survives; `stub`/`ref_source` are NOT
+       reattached.
+    D. `--update` with a path that does not exist. Result: the fresh
+       `penev_A.tiddlers.json` is still written (1265 tiddlers, content
+       unchanged from the plain projection, timestamps aside), and the
+       return message says "still written."
+  `~/pdfdrill-library/penev_A/out/651/INSPECT.txt` (rule 20) now lists 8
+  paths: script.py, the three OLD copies (A/B/C), C's simulated-fresh
+  counterpart, result.json (all four scenarios), and the update.json/
+  update-unmatched.json snapshot of scenario A.
+
+  FULL SUITE (fix round 1): `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src
+  python3 -m pytest tests/ -q -p no:cacheprovider` -> 3478 passed, 0 failed
+  (3471 at e551fa76, the commit this round started from, measured directly
+  by stashing this round's changes and re-running -- +7, exactly this
+  round's new tests: the review's own-required Reference test plus two more
+  for finding 1, three for finding 2, one for finding 3's other failure
+  path; no regressions).
+
+CONCERNS (fix round 1: item 5 replaces the original evidence framing;
+items 1-4 unchanged, still accurate per the review)
+  1. Picture/Diagram/Table `caption` translation has NO tiddler-level
+     marker at all (translated at the MODEL layer only, before the first
+     projection — no `caption_source` twin is ever written to the tiddler).
+     `modified` > `created` is the ONLY signal `_is_hand_edited` has for
+     these three kinds, and `pdfdrill translate` never touches `modified`
+     on ANY tiddler (checked: `_translate_tiddler_file_inplace` sets
+     `text`/`caption`, the `_source` backup, `tags`, `translated_lang` — not
+     `modified`). So a translated Picture/Diagram/Table caption surviving a
+     `model --force` (the exact scenario 650's own refusal gate exists to
+     protect against, when overridden with `--force-discard-translation`)
+     is NOT reliably protected by this merge unless a human ALSO opens and
+     re-saves the tiddler in TiddlyWiki itself afterward. Named, not fixed:
+     out of this task's own corpus (penev_A/Steerable carry no such
+     translated caption to measure against) and would need either a
+     tiddler-level `caption_source` write at translate time (a change to
+     `cmd_translate`, not to `--update`) or accepting the gap.
+  2. `tags` are never merged. A hand-added tag (most notably the
+     `translated` marker `_translate_tiddler_file_inplace` writes) is lost
+     on `--update` even on a title whose `text`/`caption` IS correctly
+     restored — the wiki stops FLAGGING the tiddler as translated even
+     though it still reads as translated. Deliberately out of scope (the
+     brief asked for a field keep-list, and `tags` mixes structural,
+     freshly-recomputed information with occasional hand additions in one
+     string) but worth a reader's attention before assuming tag-based
+     filtering survives an `--update`.
+  3. `newly_orphaned` is INFORMATIONAL, not a refusal — unlike
+     `refused_dangling`, nothing here stops the hand-work from winning even
+     when it demonstrably drops a reachable citation/footnote. That is the
+     correct call (a translator's own retyped paragraph choosing to drop a
+     parenthetical citation is a legitimate editorial decision, not a bug),
+     but it means a large or careless hand-edit could silently thin out a
+     document's reachability graph one `--update` at a time if nobody reads
+     the count. `pdfdrill conserve` (the wider "is every object reachable"
+     question) is the standing check for that; this task only makes the
+     PER-RUN delta visible, the same posture 650 took with
+     `footnote_not_narrowed`.
+  4. `--update` is matched by EXACT title only, per the brief. A document
+     whose bibkey changed between the two files (a `--bibkey` override
+     between builds) will match NOTHING and report every old title as
+     unmatched — correct per the rule (a title is bibkey-qualified,
+     `<bibkey>_PREFIX...`), but worth knowing before assuming a large
+     unmatched count means something is broken rather than a bibkey
+     mismatch.
+  5. (fix round 1, replaces the original "0 unmatched confirms 650"
+     framing the review correctly rejected) A bare wiki hand-edit with NO
+     `_source` backup carries no baseline at all -- `modified` > `created`
+     is the only signal for it, and there is nothing recorded to compare
+     against if the underlying model content moves between the OLD build
+     and the FRESH one. `_stale_base_conflict` guards the translation path
+     (finding 2's fix) but CANNOT guard this one: it is not a missing
+     feature, it is a missing fact -- the OLD file itself never captured
+     what the text looked like pre-edit. A future round could close this
+     only by having the projector itself stamp a content fingerprint
+     (e.g. a hash of the realization's own span) onto every prose tiddler,
+     which is a change to the PROJECTOR, not to `--update`.
+
+FILES (fix round 1 additions)
+  src/docops/projectors/tiddlywiki.py   _TRANSLATION_MARKERS,
+                                        _ABSENCE_IS_AUTHORITATIVE,
+                                        _stale_base_conflict,
+                                        refused_stale_base (merge return key)
+  src/pdfdrill/commands.py              fresh projection written before
+                                        --update is attempted; both failure
+                                        messages say so; refused_stale_base
+                                        threaded into the CLI note + record
+  tests/test_tiddler_update.py          +7 tests (28 total)
+  out/651/script.py                     rewritten: scenarios A (relabelled)
+                                        + B/C/D (new), still byte-identical
+                                        to the library copy
+
+EVIDENCE (fix round 1)
+  ~/pdfdrill-library/penev_A/out/651/{script.py,old_hand_edited.tiddlers.json,
+  old_stale_base.tiddlers.json,old_still_stub_reference.tiddlers.json,
+  fresh_resolved_fake.tiddlers.json,result.json,update.json,
+  update-unmatched.json,INSPECT.txt}

@@ -11216,9 +11216,13 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     `user_`/`note*` field), in which case the old value wins. An old title
     with no match is never re-inserted -- it is listed, printed, and written
     to `<bibkey>.update-unmatched.json` beside the output. A restoration that
-    would dangle a transclusion (the object tree moved between builds) is
-    refused and counted rather than applied. `<bibkey>.update.json` records
-    what changed, what was refused, and the keep-list used.
+    would dangle a transclusion (its own target moved) or whose OLD
+    pre-translation baseline no longer matches the model's CURRENT rendering
+    (the underlying content moved -- 651 review, finding 2) is refused and
+    counted rather than applied; the fresh projection is written to disk
+    BEFORE `--update` is even attempted, so a bad/missing `--update` path
+    never discards it (651 review, finding 3). `<bibkey>.update.json`
+    records what changed, what was refused and why, and the keep-list used.
     """
     from docmodel.core import Document
     from docops.base import OperatorConfig
@@ -11295,6 +11299,14 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
                         f"via _canonical_uri (svg/<title>.svg) — copy that folder "
                         f"alongside your wiki HTML.")
 
+    # 651 review, finding 3 -- write the fresh projection FIRST, unconditionally.
+    # A plain `pdfdrill tiddlers <pdf>` always leaves a tiddlers.json behind; a
+    # bad or missing `--update` path must not make THIS invocation the one
+    # exception that leaves none at all, discarding a projection that has
+    # already been computed. Everything below either leaves this fresh file
+    # standing (a bad --update path) or overwrites it with the merge.
+    out_path.write_text(result, encoding="utf-8")
+
     # 651 -- `--update <old.tiddlers.json>`: merge hand-work from an older
     # projection onto this fresh one, matched by title (650: a title survives
     # a rebuild unchanged). See `tiddlywiki.merge_updated_tiddlers`/
@@ -11305,18 +11317,26 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
             merge_updated_tiddlers, keep_list_report, KEEP_LIST,
             _KEEP_PREFIXES)
         old_path = Path(update)
+        fresh_rel = out_path.relative_to(sc.pdf_path.parent)
         if not old_path.is_file():
-            return f"--update: {old_path} does not exist."
+            return (f"--update: {old_path} does not exist. The fresh "
+                    f"projection was still written to {fresh_rel} "
+                    f"(unmerged) -- rerun with a valid --update path.")
         try:
             old_tiddlers = json.loads(old_path.read_text(encoding="utf-8"))
         except (OSError, ValueError) as e:
-            return f"--update: could not read/parse {old_path} as JSON ({e})."
+            return (f"--update: could not read/parse {old_path} as JSON "
+                    f"({e}). The fresh projection was still written to "
+                    f"{fresh_rel} (unmerged) -- rerun with a valid --update "
+                    f"path.")
         fresh_tiddlers = json.loads(result)
         m = merge_updated_tiddlers(fresh_tiddlers, old_tiddlers)
         result = _jsonio.dumps(m["merged"], indent=1)
+        out_path.write_text(result, encoding="utf-8")
         restored_titles = len(m["restored"])
         restored_fields = sum(len(v) for v in m["restored"].values())
         refused_fields = sum(len(v) for v in m["refused_dangling"].values())
+        refused_stale_fields = sum(len(v) for v in m["refused_stale_base"].values())
         unmatched = m["unmatched"]
         unmatched_by_kind = m["unmatched_by_kind"]
         newly_orphaned = m["newly_orphaned"]
@@ -11331,6 +11351,7 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
             "keep_prefixes": list(_KEEP_PREFIXES),
             "restored": m["restored"],
             "refused_dangling": m["refused_dangling"],
+            "refused_stale_base": m["refused_stale_base"],
             "unmatched": unmatched,
             "unmatched_by_kind": unmatched_by_kind,
             "newly_orphaned": newly_orphaned,
@@ -11345,6 +11366,10 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
             f"{unmatched_path.relative_to(sc.pdf_path.parent)}"
             + (f"; {refused_fields} restoration(s) refused (would dangle a "
                f"transclusion)" if refused_fields else "")
+            + (f"; {refused_stale_fields} restoration(s) refused (the "
+               f"underlying content moved -- OLD's pre-translation baseline "
+               f"no longer matches the model's current rendering)"
+               if refused_stale_fields else "")
             + (f"; {len(newly_orphaned)} previously-reachable tiddler(s) now "
                f"unreferenced (a restored text/caption dropped a marker the "
                f"fresh prose still carried, e.g. {', '.join(newly_orphaned[:3])})"
@@ -11354,7 +11379,6 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
             + "; ".join(keep_list_report())
             + f"\n  update record: {update_path.relative_to(sc.pdf_path.parent)}"
         )
-    out_path.write_text(result, encoding="utf-8")
 
     sc.set_evidence("tiddlers_path", str(out_path.relative_to(sc.pdf_path.parent)))
     sc.set_evidence("tiddlers_count", count)
