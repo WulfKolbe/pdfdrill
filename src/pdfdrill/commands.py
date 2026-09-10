@@ -14347,6 +14347,21 @@ def _status_conserve_ledger(pdf: Path, sc: "Sidecar") -> dict:
                                  load_baseline)
     from docmodel import ledger as _ledger_mod
 
+    # 652 review, finding 3 — a SECOND full parse of the same model file:
+    # `_model_status_lines` (above, in the same `--html` run) already loaded
+    # it once via `model_io.load_docgraph` (~10x faster, no per-character
+    # anchor expansion). This function cannot reuse that DocGraph: it is a
+    # lazy view over objects only ("streams stay untouched" — `DocGraph.
+    # __init__`, docgraph.py) and `conserve()`/`gate()`/`ledger.materialize()`
+    # below all need `Stream.anchors` (`anchor_claims`'s walk) to count
+    # unclaimed/doubly-claimed lines, which DocGraph does not carry. Making
+    # `conserve()` work over a DocGraph instead of a full `Document` would be
+    # a real fix, but it is a change to `docops.conserve`'s own contract, not
+    # a local one — not done here. Left as a real, MEASURED cost, not a
+    # guess: on `penev_A` (11 MB model), `load_docgraph` takes 0.08s and
+    # this `load_model` call takes 0.27s more on top of it; on the 149 MB
+    # `DH2017-abstracts` model, 1.6s vs 4.1s more — the second parse is the
+    # larger of the two on both, and the gap only grows with model size.
     doc = load_model(model_path)
     res = conserve(doc)
     cls = classify_unreachable(res["reachability"])
@@ -14367,10 +14382,27 @@ def _status_conserve_ledger(pdf: Path, sc: "Sidecar") -> dict:
         "out_of_scope": cls["out_of_scope"],
         "has_baseline_row": has_row,
         "gate_report": format_gate_report(g) if has_row else None,
+        # 652 review, finding 5 — true only when the gate's ONLY delta is a
+        # `decreased` (a fixed violation the baseline hasn't caught up to
+        # yet): the per-document verdict above deliberately excludes
+        # `decreased` (good news, not a regression), so this document reads
+        # "conserved" even though `gate_report` below prints a literal FAIL
+        # for the SAME reason `conserve --gate` always does — the baseline
+        # itself is stale and 656's ratchet wants it updated. Used only to
+        # decide whether to print the reconciling sentence; never affects
+        # the verdict itself.
+        "gate_decreased_only": bool(g["decreased"]) and not g["new_types"]
+                               and not g["increased"],
         "ledger": ({"claimed_0": led["counts"]["claimed_0"],
                     "claimed_multi": led["counts"]["claimed_multi"],
                     "total": led["total"]} if led else None),
-        "footnote_refusals": res["footnote_refusals"],
+        # NOT `res["footnote_refusals"]` (652 review, finding 2): that key
+        # is never read by `_render_status_html` — the same numbers already
+        # reach the page via the reused `core_lines`/"Layers" section
+        # (`_format_footnote_refusals(g.meta)`, the fast DocGraph-derived
+        # source), so carrying a second, unread copy from this full-load
+        # path here was dead weight, not a missing feature. If a future
+        # page section wants these from THIS source, add the key back.
     }
 
 
@@ -14441,8 +14473,23 @@ def _write_status_html(pdf: Path, sc: "Sidecar", data: dict) -> Path:
     uses, for a different reason — see its own docstring), which is what
     lets `cmd_status`'s TEXT branch stay completely lock-free while this,
     the WRITE branch, takes the document lock for the one file it writes.
+
+    ONE bibkey source (652 review, finding 4): when a model is available,
+    `data["conserve"]["bibkey"]` — the model's OWN recorded bibkey, the same
+    one `format_gate_report` embeds into the page as "conserve --gate
+    <bibkey>: ..." — names both the file and the page text. Falling back to
+    `resolve_bibkey` (sidecar/filename-stem convention) only when there is
+    no model yet (`data["conserve"]["available"]` is False, so there is no
+    model-derived bibkey to prefer) keeps today's filename for that case.
+    Before this, the file was always named from `resolve_bibkey` while the
+    embedded verdict text was always keyed on the model's bibkey; the two
+    agreed on both real documents this task's evidence covered, but nothing
+    kept them in step if a sidecar bibkey were hand-edited or a PDF renamed
+    after the model was built.
     """
-    bibkey = resolve_bibkey(pdf, None, sc)
+    cons = data.get("conserve") or {}
+    bibkey = (cons["bibkey"] if cons.get("available")
+              else resolve_bibkey(pdf, None, sc))
     sc.blob_dir.mkdir(parents=True, exist_ok=True)
     out_path = sc.blob_dir / f"{bibkey}.status.html"
     out_path.write_text(_render_status_html(data, bibkey, sc), encoding="utf-8")
@@ -14491,6 +14538,23 @@ def _render_status_html(data: dict, bibkey: str, sc: "Sidecar") -> str:
                         + "</li>")
         if cons["gate_report"] is not None:
             gate_html = f'<pre class="gate">{_esc(cons["gate_report"])}</pre>'
+            if cons.get("gate_decreased_only"):
+                # 652 review, finding 5 — without this sentence, a reader
+                # sees the green "conserved" banner directly above a block
+                # that prints a literal FAIL and reads it as a
+                # contradiction. It isn't: the verdict above counts only
+                # NEW or INCREASED unreachable objects, and this document
+                # has neither; the FAIL below is the gate saying the
+                # BASELINE is stale (a violation went away and the checked-in
+                # count hasn't been lowered to match) — good news that still
+                # wants a follow-up (`pdfdrill conserve --gate` to update it),
+                # not a regression on this document.
+                gate_html += (
+                    '<p class="dim">This FAILs the baseline-staleness gate, '
+                    'not the document: every gap that got FIXED here is '
+                    'still on record as expected, so the checked-in baseline '
+                    'needs lowering — the verdict above already excludes '
+                    'this from the pass/fail decision.</p>')
         else:
             gate_html = ('<p class="dim">no baseline row for this bibkey — '
                         'the 656 ratchet has zero tolerance until someone '

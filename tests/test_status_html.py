@@ -6,8 +6,15 @@ note and 651's hand-work-merge record when either exists.
 THE 656 CORRECTION THIS TASK IS BUILT AROUND: `conserve()`'s raw
 `unreachable` count is ~100% BY_DESIGN/OUT_OF_SCOPE noise on every real
 document (out/656.txt) — a page that printed it verbatim would call every
-healthy document broken. The verdict here sums
-`classify_unreachable(...)["violations"]` instead. Rule 11 (masked
+healthy document broken. A first draft summed
+`classify_unreachable(...)["violations"]` for the verdict; that was
+discarded because it has no baseline to compare against, so a document's
+pre-existing, already-known violations would flip it to FAIL forever. The
+shipped verdict instead uses `docops.conserve.gate()`'s `new_types` /
+`increased` partition against the recorded baseline (`_status_verdict`,
+`commands.py`) — only a violation type with no baseline row, or one whose
+count rose above its baseline, counts against the verdict; matched,
+decreased, by-design, and out-of-scope never do. Rule 11 (masked
 success/failure): every check below is exercised on both a real PASS and a
 real FAIL of the same verdict line, never one alone.
 """
@@ -140,6 +147,75 @@ def test_no_baseline_row_is_noted_but_does_not_fail_the_page(tmp_path, monkeypat
     assert "no baseline row for this bibkey" in text
     # the page's own verdict is independent of the ratchet's zero tolerance
     assert "NOT conserved" in _verdict(text)
+
+
+def test_decreased_only_reads_conserved_with_a_reconciling_sentence(
+        tmp_path, monkeypatch):
+    """652 review, finding 5 — a gate delta that is ONLY a `decreased` (a
+    fixed violation the checked-in baseline hasn't caught up to yet) must
+    still read 'conserved' at the top (by design: a decrease is not counted
+    against the per-document verdict) while `gate_report` below prints a
+    literal FAIL for the SAME document — the baseline itself is stale. Both
+    are correct; without a reconciling sentence they read as a
+    contradiction to anyone who hasn't read the design rationale."""
+    doc = _doc_with_one_violation("V1")          # exactly one Citation now
+    pdf, sc = _wire(tmp_path, "V1", doc)
+    monkeypatch.setattr(C, "_stale_or_absent", lambda *a, **k: False)
+    import docops.conserve as conserve_mod
+    # baseline recorded 2; only 1 remains -> `decreased`, nothing `new`/`increased`
+    monkeypatch.setattr(conserve_mod, "load_baseline",
+                        lambda: {"V1": {"Citation": 2}})
+    C.cmd_status(pdf, html=True)
+    text = (sc.blob_dir / "V1.status.html").read_text(encoding="utf-8")
+    assert _verdict(text) == "conserved"
+    assert "DROPPED" in text and "FAIL" in text          # the gate block
+    # the reconciling sentence must be present, and must sit in the same
+    # "Conservation & ledger" section as the gate block it explains
+    assert "not the document" in text
+    assert "baseline needs lowering" in text
+
+
+def test_increased_alone_gets_no_reconciling_sentence(tmp_path, monkeypatch):
+    """The sentence added for finding 5 must not fire on an ordinary FAIL —
+    only on the specific 'verdict says conserved, gate block says FAIL'
+    shape decreased-only produces."""
+    pdf, sc = _wire(tmp_path, "V1", _doc_with_one_violation("V1"))
+    monkeypatch.setattr(C, "_stale_or_absent", lambda *a, **k: False)
+    import docops.conserve as conserve_mod
+    monkeypatch.setattr(conserve_mod, "load_baseline",
+                        lambda: {"V1": {"Citation": 0}})
+    C.cmd_status(pdf, html=True)
+    text = (sc.blob_dir / "V1.status.html").read_text(encoding="utf-8")
+    assert "NOT conserved" in _verdict(text)
+    assert "not the document" not in text
+
+
+# --------------------------------------------------- one bibkey source
+
+def test_html_filename_and_embedded_verdict_use_the_same_bibkey(
+        tmp_path, monkeypatch):
+    """652 review, finding 4 — `_write_status_html` used to name the file
+    from `resolve_bibkey` (sidecar/filename-stem) while the embedded
+    `gate_report` text was keyed on the model's OWN recorded bibkey
+    (`res["bibkey"]`). Force them apart (a sidecar bibkey that disagrees
+    with the model's) and confirm the file is now named, and the gate
+    report text keyed, on the SAME (model-derived) bibkey."""
+    doc = _doc_with_one_violation("MODEL_KEY")
+    pdf, sc = _wire(tmp_path, "SIDECAR_KEY", doc)
+    sc.set_evidence("bibkey", "SIDECAR_KEY")      # diverges from doc.meta
+    sc.save()
+    monkeypatch.setattr(C, "_stale_or_absent", lambda *a, **k: False)
+    import docops.conserve as conserve_mod
+    monkeypatch.setattr(conserve_mod, "load_baseline",
+                        lambda: {"MODEL_KEY": {"Citation": 1}})
+    C.cmd_status(pdf, html=True)
+    out = sc.blob_dir / "MODEL_KEY.status.html"
+    assert out.exists(), (
+        "the page must be named from the model's own bibkey, not the "
+        "sidecar's, once a model is available")
+    text = out.read_text(encoding="utf-8")
+    assert "conserve --gate MODEL_KEY:" in text
+    assert not (sc.blob_dir / "SIDECAR_KEY.status.html").exists()
 
 
 # ------------------------------------------------------- stale / absent model
