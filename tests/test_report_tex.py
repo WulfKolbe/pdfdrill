@@ -517,6 +517,71 @@ def test_longdiv_is_defined_in_the_shared_preamble():
     assert r"\usepackage{longdivision}" not in rt.PREAMBLE
 
 
+def test_fontspec_does_not_take_over_the_math_fonts():
+    r"""665 — \setmainfont alone makes fontspec silently repoint EVERY math
+    alphabet (\symoperators — the font behind \sin, \cos, \tan, \log, \lim,
+    \max, \det, every amsopn name, every \DeclareMathOperator — plus
+    \mathrm/\mathbf/\mathit/\mathsf/\mathtt) at the main text font, its own
+    log calling this "Adjusting the maths setup". Under xelatex, DejaVu
+    Serif's "operators" instance, re-measured across longtable's multi-pass
+    box measurement, rendered the three-letter STRING "cos" as bold caps —
+    glyph corruption at the xdvipdfmx/font-subsetting level; the PDF's own
+    ToUnicode CMap still read "cos", and the /Widths metrics were unchanged
+    (both were copied from the intended lowercase glyph, so neither a text
+    extraction nor a width/metrics check can see this defect — only the
+    rendered pixels can). \DeclareMathOperator{\mycos}{cos} broke the same
+    way, proving it is not about the \cos control sequence.
+
+    `[no-math]` stops fontspec from touching math fonts at all, restoring
+    plain amsmath/amssymb Computer Modern math. This is a STATIC guard
+    against silently dropping that option again.
+    """
+    from pdfdrill import report_tex as rt
+    assert r"\usepackage[no-math]{fontspec}" in rt.PREAMBLE
+    assert r"\usepackage{fontspec}" not in rt.PREAMBLE
+
+
+def test_cos_in_a_longtable_compiles_without_fontspec_repointing_the_operators_font(tmp_path):
+    r"""665 — Rule 17: a fixture that renders \cos in a `tabular` passes today
+    and proves nothing, because the defect only appears inside `longtable`'s
+    multi-pass box measurement. This fixture uses `longtable` AND the real,
+    unmodified `report_tex.preamble()` — no hand-trimmed stand-in — with a
+    custom `\DeclareMathOperator{\mycos}{cos}` alongside the real `\cos`
+    (both were confirmed broken pre-fix; the custom one proves the defect
+    was never about the `\cos` macro itself).
+
+    A visual pixel check found no font-rendering-independent equivalent (see
+    the docstring above: neither the text stream nor the glyph metrics show
+    the corruption), so this asserts the verified MECHANISM instead: fontspec
+    must not have engaged its automatic math-font takeover. Measured to
+    discriminate perfectly across every variant tried during 665's
+    investigation — present (with counts >0) whenever \cos rendered as bold
+    caps, absent (0) whenever it rendered correctly.
+    """
+    import shutil
+    if shutil.which("xelatex") is None:
+        import pytest
+        pytest.skip("xelatex not installed")
+    from pdfdrill import report_tex as rt
+    pre = rt.preamble().split(r"\begin{document}")[0]
+    pre += r"\DeclareMathOperator{\mycos}{cos}" + "\n"
+    body = (
+        r"\begin{longtable}{|p{20mm}|}\hline $\cos x$ \\ \hline \end{longtable}"
+        r"\begin{longtable}{|p{20mm}|}\hline $\mycos x$ \\ \hline \end{longtable}"
+        r"\begin{longtable}{|p{20mm}|}\hline $\sin x$ \\ \hline \end{longtable}"
+    )
+    doc = pre + r"\begin{document}" + "\n" + body + "\n" + r"\end{document}" + "\n"
+    tex = tmp_path / "report.tex"
+    tex.write_text(doc)
+    res = rt.compile_fixpoint(tex)
+    assert res is not None
+    pages, nerr, demoted = res
+    assert nerr == 0 and demoted == 0
+    log = (tmp_path / "report.log").read_text(errors="replace")
+    assert "Adjusting the maths setup" not in log
+    assert "Overwriting symbol font `operators'" not in log
+
+
 def test_align_only_refusal_is_exact_and_ignores_an_empty_value():
     r"""443 — the standalone route fires only when a depth-0 `&` is the SOLE
     objection.

@@ -1,0 +1,252 @@
+665 — \cos renders bold uppercase "COS": fontspec's math takeover, not \cos
+============================================================================
+
+THE CAUSE
+---------
+`report_tex.PREAMBLE` (src/pdfdrill/report_tex.py) loads fontspec bare:
+
+    \usepackage{fontspec}
+    \setmainfont{DejaVu Serif}
+    \setmonofont{DejaVu Sans Mono}[Scale=MatchLowercase]
+
+Modern fontspec, run under xelatex with NO `unicode-math` and no
+math-aware package it recognises (mathdesign/eulervm/cmbright/...),
+responds to `\setmainfont` by silently repointing every math alphabet at
+the main text font — its own log names this "Adjusting the maths setup".
+That includes `\symoperators` (`\DeclareSymbolFontAlphabet\mathrm{operators}`
+in fontspec-xetex.sty:4074) — the symbol font behind EVERY amsopn
+operator name (`\sin \cos \tan \cot \sec \csc \log \ln \lg \lim \liminf
+\limsup \max \min \sup \inf \arg \ker \dim \hom \det \exp \Pr \gcd \deg
+\arccos \arcsin \arctan \sinh \cosh \tanh \coth`, and any
+`\DeclareMathOperator`) — plus `\mathrm/\mathbf/\mathit/\mathsf/\mathtt`,
+all moved from Computer Modern (OT1/cmr) to DejaVu Serif. Nobody asked
+for this: `\setmainfont` is there only for the Source column's raw-Unicode
+glyph coverage (comment "090" in the preamble, unrelated to math).
+
+Under xelatex, DejaVu Serif's "operators" font instance — re-measured
+across `longtable`'s multi-pass box measurement (every row is boxed twice:
+once to size the column, once to place it) — draws the three-letter
+STRING "cos" as bold uppercase glyphs. This is a genuine glyph-outline
+substitution at the xdvipdfmx/font-subsetting layer: the PDF's own
+ToUnicode CMap still reads "cos" and the /Widths advance metrics are
+byte-identical to a correct render (both come from the INTENDED
+lowercase glyph, which TeX computed correctly; only the drawn outline is
+wrong). Confirmed: `pdftotext`/pdfminer text extraction and per-character
+advance widths are IDENTICAL between the broken and fixed renders —
+neither a text check nor a metrics check can see this defect. Only
+rasterizing the PDF and reading the pixels can, which is what every
+verification step below did.
+
+THE BOUNDARY — which operators are exposed, and why only \cos manifests
+-------------------------------------------------------------------------
+Structurally, EVERY operator name is equally exposed: `\sin`, `\cos`,
+`\tan`, `\log`, `\lim`, `\max`, `\det`, and any custom
+`\DeclareMathOperator`, all expand through the IDENTICAL amsopn mechanism
+(`\qopname\relax o{<name>}` → `\mathop{...\operator@font<name>}`) — amsopn
+treats them uniformly; nothing in it singles out `\cos`. Verified this is
+not about the `\cos` control sequence at all:
+`\DeclareMathOperator{\mycos}{cos}` (a macro with nothing to do with
+`\cos`) breaks IDENTICALLY, while `\DeclareMathOperator{\mysin}{sin}`
+does not (665_customop_test.tex/.png). It is the rendered STRING "cos",
+as its own `\mathop` atom, that triggers it.
+
+But TODAY, only that one string actually shows the corruption. Built a
+32-operator matrix in real longtables (665_allops_test.tex/.png):
+sin tan cot sec csc log ln lg lim limsup liminf max min sup inf arg ker
+dim hom det exp Pr gcd deg arcsin arccos arctan sinh cosh tanh coth — ALL
+render correctly. `\arccos` and `\cosh` both contain "cos" as a
+substring and are unaffected — the corruption is per `\mathop` ATOM
+(a font/glyph-subsetting artefact of the specific character run xdvipdfmx
+was asked to embed for THIS document's font subset), not per substring.
+A position-independence check (665_order_test.tex/.png: \cos, \sin, \cos
+in that order) confirms it follows the string, not the Nth-longtable slot
+— positions 1 and 3 (\cos) are both broken, position 2 (\sin) is not.
+
+This is NOT a protection \sin/\tan/\log/etc actually have. It is font-
+glyph-subsetting luck specific to this document's exact set of embedded
+characters. A fix that patched `\cos` alone would leave every other
+operator name carrying the identical latent risk — a different document,
+or the same document after any edit that shifts the font subset's glyph
+order, could corrupt `\sin`, `\log`, `\det`, or any `\DeclareMathOperator`
+tomorrow with zero warning, because the actual defect is the PRECONDITION
+(fontspec silently owning math fonts it was never asked for), not
+anything about "cos" as a string.
+
+THE FIX
+-------
+`src/pdfdrill/report_tex.py`, PREAMBLE (single source of truth — used
+verbatim by report.tex, all four evidence-*.tex kinds, B.tex and
+refine.report.tex; grep confirmed exactly one `\usepackage{fontspec}` in
+the whole package):
+
+    \usepackage{fontspec}          ->   \usepackage[no-math]{fontspec}
+
+`no-math` is fontspec's own documented switch to skip its automatic math
+setup entirely. This restores plain amsmath/amssymb Computer Modern math
+— what this preamble was already written against (amsmath/amssymb load
+BEFORE fontspec; nothing downstream expects DejaVu-Serif-flavoured math).
+Confirmed: `\cos` (and `\mycos`) render correctly, unchanged font
+(Computer Modern) for every operator name, after this one-line change,
+in the SAME real longtable fixture that reproduced the defect
+(665_nomath_test.tex/.png); the log's "Adjusting the maths setup" and
+"Overwriting symbol font `operators'" lines are both gone.
+
+Rejected alternative: leave `\usepackage{fontspec}` bare and instead
+re-declare just the `operators` symbol font back to OT1/cmr afterward.
+Rejected because it patches one symptom of a six-way silent takeover
+(operators, \mathrm, \mathbf, \mathit, \mathsf, \mathtt) while leaving
+the other five in place and inconsistent with nobody having asked for
+any of them — the actual defect is that `\setmainfont`, added for an
+unrelated reason (Source-column glyph coverage), silently annexed math
+typesetting. `[no-math]` removes that whole annexation at its source,
+which is where the task asked the fix to live.
+
+Not done: `\cos` itself was not touched. No macro (amsopn's or a
+custom `\DeclareMathOperator`) was redefined.
+
+VERIFICATION — rendered pixels, not error absence
+--------------------------------------------------
+The defect compiles with 0 LaTeX errors today; that silence is exactly
+why it survived. Every claim above was checked by rasterizing (ghostscript,
+the project's only rasterizer) and reading the image, not by grepping a
+log for "!":
+  - Reproduced 659's isolated cos_lt.tex/.png (unmodified
+    `report_tex.preamble()`, `$\cos x$` and `$\displaystyle \cos x$`, two
+    longtables): both "COS x", bold, uppercase.
+  - 665_allops_test: 32 operators in longtables, only \cos broken.
+  - 665_order_test: \cos/\sin/\cos — the 1st and 3rd (\cos) broken, the
+    2nd (\sin) correct. Rules out a positional cause.
+  - 665_customop_test: \DeclareMathOperator{\mycos}{cos} and a second,
+    differently-named operator producing the same string both break
+    identically to the real \cos; \DeclareMathOperator{\mysin}{sin} does
+    not. Proves the defect is about the string, not the macro.
+  - 665_nomath_test: `[no-math]` fixes it, in the same fixture.
+  - Applied the fix, rebuilt ~/pdfdrill-library/0902.0431's report via
+    `pdfdrill evidence 0902.0431 --all-kinds --pdf --paper a3`
+    (PDFDRILL_NO_PREFLIGHT=1): 0 errors, 0 demoted rows, same page counts
+    (evidence-equation.pdf: 1219 rows, 176 pages, unchanged). Rasterized
+    and read all 9 affected rows (5 named in the brief + 4 the corpus
+    scan found) in the rebuilt PDF: every one now renders "cos" lower-
+    case, Computer Modern. Before/after pair captured for EQ0368 (page
+    58); after-only for the other 8 (their pre-fix state is already
+    established by the isolated reproductions above, which use the
+    identical unmodified preamble).
+
+BEFORE / AFTER, by identifier — 0902.0431
+-------------------------------------------
+  0902.0431_EQ0368 (obj_082ae30b2f7d, p60 model / p58 evidence-equation.pdf):
+    before "1+cos 2|a|" both instances -> BOLD "COS 2|a|"; sin unaffected.
+    after: "cos 2|a|" correct, both instances.
+  0902.0431_EQ0370 (obj_53064fa116c6, p61 / p36): after — "cos 2t" correct.
+  0902.0431_EQ0529 (obj_ff69a01f97c9, p88 / p97): after — "cos |a|" correct.
+  0902.0431_EQ0532 (obj_196b1bba58fa, p89 / p51): after — "cos t" correct.
+  0902.0431_EQ0784 (obj_aa47b9a062de, p131 / p157): after — "cos |a|"
+    correct (4 instances in a 4x4 matrix).
+  Four more the corpus scan found beyond the brief's 5 (659 itself counted
+  9, "8 ... plus obj_a9d4871a3b4b" — this task's script independently
+  found the same 9):
+    0902.0431_EQ0799 (obj_7d1a02c49f3a), EQ0801 (obj_b5867e875294),
+    EQ0802 (obj_a9d4871a3b4b), EQ0856 (obj_f1bdcfee821e).
+
+CORPUS-WIDE POPULATION (measured — ~/pdfdrill-library/out/665/)
+-----------------------------------------------------------------
+Scanned every document directory under ~/pdfdrill-library (2,826 dirs) for
+an Equation/Formula object whose latex carries a bare `\cos` — the same
+word-boundary match that separates it from `\arccos`/`\cosh` in the
+visual test (`(?<![A-Za-z\\])\cos(?![A-Za-z])`):
+
+    docs with >=1 bare-\cos equation .......... 306
+    total bare-\cos equations/formulas ........ 3,843
+    of those docs, with report.pdf and/or
+      an evidence-*.pdf already on disk ....... 288  (2,931 equations)
+    docs with bare \cos but no published PDF
+      built yet .................................18  (source-only; the
+      defect is not visible anywhere for these YET, but would appear on
+      their first build without this fix)
+
+288 is the population whose CURRENTLY PUBLISHED artifact is presumed to
+carry the defect today (same mechanism, same shared preamble; only
+0902.0431 was individually rebuilt and pixel-verified this task — see
+WHAT IS OPEN).
+
+TESTS
+-----
+tests/test_report_tex.py, 2 new (62 in the file, was 60):
+  - test_fontspec_does_not_take_over_the_math_fonts — static: PREAMBLE
+    carries `\usepackage[no-math]{fontspec}` and not the bare form.
+  - test_cos_in_a_longtable_compiles_without_fontspec_repointing_the_operators_font
+    — Rule 17 fixture: real `longtable`, the real unmodified
+    `report_tex.preamble()`, both `\cos` and a fresh
+    `\DeclareMathOperator{\mycos}{cos}`. Compiles via `compile_fixpoint`
+    (skipped if xelatex is absent), asserts 0 errors/0 demotions, and
+    asserts the two fontspec math-takeover log lines are absent — the
+    mechanism-level signal, chosen because neither the PDF text stream
+    nor the glyph metrics show the corruption (verified above), so no
+    portable non-pixel assertion exists; a golden-pixel-image test was
+    considered and rejected as an unnecessary flake risk across TeX
+    Live/font versions when the mechanism check already discriminates
+    perfectly (present with the bare preamble, absent with the fix, on
+    every variant tried during this investigation).
+
+Full suite: `PYTHONDONTWRITEBYTECODE=1 python3 -m pytest tests/ -q -p no:cacheprovider`
+  base commit 249b9717 (current HEAD in this working tree when this task
+    started — NOT 1a26103e as the task brief named; origin/eqblobs-and-gzip-tex
+    is still at 1a26103e, and 249b9717 ("666: report.pdf vs residuals.pdf
+    crop identity") sat on top of it, already committed and unpushed,
+    before this task touched anything. It does not touch report_tex.py or
+    tests/test_report_tex.py — confirmed with `git show --stat` — so it is
+    orthogonal to this fix.): 3513 passed
+  after this fix + the 2 new tests: 3515 passed (0 regressions)
+
+WHAT IS OPEN
+------------
+  - Only 0902.0431 was rebuilt and pixel-verified. The other 287 of the
+    288 documents whose published report.pdf/evidence-*.pdf presumably
+    carry the same defect were NOT rebuilt — the fix lives in the shared
+    preamble function, so rebuilding any of them is a re-run of the
+    existing build command (`pdfdrill evidence <id> --all-kinds --pdf`),
+    not a code change, but this task did not spend the compile time on
+    the other 287.
+  - 0902.0431's B.pdf and refine.report.tex on disk are stale (they
+    predate even an earlier preamble change, "616B" — diffed against the
+    current report.tex text) and were not rebuilt; not part of the
+    verified population above.
+  - The exact xdvipdfmx/font-subsetting mechanism that corrupts
+    specifically the "cos" glyph cluster in THIS document's DejaVu Serif
+    operators-font subset (and nothing else, out of 32 operators tried)
+    was not traced further than "a glyph-id assignment artefact of
+    longtable's multi-pass box measurement, downstream of fontspec's
+    math takeover." The fix does not depend on knowing the exact
+    mechanism — it removes the precondition outright — but the low-level
+    xdvipdfmx bug itself remains unidentified.
+  - The corpus scan measured only bare `\cos` (the reported symptom).
+    Whether any OTHER operator string was silently corrupted by the same
+    class of bug, under a different document's specific font subset, was
+    not checked — the 32-operator matrix (665_allops_test) rules this out
+    for 0902.0431's specific subset only. Moot going forward (the fix
+    removes the whole precondition for every future build), but the
+    ALREADY-PUBLISHED corpus (288 documents, pre-fix) could in principle
+    carry other instances of this class under a different trigger string.
+
+EVIDENCE
+--------
+~/pdfdrill-library/0902.0431/out/665/ (INSPECT.txt lists 12 checked,
+non-empty, existing paths):
+  before-EQ0368-p58.png, after-EQ0368-p58.png    — the document's own
+    published evidence-equation.pdf, before and after the fix
+  after-EQ0370-p36.png, after-EQ0529-p97.png,
+    after-EQ0532-p51.png, after-EQ0784-p157.png  — the other 4 named ids,
+    after the fix
+  665_order_test.tex/.png    — position-independence isolation
+  665_customop_test.tex/.png — \DeclareMathOperator{\mycos}{cos} isolation
+  665_nomath_test.tex/.png   — the fix, isolated
+  665_allops_test.tex, _p1.png/_p2.png — the 32-operator boundary matrix
+  665_measure.py/.json (machine-readable, not in INSPECT.txt per rule 20)
+    — the 9 affected ids/pages for 0902.0431
+~/pdfdrill-library/out/665/ (corpus-wide scan; no single document, per
+  rule 19 — script and result only, no INSPECT.txt: nothing here is a
+  human-openable artefact, the summary above is the report):
+  665_scan_corpus.py, 665_corpus_cos_scan.json
+~/pdfdrill-library/0902.0431/evidence-equation.pdf (rebuilt, in the
+  document folder, not out/665) — 1219 rows, 176 pages, 0 errors,
+  0 demoted.
