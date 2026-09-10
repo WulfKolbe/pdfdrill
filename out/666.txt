@@ -1,0 +1,194 @@
+666 - report.pdf vs residuals.pdf: is the measured crop the displayed crop?
+==============================================================================
+
+DOCUMENT CHOSEN, AND WHY
+------------------------------------------------------------------------------
+   Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)
+
+   PDF derived from the folder name, never a *.pdf glob (per this task's
+   instructions and the incident that motivates them, HANDOVER-RULES rule
+   about the six-PDF-per-folder trap): the folder's own
+   `.pdf` is the source document; `report.pdf` and `residuals.pdf` sit
+   beside it, both present.
+
+   Chosen over the other 20 library documents that carry BOTH report.pdf
+   and residuals.pdf because it has the most embedded images in each:
+   35 in report.pdf, 31 in residuals.pdf (next closest: "Lie Groups,
+   Physics and Geometry" at 15/25; "Numerical Linear Algebra and Matrix
+   Factorizations" at 6/23). More images means more rows to test the claim
+   on rather than an anecdote.
+
+METHOD - HOW ROW <-> IMAGE CORRESPONDENCE WAS ESTABLISHED
+------------------------------------------------------------------------------
+   `pdfimages -list <pdf>` gives, per embedded image: page, a running
+   index ("num"), pixel width/height, and encoding. `enc jpeg` is a real
+   photographic scan crop; `enc image` (4 images in residuals.pdf, 0 in
+   report.pdf) is a rasterised standalone-LaTeX render that lands in the
+   REPORT'S "Rendered" column, not the "Scan image" column, and was
+   excluded from the crop comparison on that basis (verified per-image via
+   its dimensions and page against the standalone-math code path, not
+   assumed).
+
+   `pdfimages -j <pdf> prefix` extracts each jpeg's ORIGINAL bytes
+   unchanged (no re-encoding), which is what "as embedded" requires: this
+   is the exact stream the PDF carries, not a decode-and-recompress copy
+   and not the on-disk crop file (which may have been rewritten since
+   either PDF was built - not consulted at all in this task).
+
+   Row identifiers were read from the rendered PDF text (pdfplumber
+   word extraction of the Identifier column, x0 < 200pt), NOT from the
+   .tex source - the source-regex trap named in HANDOVER-RULES ("a naive
+   `\ident{[^}]*}` defeated by `\allowbreak{}`) does not apply to the
+   rendered page, but a related trap does: for some rows pdfplumber
+   tokenises the identifier's individual GLYPHS as separate one-character
+   words (irregular kerning), and a plain per-word "EQ\d+" regex silently
+   dropped EQ0528(was) in report.pdf and 4 identifiers in residuals.pdf.
+   Fixed by clustering all words on a page within 2pt of vertical position
+   into one line, concatenating, THEN matching "EQ(\d+)(\(was\)|\(now\))?"
+   - verified by cross-checking the resulting identifier count against the
+   independently-known image count (see below).
+
+   Correspondence itself: within one page, both the Identifier column
+   (x approx 60pt) and the Scan-image column (x approx 805pt) render
+   top-to-bottom in LaTeX source (row) order. For every page in both PDFs,
+   the count of non-"(was)/(now)" identifiers was checked equal to that
+   page's count of jpeg images before zipping them in top-position order;
+   a page where they were NOT equal would have been reported as a
+   correspondence failure, not guessed past - none occurred once the
+   identifier-extraction fix above was in place (checked by assertion in
+   the script; it does not silently proceed on a mismatch).
+
+   Sanity check beyond the count match: for two of the eleven rows
+   (EQ0114, EQ0947) the LaTeX-source-column text was pulled from both
+   PDFs independently and is byte-identical, confirming the same
+   identifier in both PDFs names the same underlying row, not a
+   coincidence of matching page position.
+
+POPULATION
+------------------------------------------------------------------------------
+   19   distinct row identifiers appear in BOTH PDFs, in any section
+        (8 in "Corrected", 11 elsewhere: Unresolved/Flagged/Doubted/
+        Low-confidence - report.pdf's findings() walks the same selection
+        residuals.py reuses).
+   11   of those 19 carry a REAL crop (a jpeg image, not a dash) in BOTH
+        PDFs - this is the comparable population the numbers below are
+        over.
+    8   of those 19 (the "Corrected" pairs: EQ0006, EQ0014, EQ0063,
+        EQ0486, EQ0528, EQ0543, EQ0748, EQ1276) carry a crop in
+        residuals.pdf but NOT in report.pdf, where the Scan-image cell for
+        every one of the 16 was/now rows is the literal dash the report
+        renders when it has no crop to show. No comparison is possible for
+        these 8; they are named here rather than dropped (a crop that
+        exists on disk for all eight, per a separate on-disk check not
+        used for the measurement itself, was not consulted - the question
+        is what the PDF carries, and report.pdf carries nothing for them).
+   35   total jpeg crops embedded in report.pdf (24 belong to identifiers
+        NOT in residuals.pdf - report.pdf is the larger, older surface).
+   27   total jpeg crops embedded in residuals.pdf (16 of them are the 8
+        Corrected pairs, each pair's "was" and "now" row sharing one
+        embedded image object - drawn twice, same bytes).
+
+PER-ROW RESULT (the 11 comparable rows)
+------------------------------------------------------------------------------
+   ident    report.pdf crop                    residuals.pdf crop                 match
+            sha256 (16 hex)   w  x   h          sha256 (16 hex)   w  x   h
+   ------------------------------------------------------------------------------------
+   EQ0040   3d5b8fede20cdf96  847 x 418         d983012f50263539  719 x 355         NO
+   EQ0073   ca9b25f3c1cfd0b5  855 x 342         a4c83f2766542883  726 x 290         NO
+   EQ0114   f5afbae0adb1e216 1069 x 407         46f52adf7ac2fb8c  908 x 345         NO
+   EQ0204   4eb43f13fb60f145  767 x 160         69d5a9c1311c13a5  651 x 136         NO
+   EQ0218   9062189a30af6900  854 x 200         402f63c6df7d28c9  725 x 170         NO
+   EQ0439   bcca33ad8695046b 1024 x 442         e5d7e1d8d98666e0  870 x 375         NO
+   EQ0575   42b987153effc1d6  971 x 356         57e83efa04a07d36  825 x 302         NO
+   EQ0793   c6033bb0a0f0e8ae 1108 x 202         b9858a8894c944a8  941 x 171         NO
+   EQ0884   c779426a6caa6c69  938 x 111         31f213bc91fee751  797 x  94         NO
+   EQ0947   eedd942b04397875  765 x 448         ee147f3c4be316a3  650 x 380         NO
+   EQ1055   9a7f79313db12cb6  615 x 103         1e7af4821d1318ab  522 x  87         NO
+
+   (16-hex-char prefix of the full 64-char sha256; every prefix above is
+   distinct - no truncation collisions - full values are in result.json.)
+
+   11 of 11 pairs differ. 0 of 11 match.
+
+HOW THEY DIFFER
+------------------------------------------------------------------------------
+   Every one of the 11 differing pairs has residuals.pdf's crop SMALLER
+   than report.pdf's crop at the SAME aspect ratio - a uniform downsample,
+   not a different region or a different aspect:
+
+     report_width / residuals_width   ranges 1.1769 - 1.1782 across the 11
+     report_height / residuals_height ranges 1.1765 - 1.1839 across the 11
+
+   Both ratios cluster inside a half-percent band around 1.177-1.178 (the
+   width ratio is tighter than the height ratio, consistent with
+   integer-pixel rounding of a single linear scale factor rather than
+   independent width/height distortion). This is exactly the signature
+   the task asked to distinguish for: SAME aspect ratio, SMALLER size ->
+   the per-kind re-encoding rung from 655's size-budget ladder, not a
+   wrong-region or wrong-image defect. No pair showed a different aspect
+   ratio or an unrelated image. This is a measurement, not a diagnosis of
+   WHY the rungs differ between the two builds - that is out of scope here.
+
+BUILD TIMESTAMPS, AND WHAT report.ink.json RECORDS ABOUT ITS CROP
+------------------------------------------------------------------------------
+   report.pdf (current, 15pp, sha256 5e3eea2f1dc4...):
+        built 2026-09-05T12:55:43Z  (report.build.reading.json,
+        phase=reading, findings=true, ink_adopted=true)
+
+   residuals.pdf (10pp): built 2026-09-09T21:10:26Z - 4 days 8h15m AFTER
+        report.pdf.
+
+   report.ink.json's own "measured_against" block names a DIFFERENT
+   report.pdf than either of the above: 458 pages, 37,045,453 bytes,
+   sha256 18ea3c57dabc..., mtime corresponding to 2026-09-05T12:23:12Z -
+   32 minutes BEFORE the 15pp report.pdf now on disk was built
+   (report.build.measure.json confirms this was a phase=measure,
+   findings=false, formula_rule=all build - i.e. the full-corpus pass used
+   to MEASURE ink, immediately superseded on disk by the 15pp
+   findings-shaped build that phase=reading produced and that is
+   report.pdf today). That 458pp measured-against PDF does not exist
+   under this name any more; it was overwritten same day.
+
+   residuals.pdf's own printed header states this explicitly:
+   "equations measured 2026-09-05T12:23:12Z against the model of
+   2026-09-01" - i.e. residuals.pdf, built Sep 9, is still citing an ink
+   measurement taken against a report.pdf snapshot from Sep 5 that no
+   longer exists under that name. Stated as measured fact (the header
+   text plus the three build-phase JSON sidecars), not a diagnosis of
+   consequence.
+
+   Per-row, report.ink.json's 1,460 rows (e.g. the EQ0528 row) carry:
+   id, report_page, line, L (5-element ink array), R (5-element ink
+   array), distance, comp_delta, signed_delta, flag, rendered, code.
+   NO crop path, filename, sha256, or pixel dimension is recorded per
+   row - only the page-level "measured_against" block (above) says which
+   PDF-as-a-whole was measured; nothing in the row record says which
+   embedded image, specifically, produced its L/R ink numbers.
+
+WHAT WAS NOT DONE
+------------------------------------------------------------------------------
+   Nothing under src/ or tests/ was read for the purpose of editing (only
+   report_tex.py and reports/residuals.py were read, per the task's
+   instruction to read freely and touch neither). No artefact was
+   rebuilt, no crop file on disk was opened, no mathpix call was made.
+
+EVIDENCE
+------------------------------------------------------------------------------
+   Script, full 11-row JSON (untruncated sha256), and 4 sample crop images
+   (EQ0114 and EQ0947, both PDFs) live beside the document, not in this
+   repo (deny-by-default git; this document's out/ cannot be committed by
+   accident):
+
+   .../Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)/out/666/script.py
+   .../Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)/out/666/result.json
+   .../Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)/out/666/INSPECT.txt
+   .../Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)/out/666/report_imgs/img-000.jpg   (EQ0114, report.pdf, 1069x407)
+   .../Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)/out/666/residuals_imgs/img-016.jpg (EQ0114, residuals.pdf, 908x345)
+   .../Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)/out/666/report_imgs/img-005.jpg   (EQ0947, report.pdf, 765x448)
+   .../Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)/out/666/residuals_imgs/img-018.jpg (EQ0947, residuals.pdf, 650x380)
+
+   (full paths, elided above only for line width, are all under
+   /home/wkolbe/pdfdrill-library/Introduction to Linear and Matrix
+   Algebra (Nathaniel Johnston) (Z-Library)/; every path in INSPECT.txt
+   at that location is unelided and was verified to exist and be
+   non-empty before being written there.)
