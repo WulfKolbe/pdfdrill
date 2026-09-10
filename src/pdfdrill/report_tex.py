@@ -1133,6 +1133,55 @@ def _env_balanced(lx: str) -> bool:
     return not stack
 
 
+#: 659 — INNERMOST-FIRST. A non-greedy `\begin{X}.*?\end{X}` runs from an
+#: OUTER \begin{array} to the FIRST \end{array}, which belongs to a NESTED
+#: array of the SAME name — the residue is then an unbalanced outer
+#: \begin{array} whose own `\\`/`&` sit unshielded at brace depth 0, and
+#: `has_bare_align_marker` reads them as longtable tab marks. Measured on
+#: 0902.0431: 5 of 1,219 Equation objects refused this way (obj_bb583b24e12c,
+#: obj_2612f0c6637d, obj_a9d4871a3b4b, obj_ad5deeab2cb1, obj_3fbf7b74e056).
+#: This is not a hand-written depth walk but a negative lookahead that
+#: refuses to cross a nested \begin of the SAME name, so a match can only
+#: ever be an environment with no further same-name nesting inside it —
+#: applying it repeatedly peels nests from the inside out. Ported verbatim
+#: (this exact expression, unchanged) from a recovered prior session's
+#: `structurally_safe()` / `latex_repairs._row_widths`, which independently
+#: arrived at the identical regex and was measured there to take a
+#: Chinese-exam-paper corpus from 32 false demotions to zero.
+_INNERMOST_ENV = re.compile(
+    r"\\begin\{(\w+\*?)\}((?:(?!\\begin\{\1\}).)*?)\\end\{\1\}", re.S)
+
+#: The recovered session capped its loop at 12 (this one had capped at 6).
+#: Kept at 12: the cap only bounds how many nesting LEVELS get peeled in one
+#: call, each iteration is a linear regex pass over an already-short equation
+#: string, and 12 is the value that was actually measured against a real
+#: corpus. A nest deeper than the cap does not get fully peeled, but that is
+#: conservative by construction — the unpeeled residue still carries its own
+#: bare `\\`/`&`, so `has_bare_align_marker` still sees them and the row is
+#: still refused, never silently passed as if it had been stripped.
+_ENV_STRIP_CAP = 12
+
+
+def _strip_innermost_envs(lx: str, cap: int = _ENV_STRIP_CAP) -> str:
+    r"""Repeatedly remove the innermost complete `\begin{X}...\end{X}` span,
+    for every name X, until nothing more matches or `cap` iterations run out.
+
+    Terminates on malformed input by construction: an unmatched `\begin` or a
+    `\end` with no preceding `\begin` of the same name simply never matches
+    `_INNERMOST_ENV`, so the first substitution is a no-op, `reduced ==
+    stripped` fires, and the loop exits on iteration 1 — the malformed text
+    is returned with nothing stripped (and its `\\`/`&` therefore still
+    visible to the caller's bare-align-marker check).
+    """
+    stripped = lx
+    for _ in range(cap):
+        reduced = _INNERMOST_ENV.sub(" ", stripped)
+        if reduced == stripped:
+            break
+        stripped = reduced
+    return stripped
+
+
 #: TeX math ALPHABETS are not fonts with gaps — they are alphabets. rsfs10
 #: (\mathscr) and eufm10 (\mathfrak) are uppercase-only script/fraktur faces;
 #: asking either for a lowercase letter drops it SILENTLY, leaving a PDF that
@@ -1462,13 +1511,13 @@ def renderable(latex: str) -> str:
     # bare align markers (& or \\) at BRACE DEPTH 0 are longtable tab marks
     # -> "misplaced tab mark" error-recovery loop (live hang on 0902.0431
     # EQ0035). Environments handle their own; braces SHIELD the rest.
-    stripped_env = lx
-    for _ in range(6):
-        reduced = re.sub(r"\\begin\{(\w+\*?)\}.*?\\end\{\1\}", " ",
-                         stripped_env, flags=re.S)
-        if reduced == stripped_env:
-            break
-        stripped_env = reduced
+    #
+    # 659 — this USED to be a plain non-greedy `.*?` strip, which pairs an
+    # OUTER \begin{array} with the FIRST \end{array} it finds (a NESTED
+    # array's), leaving the true outer \end{array} and the outer row's own
+    # `\\`/`&` exposed. `_strip_innermost_envs` peels same-name nests from
+    # the inside out instead — see its docstring for the measurement.
+    stripped_env = _strip_innermost_envs(lx)
     if has_bare_align_marker(stripped_env):
         return ""
     return lx

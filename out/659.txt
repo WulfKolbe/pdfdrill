@@ -1,0 +1,300 @@
+659 — fix the environment strip: outer pairs with outer, not inner
+====================================================================
+
+"start 659 and fix the strip." The user's original question ("why does my
+residuals report show equations marked '(not rendered)'?") is answered by
+this defect: `renderable()`'s environment-strip loop
+(report_tex.py:1465-1471 pre-fix) used a non-greedy regex
+`\begin{(\w+\*?)}.*?\end{\1}`, which on `\begin{array} … \begin{array} …
+\end{array} … \end{array}` pairs the OUTER `\begin` with the INNER `\end`.
+The residue is then an unbalanced outer `\begin{array}` whose own `\\`/`&`
+sit unshielded at brace depth 0; `has_bare_align_marker` reads them as
+longtable tab marks and the row is refused.
+
+THE FIX
+-------
+`report_tex.py`, new `_strip_innermost_envs()` (placed right after
+`_env_balanced`, its neighbour depth-walk), replacing the loop inline inside
+`renderable()`. The regex:
+
+    _INNERMOST_ENV = re.compile(
+        r"\begin\{(\w+\*?)\}((?:(?!\begin\{\1\}).)*?)\end\{\1\}", re.S)
+
+is a negative lookahead that refuses to cross a nested `\begin` of the SAME
+name — a match can only ever be an environment with no further same-name
+nesting inside it — applied in a loop (cap 12, see below) so nests peel
+inside-out. `renderable()` now calls `_strip_innermost_envs(lx)` where it
+used to inline the broken loop; everything else in `renderable()` is
+untouched.
+
+THE PORT — what I took, what I changed, and why
+------------------------------------------------
+This is a PORT, per the addendum. `~/Downloads/full_report.py`'s
+`structurally_safe()` (copy at scratchpad/full_report.salvaged.py) and
+`latex_repairs.py`'s `_row_widths()`/`fix_bare_rowbreak()` (copy at
+scratchpad/latex_repairs.salvaged.py) independently arrived at the
+IDENTICAL expression:
+
+    re.compile(r"\begin\{(\w+\*?)\}((?:(?!\begin\{\1\}).)*?)\end\{\1\}", re.S)
+
+I took this expression VERBATIM, unchanged — it is the exact regex, not a
+paraphrase, because the addendum states it was measured on a real corpus
+(OmniDocBench, 32 false demotions -> 0) and Rule 3 ("a guarantee in a
+docstring is not a guarantee") argues for reusing a measured artifact over
+re-deriving a look-alike.
+
+What I did NOT port:
+  - `_strip_brace_macro` (the `\substack|\genfrac|\overset|\underset|
+    \stackrel` brace strip). Per the brief and the 657 inventory:
+    `has_bare_align_marker` (report_tex.py:983-1018) already shields ANY
+    `\<controlword>{...}` argument via its own brace-depth walk, more
+    generally than the five named macros. Porting the named-list strip on
+    top would be redundant, and I verified DIRECTLY (see AGREEMENT CHECK
+    below) that the two approaches already agree on the case the brief
+    asked me to check.
+  - `to_inline_env`, `_ENV_MAP`, `brace_balanced` — named as recovered and
+    PENDING for a later task, per the addendum. Not touched here.
+  - `fix_array_cols` / `_row_widths` from latex_repairs.py: read in full
+    (task requires it). `_row_widths` uses the SAME inner-env regex as a
+    flattener before counting row widths, for a DIFFERENT purpose (sizing
+    an `array` column spec, not gating a longtable cell) and is not itself
+    a candidate to replace anything in `renderable()`. Not ported; noted
+    here as read, per instruction.
+
+CAP: 12, not 6
+--------------
+The pre-fix loop capped at 6; the salvaged code caps at 12. I chose 12,
+matching the salvaged/measured value, because:
+  (a) it is the value the 32-false-demotions-to-zero measurement actually
+      used, so keeping it is keeping what was proven, not guessing a new
+      number;
+  (b) each iteration is one linear regex pass over an already-short
+      equation string — the marginal cost of 12 vs 6 iterations on this
+      population is not measurable;
+  (c) a HIGHER cap can only ever strip MORE, never less, so it cannot turn
+      a previously-safe row unsafe; and
+  (d) past the cap, the behaviour is conservative BY CONSTRUCTION, not by
+      a separate check I had to add — see TERMINATION below.
+
+TERMINATION — malformed input, and past the cap
+------------------------------------------------
+Three malformed cases, each tested directly against `_strip_innermost_envs`
+(tests/test_report_tex.py::test_env_strip_terminates_on_malformed_input):
+  - unmatched `\begin` (no `\end` at all): the regex never matches; the
+    first substitution is a no-op; the loop exits on iteration 1.
+  - unmatched `\end` (no preceding `\begin`): same — no match, no-op, exits
+    iteration 1.
+  - a `\end` before any `\begin`: the regex can only pair a `\begin{X}`
+    with a LATER `\end{X}` of the same name, so a leading orphan `\end` is
+    never consumed; if the rest of the string DOES contain a genuine
+    complete pair, that pair legitimately strips (this is correct, not a
+    bug) and the loop still terminates.
+  All three leave a residual `\\`/`&` that `has_bare_align_marker` still
+  sees, so `renderable()` still refuses them — malformed input was never
+  going to render regardless of this fix.
+
+  Past the cap (tests/test_report_tex.py::
+  test_env_strip_cap_is_conservative_past_its_depth): a same-name chain
+  exactly 12 deep fully peels to nothing. A chain 13 deep, built so the
+  OUTERMOST wrapper directly carries its own bare `\\` beside a
+  fully-peelable 12-deep inner chain, needs ONE more iteration than the cap
+  allows for that outer wrapper — it survives unstripped, its own `\\` is
+  still visible to `has_bare_align_marker`, and the row is refused. Verified
+  directly, not asserted: a nest deeper than the cap is refused, never
+  silently passed with a partial strip.
+
+RULE 17 — the fixture
+----------------------
+tests/test_report_tex.py::
+test_env_strip_pairs_outer_begin_with_outer_end_not_inner is built on a
+same-name nest (`array` inside `array`), NOT a differently-named one
+(`array` inside `cases`), because a differently-named nest already worked
+against the BROKEN code and would pass either way — it does not
+discriminate. The test:
+  1. reproduces the OLD non-greedy loop inline (not by calling production
+     code — the old code no longer exists) and asserts it DOES exhibit the
+     defect (`has_bare_align_marker` true on its residue) — so the test
+     documents what was wrong, not just what is now right;
+  2. asserts the FIXED `_strip_innermost_envs` reduces the same input to
+     nothing (fully peeled, no residue) and that `renderable()` returns it
+     unchanged (not refused);
+  3. keeps the differently-named-nest case as a NEGATIVE control — it must
+     still render, exactly as it did before this fix (it never was broken).
+
+MEASUREMENT — 0902.0431, all 1,219 Equation objects
+-----------------------------------------------------
+Script: ~/pdfdrill-library/0902.0431/out/659/659_measure_script.py (also
+scratchpad/659_measure.py). It reads the RAW `latex` prop of every Equation
+object in model.docmodel.json via DocGraph — NOT `latex_refined` — because
+that is the field `reports/from_document.build_rows` actually feeds into
+`renderable()` for residuals.pdf/evidence-*.pdf (`latex=p.get("latex") or
+""`, from_document.py:78); `report_tex.rows_for` only substitutes
+`latex_refined` when `--prefer-refined` is passed, which residuals/evidence
+never do (233's "the report is the projector that chooses" — for THIS
+projector the choice is "no" by default). Using `latex_refined` instead
+would have undercounted: 2 of the 7 objects below carry a VERIFIED
+`latex_refined` that already repairs their raw CJK defect, which would have
+hidden them from this measurement even though the RAW reading (what
+actually ships) still contains it.
+
+Old behaviour reproduced by monkeypatching ONLY `_strip_innermost_envs`
+back to the pre-fix loop (cap 6) inside `renderable()` — so "before" and
+"after" differ in EXACTLY the one thing that changed, nothing else in the
+gate.
+
+  1,219 Equation objects; refused BEFORE: 7; refused AFTER: 2.
+
+  5 rows changed state (refused -> renders):
+    obj_bb583b24e12c   page 11
+    obj_2612f0c6637d   page 115
+    obj_a9d4871a3b4b   page 134
+    obj_ad5deeab2cb1   page 153
+    obj_3fbf7b74e056   page 156
+
+  2 rows STILL refused, correctly, by cjk_defect (unaffected by this fix,
+  out of scope per the brief):
+    obj_128e57e0e8d7   page 173   (raw latex carries U+2FF1 ⿱)
+    obj_57f7fb159a25   page 200   (raw latex carries U+2FFB ⿻)
+
+  This matches the brief's 5-id list and out/657's independent 7-refusal
+  count exactly.
+
+  obj_ad5deeab2cb1 also carries `\\ \\` (double row break, the auditor's
+  defect 4). Checked directly: it is STILL present in `renderable()`'s
+  output after this fix (untouched) — that class is explicitly out of scope
+  here and was not fixed, matching the brief's instruction.
+
+COMPILED, NOT JUST GATED — the two populations of "changed"
+--------------------------------------------------------------
+Per the brief: passing the gate is not evidence of a correct render. All 5
+changed-state rows were compiled together in ONE real longtable cell, using
+`report_tex.preamble()` — the exact preamble `reports/tex.py` uses for
+residuals.pdf/report.pdf — via
+~/pdfdrill-library/0902.0431/out/659/659_probe_script.py. Result: 0 errors,
+1 page (probe659.pdf / probe659-01.png). Visual inspection of the raster
+confirms every row's NESTING is correct: obj_bb583b24e12c's six 2x3
+permutation matrices, obj_2612f0c6637d's nine 4x4 block matrices,
+obj_a9d4871a3b4b's and obj_3fbf7b74e056's stacked nested arrays, and
+obj_ad5deeab2cb1's column of matrices (with its untouched `\\ \\` producing
+a visibly blank row, consistent with that defect being separate and
+unfixed). No misplaced tab marks, no unbalanced structure, no wrong
+row/column count anywhere.
+
+FINDING (unrelated, pre-existing, NOT fixed here): while inspecting the
+raster, obj_a9d4871a3b4b's SIX `\cos` occurrences render as bold, uppercase
+"COS" instead of "cos" — `\sin` in the identical context renders correctly.
+Isolated with a two-token repro (`$\cos x$`) using the UNMODIFIED
+`report_tex.preamble()`: the defect appears ONLY inside a `longtable`
+environment (not `tabular`, not a bare paragraph, with or without
+`\displaystyle`) — see
+~/pdfdrill-library/0902.0431/out/659/cos_lt.tex/.pdf/.png (0902.0431
+LaTeX/report preamble, longtable, plain `\cos x` -> renders "COS"; the
+identical snippet in `tabular` renders "cos" correctly). This predates this
+change (PREAMBLE is untouched by this diff) and is not scoped to the 5
+fixed rows: 8 OTHER equations on this same document already carry `\cos`
+and already pass the gate today (obj_082ae30b2f7d, obj_53064fa116c6,
+obj_ff69a01f97c9, obj_196b1bba58fa, obj_aa47b9a062de, +3 more), so this
+defect is presumably already visible in the currently-published
+report.pdf/evidence-equation.pdf for those rows, independent of anything in
+this task. Root cause NOT chased further (out of scope) — reproduction
+steps are in cos_lt.tex for whoever picks this up. This does NOT invalidate
+the fix in this task: the property `renderable()` and `_strip_innermost_envs`
+are responsible for (row structure / tab-mark safety) is verified correct;
+the COS defect is a font/package interaction in the shared preamble, active
+whether or not this row was ever refused.
+
+AGREEMENT CHECK — `\substack{a \\ b}`
+----------------------------------------
+Per the addendum: both approaches were checked against this exact case.
+  - report_tex.has_bare_align_marker(r"\substack{a \\ b}") -> False (not a
+    bare marker: PASSES, not refused) — its own brace-depth walk treats
+    `\substack{...}` as a shielded macro argument.
+  - The salvaged structurally_safe() calls `_strip_brace_macro` first,
+    which explicitly deletes `\substack{...}` bodies, then the same
+    env-strip (no-op here, `\substack` is not an environment), then checks
+    for bare `&`/`\\` — also PASSES.
+  They AGREE: neither refuses `\substack{a \\ b}`. No finding here — the
+  two approaches reach the same verdict by different mechanisms (general
+  brace-shielding vs. a named-macro strip), exactly as out/657 already
+  established for this document's own `\stackrel` case.
+
+RESIDUALS.PDF — before/after, and the SEPARATE "(not rendered)" POPULATION
+-----------------------------------------------------------------------------
+Two populations, kept apart as instructed:
+
+  Population A (THIS measurement, gate-level, all 1,219 Equation objects,
+  via model.docmodel.json): 7 refused before, 2 after (both CJK, correct).
+
+  Population B (printed-string count, "(not rendered)" as literal text in a
+  built PDF — a DIFFERENT population: only rows a given PDF's row-selection
+  logic actually includes, and a row can appear once per PDF or not at all):
+    - residuals.pdf:        3 -> 1  (REBUILT: `pdfdrill residuals 0902.0431
+      --pdf`, this session, 0 errors, 0 demoted, 19 open rows). The 1
+      remaining instance is EQ1032 (obj_128e57e0e8d7)'s "(was)" — the
+      ORIGINAL raw reading shown for comparison inside a Corrected row,
+      correctly still refused by cjk_defect (not this task's defect, not a
+      regression).
+    - evidence-equation.pdf: 2 (measured on the EXISTING, pre-fix build —
+      not rebuilt; matches the brief's stated figure exactly, independently
+      reconfirmed by me via `pdftotext -layout | grep -c`)
+    - report.pdf:            8 (same: existing pre-fix build, independently
+      reconfirmed, not rebuilt)
+    - B.pdf:                 0 (same: existing pre-fix build, independently
+      reconfirmed, not rebuilt)
+  Only residuals.pdf was rebuilt, per the brief's explicit step 5 ask (it is
+  also the artifact the user's original question was about). report.pdf,
+  evidence-equation.pdf and B.pdf were not rebuilt post-fix — the code path
+  they share (`renderable()`) is identical, so the same 5 ids would clear
+  wherever they appear in those PDFs' row selection, but I did not spend
+  the compile time to confirm that for PDFs the brief did not ask me to
+  rebuild.
+  IMPORTANT: population A's "7" and "5 fixed" do NOT equal population B's
+  string counts anywhere above, by construction — residuals.pdf shows only
+  the OPEN/actionable subset of all 1,219 equations, so it cannot contain
+  all 5 gate-level fixes as separate rows, and a single "(not rendered)"
+  string does not correspond 1:1 to a gate refusal (EQ1032's remaining
+  instance is a "(was)" comparison column, not a top-level row verdict).
+
+TESTS
+-----
+tests/test_report_tex.py, 3 new tests (60 in the file, was 57):
+  - test_env_strip_pairs_outer_begin_with_outer_end_not_inner (Rule 17
+    fixture: same-name nest; reproduces the old defect inline, then asserts
+    the fix; keeps the differently-named-nest case as a negative control)
+  - test_env_strip_terminates_on_malformed_input
+  - test_env_strip_cap_is_conservative_past_its_depth
+
+Full suite: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+tests/ -q -p no:cacheprovider`
+  base commit 8e4795a6: 3497 passed
+  after this fix:        3500 passed (the 3 new tests; 0 regressions)
+
+WHAT IS OPEN
+------------
+  - The COS-in-longtable rendering defect above (finding, not fixed;
+    unrelated to this task; affects at least 8 already-published equations
+    on this document plus obj_a9d4871a3b4b).
+  - obj_ad5deeab2cb1's `\\ \\` double row break (auditor's defect 4,
+    explicitly out of scope per the brief; confirmed still present,
+    unchanged, after this fix).
+  - report.pdf, evidence-equation.pdf, B.pdf not rebuilt post-fix (brief
+    only asked for residuals.pdf; the shared code path makes rebuilding
+    them a re-run of the same command, not a code question).
+  - Recovered-but-not-ported, for the next task, per the addendum:
+    `to_inline_env` / `_ENV_MAP` (display->in-math environment map for
+    report_tex.py's own gate — nothing in `renderable()` remaps
+    align/gather/multline/etc. today, it only ever refuses them
+    structurally) and `brace_balanced`, both in
+    scratchpad/full_report.salvaged.py.
+
+EVIDENCE
+--------
+~/pdfdrill-library/0902.0431/out/659/ (INSPECT.txt lists 9 checked,
+non-empty, existing paths):
+  659_measure_script.py, 659_measure.json  — the corpus-wide gate measurement
+  659_probe_script.py, probe659.tex/.log/.pdf, probe659-01.png,
+    probe659-zoom-01.png                    — the 5 changed rows, compiled and rasterized
+  cos_lt.tex/.log/.pdf/.png, cos_cell.*, cos_cell2.*, cos_iso.*, cos_probe.*,
+    cos_zoom.png                            — the orthogonal COS finding, isolated
+  residuals.pdf (in the document folder, not out/659/) — rebuilt, 1
+    "(not rendered)" string (was 3)

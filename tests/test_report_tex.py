@@ -5,6 +5,7 @@ and --ensure. It is now src/pdfdrill/report_tex.py behind `pdfdrill
 reporttex` with a manifest entry (requires: tiddlers).
 """
 import json
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -166,6 +167,95 @@ def test_braces_shield_align_markers_from_the_longtable_scanner():
     assert has_bare_align_marker(r"a & b")                 # depth 0: real
     assert has_bare_align_marker(r"a \\ b")
     assert has_bare_align_marker(r"\frac{p}{q} \\[2pt] r")
+
+
+def test_env_strip_pairs_outer_begin_with_outer_end_not_inner():
+    r"""659 — RULE 17: the fixture MUST nest the SAME environment name, or a
+    broken pattern passes anyway. A `\begin{array}` nested inside a
+    DIFFERENTLY-named env (`cases`) already worked before this fix, since
+    the outer/inner pairing ambiguity only exists when both ends spell the
+    same name — so a fixture like that proves nothing about this defect.
+
+    Before the fix: a non-greedy `\begin{X}.*?\end{X}` paired the OUTER
+    `\begin{array}` with the INNER `\end{array}`, leaving the outer array's
+    own `&`/`\\` exposed at brace depth 0 and refusing the row
+    (0902.0431: 5 of 1,219 Equation objects, obj_bb583b24e12c and 4 others).
+    """
+    from pdfdrill.report_tex import _strip_innermost_envs, has_bare_align_marker
+
+    same_name_nest = (r"\begin{array}{cc} \begin{array}{c} a \\ b "
+                       r"\end{array} & x \\ y & z \end{array}")
+    # the OLD non-greedy behaviour, reproduced directly to document the
+    # defect being replaced (not re-run against production code)
+    old_stripped = same_name_nest
+    for _ in range(6):
+        red = re.sub(r"\\begin\{(\w+\*?)\}.*?\\end\{\1\}", " ",
+                     old_stripped, flags=re.S)
+        if red == old_stripped:
+            break
+        old_stripped = red
+    assert has_bare_align_marker(old_stripped)      # the defect, reproduced
+
+    # the fix: the outer pairs with the OUTER, so nothing survives at all
+    assert _strip_innermost_envs(same_name_nest).strip() == ""
+    assert renderable(same_name_nest) == same_name_nest
+
+    # the disambiguating negative: a DIFFERENTLY-named nest already worked
+    # against the broken code, and must keep working here too
+    diff_name_nest = (r"\begin{cases} \begin{array}{c} a \\ b \end{array} "
+                       r"& x \\ y & z \end{cases}")
+    assert renderable(diff_name_nest) == diff_name_nest
+
+
+def test_env_strip_terminates_on_malformed_input():
+    """659 — an unmatched \\begin, an unmatched \\end, and a \\end before any
+    \\begin must all terminate (the loop breaks on the first no-op
+    substitution) rather than looping or raising."""
+    from pdfdrill.report_tex import _strip_innermost_envs
+
+    unmatched_begin = r"\begin{array}{c} a \\ b"
+    unmatched_end = r"a \\ b \end{array}"
+    # a \end with no PRECEDING \begin of its own name is unmatched by this
+    # regex too (it only ever pairs a \begin{X} with a LATER \end{X}) — the
+    # trailing, separately-closed array is a genuine complete environment
+    # and legitimately strips; what must not happen is a hang or a crash.
+    end_before_begin = r"\end{array} a \\ b \begin{array}{c} c \end{array}"
+    for lx in (unmatched_begin, unmatched_end, end_before_begin):
+        out = _strip_innermost_envs(lx)     # terminates: no hang, no raise
+        assert renderable(lx) == ""          # residual \\ still refuses the row
+
+    # genuinely nothing to match at all: no-op
+    assert _strip_innermost_envs(unmatched_begin) == unmatched_begin
+    assert _strip_innermost_envs(unmatched_end) == unmatched_end
+
+
+def test_env_strip_cap_is_conservative_past_its_depth():
+    """659 — a same-name nest deeper than the strip's iteration cap must
+    never be silently PARTIALLY stripped and then pass the gate: the
+    unpeeled residue must still carry an unshielded `\\`/`&` of its own, so
+    the row is refused, not rendered wrong."""
+    from pdfdrill.report_tex import (_strip_innermost_envs, _ENV_STRIP_CAP,
+                                     has_bare_align_marker)
+
+    def nest(n, name="array"):
+        s = "x"
+        for _ in range(n):
+            s = r"\begin{%s}{c} %s \end{%s}" % (name, s, name)
+        return s
+
+    # a chain exactly at the cap fully peels (no marker anywhere to expose)
+    at_cap = nest(_ENV_STRIP_CAP)
+    assert _strip_innermost_envs(at_cap).strip() == ""
+
+    # one level past the cap, with the OUTERMOST wrapper directly carrying
+    # its own bare `\\` beside the (fully-peelable, cap-deep) inner chain —
+    # the outer wrapper itself needs one MORE iteration than the cap allows,
+    # so it must survive unstripped and refuse the row
+    inner_chain = nest(_ENV_STRIP_CAP)
+    past_cap = r"\begin{array}{c} a \\ b %s \end{array}" % inner_chain
+    stripped = _strip_innermost_envs(past_cap)
+    assert has_bare_align_marker(stripped)
+    assert renderable(past_cap) == ""          # refused, never silently passed
 
 
 def test_source_column_never_breaks_after_a_backslash():
