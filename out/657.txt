@@ -1,0 +1,327 @@
+657 — inventory of the lost LaTeX-repair session vs. the repo, 2026-09-10
+===========================================================================
+Branch under test: eqblobs-and-gzip-tex (working tree; git status showed no
+uncommitted changes to any file named below). Comparison branch: main
+(read via `git show main:<path>` / `git cat-file -e`, never checked out).
+merge-base(main, eqblobs-and-gzip-tex) = 0b9fd63d = main's own tip. main has
+0 commits eqblobs-and-gzip-tex lacks; eqblobs-and-gzip-tex has 1,855 commits
+main lacks. main is a strict ancestor, not a divergent branch.
+
+POPULATIONS — kept apart per instructions
+-------------------------------------------
+Population A (measured BY ME, this machine, 2026-09-10, arXiv 0902.0431,
+Lie-groups paper, via model.docmodel.json in
+/home/wkolbe/pdfdrill-library/0902.0431/): renderable() refuses 7 of 1,219
+Equations, not 5 (see DISAGREEMENT below). "(not rendered)" strings today:
+residuals.pdf 3, evidence-equation.pdf 2, report.pdf 8, B.pdf 0 (controller's
+counts, not independently re-run by me — no reason to doubt them).
+
+Population B (the AUDITOR's, OmniDocBench v1.6 Chinese exam-paper corpus,
+CRxz.md): 32 false demotions, 28 clean formulas demoted (substack/genfrac/
+overset/underset/stackrel class), 93 of 2,066 gold equations rejected by the
+old unscoped CJK gate, 4 of 18 MiniMax repairs also rejected on the same scope
+mismatch. 19 rows total went to MiniMax; 84 repairs were mechanical
+(latex_repairs.py, not a model).
+
+These two populations never appear together in a single count anywhere below.
+
+HARNESS SURVIVAL — corrected mid-task
+-------------------------------------------
+The brief's claim "none of the harness files survive" is now PARTIALLY
+WRONG, per the controller's correction: ~/Downloads/latex_repairs.py exists
+(192 lines, 7,281 bytes, dated today 12:22 — postdates the original `find`).
+I read it in full. It implements 5 repairs as a fixed PIPELINE returning
+(fixed, notes):
+  fix_macro_absorb   \text<CJK> -> \text{<CJK>} (regex, self-contained)
+  fix_bare_cjk       wraps bare-math-mode CJK runs in \text{} — imports
+                     `from text_escapes import text_spans` (MISSING; the
+                     module's own __main__ self-test fails here with
+                     ModuleNotFoundError on this repair alone)
+  fix_array_cols     widens \begin{array}{l} whose rows use more cells than
+                     declared, via a depth-limited inner-env flattener
+                     (self-contained)
+  fix_double_row     collapses `\\ \\` (self-contained)
+  fix_bare_rowbreak  wraps a hostless top-level `\\` in gathered/aligned
+                     (self-contained)
+So: 4 of 5 repairs are directly portable (no missing dependency); the 5th
+(fix_bare_cjk) needs `text_spans` written or ported. Still absent from
+~/Downloads and from every git ref (confirmed by `find`/`git log
+--diff-filter=A`, not re-run by me — no reason to doubt it): full_report.py,
+delimiter_order.py, bracket_balance.py, cjk_scoped.py, text_escapes.py,
+strip_wrapper.py. latex_repairs.py is the only harness Python file that
+survived. mfull.json, remaining-glyph-loss.json, uncorrectable.json remain
+absent; minimax-corrections.json (5,628 bytes) and the full_report*.pdf /
+OmniBenchfull_report_20260904-2118.pdf renders still stand as the only other
+evidence of that session's output.
+
+THE SEVEN-ITEM TABLE
+-------------------------------------------
+Legend: file:line is on eqblobs-and-gzip-tex (current branch) unless noted;
+"main" line gives the same file's status on main.
+
+1. `_text_spans` + text-scoped `cjk_defect` in report_tex.py
+   ABSENT (the specific mechanism). report_tex.py DOES carry a `cjk_defect`
+   (def at line 1060, helpers `_IDC`/`_CJK_BLOCKS` 1029-1033, `cjk_runs` 1037,
+   `CJK_RUN_MIN` 1057) — but it is NOT text-mode-scoped. It uses a
+   RUN-LENGTH discriminator instead: an isolated ideograph or an IDC (U+2FF0-
+   2FFB) refuses always, a run of >=3 consecutive ideographs is treated as
+   real Chinese text and passed, regardless of whether it sits inside
+   `\text{}` or bare in math mode. This is a different, independently-evolved
+   design (its own docstring cites task "617" and a 335,043-value corpus,
+   unrelated to CRxz), not a port of the auditor's approach, and it happens
+   to satisfy two of the auditor's three pinned discriminating cases by
+   accident of design (`\mathrm{中}` single ideograph -> still rejected) but
+   was not built to the "scope to math mode via _text_spans" contract.
+   `_text_spans` under that name does not exist anywhere in src/ (`grep -rn
+   "_text_spans" src/pdfdrill/*.py` empty).
+   main: ABSENT entirely — main's report_tex.py (532 lines total) has
+   `renderable()` at line 165 and NO `cjk_defect`, no CJK handling of any
+   kind. The whole CJK gate is eqblobs-and-gzip-tex-only.
+   Ownership if built: report_tex.py, next to the existing `cjk_defect`
+   (1021-1097) — this file already owns the CJK gate outright; a
+   `text_spans` primitive should live wherever it is first needed. Since
+   `latex_repairs.fix_bare_cjk` already hardcodes `from text_escapes import
+   text_spans`, the cheapest-to-port choice is a new small
+   `src/pdfdrill/text_escapes.py` (matching the harness's own module name and
+   the import every ported repair expects) rather than inlining it into
+   report_tex.py, which has no other consumer for it yet. NOT
+   `refine._clean_reply` and NOT a new class — the function is a stateless
+   text-scan primitive with exactly the shape `latex_repairs.py` already
+   calls.
+
+2. `to_inline_env` / display->in-math environment map
+   ABSENT in the path this audit is about (report_tex.py's `renderable()` /
+   longtable gate). `_MATH_ENVS` (report_tex.py:225-226) is an ALLOWLIST for
+   image-region (DIA/PIC) LaTeX routing, a different function's concern; it
+   contains array/bmatrix/pmatrix/vmatrix/Vmatrix/matrix/cases/aligned/
+   smallmatrix and NOT align/alignat/flalign/gather/multline/eqnarray/split —
+   `renderable()` never remaps any of those, it only ever REFUSES a value
+   carrying one (via `_env_balanced`/`has_bare_align_marker`, since none of
+   them survive the brace/align-marker checks structurally intact).
+   PARTIAL equivalents exist elsewhere for OTHER projectors, not this gate:
+     - latex_source.py:920 `_ALIGNED_ENVS = {align, gather, multline,
+       eqnarray, alignat, flalign}`; `_clean_eq` (923-950) wraps such a
+       body in `\begin{aligned}...\end{aligned}` when it carries bare &/\\ —
+       but only for the LaTeX/KaTeX source-projector's own already-tagged
+       display items, uniformly into "aligned" (never "gathered" for
+       gather/multline, unlike the auditor's split map), and does not cover
+       `split` at all. Present on BOTH branches (predates the branch split;
+       confirmed identical logic in main's copy at line 844/847/872).
+     - docops/projectors/latex_pipeline.py:111-127 `_DISPLAY_ENV`/
+       `_inline_safe` STRIPS (does not map) aligned/split/gathered/gather*/
+       align*/cases/array/equation*/multline*/eqnarray* wholesale, for making
+       a display Formula safe inside `\ensuremath` (the `\Expr{i}` speech
+       path) — deliberately destructive, not a rendering map.
+     - la2speech/latex2speech.py:476-477 `_INNER_ALIGN_MAP` runs the OPPOSITE
+       direction (aligned->align*, gathered->gather*) for TTS.
+   None of these three touch report_tex.py's gate.
+   Ownership if built: report_tex.py, beside `_MATH_ENVS`/`renderable()` —
+   add the map as a pre-pass before the existing balance checks (map, then
+   let the existing brace/align-marker checks validate the mapped result),
+   since that is exactly where the auditor's task NNN+4 targets it and this
+   file already owns every other renderable()-time decision.
+
+3. Innermost-first / depth-walk environment strip
+   ABSENT, and CONFIRMED DEFECTIVE by direct measurement (see DISAGREEMENT).
+   report_tex.py:1465-1471 (`renderable()`) runs a NON-GREEDY regex
+   (`\\begin\{(\w+\*?)\}.*?\\end\{\1\}`) in a loop of up to 6 iterations
+   until it stops changing — that is repeated non-greedy stripping, not a
+   depth walk, and on `\begin{array}...\begin{array}...\end{array}...
+   \end{array}` it pairs the OUTER `\begin` with the INNER `\end` on the
+   first pass exactly as the auditor describes, leaving the true outer
+   `\end{array}` and the outer row's own `\\`/`&` unshielded. This loop
+   feeds only `has_bare_align_marker` (line 1472) as a check, not the
+   returned value — but that check is what refuses the row. Identical
+   non-greedy loop is on main too (main report_tex.py, same shape, no CJK
+   guard around it) — the defect predates the branch split and is present on
+   BOTH branches.
+   Ownership if built: report_tex.py, replacing the loop at lines 1465-1471
+   with a real depth walk (a sibling to `_env_balanced`, which already does
+   a correct depth walk for `\left`/`\right` at lines 1101-1116 — the
+   pattern to copy already lives eleven lines away in the same file).
+
+4. `\substack`-class brace-macro strip (substack|genfrac|overset|underset|
+   stackrel), brace-balanced
+   PRESENT, in a MORE GENERAL form than asked for, not a named-list strip.
+   `has_bare_align_marker` (report_tex.py:983-1018) walks brace depth and
+   treats ANY `\<controlword>{...}` as a shielded macro argument — the
+   `{` after any control word increments depth regardless of which macro it
+   is, so `\substack{a\\b}`, `\stackrel{a}{b}`, `\genfrac{}{}{0pt}{}{a}{b}`,
+   `\overset{...}{...}`, `\underset{...}{...}` are ALL already shielded, not
+   just the five named. Verified directly: `renderable(r"\substack{a \\ b}")`,
+   `renderable(r"\stackrel{a}{b}")`, `renderable(r"\genfrac{}{}{0pt}{}{a}{b}")`
+   all return the input unchanged (not refused). The function's own
+   docstring (987-991) documents this exact fix, tied to task/bug "0711.0273"
+   dated 2026-08-19 — i.e. this predates the CRxz session and was fixed
+   independently, more generally, for a different symptom (0711.0273: 3 of 14
+   equations wrongly demoted).
+   main: ABSENT — `has_bare_align_marker` does not exist in main's
+   report_tex.py at all; main's non-greedy env-strip loop feeds a bare
+   `"&" in ... or "\\\\" in ...` check with no brace-depth shielding, so
+   `\substack{a\\b}` WOULD be wrongly demoted on main. The generalization is
+   eqblobs-and-gzip-tex-only.
+   No module to build; nothing to port for this item.
+
+5. Mechanical LaTeX repair module (array widening, macro absorption,
+   bare-CJK wrapping, double row-break collapse, hostless `\\` wrapping)
+   ABSENT as a unified module anywhere in src/. Checked each of the surviving
+   latex_repairs.py's five repairs against the tree individually, since the
+   point is to avoid rebuilding what exists:
+     - fix_array_cols (widen array/tabular spec to match widest row): no
+       equivalent. The only kin is changereq.py's `_row_widths` (109),
+       `check_uniform_widths` (210), `check_declared_widths` (415) — these
+       VALIDATE a numeric table's row-width uniformity to REJECT a bad model
+       proposal in refine.validate_one (refine.py:687-696, reason codes
+       R_WIDTH/R_DECLARED at 660-662); they never widen a specifier. Opposite
+       direction of the same problem.
+     - fix_macro_absorb (`\text<CJK>` -> `\text{<CJK>}`): no equivalent.
+       commands.py:7354 `repair_bare_text` looks similar by name but fixes a
+       DIFFERENT absorption defect — `\text` directly followed by another
+       FONT macro (`\text\mathbf...`), matched by `_BARE_TEXT_BEFORE_FONT`
+       (commands.py:7341-7342) — not CJK-into-macro-name.
+     - fix_bare_cjk (wrap bare math-mode CJK in `\text{}`): no equivalent, and
+       philosophically opposite to what's here — report_tex.py's `cjk_defect`
+       REFUSES the row outright rather than repairing it.
+     - fix_double_row (collapse `\\ \\`): no hits anywhere in src/.
+     - fix_bare_rowbreak (wrap a hostless top-level `\\` in gathered/
+       aligned): PARTIAL kin only — latex_source.py's `_clean_eq` (see item 2)
+       does this, but ONLY for content already tagged as one of the six named
+       display envs by the source projector's own extraction, not for an
+       arbitrary latex string with a bare top-level `\\` (which is
+       `fix_bare_rowbreak`'s actual input shape — e.g. a model reply with no
+       env wrapper at all).
+   `text_spans` equivalent (asked explicitly by the controller): NOT present
+   under any name for this purpose. The closest kin is
+   la2speech/latexproject.py `_chars_spans` (495) / `_plain_spans` (513),
+   which computes the COMPLEMENT via a real parser (pylatexenc's
+   LatexWalker) — spans that are PLAIN math text, explicitly skipping descent
+   into `_TEXTUAL_MACROS` (text/textrm/mathrm/mbox/operatorname/etc., listed
+   480-489) — built for the la2speech TTS pipeline's number-reading, not for
+   CJK gating, and inverted in sense from what `fix_bare_cjk` needs (spans
+   INSIDE those macros, not outside). Not reusable as-is without inverting
+   its output and dropping the pylatexenc dependency latex_repairs.py's
+   import line does not expect.
+   Ownership if built: a new `src/pdfdrill/latex_repairs.py` — same name and
+   sibling location to report_tex.py/env_balance.py/changereq.py, ported
+   near-verbatim for 4 of 5 functions. It has two natural callers, neither of
+   which owns "repair before render" today: refine.py's `propose_one`/
+   `_clean_reply` (repair a model's reply before validate_one sees it) and/or
+   report_tex.py's `renderable()` (repair before the gate, not just refuse).
+   `text_spans` itself: `src/pdfdrill/text_escapes.py` (see item 1) — do NOT
+   fold it into la2speech/latexproject.py; that module is TTS-specific and
+   already has an inverted, parser-dependent version serving its own need.
+
+6. Presentation-group stripper in `refine._clean_reply`
+   PARTIAL. `_clean_reply` EXISTS (refine.py:642-652) and is called from
+   `propose_one` (629). Today it strips code fences (`_FENCE`, 638) and
+   matching outer math-delimiter pairs (`_WRAP` = \[..\], $$..$$, \(..\),
+   $..$, 639) in a loop until nothing more matches. It does NOT strip any
+   other presentational wrapper a model might add (explanatory prose,
+   `\boxed{}`, an "Answer:" label, a restated problem) — CRxz.md does not
+   name the specific presentation-group shape it fixed here beyond calling
+   it that, so I cannot confirm scope beyond "narrower than whatever the lost
+   patch did."
+   main: N/A — refine.py does not exist on main at all (added on
+   eqblobs-and-gzip-tex at commit 1cfa955f, "170-174: the refine loop";
+   `git branch --contains 1cfa955f` names only eqblobs-and-gzip-tex). The
+   entire refine/validate pipeline — refine.py, changereq.py, env_balance.py
+   — is eqblobs-and-gzip-tex-only; none of it exists on main.
+   Ownership if extended: refine.py, inside `_clean_reply` itself — it is
+   already the single, narrowly-scoped function the auditor patched, and
+   extending it in place keeps the "strip model reply furniture" logic in
+   one place rather than splitting it across a new module.
+
+7. `standalone_preamble` body-level `\newcolumntype` fix in latex_source.py
+   PRESENT, on BOTH branches, predates the branch split and predates the
+   CRxz session. `_DEF_START` (latex_source.py:683-685 on
+   eqblobs-and-gzip-tex; line 650-652 on main) explicitly includes
+   `\newcolumntype` in the regex alternation; `_collect_macro_defs` (688) and
+   `standalone_preamble` (797) carry it into the cropped standalone preamble.
+   The comment immediately above `_DEF_START` (674-677) documents the exact
+   defect the auditor described — a `tabular` using a custom column type
+   (`P{3cm}`) failing "Illegal pream-token (P)" without it — measured here as
+   "13 of 14 table-SVG failures on one paper," under an unrelated task number
+   ("287", for `\newlength`/`\newsavebox`, extending an already-present
+   `\newcolumntype` fix). This was fixed independently of the lost session,
+   before it, and is unrelated to the stashed `git stash@{0}` copy CRxz.md
+   describes — that stash is simply moot; the fix it contained already
+   shipped through the normal path. Nothing to port, nothing to build.
+
+WHAT `renderable()` ACTUALLY DOES TODAY (report_tex.py:1350-1474)
+-------------------------------------------------------------------
+In order: normalize whitespace; `alphabet_safe`; rewrite
+`\boldsymbol{\operatorname{X}}` -> `\operatorname{\mathbf{X}}` (634); refuse on
+`cjk_defect` (item 1, present-but-different-mechanism); drop a glued TRAILING
+`\end{X}` with no matching `\begin{X}` (446/128 fix); mirror-drop a glued
+LEADING `\begin{X}` with no matching `\end{X}` (446); refuse plain-TeX
+multiline macros (`\displaylines`/`\eqalign(no)?`/`\halign`/`\cr`); drop
+leading furniture / stray closers (`_drop_leading_furniture` 1206,
+`_drop_stray_closers` 1246 — glued `\begin{figure}`/captions, 483/485); strip
+leading `\[`/trailing `\]`, refuse mid-string `$`/`\[`/`\]`/`%` (446);
+brace-balance check; repair a glued delimiter (`split_glued_delimiter`, 518)
+then refuse an unrecognized `\left`/`\right` delimiter; refuse on unbalanced
+`\left`/`\right` DEPTH (`_lr_balanced`, 618, a real depth walk — NOT the same
+loop as item 3); refuse on unbalanced `\begin`/`\end` (`_env_balanced`, 1120,
+also a real depth-aware walk, distinct from the item-3 loop); THEN the
+item-3 non-greedy strip-loop (1465-1471) feeding `has_bare_align_marker`
+(item 4, present in general form) to refuse on a depth-0 `&`/`\\`.
+Of the seven items: (4) is present and more general than asked; (7) is
+present and unrelated to this function; (1) is present but a different,
+narrower-scoped mechanism; (3) is present in NAME (a strip loop exists) but
+confirmed defective in exactly the way the auditor named; (2), (5), (6) are
+absent or only partially covered by code living in OTHER files for OTHER
+projectors. The environment-balance walks that DO work correctly in this
+function (`_lr_balanced` 1101-1116, `_env_balanced` 1120-1241) are real depth
+walks and are the pattern item 3's fix should copy — they live twelve and
+seventy lines above the broken loop, in the same function's own file.
+
+DISAGREEMENT WITH THE BRIEF
+-------------------------------------------
+The brief states 0902.0431 has "5 of 1,219" refused equations, "four" nested-
+array-strip and "one" brace-macro. I loaded model.docmodel.json and ran
+`renderable()` over all 1,219 Equation objects directly (not re-deriving the
+report-build pipeline, just the gate function) and got 7 refusals, not 5:
+  - 5 non-CJK refusals, and ALL FIVE, not four, fail via the identical
+    mechanism: `has_bare_align_marker` returns True on the row surviving the
+    item-3 non-greedy strip loop (obj_bb583b24e12c, obj_2612f0c6637d,
+    obj_a9d4871a3b4b, obj_ad5deeab2cb1, obj_3fbf7b74e056). I found ZERO rows
+    refused by the brace-macro mechanism, because that mechanism is not
+    broken here (item 4, confirmed present and general — see above).
+  - obj_3fbf7b74e056 DOES contain a `\stackrel` (inside `\xrightarrow{\stackrel
+    {f^{-1}}{\longrightarrow}}`), which is presumably why the brief counted
+    it as the "one brace-macro" case — but I tested directly: removing the
+    `\stackrel`/`\xrightarrow` wrapper and leaving the nested arrays intact,
+    the row is STILL refused (`renderable()` still returns ""). The `\stackrel`
+    is not the cause; the nested `\begin{array}` inside `\begin{array}` in the
+    same value is. So this row belongs entirely to the nested-array class,
+    not a distinct brace-macro class, on this document.
+  - 2 further refusals (obj_128e57e0e8d7, obj_57f7fb159a25) are CORRECTLY
+    refused by `cjk_defect` — both carry ideographic description characters
+    (U+2FF1, U+2FFB) — and are not a gate bug at all; they are the CJK gate
+    working as designed. The brief's "5" appears to exclude these
+    (consistent framing, not a contradiction), but its own total of 7 vs. 5
+    was not stated, and the 4-vs-1 split inside the 5 does not match what I
+    measured: it is 5-vs-0 here, with the sole `\stackrel`-bearing row
+    misattributable to the wrong class if read at a glance.
+  This does not overturn the brief's core claim (the nested-array-strip
+  defect is real, confirmed, and dominant on this document) — it sharpens
+  it: on 0902.0431 specifically, the brace-macro defect class the auditor
+  measured on OmniDocBench (28 clean formulas demoted) does not manifest at
+  all, because item 4 is already fixed here, more generally than the named
+  list, under an unrelated bug number from before the CRxz session.
+
+BOTTOM LINE
+-------------------------------------------
+Present, no action: (4) brace-macro shielding (general form), (7) preamble
+\newcolumntype fix. Present-but-narrower, extend in place: (1) cjk_defect
+(different mechanism, not text-scoped), (6) _clean_reply (fences+delimiters
+only). Present-in-name-but-broken, fix in place: (3) the non-greedy env-strip
+loop (report_tex.py:1465-1471) — confirmed by direct measurement to be the
+cause of all 5 non-CJK refusals on 0902.0431. Absent, needs building: (2) the
+display->in-math env map for report_tex.py's own gate (partial analogues
+exist in latex_source.py and latex_pipeline.py for OTHER projectors — do not
+copy those wholesale, they solve adjacent but different problems), (5) a
+`latex_repairs.py` module — 4 of 5 of the surviving harness file's functions
+are directly portable now, the 5th needs a new `text_escapes.py` (`text_spans`)
+which also directly answers item 1's missing primitive — one function serving
+two tasks, confirmed not to exist anywhere in the tree under any name.
