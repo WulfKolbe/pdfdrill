@@ -534,6 +534,20 @@ class KeepEntry(NamedTuple):
 #: newer resolution back to "Reference not yet resolved: ..." -- verified
 #: live and fixed here (651 review, finding 1); see
 #: `test_resolved_reference_is_not_reverted_by_ref_source`.
+#:
+#: HAND-SYNCED with `commands._TRANSLATE_FIELD` (the tiddler-tag -> field
+#: map `_translate_tiddler_file_inplace` actually writes a `<field>_source`
+#: backup for -- today `text`/`caption`, giving `text_source`/
+#: `caption_source`) and, one level further back, `commands.
+#: _TRANSLATE_MODEL_FIELD` (the MODEL-level prose fields `translate_model_
+#: prose` backs up the same way, `content_source` included for a type this
+#: constant does not yet cover at the tiddler level). Nothing imports these
+#: three lists FROM each other -- `tiddlywiki.py` is lower-level than
+#: `commands.py` and importing it back would cycle -- so a translated field
+#: added to either `_TRANSLATE_FIELD` map without a matching entry here
+#: reopens a NARROWER version of the exact bug finding 1 fixed: a real
+#: `<field>_source` backup on the tiddler that `_is_hand_edited` fails to
+#: recognise as hand-work. If you add a translated field, add it here too.
 _TRANSLATION_MARKERS = ("text_source", "caption_source", "content_source",
                         "translated_lang")
 
@@ -554,6 +568,28 @@ def _is_hand_edited(old_tiddler: dict) -> bool:
     constant's own comment above."""
     if any(k in old_tiddler for k in _TRANSLATION_MARKERS):
         return True
+    created, modified = old_tiddler.get("created"), old_tiddler.get("modified")
+    return bool(created and modified and modified > created)
+
+
+def _is_bare_wiki_edit(old_tiddler: dict) -> bool:
+    """True if `_is_hand_edited` is true SOLELY because `modified` >
+    `created` -- no translation marker at all (651 re-review, finding 2).
+
+    This is the one hand-edit shape `_stale_base_conflict` can never guard:
+    a translation carries its own pre-edit baseline in `<field>_source`, so
+    a moved base is detectable; a bare edit made straight in the wiki
+    overwrote the field with nothing kept beside it, so there is no
+    fingerprint recorded ANYWHERE to compare the model's current rendering
+    against. That is a missing FACT, not a missing feature -- the guard
+    genuinely cannot be built for this shape without the projector itself
+    changing what it stamps onto a tiddler (out/651.txt CONCERN 5). What
+    CAN be done cheaply, and is (`merge_updated_tiddlers`'s `unguarded`
+    return key): count every restore this fires for, the same
+    `footnote_not_narrowed` pattern 650 closed with -- an unmeasurable case
+    gets an instrument, not just a sentence in a doc."""
+    if any(k in old_tiddler for k in _TRANSLATION_MARKERS):
+        return False
     created, modified = old_tiddler.get("created"), old_tiddler.get("modified")
     return bool(created and modified and modified > created)
 
@@ -759,14 +795,18 @@ def merge_updated_tiddlers(fresh: list, old: list) -> dict:
     (the underlying content itself moved, not just a target -- 651 review,
     finding 2) is refused and counted separately, for the SAME reason --
     the `footnote_not_narrowed` pattern (650): anything this merge refuses
-    to do is counted, not silent. There is no equivalent guard for a bare
-    wiki hand-edit with no `_source` backup (`modified` > `created` alone)
-    -- see `_stale_base_conflict` and out/651.txt's own CONCERNS for why
-    that case has no fingerprint to check against.
+    to do is counted, not silent. There is NO equivalent guard for a bare
+    wiki hand-edit with no `_source` backup (`modified` > `created` alone,
+    `_is_bare_wiki_edit`) -- nothing was ever recorded to compare the
+    model's current rendering against, so `_stale_base_conflict` cannot see
+    a moved base for it. That case genuinely cannot be guarded (out/651.txt
+    CONCERN 5) -- but per the SAME "counted, not silent" rule, it is not
+    left as a sentence in a doc either: every restore this shape fires for
+    is counted under `unguarded` (651 re-review, finding 2).
 
     Mutates and returns the tiddlers in `fresh` in place; does not touch
     `old`. Returns {merged, restored, unmatched, unmatched_by_kind,
-    refused_dangling, refused_stale_base, newly_orphaned}:
+    refused_dangling, refused_stale_base, newly_orphaned, unguarded}:
       merged            `fresh`, with matched tiddlers patched in place
       restored          {title: {field: reason}} -- every field this run changed
       unmatched         OLD titles with no match in `fresh`, sorted
@@ -787,12 +827,21 @@ def merge_updated_tiddlers(fresh: list, old: list) -> dict:
                         live on penev_A (out/651.txt) when a hand-typed
                         replacement paragraph did not carry the two `{{...
                         ||CIT}}` markers its own fresh text did.
+      unguarded         {title: {field: reason}} -- a restore that DID
+                        proceed (it is also in `restored`) but on a bare
+                        `modified` > `created` signal with no baseline at
+                        all to check the content against -- unlike
+                        `refused_stale_base`, this is not refused (there is
+                        nothing to compare, so nothing to refuse over); it
+                        is the one shape `_stale_base_conflict` can never
+                        see, counted rather than merely described.
     """
     all_titles = {t.get("title") for t in fresh}
     by_title = {t.get("title"): t for t in old if t.get("title")}
     restored: dict = {}
     refused: dict = {}
     refused_stale: dict = {}
+    unguarded: dict = {}
     matched_titles: set = set()
     unreferenced_before = set(tiddler_integrity(fresh)["unreferenced"])
     for t in fresh:
@@ -804,6 +853,7 @@ def merge_updated_tiddlers(fresh: list, old: list) -> dict:
         changes: dict = {}
         skipped: dict = {}
         skipped_stale: dict = {}
+        unguarded_here: dict = {}
         for field, ovalue in o.items():
             if field == "title":
                 continue
@@ -835,12 +885,22 @@ def merge_updated_tiddlers(fresh: list, old: list) -> dict:
                     continue
             t[field] = ovalue
             changes[field] = why
+            if (present_in_new and field in _TRANSCLUDE_FIELDS
+                    and _is_bare_wiki_edit(o)):
+                unguarded_here[field] = (
+                    "restored on `modified` > `created` alone -- no "
+                    "translation marker, so no pre-edit baseline exists to "
+                    "check the underlying content against; a moved base "
+                    "cannot be detected for this shape (out/651.txt "
+                    "CONCERN 5).")
         if changes:
             restored[title] = changes
         if skipped:
             refused[title] = skipped
         if skipped_stale:
             refused_stale[title] = skipped_stale
+        if unguarded_here:
+            unguarded[title] = unguarded_here
     unmatched = sorted(set(by_title) - matched_titles)
     unmatched_by_kind: dict = {}
     for title in unmatched:
@@ -852,7 +912,7 @@ def merge_updated_tiddlers(fresh: list, old: list) -> dict:
     return {"merged": fresh, "restored": restored, "unmatched": unmatched,
             "unmatched_by_kind": dict(sorted(unmatched_by_kind.items())),
             "refused_dangling": refused, "refused_stale_base": refused_stale,
-            "newly_orphaned": newly_orphaned}
+            "newly_orphaned": newly_orphaned, "unguarded": unguarded}
 
 
 def keep_list_report() -> list:

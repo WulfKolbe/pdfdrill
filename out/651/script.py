@@ -36,6 +36,23 @@ C. NEW (finding 1, live). penev_A's own 52 References are all STUBS (no
 D. NEW (finding 3, live). `--update` with a path that does not exist.
    Expect: the fresh tiddlers.json is still written and non-empty (not
    discarded), and the return message says so.
+
+FIX ROUND 2 (task-651-review.md re-review) added E and F: two new MINOR
+findings, both instruments rather than behaviour changes.
+
+F. NEW (re-review finding 1, live, right after D). Reads the SIDECAR
+   (`Sidecar(PDF)`) after D's failed --update and confirms `TIDDLERS_BUILT`
+   is in its facts and `tiddlers_path` points at a file that actually
+   exists -- before the fix, the two early `return`s inside `--update`'s
+   failure paths skipped `sc.set_evidence`/`add_fact`/`log_transition`
+   entirely, so the sidecar denied a file the filesystem plainly had.
+E. NEW (re-review finding 2, live). A BARE wiki hand-edit -- no `_source`
+   backup at all, `modified` set far past `created` -- on a Paragraph none
+   of A/B/C/D touched (`penev_A_PARA_0010`). `_stale_base_conflict` cannot
+   see a moved base for this shape (nothing was ever recorded to check
+   against) so the edit still applies, exactly as before this round; what
+   changed is that it is now COUNTED under `unguarded` rather than only
+   described in a docstring, and the CLI message says "UNGUARDED".
 """
 import json
 import sys
@@ -233,6 +250,52 @@ def main():
          "(still the plain projection, timestamps aside):",
          _sig(json.loads(after_d)) == _sig(fresh))
 
+    # ---- F (re-review finding 1): the SIDECAR must agree that D's fresh
+    # file exists -- before the fix, the two early `return`s inside the
+    # `--update` block skipped sc.set_evidence/add_fact(TIDDLERS_BUILT)/
+    # log_transition entirely, so a valid file sat on disk while the
+    # sidecar said `tiddlers` had never been built.
+    from pdfdrill.sidecar import Sidecar
+    from pdfdrill.commands import TIDDLERS_BUILT
+    sc_after_d = Sidecar(PDF)
+    f_tiddlers_built = TIDDLERS_BUILT in sc_after_d.facts
+    f_tiddlers_path = sc_after_d.get_evidence("tiddlers_path")
+    f_path_exists = bool(f_tiddlers_path) and (DOC / f_tiddlers_path).is_file()
+    print("\n--- F: sidecar state after D's failed --update ---")
+    print("F RESULT: TIDDLERS_BUILT in sidecar facts:", f_tiddlers_built)
+    print("F RESULT: sidecar tiddlers_path:", f_tiddlers_path)
+    print("F RESULT: that path actually exists on disk:", f_path_exists)
+
+    # ---- E (re-review finding 2): a BARE wiki hand-edit (no `_source`
+    # backup at all) on a title NONE of A/B/C touched -- `unguarded` must
+    # fire, live, on this document.
+    E_TITLE = "penev_A_PARA_0010"
+    old_bare = json.loads(json.dumps(fresh))
+    e_para = next(t for t in old_bare if t["title"] == E_TITLE)
+    original_e_text = e_para["text"]
+    e_para["text"] = ("Hand-edited straight in TiddlyWiki, no _source backup "
+                      "at all -- 651 evidence, unguarded case.")
+    e_para["modified"] = "99999999999999999"          # > created; no text_source
+    OLD_COPY_BARE = DOC / "out" / "651" / "old_bare_wiki_edit.tiddlers.json"
+    OLD_COPY_BARE.write_text(json.dumps(old_bare), encoding="utf-8")
+
+    out_update_e = cmd_tiddlers(PDF, bibkey="penev_A", update=str(OLD_COPY_BARE))
+    print("\n--- E: --update (bare wiki edit, no _source backup) ---")
+    print(out_update_e)
+    merged_e = json.loads(LIVE.read_text(encoding="utf-8"))
+    m_para_e = next(t for t in merged_e if t["title"] == E_TITLE)
+    update_record_e = json.loads((DOC / "penev_A.update.json").read_text(encoding="utf-8"))
+    print("E RESULT: text IS the hand edit (restored, no baseline to check):",
+         m_para_e["text"] == e_para["text"])
+    print("E RESULT: 'UNGUARDED' in the message:", "UNGUARDED" in out_update_e)
+    print("E RESULT: unguarded record for this title:",
+         update_record_e["unguarded"].get(E_TITLE, {}))
+
+    LIVE.write_text(json.dumps(fresh, indent=1), encoding="utf-8")
+    for p in (DOC / "penev_A.update.json", DOC / "penev_A.update-unmatched.json"):
+        if p.exists():
+            p.unlink()
+
     result = {
         "A_unchanged_base": {
             "para_text_restored": m_para["text"] == para["text"],
@@ -265,6 +328,16 @@ def main():
             "fresh_file_present": LIVE.is_file(),
             "message_says_still_written": "still written" in out_update_d,
             "fresh_file_unchanged": _sig(json.loads(after_d)) == _sig(fresh),
+        },
+        "F_sidecar_state_after_D": {
+            "tiddlers_built_in_facts": f_tiddlers_built,
+            "tiddlers_path_evidence": f_tiddlers_path,
+            "path_exists_on_disk": f_path_exists,
+        },
+        "E_unguarded_bare_wiki_edit": {
+            "text_is_the_hand_edit": m_para_e["text"] == e_para["text"],
+            "message_says_unguarded": "UNGUARDED" in out_update_e,
+            "unguarded_record": update_record_e["unguarded"].get(E_TITLE, {}),
         },
     }
     (DOC / "out" / "651" / "result.json").write_text(

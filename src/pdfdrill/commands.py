@@ -11219,10 +11219,15 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     would dangle a transclusion (its own target moved) or whose OLD
     pre-translation baseline no longer matches the model's CURRENT rendering
     (the underlying content moved -- 651 review, finding 2) is refused and
-    counted rather than applied; the fresh projection is written to disk
-    BEFORE `--update` is even attempted, so a bad/missing `--update` path
-    never discards it (651 review, finding 3). `<bibkey>.update.json`
-    records what changed, what was refused and why, and the keep-list used.
+    counted rather than applied; a restore with NO baseline to check at all
+    (a bare wiki edit, `modified` > `created` alone -- the one shape that
+    genuinely cannot be guarded) still proceeds but is counted separately
+    as `unguarded` (651 re-review, finding 2). The fresh projection is
+    written to disk, and the sidecar updated, BEFORE `--update` is even
+    attempted, so a bad/missing `--update` path never discards the file or
+    leaves the sidecar denying it exists (651 review finding 3; re-review
+    finding 1). `<bibkey>.update.json` records what changed, what was
+    refused or left unguarded and why, and the keep-list used.
     """
     from docmodel.core import Document
     from docops.base import OperatorConfig
@@ -11307,6 +11312,30 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     # standing (a bad --update path) or overwrites it with the merge.
     out_path.write_text(result, encoding="utf-8")
 
+    # 651 re-review, finding 1 -- record the sidecar state HERE, right after
+    # the file that state describes actually lands on disk, not after the
+    # `--update` block below. The two early `return`s inside that block (a
+    # missing/unparseable --update path) used to skip this entirely: a valid
+    # tiddlers.json sat on disk while the sidecar said TIDDLERS_BUILT was
+    # never reached, so `--ensure`/`pdfdrill steps`/`status` would not see it
+    # (self-healing on the next successful run, which is why this was minor,
+    # not blocking -- but a file the state layer denies exists is exactly
+    # the kind of inconsistency 645's own rule (`presence is not adequacy`,
+    # rule 6) warns about from the OTHER side: here presence is real and the
+    # state is what lags). `count` is unaffected by a later merge (it never
+    # adds or removes tiddlers, only patches fields), so this value stays
+    # correct whether or not `--update` goes on to succeed.
+    sc.set_evidence("tiddlers_path", str(out_path.relative_to(sc.pdf_path.parent)))
+    sc.set_evidence("tiddlers_count", count)
+    sc.set_evidence("tiddlers_svg_mode", "inline" if embed_svg else "external")
+    prev = ",".join(sorted(sc.facts - {TIDDLERS_BUILT})) or "INIT"
+    sc.add_fact(TIDDLERS_BUILT)
+    sc.log_transition(
+        "tiddlers", prev, TIDDLERS_BUILT, cost_ms=(time.monotonic() - t0) * 1000,
+        detail=f"{count} tiddlers, svg={'inline' if embed_svg else 'external'}",
+    )
+    sc.save()
+
     # 651 -- `--update <old.tiddlers.json>`: merge hand-work from an older
     # projection onto this fresh one, matched by title (650: a title survives
     # a rebuild unchanged). See `tiddlywiki.merge_updated_tiddlers`/
@@ -11337,6 +11366,7 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
         restored_fields = sum(len(v) for v in m["restored"].values())
         refused_fields = sum(len(v) for v in m["refused_dangling"].values())
         refused_stale_fields = sum(len(v) for v in m["refused_stale_base"].values())
+        unguarded_fields = sum(len(v) for v in m["unguarded"].values())
         unmatched = m["unmatched"]
         unmatched_by_kind = m["unmatched_by_kind"]
         newly_orphaned = m["newly_orphaned"]
@@ -11352,6 +11382,7 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
             "restored": m["restored"],
             "refused_dangling": m["refused_dangling"],
             "refused_stale_base": m["refused_stale_base"],
+            "unguarded": m["unguarded"],
             "unmatched": unmatched,
             "unmatched_by_kind": unmatched_by_kind,
             "newly_orphaned": newly_orphaned,
@@ -11374,22 +11405,16 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
                f"unreferenced (a restored text/caption dropped a marker the "
                f"fresh prose still carried, e.g. {', '.join(newly_orphaned[:3])})"
                if newly_orphaned else "")
+            + (f"; {unguarded_fields} restoration(s) UNGUARDED (a bare "
+               f"modified>created wiki edit with no baseline to check the "
+               f"content against — cannot be verified either way)"
+               if unguarded_fields else "")
             + f".\n  keep-list used ({len(KEEP_LIST)} field(s) + "
               f"{'/'.join(_KEEP_PREFIXES)}* prefixes): "
             + "; ".join(keep_list_report())
             + f"\n  update record: {update_path.relative_to(sc.pdf_path.parent)}"
         )
 
-    sc.set_evidence("tiddlers_path", str(out_path.relative_to(sc.pdf_path.parent)))
-    sc.set_evidence("tiddlers_count", count)
-    sc.set_evidence("tiddlers_svg_mode", "inline" if embed_svg else "external")
-    prev = ",".join(sorted(sc.facts - {TIDDLERS_BUILT})) or "INIT"
-    sc.add_fact(TIDDLERS_BUILT)
-    sc.log_transition(
-        "tiddlers", prev, TIDDLERS_BUILT, cost_ms=(time.monotonic() - t0) * 1000,
-        detail=f"{count} tiddlers, svg={'inline' if embed_svg else 'external'}",
-    )
-    sc.save()
     rel = _artref(sc, out_path)
     # Referential-integrity guard: every transclusion target/template must exist
     # and no synthetic FOX may be orphaned (created but never referenced) — the
@@ -11468,6 +11493,14 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
 # Tag -> the tiddler field whose prose gets translated. Math/code/image/toc
 # tiddlers (equation, formula, code, picture, diagram, table, toc, page,
 # reference) are intentionally absent — their text is not natural-language prose.
+#
+# 651 — every field named here as a VALUE gets a `<field>_source` backup
+# written by `_translate_tiddler_file_inplace` below, which is exactly what
+# `tiddlywiki._TRANSLATION_MARKERS`/`_is_hand_edited` key on to recognise a
+# translated tiddler during `--update`. The two lists are hand-synced, not
+# derived from each other (a cycle: tiddlywiki.py is lower-level and cannot
+# import this module) — add a field's backup here and it must also be added
+# there, or `--update` silently fails to protect it.
 _TRANSLATE_FIELD = {
     "paragraph": "text", "footnote": "text", "sidenote": "text",
     "abstract": "text", "section": "caption",
@@ -11489,6 +11522,11 @@ def _translate_field_for(tiddler: dict) -> Optional[str]:
 # Heisenberg-Kette …" between translated paragraphs, plus a wholly German table
 # of contents. Only the caption is sent — never latex_code, cdn_url, or a
 # table's cell data, which are not language.
+#
+# 651 — one level further back than `_TRANSLATE_FIELD` above: see its own
+# comment. A field translated ONLY here (Picture/Diagram/Chart/Figure/Table
+# caption) never gets a tiddler-level `_source` backup at all today — that
+# gap is out/651.txt's own CONCERN 1, not silently assumed fixed by this map.
 _TRANSLATE_MODEL_FIELD = {
     "Paragraph": "text", "Abstract": "text", "Toc": "text",
     "Footnote": "content", "Sidenote": "content", "ListItem": "content",

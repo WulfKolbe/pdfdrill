@@ -528,6 +528,11 @@ items 1-4 unchanged, still accurate per the review)
      only by having the projector itself stamp a content fingerprint
      (e.g. a hash of the realization's own span) onto every prose tiddler,
      which is a change to the PROJECTOR, not to `--update`.
+     UPDATED, fix round 2: still unguardable, no longer merely described --
+     every restore this shape fires for is now COUNTED under `unguarded`
+     (see FIX ROUND 2 below). The risk itself is unchanged; what changed is
+     that a reader no longer has to trust a doc comment to know it happened
+     on a given run.
 
 FILES (fix round 1 additions)
   src/docops/projectors/tiddlywiki.py   _TRANSLATION_MARKERS,
@@ -548,3 +553,120 @@ EVIDENCE (fix round 1)
   old_stale_base.tiddlers.json,old_still_stub_reference.tiddlers.json,
   fresh_resolved_fake.tiddlers.json,result.json,update.json,
   update-unmatched.json,INSPECT.txt}
+
+FIX ROUND 2 — re-review (task-651-review.md) confirmed all three original
+findings resolved, independently, by live reproduction rather than by
+running the test suite. Two new MINOR findings, both closed; one
+observation, addressed with a pointer comment. Base 01379376; the tree had
+moved to 34f24eaf ("653: pdfdrill corpusstatus") -- a clean fast-forward,
+nothing in 653 touched the `--update` code.
+
+  FINDING 1 (MINOR) -- the unconditional fresh write (fix round 1, finding
+  3) happens before the two `--update` failure `return`s, but
+  `sc.set_evidence`/`sc.add_fact(TIDDLERS_BUILT)`/`sc.log_transition`/
+  `sc.save()` still ran only AFTER the whole `if update:` block -- which
+  those same `return`s skip. Reproduced live: after a bad `--update` path,
+  a valid tiddlers.json sits on disk while the sidecar says `tiddlers` was
+  never built, so `--ensure`/`pdfdrill steps`/`status` (all sidecar
+  readers, not filesystem scanners) would not see it. Self-heals on the
+  next successful run, which is why this was minor.
+
+  FIX: the whole `sc.set_evidence`/`add_fact`/`log_transition`/`save()`
+  block moved to run immediately after the unconditional write, BEFORE the
+  `--update` block (and its early returns) even starts. The identical block
+  that used to sit after the `if update:` block is deleted -- one copy, not
+  two, and the surviving one runs unconditionally by construction rather
+  than by remembering to duplicate it correctly.
+
+  Tests: `test_sidecar_state_is_recorded_even_when_update_path_is_bad` and
+  `test_sidecar_state_is_recorded_when_update_json_is_bad` (the missing-path
+  and bad-JSON failure paths, respectively) -- both assert `TIDDLERS_BUILT`
+  is in `sc.facts`, `tiddlers_path` evidence is set, and the file it points
+  at actually exists and matches `tiddlers_count`.
+
+  FINDING 2 (MINOR, "the one I care about") -- the bare-wiki-edit case
+  (`modified` > `created` with no `_source` backup at all) is correctly
+  unguardable -- confirmed by the re-review -- but it was only DESCRIBED
+  (a docstring paragraph and a CONCERNS bullet), while `refused_dangling`,
+  `refused_stale_base` and `newly_orphaned` all have real counters on the
+  same function. The instruction: count it, the same `footnote_not_
+  narrowed` pattern 650 closed with -- an unmeasurable case gets an
+  instrument, not a sentence.
+
+  FIX: new `_is_bare_wiki_edit(old_tiddler)` -- true iff `_is_hand_edited`
+  fires SOLELY on the timestamp signal (no `_TRANSLATION_MARKERS` present
+  at all). `merge_updated_tiddlers` now returns a fourth counted bucket,
+  `unguarded`: {title: {field: reason}}, populated at the exact point a
+  `text`/`caption` restore actually commits under this shape (it is not
+  refused -- there is nothing to compare, so nothing to refuse over; it
+  still wins, same as before this round, just counted). Threaded through
+  `cmd_tiddlers` the same way as its three siblings: `<bibkey>.update.json`
+  carries `unguarded`, and the CLI note says "N restoration(s) UNGUARDED"
+  when non-zero.
+
+  Tests: `test_is_bare_wiki_edit_is_false_when_a_translation_marker_is_
+  present` (the predicate's own truth table -- must NOT fire merely because
+  modified>created also happens to be true on a genuinely-backed
+  translation), `test_unguarded_does_not_fire_for_a_real_translation` (the
+  control), `test_unguarded_does_not_fire_for_a_non_transclude_field`
+  (scoped to text/caption only -- `spoken` and friends are unconditional
+  and have nothing to do with this counter), `test_unguarded_is_surfaced_
+  end_to_end_through_cmd_tiddlers` (the CLI note and `<bibkey>.update.json`
+  both carry it), and the existing `test_stale_base_conflict_has_no_
+  signal_for_a_bare_wiki_edit` extended to also assert the new counter
+  fires where it previously only asserted the guard's absence.
+
+  OBSERVATION (not a finding; addressed) -- `_TRANSLATION_MARKERS` is a
+  hand-synced enumeration with nothing tying it to `commands.
+  _TRANSLATE_FIELD`/`_TRANSLATE_MODEL_FIELD`; a future translated field
+  added to either map without a matching entry here would silently reopen
+  a NARROWER version of finding 1's own bug (a real `<field>_source` on the
+  tiddler that `_is_hand_edited` fails to recognise). NOT derived
+  programmatically: `tiddlywiki.py` is lower-level than `commands.py`
+  (`commands.py` imports `tiddlywiki`, locally, throughout; the reverse
+  would cycle at load time). Addressed with pointer comments on BOTH sides
+  -- `_TRANSLATION_MARKERS`'s own comment now names `_TRANSLATE_FIELD`/
+  `_TRANSLATE_MODEL_FIELD` explicitly, and `_TRANSLATE_FIELD`/
+  `_TRANSLATE_MODEL_FIELD` in commands.py now point back -- so a future
+  editor reading either side sees the coupling.
+
+  EVIDENCE RE-RUN, penev_A, two more scenarios appended (E, F --
+  `out/651/script.py`, `~/pdfdrill-library/penev_A/out/651/`):
+    E. A bare wiki hand-edit (no `_source` backup, `modified` set far past
+       `created`) on `penev_A_PARA_0010` -- a title none of A/B/C/D touched.
+       Result: the hand-edit still applies (unchanged behaviour), the CLI
+       message says "1 restoration(s) UNGUARDED", and `<bibkey>.
+       update.json`'s `unguarded` key names the title and field.
+    F. Reads the SIDECAR (`Sidecar(PDF)`) directly after D's failed
+       `--update` (a missing path). Result: `TIDDLERS_BUILT` is in
+       `sc.facts`, `tiddlers_path` evidence names the file, and that file
+       exists on disk -- the exact inconsistency finding 1 named is
+       confirmed gone.
+  `~/pdfdrill-library/penev_A/out/651/INSPECT.txt` now lists 9 paths (added
+  `old_bare_wiki_edit.tiddlers.json`, E's input).
+
+  FULL SUITE (fix round 2): `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src
+  python3 -m pytest tests/ -q -p no:cacheprovider` -> 3497 passed, 0 failed
+  (3491 at 34f24eaf, the commit this round started from, measured directly
+  by stashing this round's changes and re-running -- +6, exactly this
+  round's new tests; no regressions).
+
+FILES (fix round 2 additions)
+  src/docops/projectors/tiddlywiki.py   _is_bare_wiki_edit, `unguarded`
+                                        (merge return key), pointer comment
+                                        on `_TRANSLATION_MARKERS`
+  src/pdfdrill/commands.py              sidecar state recorded before
+                                        `--update` is attempted (moved, not
+                                        duplicated); `unguarded` threaded
+                                        into the CLI note + update record;
+                                        pointer comments on `_TRANSLATE_
+                                        FIELD`/`_TRANSLATE_MODEL_FIELD`
+  tests/test_tiddler_update.py          +6 tests (34 total)
+  out/651/script.py                     +2 scenarios (E, F), still
+                                        byte-identical to the library copy
+
+EVIDENCE (fix round 2)
+  ~/pdfdrill-library/penev_A/out/651/{script.py,old_hand_edited.tiddlers.json,
+  old_stale_base.tiddlers.json,old_still_stub_reference.tiddlers.json,
+  old_bare_wiki_edit.tiddlers.json,fresh_resolved_fake.tiddlers.json,
+  result.json,update.json,update-unmatched.json,INSPECT.txt}

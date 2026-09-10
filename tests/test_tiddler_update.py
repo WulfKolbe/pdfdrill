@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from docops.projectors.tiddlywiki import (
     merge_updated_tiddlers, tiddler_integrity, KEEP_LIST, keep_list_report,
-    _is_hand_edited,
+    _is_hand_edited, _is_bare_wiki_edit,
 )
 
 
@@ -476,7 +476,9 @@ def test_stale_base_conflict_has_no_signal_for_a_bare_wiki_edit():
     bare hand-edit with no `_source` backup carries no baseline at all, so
     `_stale_base_conflict` cannot see a moved base for it — it simply
     doesn't fire, and the hand-edit is restored on the modified>created
-    signal alone, exactly as before. Not a bug; the documented limit."""
+    signal alone, exactly as before. Not a bug; the documented limit. But
+    (651 re-review, finding 2) the restore that goes through is COUNTED as
+    `unguarded`, not left as a bare fact in a docstring."""
     fresh = [{"title": "DOC_PARA_0001", "text": "fresh, possibly different now.",
              "created": "1", "modified": "1"}]
     old = [{"title": "DOC_PARA_0001", "text": "hand-edited in the wiki.",
@@ -484,3 +486,143 @@ def test_stale_base_conflict_has_no_signal_for_a_bare_wiki_edit():
     m = merge_updated_tiddlers(fresh, old)
     assert fresh[0]["text"] == "hand-edited in the wiki."
     assert m["refused_stale_base"] == {}
+    assert "text" in m["unguarded"]["DOC_PARA_0001"]
+
+
+# ---------------------------------------------------------------------------
+# 651 re-review, finding 2 — the `unguarded` counter
+# ---------------------------------------------------------------------------
+
+def test_is_bare_wiki_edit_is_false_when_a_translation_marker_is_present():
+    """`_is_bare_wiki_edit` must NOT fire just because modified>created is
+    also true on a genuinely translated tiddler -- only the ABSENCE of any
+    translation marker makes it a bare edit."""
+    assert not _is_bare_wiki_edit(
+        {"created": "1", "modified": "2", "text_source": "x"})
+    assert _is_bare_wiki_edit({"created": "1", "modified": "2"})
+    assert not _is_bare_wiki_edit({"created": "1", "modified": "1"})   # no edit at all
+    assert not _is_bare_wiki_edit({})
+
+
+def test_unguarded_does_not_fire_for_a_real_translation():
+    """The control: a properly-backed translation (unchanged base) is
+    `restored` but never `unguarded` -- a real baseline exists, even though
+    it happens to also satisfy modified>created."""
+    fresh = [{"title": "DOC_PARA_0001", "text": "fresh prose.",
+             "created": "1", "modified": "1"}]
+    old = [{"title": "DOC_PARA_0001", "text": "translated prose.",
+           "text_source": "fresh prose.", "created": "1", "modified": "2"}]
+    m = merge_updated_tiddlers(fresh, old)
+    assert fresh[0]["text"] == "translated prose."
+    assert m["unguarded"] == {}
+    assert "text" in m["restored"]["DOC_PARA_0001"]
+
+
+def test_unguarded_does_not_fire_for_a_non_transclude_field():
+    """`unguarded` is scoped to text/caption (the only KEEP_LIST entries
+    with a hand-edit predicate at all) -- a bare wiki edit shape on, say,
+    `spoken` is unconditional and has nothing to do with this counter."""
+    fresh = {"title": "DOC_FO0001", "text": "...", "spoken": "e equals m c squared",
+            "created": "1", "modified": "1"}
+    old = {"title": "DOC_FO0001", "text": "...", "spoken": "corrected reading",
+          "created": "1", "modified": "2"}
+    m = merge_updated_tiddlers([fresh], [old])
+    assert fresh["spoken"] == "corrected reading"
+    assert m["unguarded"] == {}
+
+
+def test_unguarded_is_surfaced_end_to_end_through_cmd_tiddlers():
+    """The CLI note and `<bibkey>.update.json` both carry `unguarded`."""
+    from pdfdrill.commands import cmd_model, cmd_tiddlers
+    from pdfdrill.sidecar import Sidecar
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        pdf = d / "doc651u.pdf"
+        pdf.write_bytes(b"%PDF-1.4\n")
+        (d / "doc651u.lines.json").write_text(json.dumps({"pages": [
+            {"page": 1, "image_id": "i", "lines": [
+                {"id": "l1", "type": "text", "text": "German prose here.",
+                 "text_display": "German prose here."}]}]}))
+        cmd_model(pdf, bibkey="doc651u")
+        cmd_tiddlers(pdf)
+        sc = Sidecar(pdf)
+        fresh_path = sc.blob_dir / "doc651u.tiddlers.json"
+        fresh = json.loads(fresh_path.read_text(encoding="utf-8"))
+        para = next(t for t in fresh if t.get("tags", "").startswith("paragraph"))
+
+        old = json.loads(json.dumps(fresh))
+        old_para = next(t for t in old if t["title"] == para["title"])
+        old_para["text"] = "Hand-edited straight in the wiki, no backup."
+        old_para["modified"] = "99999999999999999"     # > created, no _source
+        old_path = d / "old.tiddlers.json"
+        old_path.write_text(json.dumps(old))
+
+        out = cmd_tiddlers(pdf, update=str(old_path))
+        assert "UNGUARDED" in out
+
+        merged = json.loads(fresh_path.read_text(encoding="utf-8"))
+        m_para = next(t for t in merged if t["title"] == para["title"])
+        assert m_para["text"] == "Hand-edited straight in the wiki, no backup."
+
+        update_json = json.loads(
+            (sc.blob_dir / "doc651u.update.json").read_text(encoding="utf-8"))
+        assert "text" in update_json["unguarded"][para["title"]]
+
+
+# ---------------------------------------------------------------------------
+# 651 re-review, finding 1 — sidecar state recorded before --update can fail
+# ---------------------------------------------------------------------------
+
+def test_sidecar_state_is_recorded_even_when_update_path_is_bad():
+    """Before the fix, the two early `return`s inside the `--update` block
+    skipped `sc.set_evidence`/`sc.add_fact(TIDDLERS_BUILT)`/`sc.log_
+    transition` entirely: a valid tiddlers.json would sit on disk while the
+    sidecar said it was never built. `--ensure`/`pdfdrill steps`/`status`
+    all read the sidecar, not the filesystem, so this self-corrupts what
+    every other command believes exists."""
+    from pdfdrill.commands import cmd_model, cmd_tiddlers, TIDDLERS_BUILT
+    from pdfdrill.sidecar import Sidecar
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        pdf = d / "doc651s.pdf"
+        pdf.write_bytes(b"%PDF-1.4\n")
+        (d / "doc651s.lines.json").write_text(json.dumps({"pages": [
+            {"page": 1, "image_id": "i", "lines": [
+                {"id": "l1", "type": "text", "text": "hi", "text_display": "hi"}]}]}))
+        cmd_model(pdf, bibkey="doc651s")
+
+        out = cmd_tiddlers(pdf, update=str(d / "does-not-exist.json"))
+        assert "still written" in out
+
+        sc = Sidecar(pdf)
+        assert TIDDLERS_BUILT in sc.facts
+        assert sc.get_evidence("tiddlers_path")
+        # "tiddlers_path" is stored relative to the PDF's own directory
+        # (`out_path.relative_to(sc.pdf_path.parent)`), not to `blob_dir`.
+        fresh_path = sc.pdf_path.parent / sc.get_evidence("tiddlers_path")
+        assert fresh_path.is_file()
+        tiddlers = json.loads(fresh_path.read_text(encoding="utf-8"))
+        assert len(tiddlers) > 0
+        assert sc.get_evidence("tiddlers_count") == len(tiddlers)
+
+
+def test_sidecar_state_is_recorded_when_update_json_is_bad():
+    from pdfdrill.commands import cmd_model, cmd_tiddlers, TIDDLERS_BUILT
+    from pdfdrill.sidecar import Sidecar
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        pdf = d / "doc651t.pdf"
+        pdf.write_bytes(b"%PDF-1.4\n")
+        (d / "doc651t.lines.json").write_text(json.dumps({"pages": [
+            {"page": 1, "image_id": "i", "lines": [
+                {"id": "l1", "type": "text", "text": "hi", "text_display": "hi"}]}]}))
+        cmd_model(pdf, bibkey="doc651t")
+        bad = d / "not-json.json"
+        bad.write_text("{not valid json")
+
+        out = cmd_tiddlers(pdf, update=str(bad))
+        assert "still written" in out
+
+        sc = Sidecar(pdf)
+        assert TIDDLERS_BUILT in sc.facts
+        assert sc.get_evidence("tiddlers_path")
