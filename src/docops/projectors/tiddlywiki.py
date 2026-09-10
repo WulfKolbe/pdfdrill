@@ -542,12 +542,24 @@ class KeepEntry(NamedTuple):
 #: _TRANSLATE_MODEL_FIELD` (the MODEL-level prose fields `translate_model_
 #: prose` backs up the same way, `content_source` included for a type this
 #: constant does not yet cover at the tiddler level). Nothing imports these
-#: three lists FROM each other -- `tiddlywiki.py` is lower-level than
-#: `commands.py` and importing it back would cycle -- so a translated field
-#: added to either `_TRANSLATE_FIELD` map without a matching entry here
-#: reopens a NARROWER version of the exact bug finding 1 fixed: a real
-#: `<field>_source` backup on the tiddler that `_is_hand_edited` fails to
-#: recognise as hand-work. If you add a translated field, add it here too.
+#: three lists FROM each other. Checked directly (652/651 fix-round-2
+#: review): importing `pdfdrill.commands` from here would NOT actually
+#: cycle -- every `commands.py` import of this module is function-local,
+#: and none of `commands.py`'s own top-level imports reach back into
+#: `docops`. The real reason is layering, not import mechanics: this is a
+#: low-level projector, and a low-level projector should not reach up into
+#: a 23,000-line CLI-orchestration module to save one hand-synced tuple. A
+#: third, genuinely lower-level module that both sides import (e.g. a small
+#: `translate_fields.py`) would give real derivation without violating
+#: that layering either direction -- not done here because the current
+#: enumeration is verified complete for every field the codebase can
+#: currently produce, and extracting a module for a 4-tuple was judged not
+#: worth the indirection yet. So: hand-synced deliberately, not because a
+#: cycle forces it -- add a translated field to either `_TRANSLATE_FIELD`
+#: map without a matching entry here and it reopens a NARROWER version of
+#: the exact bug finding 1 fixed: a real `<field>_source` backup on the
+#: tiddler that `_is_hand_edited` fails to recognise as hand-work. If you
+#: add a translated field, add it here too.
 _TRANSLATION_MARKERS = ("text_source", "caption_source", "content_source",
                         "translated_lang")
 

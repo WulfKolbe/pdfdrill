@@ -11498,8 +11498,21 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
 # written by `_translate_tiddler_file_inplace` below, which is exactly what
 # `tiddlywiki._TRANSLATION_MARKERS`/`_is_hand_edited` key on to recognise a
 # translated tiddler during `--update`. The two lists are hand-synced, not
-# derived from each other (a cycle: tiddlywiki.py is lower-level and cannot
-# import this module) — add a field's backup here and it must also be added
+# derived from each other. Checked directly (652/651 fix-round-2 review):
+# this is NOT an import cycle — a top-level `from pdfdrill.commands import
+# ...` added to tiddlywiki.py would load cleanly today, since every import
+# of `tiddlywiki` in this module is function-local and nothing this module
+# imports at top level reaches into `docops`. The real reason to keep the
+# two lists separate is layering: `tiddlywiki.py` is a low-level projector
+# and should not import from this 23,000-line CLI-orchestration module, in
+# either direction that matters for maintenance (this module already can
+# import it; the constraint is that the projector should not import this).
+# A third, genuinely lower-level shared module (e.g. a small
+# `translate_fields.py` both files import) would let `_TRANSLATION_MARKERS`
+# be derived instead of duplicated, without violating that layering either
+# direction — not done here; the current pair is verified complete for
+# every field the codebase can currently produce and was judged not worth
+# the extra module yet. Add a field's backup here and it must also be added
 # there, or `--update` silently fails to protect it.
 _TRANSLATE_FIELD = {
     "paragraph": "text", "footnote": "text", "sidenote": "text",
