@@ -18,7 +18,27 @@ twin of round 1's gather-phase fix [`_corpus_render_row_or_error`], plus a
 minor: the page's summary paragraph now gives "errored" its own number
 instead of folding it into "unavailable". Corpus re-run again after this
 fix; the gather-phase numbers are UNCHANGED — confirmed by assertion in
-`out/653c/script.py`, not merely restated.)
+`out/653c/script.py`, not merely restated.
+
+fix round 3 folded in: a THIRD instance of the SAME defect — round 2's
+render-phase wrapper protects `_corpus_row_html`'s call into
+`_corpus_row_state`, but `_render_corpus_index_html` ALSO calls
+`_corpus_state_counts`, which walks `rows` a SECOND, independent time and
+calls the same fallible `_corpus_row_state` unguarded; a row with an
+incomplete `conserve.counts` dict made it raise `KeyError` there too,
+voiding the whole write AFTER the (correctly protected) render loop had
+already survived the identical row. Three rounds finding the same failure
+one call site later is the tell that the fix belongs in the function, not
+in its callers: `_corpus_row_state` is now TOTAL — it never raises, for
+any input, full stop — so both this call site and `cmd_corpusstatus`'s own
+separate `_corpus_state_counts` call (which the review named as
+"practically moot only because the crash upstream fires first," i.e. a
+FOURTH latent instance) are safe by construction, and the two existing
+wrappers become belt-and-braces rather than the load-bearing thing. Tested
+directly on the malformed shapes, not only through a caller. Corpus
+re-run again; the counts are BYTE-IDENTICAL to rounds 1/2 — asserted in
+`out/653d/script.py`, which also calls `_corpus_row_state` on the same
+malformed shapes directly and confirms none of them raises.)
 
 WHAT CHANGED
   `pdfdrill corpusstatus [--library DIR] [--only-published]`: walks every
@@ -50,11 +70,20 @@ WHAT CHANGED
                         `errored`) is decided; read by both the row
                         renderer and the page's/command's own summary
                         counts so the two cannot silently disagree. See
-                        THE THREE-STATE FIX below.
+                        THE THREE-STATE FIX below. FIX ROUND 3: now TOTAL
+                        — wrapped in its OWN try/except, never raises for
+                        any input — see THE TOTAL-FUNCTION FIX below.
     _corpus_state_counts(rows)   the one aggregator both
                         `_render_corpus_index_html` and `cmd_corpusstatus`
                         call — a second, hand-rolled count in each place is
-                        exactly how finding 1 happened the first time.
+                        exactly how finding 1 happened the first time. Safe
+                        by construction since fix round 3 (calls the now-
+                        total `_corpus_row_state`), not by its own guard.
+    _corpus_render_row_or_error / _corpus_row_render_error_html   fix round
+                        2 — the render-phase twin of round 1's gather-phase
+                        fix; still present as belt-and-braces after round
+                        3, no longer the ONLY thing standing between a
+                        malformed row and a voided page.
     _corpus_model_date / _corpus_gold_bib / _corpus_artefacts /
     _href_from_library / _render_corpus_index_html / _corpus_row_html /
     _write_corpus_index_html   unchanged in shape from the first round
@@ -221,6 +250,106 @@ THE RENDER-PHASE ISOLATION FIX (fix round 2 — new BLOCKING finding)
   explanatory prose, which names the word without any row being in that
   state).
 
+THE TOTAL-FUNCTION FIX (fix round 3 — the third instance of the SAME
+defect, and the reason this is a design fix, not another wrapped call site)
+  Round 2's `_corpus_render_row_or_error` protects `_corpus_row_html`'s
+  call into `_corpus_row_state`. But `_render_corpus_index_html` ALSO
+  calls `_corpus_state_counts(rows)` — a SECOND, independent traversal of
+  the SAME `rows` list, immediately after the (correctly protected) render
+  loop, that calls the identical `_corpus_row_state` with no guard at all.
+  A row with an incomplete `conserve.counts` dict (missing `unclaimed`/
+  `doubly_claimed` — a plausible legacy or partially-written shape, not a
+  contrived one) makes `c["unclaimed"] > 0 or c["doubly_claimed"] > 0`
+  raise `KeyError` inside `_corpus_row_state`. Reproduced live, three ways,
+  on the identical row: `_corpus_render_row_or_error` (round 2's fix)
+  correctly survives it; `_corpus_state_counts` on its own raises;
+  `_render_corpus_index_html` — the function that actually matters —
+  raises the SAME `KeyError` and returns no HTML at all. Since
+  `_write_corpus_index_html` calls `_render_corpus_index_html` strictly
+  BEFORE `write_bytes`, this voids the whole `index.html` write for all
+  2,931 rows, including every one the round-2 fix's row loop had ALREADY
+  rendered successfully — finding 3's exact catastrophic shape, one call
+  site further down the same function. `cmd_corpusstatus`'s own separate
+  `counts = _corpus_state_counts(rows)` call is a FOURTH latent instance
+  of the identical unprotected pattern, moot only because the crash three
+  lines earlier (via `_write_corpus_index_html`) fires first.
+
+  Three rounds finding the same failure one call site later is the
+  reviewer's own diagnosis, taken as the standard rather than argued
+  against: the defect was never "a caller forgot to guard," it was that
+  `_corpus_row_state` is a PARTIAL function — it raises on row shapes the
+  pipeline can legitimately produce — with more than one caller, and each
+  round's fix guessed at which caller needed wrapping next while leaving
+  the function itself exactly as fallible. Guessing a third (or fourth)
+  call site to wrap was rejected in favour of making the function TOTAL:
+  `_corpus_row_state`'s entire body is now inside its own try/except, and
+  ANY exception — `KeyError`, `AttributeError` on `r=None`, a future
+  `TypeError` from a shape nobody has imagined yet — returns `'errored'`
+  rather than propagating. This makes EVERY caller safe by construction,
+  including the two the review found, the fourth it named as latent, and
+  any written later; the two existing wrappers
+  (`_corpus_row_or_error`/`_corpus_render_row_or_error`) are now
+  belt-and-braces against `_corpus_row_html`'s/`_corpus_status_row`'s OWN
+  other field accesses (e.g. `cons = r["conserve"]` at the very top of
+  `_corpus_row_html`, evaluated BEFORE `_corpus_row_state` is even called),
+  not the last line of defence for THIS specific defect any more.
+
+  `{"conserve": {}}` (present but empty — no `available` key at all) is
+  deliberately NOT one of the "must become errored" cases: `cons.get(
+  "available")` on an empty dict is `None`, falsy, and the function
+  already read that correctly as `'unavailable'` before this round — a
+  sensible default, not a bug. The total-function change must not turn an
+  already-correct answer into `'errored'` just because a `try` now wraps
+  it; a dedicated test pins this down
+  (`test_corpus_row_state_missing_available_key_is_unavailable_not_
+  errored`) so a future, looser rewrite of the guard cannot regress it
+  silently.
+
+  TESTED DIRECTLY ON THE MALFORMED SHAPES (the review's own instruction:
+  "test the function directly ... not only through its callers" — every
+  existing test before this round reached `_corpus_row_state`'s failure
+  mode only through `_corpus_row_html`, which happens to be called with
+  well-formed rows, so the second, unwrapped traversal was untested as
+  well as unfixed):
+  `test_corpus_row_state_is_total_on_malformed_shapes` calls
+  `_corpus_row_state` DIRECTLY on `None`, `{}`, `{"conserve": None}`,
+  `{"conserve": {"available": True}}` (verdict missing), and the exact
+  reproduction shape (`counts` present but missing both keys, and missing
+  just `doubly_claimed` with `unclaimed=0` so the `or`'s short-circuit
+  does not hide it) — every one now returns `'errored'`.
+  `test_corpus_row_state_still_correct_on_every_well_formed_shape` calls
+  it directly on one well-formed example of EACH of the five states
+  (`ok`/`bad`/`unaudited`/a baseline-regression `bad`/`unavailable`/
+  explicit `errored`), so the fix cannot have widened what the `except`
+  swallows without a test noticing.
+  `test_a_malformed_row_no_longer_voids_the_whole_page` is the
+  integration-level regression for the EXACT chain the review reproduced:
+  builds one real, well-formed row via `corpus_status_rows`, appends a
+  hand-constructed malformed one (the incomplete-`counts` shape) to the
+  SAME list, then calls `_corpus_state_counts`, `_render_corpus_index_html`,
+  and `_write_corpus_index_html` — the three functions the review named,
+  in the order they actually run — confirming none of them raises and the
+  written page carries BOTH bibkeys.
+
+  VERIFIED FAILING PRE-FIX, THEN FIXED: reverted only `_corpus_row_state`'s
+  try/except (via `git stash` on `commands.py` alone, test file kept) and
+  ran the two new tests above — both failed, one with the bare
+  `AttributeError`/`KeyError` the fix targets, the other with the identical
+  `KeyError` propagating out of `_corpus_state_counts` inside
+  `_render_corpus_index_html`. Restored the fix; both pass.
+
+  Re-ran the full corpus AGAIN after this fix (2,931 documents, 472.0s
+  command-reported / 7:52.45 wall clock, exit 0): the state counts are
+  BYTE-IDENTICAL to rounds 1 and 2's (34/1,196/107/1,594) — asserted, not
+  merely restated, in `out/653d/script.py`
+  (`unchanged_from_fix_rounds_1_and_2`), which is exactly what this round's
+  fix should produce: it changes `_corpus_row_state`'s behaviour on
+  MALFORMED input only, and the real corpus contains none. The same
+  script also calls `_corpus_row_state` directly on five malformed shapes
+  and confirms all five return `'errored'`
+  (`corpus_row_state_is_total_direct_proof.none_raised: true`) — the
+  evidence file proves the same claim the test suite proves, independently.
+
 THE NUMBERS — READ OFF THE ARTEFACT `pdfdrill corpusstatus` ACTUALLY WROTE,
 AFTER THE FIX (review finding 1: the whole point of this section)
   Full corpus re-run, `~/pdfdrill-library`, 2,931 documents:
@@ -303,8 +432,32 @@ THE SURROGATE BUG — UNCHANGED, RE-CONFIRMED (review finding 7)
   the same way pre-fix and passes post-fix. Not touched this round.
 
 TESTS
-  `tests/test_corpusstatus.py`, 19 tests (round 0 had 13; round 1 net +4;
-  round 2 net +2, both new, none replaced):
+  `tests/test_corpusstatus.py`, 23 tests (round 0 had 13; round 1 net +4;
+  round 2 net +2; round 3 net +4, all new, none replaced):
+    - NEW (round 3): `test_corpus_row_state_is_total_on_malformed_shapes` —
+      calls `_corpus_row_state` DIRECTLY (not through a caller) on `None`,
+      `{}`, `{"conserve": None}`, a `conserve` dict missing `verdict`, and
+      the exact reproduction shape (`counts` present but missing
+      `unclaimed`/`doubly_claimed`, with `unclaimed=0` set explicitly so
+      the `or`'s short-circuit cannot hide the missing key) — every one
+      returns `'errored'`, none raises.
+    - NEW (round 3): `test_corpus_row_state_missing_available_key_is_
+      unavailable_not_errored` — pins down that `{"conserve": {}}` was
+      NEVER a raising shape (falsy `available` already correctly meant
+      `'unavailable'`) and must stay that way, not be swept into `'errored'`
+      by the new blanket `try`.
+    - NEW (round 3): `test_corpus_row_state_still_correct_on_every_well_
+      formed_shape` — calls the function directly on one well-formed
+      example of each of the five real states, so the fix cannot have
+      quietly widened what the `except` swallows.
+    - NEW (round 3): `test_a_malformed_row_no_longer_voids_the_whole_page`
+      — the integration-level regression for the EXACT chain the review
+      reproduced: one real row plus one hand-built malformed row, through
+      `_corpus_state_counts`, `_render_corpus_index_html`, and
+      `_write_corpus_index_html` in that order; confirmed FAILING pre-fix
+      (`git stash` on `commands.py` alone) with the identical `KeyError`
+      from `_corpus_state_counts` inside `_render_corpus_index_html`,
+      passing post-fix with both bibkeys on the written page.
     - NEW (round 2): `test_render_phase_isolates_a_single_row_failure` —
       monkeypatches `_corpus_row_html` to raise for exactly one of three
       documents; confirms `cmd_corpusstatus` does NOT raise, all 3 rows
@@ -355,33 +508,39 @@ TESTS
       true after this round (no new code path reaches it).
 
   FULL SUITE: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
-  tests/ -q -p no:cacheprovider` -> 3509 passed, 0 failed (19 in
+  tests/ -q -p no:cacheprovider` -> 3513 passed, 0 failed (23 in
   `tests/test_corpusstatus.py`; `test_doclock.py`, `test_skill_sync.py`,
-  `test_status_html.py` also run standalone first, all green — 59 passed
+  `test_status_html.py` also run standalone first, all green — 63 passed
   in the combined targeted run).
 
 EVIDENCE
   Round 0 (superseded for the numeric narrative, kept for the mechanics it
   verified — the surrogate bug and its fix):
     `~/pdfdrill-library/out/653/{script.py,report.json,INSPECT.txt}`.
-  Round 1 (superseded for the numeric narrative by round 2's confirmation —
-  the two are byte-identical in every count — kept for the baseline/
+  Round 1 (superseded for the numeric narrative, kept for the baseline/
   non-baseline breakdown it computed):
     `~/pdfdrill-library/out/653b/{script.py,report.json,INSPECT.txt}`.
-  Round 2 (fix round — THIS report's numbers, and the render-phase check):
+  Round 2 (superseded for the numeric narrative by round 3's confirmation —
+  all three are byte-identical in every count — kept for the render-phase
+  check it ran):
+    `~/pdfdrill-library/out/653c/{script.py,report.json,INSPECT.txt}`.
+  Round 3 (fix round — THIS report's numbers, and the total-function
+  check):
     `~/pdfdrill-library/index.html` — 2,931 rows, 1,603,873 bytes, written
     by a real run of `pdfdrill corpusstatus --library ~/pdfdrill-library`
-    AFTER the render-phase fix (2,931 documents, 415.7s / 6:56.07 wall
-    clock, exit 0).
-    `~/pdfdrill-library/out/653c/script.py` — reads the state (CSS class)
+    AFTER `_corpus_row_state` was made total (2,931 documents, 472.0s /
+    7:52.45 wall clock, exit 0).
+    `~/pdfdrill-library/out/653d/script.py` — reads the state (CSS class)
     of every row from `index.html`, asserts the four counts are
-    BYTE-IDENTICAL to round 1's (34/1,196/107/1,594 — a real assertion,
-    not a restated number), and counts real row-level "errored"/"could not
-    be rendered" markers (0 each) using a pattern that cannot false-positive
-    on the summary paragraph's own explanatory prose.
-    `~/pdfdrill-library/out/653c/report.json` — the full numeric record for
-    this round.
-    `~/pdfdrill-library/out/653c/INSPECT.txt` — one path, `index.html`,
+    BYTE-IDENTICAL to rounds 1/2's (34/1,196/107/1,594 — a real assertion),
+    AND calls `_corpus_row_state` directly on five malformed shapes
+    (`None`, `{}`, a `None` `conserve`, a `conserve` missing `verdict`, the
+    incomplete-`counts` shape), asserting none of them raises — the same
+    claim the test suite makes, proven independently, against the real
+    library's own module import.
+    `~/pdfdrill-library/out/653d/report.json` — the full numeric record for
+    this round, including the five malformed-shape results.
+    `~/pdfdrill-library/out/653d/INSPECT.txt` — one path, `index.html`,
     checked to exist/be non-empty, first line (`<title>PDFDRILL corpus
     status (2931)</title>`) checked to NAME "corpus".
 
@@ -413,12 +572,31 @@ CONCERNS / THINGS I NOTICED BUT DID NOT FIX
      will move between buckets — expected, not a defect in this task's
      classification logic, which reads the baseline file, not a cached
      copy of it.
-  7. NEW this round: `_write_corpus_index_html` itself still has no
-     try/except around its own `write_bytes` call. Deliberately left
+  7. `_write_corpus_index_html` itself still has no try/except around its
+     own `write_bytes` call (noted round 2, unchanged). Deliberately left
      unguarded — a failed WRITE of the whole index (disk full, permissions)
      is a different class of failure than one bad ROW among thousands, and
      swallowing it would hide a real operational problem with no row-level
-     substitute to show instead; round 2's fix is scoped to per-row
-     isolation, which is what both blocking findings (3 and this round's)
-     asked for, not "no exception anywhere in this command can ever
-     surface."
+     substitute to show instead; the fix rounds are scoped to per-row
+     isolation, which is what every blocking finding so far (3, round 2's,
+     and round 3's) actually asked for, not "no exception anywhere in this
+     command can ever surface."
+  8. NEW this round, said plainly rather than left implicit: THREE fix
+     rounds found the identical defect (`_corpus_row_state` raising on a
+     malformed row) at three successive call sites before it was fixed at
+     the function itself. That is a real cost of the earlier rounds' own
+     approach, not just this round's — each treated the symptom (a
+     specific unguarded caller) as the defect, when the actual defect was
+     a partial function with more than one caller. Named here so a future
+     reader does not read rounds 1/2's fixes as "the pattern that worked
+     eventually" — they were two guesses that each left one caller
+     exposed; round 3's total-function fix is the one that closes the
+     class, not just this instance of it. `_corpus_status_row` (the
+     GATHER-side function 656/652's own `_status_conserve_ledger` chain
+     ultimately feeds into) was checked for the same "partial function,
+     multiple callers" shape and found to have exactly ONE caller
+     (`_corpus_row_or_error`) — so it was not converted to total-by-
+     construction, on the judgment that a single call site does not carry
+     the same risk a function with 2+ callers does; if a second caller of
+     `_corpus_status_row` is ever added, this judgment should be revisited
+     rather than assumed to still hold.

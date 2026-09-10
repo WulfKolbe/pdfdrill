@@ -15043,20 +15043,42 @@ def _corpus_row_state(r: dict) -> str:
     document regressed against a baseline someone DID record" — both of
     which stay 'bad'. 656's own zero-tolerance stance for an unaudited
     bibkey is unchanged; this only gives its OWN shape of failure a name
-    instead of rendering identically to a genuine anchor defect."""
-    if r.get("errored"):
+    instead of rendering identically to a genuine anchor defect.
+
+    TOTAL: this function NEVER RAISES, for any input, including `r=None` or
+    a `conserve` dict missing keys it normally carries. Fix rounds 2 and 3
+    each wrapped ONE CALLER that walks `rows` and calls this function
+    (`_corpus_row_html` via `_corpus_render_row_or_error`, then
+    `_corpus_state_counts`) after a malformed row's incomplete
+    `conserve.counts` dict (missing `unclaimed`/`doubly_claimed`) made THIS
+    function raise `KeyError` — the real defect was never "a caller forgot
+    to guard," it was that a partial function had more than one caller, and
+    each guessed call site left the next one exposed
+    (`_corpus_state_counts`'s independent second traversal of the same
+    `rows` list, called right after the now-protected render loop,
+    voided the whole page the identical way). Guarding it here, once, makes
+    every caller — including one written later — safe BY CONSTRUCTION
+    rather than by a third guess at which call site still needs wrapping. A
+    row this function cannot make sense of reads 'errored': the same
+    "no reliable conservation number for this row" fact `errored`/
+    `unavailable` already carry for a document `_corpus_status_row` itself
+    could not read."""
+    try:
+        if r.get("errored"):
+            return "errored"
+        cons = r["conserve"]
+        if not cons.get("available"):
+            return "unavailable"
+        if cons["verdict"] == "conserved":
+            return "ok"
+        c = cons["counts"]
+        anchor_defect = c["unclaimed"] > 0 or c["doubly_claimed"] > 0
+        if (not anchor_defect and not cons.get("has_baseline_row")
+                and cons.get("unresolved", 0) > 0):
+            return "unaudited"
+        return "bad"
+    except Exception:                                      # noqa: BLE001
         return "errored"
-    cons = r["conserve"]
-    if not cons.get("available"):
-        return "unavailable"
-    if cons["verdict"] == "conserved":
-        return "ok"
-    c = cons["counts"]
-    anchor_defect = c["unclaimed"] > 0 or c["doubly_claimed"] > 0
-    if (not anchor_defect and not cons.get("has_baseline_row")
-            and cons.get("unresolved", 0) > 0):
-        return "unaudited"
-    return "bad"
 
 
 def _corpus_row_html(r: dict) -> str:

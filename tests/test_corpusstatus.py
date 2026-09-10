@@ -443,6 +443,133 @@ def test_page_summary_gives_errored_its_own_number(tmp_path, monkeypatch):
     assert "1 could not be read at all (errored" in flat
 
 
+# -------------------------------------------------- _corpus_row_state is TOTAL
+#
+# Fix round 3: rounds 1 and 2 each wrapped ONE CALLER that walks `rows` and
+# calls `_corpus_row_state` (`_corpus_status_row` via `_corpus_row_or_error`,
+# then `_corpus_row_html` via `_corpus_render_row_or_error`) — but
+# `_corpus_state_counts` calls `_corpus_row_state` a SECOND, independent
+# time over the same rows, right after the now-protected render loop, and
+# was itself unwrapped: a row with an incomplete `conserve.counts` dict made
+# `_corpus_row_state` raise `KeyError` there too, voiding the whole page
+# AFTER the row loop had already survived the same row. The fix is not a
+# third wrapped call site — it is `_corpus_row_state` itself never raising,
+# tested here DIRECTLY on the malformed shapes it can receive, not only
+# through a caller that happens to catch its own exceptions.
+
+def test_corpus_row_state_is_total_on_malformed_shapes():
+    """Every one of these raised `KeyError`/`AttributeError` out of
+    `_corpus_row_state` before fix round 3; all must now return 'errored'
+    without raising. (`{"conserve": {}}` is intentionally NOT in this list —
+    see the next test: a `conserve` dict present but missing `available`
+    reads as falsy and correctly returns 'unavailable', which was never a
+    bug, so it stays 'unavailable', not 'errored'.)"""
+    assert C._corpus_row_state(None) == "errored"
+    assert C._corpus_row_state({}) == "errored"
+    assert C._corpus_row_state({"conserve": None}) == "errored"
+    assert C._corpus_row_state({"conserve": {"available": True}}) == "errored"
+    # the EXACT shape the review reproduced: available, a real verdict, but
+    # `counts` missing `unclaimed`/`doubly_claimed` — a plausible legacy or
+    # partially-written row, not a contrived edge case.
+    assert C._corpus_row_state({"conserve": {
+        "available": True, "verdict": "NOT conserved: something",
+        "counts": {},
+    }}) == "errored"
+    # `unclaimed` present but 0 (so the `or` does not short-circuit before
+    # reaching the missing key) and `doubly_claimed` absent.
+    assert C._corpus_row_state({"conserve": {
+        "available": True, "verdict": "NOT conserved: something",
+        "counts": {"unclaimed": 0},          # doubly_claimed still missing
+    }}) == "errored"
+
+
+def test_corpus_row_state_missing_available_key_is_unavailable_not_errored():
+    """`conserve={}` (no `available` key at all) was never a raising shape —
+    `cons.get("available")` on an empty dict is `None`, falsy, and the
+    function already correctly read that as 'unavailable' before this fix.
+    The total-function change must not turn an already-correct case into
+    'errored' just because the `try` now wraps everything."""
+    assert C._corpus_row_state({"conserve": {}}) == "unavailable"
+
+
+def test_corpus_row_state_still_correct_on_every_well_formed_shape():
+    """The fix must not change any of the FIVE states a well-formed row
+    already got right (rounds 1-2's own tests exercise these through
+    `_corpus_row_html`/`corpus_status_rows`; this calls the function
+    directly, the same way the malformed-shape tests above do, so a future
+    change to the try/except cannot silently widen what it swallows)."""
+    ok_row = {"conserve": {"available": True, "verdict": "conserved",
+                          "counts": {"unclaimed": 0, "doubly_claimed": 0},
+                          "has_baseline_row": False, "unresolved": 0}}
+    assert C._corpus_row_state(ok_row) == "ok"
+
+    bad_row = {"conserve": {"available": True,
+                           "verdict": "NOT conserved: 3 unclaimed, 0 "
+                                      "doubly-claimed, 0 unreachable",
+                           "counts": {"unclaimed": 3, "doubly_claimed": 0},
+                           "has_baseline_row": False, "unresolved": 0}}
+    assert C._corpus_row_state(bad_row) == "bad"
+
+    unaudited_row = {"conserve": {"available": True,
+                                 "verdict": "NOT conserved: 0 unclaimed, 0 "
+                                            "doubly-claimed, 1 unreachable",
+                                 "counts": {"unclaimed": 0, "doubly_claimed": 0},
+                                 "has_baseline_row": False, "unresolved": 1}}
+    assert C._corpus_row_state(unaudited_row) == "unaudited"
+
+    baseline_regression_row = {"conserve": {
+        "available": True,
+        "verdict": "NOT conserved: 0 unclaimed, 0 doubly-claimed, 2 unreachable",
+        "counts": {"unclaimed": 0, "doubly_claimed": 0},
+        "has_baseline_row": True, "unresolved": 2}}
+    assert C._corpus_row_state(baseline_regression_row) == "bad"
+
+    unavailable_row = {"conserve": {"available": False, "reason": "no model"}}
+    assert C._corpus_row_state(unavailable_row) == "unavailable"
+
+    errored_row = {"errored": True, "conserve": {"available": False}}
+    assert C._corpus_row_state(errored_row) == "errored"
+
+
+def test_a_malformed_row_no_longer_voids_the_whole_page(tmp_path, monkeypatch):
+    """Integration-level regression for the exact chain the review
+    reproduced: `_render_corpus_index_html` -> `_corpus_state_counts` ->
+    `_corpus_row_state` on a row with an incomplete `conserve.counts` dict.
+    Before fix round 3 this raised `KeyError` and returned no HTML at all,
+    voiding the page for every other row `_corpus_row_html`'s own
+    (round-2-protected) loop had already rendered successfully."""
+    _never_build(monkeypatch)
+    monkeypatch.setattr(C, "_stale_or_absent", lambda *a, **k: False)
+    import docops.conserve as conserve_mod
+    monkeypatch.setattr(conserve_mod, "load_baseline", lambda: {})
+
+    _make_doc(tmp_path, "goodA", _by_design_doc("goodA"))
+    result = C.corpus_status_rows(tmp_path)
+    assert len(result["rows"]) == 1
+
+    malformed = {"bibkey": "malformedB", "pdf_name": "malformedB.pdf",
+                "folder": "malformedB",
+                "model": {"built": True, "date": None},
+                "gold_bib": {"present": False, "count": 0},
+                "conserve": {"available": True,
+                           "verdict": "NOT conserved: something",
+                           "counts": {}},        # the exact incomplete shape
+                "artefacts": {"present": 0, "total": 5, "missing": []},
+                "status_href": None}
+    result["rows"].append(malformed)
+
+    # exercise every level directly, not only the top-level command, so a
+    # future regression at ANY of them is caught precisely
+    assert C._corpus_state_counts(result["rows"])["errored"] >= 1
+    html = C._render_corpus_index_html(result)          # must not raise
+    assert "goodA" in html
+    assert "malformedB" in html
+
+    out_path = C._write_corpus_index_html(tmp_path, result)   # must not raise
+    written = out_path.read_text(encoding="utf-8")
+    assert "goodA" in written and "malformedB" in written
+
+
 # --------------------------------------------------------------- artefacts / page
 
 def test_artefacts_present_counted_against_the_five_published_files(
