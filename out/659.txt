@@ -159,6 +159,18 @@ gate.
   This matches the brief's 5-id list and out/657's independent 7-refusal
   count exactly.
 
+  THE OTHER DIRECTION (brief requires state changes reported both ways):
+  0 of the 1,219 Equation objects moved from renders to refused. The
+  measurement script's own inclusion test (`if not before or not after`)
+  would have caught any such row on its own — a row that regressed always
+  has `after_refused=True`, which alone is enough to add it to `rows` and
+  count it, independent of what `before_refused` was — so this is not an
+  absence of evidence, it is the population's own row-by-row check finding
+  nothing in that direction. Re-verified directly against
+  `~/pdfdrill-library/0902.0431/out/659/659_measure.json`: of the rows
+  recorded (every row refused at either point), zero have
+  `before_refused=false` and `after_refused=true`.
+
   obj_ad5deeab2cb1 also carries `\\ \\` (double row break, the auditor's
   defect 4). Checked directly: it is STILL present in `renderable()`'s
   output after this fix (untouched) — that class is explicitly out of scope
