@@ -197,13 +197,23 @@ commands:
   typed: true
 - name: status
   section: Introspection (fast, no extraction)
-  summary: What is already known
+  summary: 'What is already known. --html (652) writes the same report as `<bibkey>.status.html`
+    beside the document instead of printing it, folding in the conservation check
+    (646), the claim ledger (634), the 656 by-design/violation split behind the
+    verdict line, a 655 evidence-artefact size note, and a 651 hand-work-merge
+    record when one exists. Read-only like the text form: a stale or absent model
+    is reported, never rebuilt.'
   offline_ok: true
   positionals:
   - name: pdf
     type: pdf
     required: true
     help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: html
+    flag: --html
+    type: flag
+    help: write <bibkey>.status.html beside the document instead of printing
   typed: true
 - name: md
   section: Extraction

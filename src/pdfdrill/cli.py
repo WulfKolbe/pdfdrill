@@ -533,8 +533,12 @@ def _do_docs(args):
 
 
 def _do_status(args):
+    """pdfdrill status <pdf> [--html]  — `--html` (652) writes the report as
+    `<bibkey>.status.html` beside the document instead of printing it."""
     from .commands import cmd_status
-    return cmd_status(_pdf(args))
+    html = "--html" in args
+    rest = [a for a in args if a != "--html"]
+    return cmd_status(_pdf(rest), html=html)
 
 
 def _do_pdfinfo(args):

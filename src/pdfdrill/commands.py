@@ -14196,8 +14196,329 @@ def _retracted_status_lines(pdf: Path, sc: "Sidecar") -> list[str]:
     return [f"  dropped by the last model rebuild: {_ld.rebuild_hint(gone)}"]
 
 
-def cmd_status(pdf: Path) -> str:
-    """Report what is already known, no subprocess."""
+# --------------------------------------------------------- 652 `status --html`
+#
+# `status` is read-only and prints prose; `--html` writes the SAME report as
+# a page instead, and folds in three numbers `status` itself never computes
+# (646's conservation check, 634's claim ledger, 656's by-design/violation
+# split) — the page is where "is this document conserved" should be
+# answerable, not a fourth CLI command a reader has to know to run.
+#
+# READ-ONLY BY THE SAME RULE `model_ledger` ALREADY ENFORCES (634): a stale
+# or absent model is REPORTED, never rebuilt — chaining a read into a build
+# can chain into a MathPix purchase, which is exactly what a status page
+# must not be able to trigger just by being opened.
+#
+# THE VERDICT DOES NOT USE `conserve()`'s RAW `unreachable` COUNT. 656's
+# corpus scan (1,362 models) found that count is ~100% BY_DESIGN/OUT_OF_SCOPE
+# noise on every real document (Page, TableCell, TableRow, Toc, Document are
+# ALWAYS 100% unreachable by construction; Formula/Paragraph/Equation/... run
+# 20-90% unreachable through a working, catalogued-elsewhere path). A page
+# that printed the raw count would call every healthy document broken.
+#
+# NOR DOES IT USE THE RATCHET'S RAW VIOLATION COUNT — a document AT its
+# recorded baseline (656's own example: penev_A's Citation=81, List=3,
+# matched exactly) must read "conserved", the same as `conserve --gate`
+# reads PASS for it, not "NOT conserved: 84 unreachable" just because 84
+# objects of a violation TYPE exist. So the verdict is built from
+# `docops.conserve.gate(...)`'s own partition: `new_types` (a violation type
+# with no baseline row at all) and `increased` (more than the baseline) are
+# the two ways a document gets WORSE — those counts are what "NOT conserved"
+# reports. `decreased` (fewer than baseline, including a fix dropping a type
+# to zero) is GOOD news and never fails this per-document verdict — it is a
+# reason to update `conserve_baseline.json`, a repo-maintenance fact, not a
+# defect in THIS document. `matched` (exactly the baseline) and BY_DESIGN/
+# OUT_OF_SCOPE are shown on the page, never counted here. A bibkey with no
+# baseline row at all gets `gate()`'s own zero-tolerance posture unchanged:
+# every violation type it has becomes `new_types`, so it reads "NOT
+# conserved" until someone audits and records a baseline row for it — the
+# same stance `conserve --gate` already takes, argued in full in
+# out/652.txt.
+def _status_verdict(res: dict, g: dict) -> tuple[str, int]:
+    """('conserved' | 'NOT conserved: ...', unresolved) for `status --html`.
+
+    `res` is `docops.conserve.conserve(doc)`'s result, `g` is
+    `docops.conserve.gate(doc, res=res)`'s result. `unresolved` is the sum
+    of `new_types` plus each `increased` entry's delta above baseline —
+    matched/decreased/by-design/out-of-scope are never counted here."""
+    c = res["counts"]
+    unresolved = (sum(g["new_types"].values())
+                 + sum(d["now"] - d["baseline"] for d in g["increased"].values()))
+    if c["unclaimed"] == 0 and c["doubly_claimed"] == 0 and unresolved == 0:
+        return "conserved", unresolved
+    return (f"NOT conserved: {c['unclaimed']} unclaimed, "
+            f"{c['doubly_claimed']} doubly-claimed, "
+            f"{unresolved} unreachable object(s) beyond what is already "
+            f"recorded"), unresolved
+
+
+def _status_conserve_ledger(pdf: Path, sc: "Sidecar") -> dict:
+    """646/634/656's numbers for `status --html`. `available=False` (with a
+    `reason`) rather than a number the page cannot vouch for, whenever the
+    model is missing or stale — this NEVER calls `cmd_model` (634's rule,
+    already enforced the same way by `model_ledger`)."""
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return {"available": False,
+                "reason": "no model on disk yet — run `pdfdrill model`"}
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        return {"available": False,
+                "reason": "model is STALE (its recorded inputs no longer "
+                          "hash-match the lines.json it was built from) — "
+                          "run `pdfdrill model` to refresh before trusting "
+                          "these numbers; a read must never rebuild for you"}
+    from docops.conserve import (classify_unreachable, conserve,
+                                 format_gate_report, gate as _gate,
+                                 load_baseline)
+    from docmodel import ledger as _ledger_mod
+
+    doc = load_model(model_path)
+    res = conserve(doc)
+    cls = classify_unreachable(res["reachability"])
+    baseline = load_baseline()
+    bibkey = res["bibkey"]
+    has_row = bibkey in baseline
+    g = _gate(doc, res=res, baseline=baseline)
+    verdict, unresolved = _status_verdict(res, g)
+    led = _ledger_mod.materialize(doc)
+    return {
+        "available": True,
+        "bibkey": bibkey,
+        "verdict": verdict,
+        "unresolved": unresolved,
+        "violations_total": sum(cls["violations"].values()),
+        "counts": res["counts"],
+        "by_design": cls["by_design"],
+        "out_of_scope": cls["out_of_scope"],
+        "has_baseline_row": has_row,
+        "gate_report": format_gate_report(g) if has_row else None,
+        "ledger": ({"claimed_0": led["counts"]["claimed_0"],
+                    "claimed_multi": led["counts"]["claimed_multi"],
+                    "total": led["total"]} if led else None),
+        "footnote_refusals": res["footnote_refusals"],
+    }
+
+
+def _status_budget_notes(arts: "list[Path]") -> "list[dict]":
+    """655 — a size budget for a built evidence/residuals PDF, and which rung
+    it landed on. If one of `gate.PUBLISHED_FILES` is over budget, a reader
+    asking "why is this file 20 MB" finds the answer on this page instead of
+    having to know `reports.budget` exists. Reads only the file already on
+    disk (a stat + threshold check, `check_artifact`'s own contract) — no
+    rebuild, no re-encode; the RUNG a build chose is transient (printed once
+    by `cmd_evidence`/`cmd_residuals`, never persisted), so this reports
+    over/under budget and the real byte size, not which rung produced it."""
+    from .reports.budget import CROP_BUDGET_MB, _mb_for_bytes, check_artifact
+    from .reports.gate import PUBLISHED_FILES
+
+    notes = []
+    for p in arts:
+        if p.name not in PUBLISHED_FILES:
+            continue
+        size, over = check_artifact(p, CROP_BUDGET_MB)
+        if size:
+            notes.append({"name": p.name, "mb": _mb_for_bytes(size),
+                         "budget_mb": CROP_BUDGET_MB, "over": over})
+    return notes
+
+
+def _status_update_record(sc: "Sidecar") -> "dict | None":
+    """651 — if hand-work was merged back onto a fresh model
+    (`tiddlers --update`), the record it wrote beside the tiddlers file is
+    part of this document's state, not one more generic `.json` link."""
+    if not sc.blob_dir.exists():
+        return None
+    matches = sorted(sc.blob_dir.glob("*.update.json"))
+    if not matches:
+        return None
+    p = matches[0]
+    try:
+        rec = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    restored = rec.get("restored") or {}
+    return {
+        "path": p,
+        "old_file": rec.get("old_file"),
+        "restored_titles": len(restored),
+        "restored_fields": sum(len(v) for v in restored.values()),
+        "unmatched": len(rec.get("unmatched") or []),
+        "newly_orphaned": len(rec.get("newly_orphaned") or []),
+    }
+
+
+def _rel_href(sc: "Sidecar", p: Path) -> str:
+    """An artefact link RELATIVE TO THE PAGE'S OWN FOLDER (`sc.blob_dir`,
+    where `<bibkey>.status.html` itself is written) — a plain `href` that
+    resolves by itself, unlike `_artref`'s library-root-relative path (built
+    for the drillui bridge's `/artifact?path=` route, a different consumer)."""
+    try:
+        return str(p.relative_to(sc.blob_dir))
+    except ValueError:
+        return p.name
+
+
+@_writes("status_html")
+def _write_status_html(pdf: Path, sc: "Sidecar", data: dict) -> Path:
+    """The one locked write `status --html` makes. Deliberately NOT
+    `cmd_`-prefixed: `test_doclock.py`'s `@_writes` AST scan only walks
+    top-level `cmd_*` defs (the same convention `_inkreport_chain` already
+    uses, for a different reason — see its own docstring), which is what
+    lets `cmd_status`'s TEXT branch stay completely lock-free while this,
+    the WRITE branch, takes the document lock for the one file it writes.
+    """
+    bibkey = resolve_bibkey(pdf, None, sc)
+    sc.blob_dir.mkdir(parents=True, exist_ok=True)
+    out_path = sc.blob_dir / f"{bibkey}.status.html"
+    out_path.write_text(_render_status_html(data, bibkey, sc), encoding="utf-8")
+    return out_path
+
+
+def _esc(s) -> str:
+    from html import escape
+    return escape(str(s), quote=True)
+
+
+def _render_status_html(data: dict, bibkey: str, sc: "Sidecar") -> str:
+    """The page itself: no network (no CDN, inline CSS only), readable in
+    both light and dark via `prefers-color-scheme`."""
+    cons = data["conserve"]
+    if not cons["available"]:
+        verdict_html = (f'<p class="verdict unknown">conservation check: '
+                        f'unavailable — {_esc(cons["reason"])}</p>')
+        cons_html = ""
+    else:
+        cls = "ok" if cons["verdict"] == "conserved" else "bad"
+        verdict_html = f'<p class="verdict {cls}">{_esc(cons["verdict"])}</p>'
+        rows = []
+        c = cons["counts"]
+        rows.append(f"<li>unclaimed anchors: {c['unclaimed']}</li>")
+        rows.append(f"<li>doubly-claimed anchors: {c['doubly_claimed']}</li>")
+        rows.append(f"<li>unreachable, VIOLATION-class objects (no verified "
+                    f"route named at all — 656): {cons['violations_total']}"
+                    + (f", of which {cons['unresolved']} beyond the "
+                       f"recorded baseline"
+                       if cons["has_baseline_row"] else
+                       f" — no baseline row recorded for this bibkey yet, "
+                       f"so none of them is reviewed (zero tolerance, 656)")
+                    + "</li>")
+        if cons["by_design"]:
+            rows.append("<li>unreachable BY DESIGN (a verified alternate "
+                        "route — not a defect): "
+                        + ", ".join(f"{_esc(t)}={n}" for t, n in
+                                    sorted(cons["by_design"].items()))
+                        + "</li>")
+        if cons["out_of_scope"]:
+            rows.append("<li>unreachable, OUT OF SCOPE (a working path, "
+                        "incidental gaps tracked elsewhere — 645/646): "
+                        + ", ".join(f"{_esc(t)}={n}" for t, n in
+                                    sorted(cons["out_of_scope"].items()))
+                        + "</li>")
+        if cons["gate_report"] is not None:
+            gate_html = f'<pre class="gate">{_esc(cons["gate_report"])}</pre>'
+        else:
+            gate_html = ('<p class="dim">no baseline row for this bibkey — '
+                        'the 656 ratchet has zero tolerance until someone '
+                        'records one (<code>pdfdrill conserve --gate</code> '
+                        'for the detail).</p>')
+        led = cons["ledger"]
+        ledger_html = ""
+        if led is not None:
+            ledger_html = (f'<p>634 claim ledger: {led["claimed_0"]} of '
+                           f'{led["total"]} anchors claimed 0 times, '
+                           f'{led["claimed_multi"]} claimed 2+ times.</p>')
+        cons_html = (f'<section><h2>Conservation &amp; ledger</h2>'
+                    f'<ul>{"".join(rows)}</ul>{ledger_html}{gate_html}</section>')
+
+    budget_html = ""
+    if data.get("budget_notes"):
+        items = "".join(
+            f'<li>{_esc(n["name"])}: {n["mb"]:.1f} MB'
+            + (f' — <b>OVER</b> its {n["budget_mb"]:.0f} MB budget (655)'
+               if n["over"] else f' (under its {n["budget_mb"]:.0f} MB budget)')
+            + '</li>'
+            for n in data["budget_notes"])
+        budget_html = (f'<section><h2>Evidence artefact size (655)</h2>'
+                       f'<ul>{items}</ul></section>')
+
+    upd = data.get("update_record")
+    update_html = ""
+    if upd:
+        update_html = (
+            '<section><h2>Hand-work merge record (651)</h2><ul>'
+            f'<li>{upd["restored_fields"]} field(s) restored across '
+            f'{upd["restored_titles"]} title(s) from '
+            f'{_esc(Path(upd["old_file"] or "?").name)}</li>'
+            f'<li>{upd["unmatched"]} old title(s) unmatched</li>'
+            f'<li>{upd["newly_orphaned"]} tiddler(s) newly orphaned by a '
+            f'restoration</li>'
+            f'<li><a href="{_esc(_rel_href(sc, upd["path"]))}">'
+            f'{_esc(upd["path"].name)}</a></li>'
+            '</ul></section>')
+
+    lines_html = "".join(f"<li>{_esc(l)}</li>" for l in data["lines"] if l.strip())
+
+    art_items = "".join(
+        f'<li><a href="{_esc(_rel_href(sc, p))}">{_esc(_rel_href(sc, p))}</a>'
+        f' ({p.stat().st_size / 1024:.0f} KB)</li>'
+        for p in data["artifacts"])
+    art_html = (f'<section><h2>Files</h2><ul>{art_items}</ul></section>'
+               if art_items else "")
+
+    return f"""<!-- {bibkey} status (pdfdrill status --html; 652) -->
+<title>{_esc(bibkey)} — status</title>
+<style>
+:root {{ --bg:#fff; --fg:#1a1a1a; --dim:#666; --border:#ddd; --ok:#0a7d2c;
+        --bad:#a3221c; --card:#f7f7f7; }}
+@media (prefers-color-scheme: dark) {{
+  :root:not([data-theme="light"]) {{ --bg:#1a1a1a; --fg:#eee; --dim:#aaa;
+    --border:#3a3a3a; --ok:#4fd671; --bad:#ff6b60; --card:#242424; }}
+}}
+:root[data-theme="dark"] {{ --bg:#1a1a1a; --fg:#eee; --dim:#aaa;
+  --border:#3a3a3a; --ok:#4fd671; --bad:#ff6b60; --card:#242424; }}
+body {{ background:var(--bg); color:var(--fg);
+       font:14px/1.5 -apple-system,system-ui,sans-serif; margin:2rem;
+       max-width:60rem; }}
+h1 {{ font-size:1.3rem; }}
+h2 {{ font-size:1.05rem; border-bottom:1px solid var(--border);
+     padding-bottom:.2rem; }}
+.verdict {{ font-size:1.1rem; font-weight:600; padding:.5rem .8rem;
+           border-radius:.3rem; display:inline-block; }}
+.verdict.ok {{ background:var(--card); color:var(--ok); }}
+.verdict.bad {{ background:var(--card); color:var(--bad); }}
+.verdict.unknown {{ background:var(--card); color:var(--dim); }}
+.dim {{ color:var(--dim); }}
+section {{ margin:1.2rem 0; }}
+ul {{ padding-left:1.3rem; }}
+li {{ margin:.15rem 0; word-wrap:break-word; }}
+pre.gate {{ background:var(--card); padding:.6rem; overflow-x:auto;
+           white-space:pre-wrap; border-radius:.3rem; }}
+a {{ color:inherit; text-decoration:underline; }}
+code {{ background:var(--card); padding:0 .25rem; border-radius:.2rem; }}
+footer {{ color:var(--dim); margin-top:2rem; font-size:.85rem; }}
+</style>
+<h1>{_esc(bibkey)} — {_esc(data["pdf_name"])}</h1>
+{verdict_html}
+{cons_html}
+{budget_html}
+{update_html}
+<section><h2>Layers</h2><ul>{lines_html}</ul></section>
+{art_html}
+<footer>Last action: {_esc(data["last_node"])}. {data["n_transitions"]} \
+transitions logged. Generated by <code>pdfdrill status --html</code> — no \
+network is used to render this page.</footer>
+"""
+
+
+def cmd_status(pdf: Path, html: bool = False) -> str:
+    """Report what is already known, no subprocess.
+
+    `--html` (652) writes the same report as `<bibkey>.status.html` beside
+    the document instead of printing it, folding in the conservation/ledger
+    numbers (646/634/656), a 655 evidence-artefact size note, and a 651
+    hand-work-merge record when one exists — none of which `status` itself
+    computes. Text `status` is unchanged and stays lock-free; only the HTML
+    write takes the document lock (`_write_status_html`)."""
     sc = Sidecar(pdf)
     facts = sc.facts
     if not facts:
@@ -14269,6 +14590,12 @@ def cmd_status(pdf: Path) -> str:
             cont_s = " (→cont.)" if i.get("is_continuation") else ""
             parts.append(f"    p{int(page_no):>2}: {seq}{cont_s}")
 
+    # `core_lines` — the layer/section prose above, BEFORE the artifact list
+    # and the trailer — is what `--html` reuses for its own "Layers" section,
+    # so the HTML page shows exactly the sections `status` already computed
+    # rather than re-deriving them.
+    core_lines = list(parts)
+
     # Surface the openable artifacts so they appear as clickable links in the
     # drillui Outputs panel (the giant model JSON is skipped — see `artifacts --all`).
     arts = _list_artifacts(sc)
@@ -14279,8 +14606,27 @@ def cmd_status(pdf: Path) -> str:
                          f"({p.stat().st_size / 1024:.0f} KB)")
 
     last = sc.last_node
-    parts.append(f"\nLast action: {last}. {len(sc.transitions)} transitions logged.")
-    return "\n".join(parts)
+    n_trans = len(sc.transitions)
+    parts.append(f"\nLast action: {last}. {n_trans} transitions logged.")
+    if not html:
+        return "\n".join(parts)
+
+    data = {
+        "pdf_name": pdf.name,
+        "lines": core_lines,
+        "artifacts": arts,
+        "last_node": last,
+        "n_transitions": n_trans,
+        "conserve": _status_conserve_ledger(pdf, sc),
+        "budget_notes": _status_budget_notes(arts),
+        "update_record": _status_update_record(sc),
+    }
+    out_path = _write_status_html(pdf, sc, data)
+    rel = _artref(sc, out_path)
+    return (f"Wrote {rel} — the state page for {pdf.name}. Open it in a "
+            f"browser tab, or click it in the drillui Outputs panel; every "
+            f"artefact link on the page is relative to its own folder "
+            f"({sc.blob_dir.name}/).")
 
 
 # ---------------------------------------------------------------------------

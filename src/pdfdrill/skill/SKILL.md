@@ -475,7 +475,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill abstract <pdf>` | Abstract from first pages |
 | `pdfdrill toc <pdf>` | Table of contents |
 | `pdfdrill fonts <pdf> [--force]` | Font analysis, math font detection |
-| `pdfdrill status <pdf>` | What is already known |
+| `pdfdrill status <pdf> [--html]` | What is already known. --html (652) writes the same report as `<bibkey>.status.html` beside the document instead of printing it, folding in the conservation check (646), the claim ledger (634), the 656 by-design/violation split behind the verdict line, a 655 evidence-artefact size note, and a 651 hand-work-merge record when one exists. Read-only like the text form: a stale or absent model is reported, never rebuilt. |
 | `pdfdrill pdfinfo <pdf>` | Full PdfInfo struct (title/author/dates/flags) |
 | `pdfdrill bibtex <pdf> [--force]` | Derived BibTeX record from embedded PDF metadata, AUGMENTED by the free arXiv abs-page metadata (title/authors) and — for a scanned book with no embedded metadata — the drilled front matter (title page title/authors + the checksum-validated ISBN from `identifiers`, which makes it @book); warns when still a placeholder (run abstract/model first). --force re-derives a cached record |
 | `pdfdrill urls <pdf>` | URL annotations with anchor text (heavier; pdfplumber) |
@@ -665,6 +665,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-c2e4318f` before any build/extract command.
-DRILL-c2e4318f
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-22c56928` before any build/extract command.
+DRILL-22c56928
 <!-- PREFLIGHT-TOKEN:END -->

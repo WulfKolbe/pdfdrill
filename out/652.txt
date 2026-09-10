@@ -1,0 +1,319 @@
+652 — pdfdrill status --html
+=============================
+
+WHAT CHANGED
+  `pdfdrill status <pdf> --html`: writes `<bibkey>.status.html` beside the
+  document (`Sidecar(pdf).blob_dir`, the library's self-contained folder)
+  instead of printing the report, and folds in three things `status` never
+  computed before: 646's conservation check, 634's claim ledger, and 656's
+  by-design/violation classification behind the page's one-line verdict.
+  Plain `status` (no flag) is UNCHANGED — same text, same behaviour.
+
+  `src/pdfdrill/commands.py`:
+    cmd_status(pdf, html: bool = False)   the text branch is byte-identical
+                        to before; `core_lines` (the section prose, built by
+                        the SAME `_model_status_lines`/`_retracted_status_lines`
+                        calls `status` already made — literally present in
+                        `cmd_status`'s own source, so the two tests that
+                        `inspect.getsource(cmd_status)` for those names
+                        still pass) plus the artefact list feed a `data`
+                        dict that both the plain-text join and the HTML
+                        writer consume, per the brief's own instruction not
+                        to duplicate the logic.
+    _status_verdict(res, g)              'conserved' / 'NOT conserved: …' —
+                        see THE 656 CORRECTION below.
+    _status_conserve_ledger(pdf, sc)      read-only gatherer: absent/stale
+                        model -> {available: False, reason}, never rebuilds
+                        (634's rule, the same posture `model_ledger`
+                        already enforces for `model --ledger`). Fresh model
+                        -> conserve()/classify_unreachable()/gate()/
+                        ledger.materialize(), all in memory.
+    _status_budget_notes(arts)            655 — for each of
+                        `reports.gate.PUBLISHED_FILES` present in this
+                        doc's artefact list, `reports.budget.check_artifact`
+                        (a stat + threshold check, no re-encode) reports its
+                        real byte size and whether it is over the 20 MB
+                        budget.
+    _status_update_record(sc)             651 — if `<bibkey>.update.json`
+                        exists (a `tiddlers --update` merge record), summarise
+                        it: fields restored, titles restored, unmatched,
+                        newly orphaned, with a link to the record itself.
+    _write_status_html(pdf, sc, data)     the ONE locked write. Decorated
+                        `@_writes("status_html")`; NOT `cmd_`-prefixed — see
+                        THE LOCK below.
+    _render_status_html / _rel_href / _esc   pure HTML string building;
+                        no CDN, inline CSS, `prefers-color-scheme` +
+                        `data-theme` for light/dark (this repo's own
+                        artifact-design convention, applied to a file this
+                        codebase writes rather than an Artifact host).
+
+  `src/pdfdrill/cli.py`: `_do_status` parses `--html`, strips it, passes
+  `html=` through.
+
+  `.claude/skills/pdfdrill/commands.yaml`: `status` gains the `--html` flag
+  + an updated summary; `python3 tools/skillsync.py all .` run (manifest,
+  generated help, SKILL.md, bundled wheel copy all back in sync — the
+  four-way drift gate `tests/test_skill_sync.py` checks).
+
+THE 656 CORRECTION — WHY THE VERDICT IS NOT A RAW COUNT, AND NOT A RAW
+VIOLATION COUNT EITHER
+  The brief (written before 656 landed) asked for a verdict line reading
+  "conserved" / "NOT conserved: N unclaimed, M doubly-claimed, K
+  unreachable", using `conserve()`'s three raw counts. 656's corpus scan
+  (1,362 models, `out/656.txt`) found `unreachable` alone is ~100%
+  BY_DESIGN/OUT_OF_SCOPE noise on every real document: Page, TableCell,
+  TableRow, Toc, Document are ALWAYS 100% unreachable by construction
+  (verified routes, not defects — `docops.conserve.BY_DESIGN`), and
+  Formula/Paragraph/Equation/… run 20-90% unreachable through a working,
+  already-catalogued path (`OUT_OF_SCOPE`). A page that printed raw K would
+  call every healthy document broken, which is exactly the failure mode
+  the correction named.
+
+  The obvious fix — sum `classify_unreachable(reach)["violations"]` instead
+  of raw `unreachable` — is what the first draft of this task did, and it
+  is WRONG in a way that only shows up on the two documents the corpus
+  actually audited: penev_A and SteerableWaveletFramesBasedontheRieszTransform
+  both carry real VIOLATION-class objects (Citation, List — 656's ninth and
+  seventh violation types) that are AT baseline, matched exactly
+  (`conserve_baseline.json`), and `conserve --gate` reads PASS for both
+  (`out/656.txt`'s own "GATE VERDICT — penev_A: PASS", "... SteerableWavelet:
+  PASS"). A verdict built from the raw violations sum would print "NOT
+  conserved" for BOTH of the two documents this repo has actually reviewed
+  — worse than the bug being fixed, because now the one case with a real
+  human-reviewed baseline reads as broken.
+
+  So the verdict is built from `docops.conserve.gate(doc, res=res)`'s own
+  partition, not from `classify_unreachable` alone:
+    unresolved = sum(g["new_types"].values())
+               + sum(d["now"] - d["baseline"] for d in g["increased"].values())
+    conserved  = (unclaimed == 0) and (doubly_claimed == 0) and (unresolved == 0)
+  `new_types` (a violation type with no baseline row at all) and the
+  positive delta of `increased` (more than the recorded baseline) are the
+  two ways a document gets WORSE — those are what "NOT conserved" reports.
+  `decreased` (fewer than baseline, including a fix dropping a type to
+  zero) is explicitly EXCLUDED from this per-document verdict: it is good
+  news, and it is a reason to update `conserve_baseline.json` (a
+  repo-maintenance fact `format_gate_report`'s "FIXED"/"DROPPED" lines
+  already carry), not a defect in THIS document. `matched` counts,
+  BY_DESIGN and OUT_OF_SCOPE are all shown on the page (a labelled list plus
+  `format_gate_report`'s own text verbatim when a baseline row exists) but
+  never folded into the verdict.
+
+  A bibkey with NO baseline row keeps `gate()`'s own zero-tolerance posture
+  unchanged — every violation type it has becomes `new_types`, so it reads
+  "NOT conserved" until someone audits it and records a baseline row. This
+  is the SAME stance `conserve --gate` already takes for any document
+  outside the seven-bibkey baseline (656: "an unaudited document gets ZERO
+  TOLERANCE, not a silent pass"); the page does not invent a softer rule,
+  it reports the existing one honestly, and it makes plain WHY on the page
+  itself ("no baseline row recorded for this bibkey yet, so none of them is
+  reviewed (zero tolerance, 656)").
+
+  Verified live on both real documents (see EVIDENCE): penev_A's verdict
+  reads "NOT conserved: 243 unclaimed, 29 doubly-claimed, 0 unreachable
+  object(s) beyond what is already recorded" — the 84 VIOLATION-class
+  objects (Citation=81, List=3) are ALL matched to baseline, so `unresolved
+  = 0`; the document is still correctly flagged NOT conserved because of
+  243 real unclaimed anchors and 29 real doubly-claimed ones (out/646.txt's
+  own 243 figure for penev_A, unchanged), which is an honest, unrelated
+  fact this task did not touch or hide.
+
+  A regression test (`tests/test_status_html.py::test_baseline_row_
+  surfaces_the_gate_report`) initially FAILED against the first,
+  violations-sum design — exactly the bug this section describes — before
+  the design was corrected to use `gate()`. Kept in the suite as the case
+  that would catch it coming back.
+
+WHAT FROM 655/651 WAS INCLUDED, AND WHAT WAS LEFT OUT
+  655 (evidence-artefact size budget): included as a small "Evidence
+  artefact size" section — for each of `reports.gate.PUBLISHED_FILES`
+  present in the artefact list, the real byte size and over/under its 20 MB
+  budget (`reports.budget.check_artifact`: a stat + threshold check against
+  the already-built PDF, no re-encode, no rebuild). NOT included: WHICH
+  RUNG (`(scale, quality)`) a build chose. That value is real but
+  TRANSIENT — `cmd_evidence`/`cmd_residuals` compute it once per build and
+  print it in their own return string; it is never persisted to the
+  sidecar or the model (confirmed by grep: no `set_evidence` call for it
+  anywhere in `reports/budget.py` or the two build commands). Recovering it
+  after the fact would mean re-running `choose_rung` against the crop
+  directory, which is a prediction over files this command has no reason to
+  touch, not a read of the built PDF — out of scope for a page that is
+  supposed to stay a pure read of what's already on disk.
+
+  651 (hand-work-merge record): included as a "Hand-work merge record"
+  section whenever `<bibkey>.update.json` exists beside the tiddlers file —
+  restored-field/title counts, unmatched-title count, newly-orphaned count,
+  and a link to the record itself. Neither penev_A nor
+  SteerableWaveletFramesBasedontheRieszTransform in the library currently
+  carries one (651's own evidence run used a throwaway copy, not a
+  persisted file in either folder), so this section is untested against a
+  REAL such file in the two named documents; it is covered by a synthetic
+  fixture in `tests/test_status_html.py` instead
+  (`test_update_record_summary_appears_on_the_page`), reading the exact
+  JSON shape `cmd_tiddlers(..., update=...)` writes (checked against
+  `src/pdfdrill/commands.py`'s own writer, not guessed).
+
+BRIEF ITEM 3 — THE LOCK, CONFIRMED RATHER THAN ASSUMED
+  The brief flagged this as an open question: `status` has always been
+  read-only, and `--html` makes it write a file — does
+  `test_every_pdf_writer_holds_the_lock` force `@_writes` onto `cmd_status`?
+  Read `tests/test_doclock.py::_doc_folder_writers` before assuming: it AST-
+  walks every top-level `cmd_*` function in `commands.py`, and only flags one
+  whose body contains a literal write-op call (`write_text`/`mkdir`/…) AND
+  references `blob_dir`/`Sidecar`/`sc`. `cmd_status`'s own body — text or
+  HTML branch — contains NO such literal call; the actual `.write_text`/
+  `.mkdir` calls live inside `_write_status_html`, a SEPARATE function whose
+  name does not start with `cmd_`, so the AST scan never sees them and never
+  requires `cmd_status` to carry `@_writes`.
+
+  This is not a loophole invented for this task — `commands.py` already has
+  exactly this shape for a different reason: `_inkreport_chain` (its own
+  docstring, cited there) is deliberately NOT `cmd_`-prefixed so the AST scan
+  skips it, because it is always reached through a `cmd_*` caller that
+  ALREADY holds the lock (re-entrant). This task's reason is the opposite —
+  `cmd_status`'s TEXT branch is NEVER meant to hold the lock at all — but the
+  mechanism (push the literal write calls into a non-`cmd_`-prefixed helper)
+  is the same, and it is the one the codebase already uses, not a new
+  pattern.
+
+  `_write_status_html` is decorated `@_writes("status_html")` regardless —
+  the real cross-process protection this exists for. Verified two ways
+  (both in `tests/test_status_html.py`):
+    - a second OS process holding the document's lock makes
+      `cmd_status(pdf, html=True)` raise `doclock.DocumentBusy`
+      (subprocess-based, mirrors `test_doclock.py`'s own
+      `test_second_process_refuses`);
+    - the lock is acquired and released within one call (no leaked lock
+      file after a normal write).
+  `tests/test_doclock.py::test_every_pdf_writer_holds_the_lock` and
+  `::test_lock_coverage_is_reported_not_assumed` both still pass unchanged
+  (76 writer rows found, same missing=[] and unguardable-count=5 as before
+  this task — `cmd_status` is not among the 76 rows at all, confirming it
+  was never flagged).
+
+CONCERNS / THINGS I NOTICED BUT DID NOT FIX
+  1. THE CONTENT-HASH PROOF IS CWD-RELATIVE, NOT AN ARTEFACT OF THIS TASK.
+     `sc.mark(MODEL_BUILT, inputs=[lines_path], ...)` records
+     `str(lines_path)`, and whoever ran `pdfdrill model` on penev_A /
+     SteerableWaveletFramesBasedontheRieszTransform did so with the
+     document's own folder as the process CWD, so the recorded key is the
+     bare filename ("penev_A.lines.json"), not an absolute path.
+     `proofs.verify()` later re-hashes `Path(path).read_bytes()` against
+     THAT string — which only resolves correctly when re-checked from the
+     SAME cwd. Running `pdfdrill status --html
+     ~/pdfdrill-library/penev_A/penev_A.pdf` from this repo's root reports
+     the model STALE (content_hash of a nonexistent
+     `./penev_A.lines.json` relative to the repo root is `None`, which
+     never matches the recorded hash); running the identical command with
+     cwd set to the document's own folder reports it fresh. `status --html`
+     handled this exactly as designed — it said "stale" and did not
+     rebuild — but the underlying proof mechanism's cwd-dependence is a
+     latent correctness gap in `proofs.py`/`_stale_or_absent` that predates
+     this task and affects every command that checks a proof, not just
+     `status`. Not fixed here (out of scope — `634`/`proofs.py` territory,
+     not `652`'s); named so it does not get rediscovered as a fresh
+     mystery.
+  2. `conserve()`/`classify_unreachable()`/`gate()`/`ledger.materialize()`
+     project the whole document in memory (the same cost `pdfdrill
+     conserve`/`model --ledger` already pay). This only runs under
+     `--html`, never for plain `status`, on purpose — but a very large
+     model could make `--html` noticeably slower than the instantaneous
+     text form. Not measured against a large document in this task; if it
+     becomes a problem, the fix is the same one `--gate` already has (an
+     explicit, opt-in cost), not a change to `status`'s own default.
+  3. `_status_budget_notes` only recognises the five literal
+     `reports.gate.PUBLISHED_FILES` names. A document with a differently
+     named evidence PDF (there are none in this codebase today) would get
+     no budget note; this mirrors `gate.py`'s own closed list rather than
+     inventing a looser pattern match.
+
+TESTS
+  `tests/test_status_html.py`, 19 tests, new:
+    - verdict correctness: a genuine unbaselined violation reads NOT
+      conserved; a BY_DESIGN-only unreachable set reads conserved (656's
+      whole point); a baseline-matching document reads conserved with the
+      gate report shown; a document with no baseline row is noted as such
+      without failing the page on that fact alone (rule 11 — both the PASS
+      and the FAIL of the same verdict line are exercised, not one alone).
+    - stale/absent model: reports "unavailable" with the reason, prints no
+      conservation number, and — checked directly, not inferred — NEVER
+      calls `cmd_model` (a monkeypatched `cmd_model` raises if invoked).
+    - artefact links: every `href` on a real generated page resolves to an
+      existing file under the page's own folder (a fixture folder with a
+      `.md` and an `svg/*.svg`), and the page itself is picked up by
+      `_list_artifacts`/`cmd_artifacts` (drillui's Outputs panel source).
+    - 655/651 sections: an over-budget PUBLISHED_FILES PDF is flagged, an
+      under-budget one is not, a non-evidence PDF is never a budget note; an
+      `.update.json` is summarised on the page, its absence yields no
+      section at all.
+    - the lock: cross-process refusal (subprocess), acquire/release within
+      one call, and `_write_status_html`'s name confirmed not `cmd_`-
+      prefixed.
+    - `cli._do_status` flag parsing (`--html` on/off), stubbed, mirroring
+      `test_do_conserve_parses_gate_json_and_limit_flags`'s own pattern.
+    - `cmd_status`'s own source still literally calls `_model_status_lines`
+      / `_retracted_status_lines` (the two pre-existing tests that assert
+      this via `inspect.getsource` — `test_footnote_split.py`,
+      `test_status_retracted.py` — both still pass unmodified).
+
+  FULL SUITE: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+  tests/ -q -p no:cacheprovider` -> 3471 passed, 0 failed (19 new in
+  `tests/test_status_html.py`; every other file unaffected, confirmed by a
+  separate targeted run of `test_conserve.py`, `test_conserve_gate.py`,
+  `test_cmd_conserve_gate.py`, `test_claim_ledger.py`,
+  `test_status_retracted.py`, `test_footnote_split.py`, `test_doclock.py`,
+  `test_skill_sync.py` before the full run).
+
+EVIDENCE
+  Run FROM each document's own folder (see CONCERNS #1 for why — the
+  content-hash proof for `MODEL_BUILT` was recorded relative to that cwd):
+
+    cd ~/pdfdrill-library/penev_A && PDFDRILL_NO_PREFLIGHT=1 \
+        /home/wkolbe/MX/PDFDRILL/pdfdrill status --html penev_A.pdf
+    cd ~/pdfdrill-library/SteerableWaveletFramesBasedontheRieszTransform && \
+        PDFDRILL_NO_PREFLIGHT=1 /home/wkolbe/MX/PDFDRILL/pdfdrill status \
+        --html SteerableWaveletFramesBasedontheRieszTransform.pdf
+
+  penev_A.status.html:
+    verdict: NOT conserved: 243 unclaimed, 29 doubly-claimed, 0 unreachable
+             object(s) beyond what is already recorded
+    conserve() counts: unreachable=259, unclaimed=243, doubly_claimed=29
+             (243/29 match out/646.txt's own penev_A figures exactly;
+             259 = 84 violations [Citation=81, List=3] + 93 by-design
+             [Document=1, Page=22, TableCell=54, TableRow=15, Toc=1] + 82
+             out-of-scope [Footnote=25, Formula=49, Paragraph=2,
+             Reference=5, Sidenote=1])
+    gate:    PASS, at baseline: Citation=81, List=3 — matches
+             `out/656.txt`'s own "GATE VERDICT — penev_A: PASS" exactly
+    ledger:  243 of 3178 anchors claimed 0 times, 29 claimed 2+ times
+    artefacts: 37 links on the page, 0 dead (checked by script, not
+             rasterised — HTML rasterising is unavailable in this
+             environment, per the brief)
+    budget:  5 PUBLISHED_FILES present, all under the 20 MB budget
+
+  SteerableWaveletFramesBasedontheRieszTransform.status.html:
+    verdict: NOT conserved: 132 unclaimed, 136 doubly-claimed, 0 unreachable
+             object(s) beyond what is already recorded
+    conserve() counts: unreachable=303, unclaimed=132, doubly_claimed=136
+             (303 = 81 violations [Citation=64, List=17] + 177 by-design
+             [Document=1, Page=15, TableCell=141, TableRow=20] + 45
+             out-of-scope [Abstract=1, Footnote=1, Formula=36, ListItem=2,
+             Paragraph=2, Reference=2, Sidenote=1])
+    gate:    PASS, at baseline: Citation=64, List=17 — matches
+             `out/656.txt`'s own SteerableWavelet gate verdict exactly
+    ledger:  132 of 1437 anchors claimed 0 times, 136 claimed 2+ times
+    artefacts: 18 links on the page, 0 dead
+
+  Both pages read as text and their `<a href>` targets checked to exist on
+  disk by `~/pdfdrill-library/<doc>/out/652/script.py` (committed here,
+  byte-identical, as `out/652/script.py`) — the script also re-derives the
+  same three conservation numbers, the gate report, and the href check
+  independently in Python, so the page's prose is cross-checked against the
+  library, not merely eyeballed.
+
+  INSPECT.txt (rule 20, path checked existing+non-zero before writing):
+    ~/pdfdrill-library/penev_A/penev_A.status.html
+    ~/pdfdrill-library/SteerableWaveletFramesBasedontheRieszTransform/
+      SteerableWaveletFramesBasedontheRieszTransform.status.html
+    (`~/pdfdrill-library/<doc>/out/652/INSPECT.txt` names exactly the one
+    path each; `report.json` beside each carries the full numeric record.)
