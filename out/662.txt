@@ -336,6 +336,16 @@ OPEN
   span) is pinned by synthetic tests only; no document checked in this
   library confirms it against real content, because none carries a
   genuine 2-character CJK-in-text run. Stated as a limit, not hidden.
+  AND THE NUMBER ITSELF IS UNVERIFIED HERE. CJK_TEXT_RUN_MIN = 2 is a
+  CHOICE, not a measurement. The evidence in this library settles only
+  its lower bound: run == 1 must refuse, because the three BH1org_OCR
+  rows are single ideographs and are notation, not prose. Nothing here
+  distinguishes a correct 2 from a correct 3 — and 3 would mean no
+  relaxation at all, since CJK_RUN_MIN is already 3, i.e. reverting the
+  text-scoping half of this task. What would settle it is a document
+  carrying real two-character Chinese inside a text argument, of which
+  this library has none. Whoever obtains an OmniDocBench-shaped corpus
+  should measure that cell before trusting the 2.
 - No OmniDocBench-shaped document (a corpus of genuinely Chinese-language
   exam papers, the auditor's own population) exists in this library to
   confirm the auditor's 93-of-2,066 number style of measurement directly;
