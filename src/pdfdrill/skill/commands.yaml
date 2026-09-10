@@ -215,6 +215,29 @@ commands:
     type: flag
     help: write <bibkey>.status.html beside the document instead of printing
   typed: true
+- name: corpusstatus
+  section: Introspection (fast, no extraction)
+  summary: 'One status page across the WHOLE library (653): walks every document
+    under --library (default the configured library_root; --only-published reads
+    the small named set in <library>/out/documents.json instead) and writes
+    index.html at the library root — one row per document (model built + date,
+    gold bibliography + count, the 656 conservation verdict, unclaimed anchors,
+    how many of the five 632/633 evidence/residuals files are present), each
+    linking to that document''s own `status --html` page (652). Read-only: never
+    builds a model, takes no per-document lock, and skips a model too large to
+    parse safely in a corpus-wide scan (a stated size guard) rather than risk
+    exhausting memory on it.'
+  offline_ok: true
+  flags:
+  - name: library
+    flag: --library
+    type: str
+    help: library root to walk (default the configured library_root)
+  - name: only_published
+    flag: --only-published
+    type: flag
+    help: restrict to the named set in <library>/out/documents.json (cheap)
+  typed: true
 - name: md
   section: Extraction
   summary: Full Markdown with math transclusions

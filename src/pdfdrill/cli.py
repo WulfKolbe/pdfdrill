@@ -541,6 +541,17 @@ def _do_status(args):
     return cmd_status(_pdf(rest), html=html)
 
 
+def _do_corpusstatus(args):
+    """pdfdrill corpusstatus [--library DIR] [--only-published]  — 653: one
+    row per document across the whole library, written as `index.html` at
+    the library root. Read-only; never builds a model."""
+    from .commands import cmd_corpusstatus
+    only_published = "--only-published" in args
+    args = [a for a in args if a != "--only-published"]
+    library, _rest = _opt(args, "--library")
+    return cmd_corpusstatus(library=library, only_published=only_published)
+
+
 def _do_pdfinfo(args):
     from .commands import cmd_pdfinfo
     return cmd_pdfinfo(_pdf(args))
@@ -2227,6 +2238,7 @@ HANDLERS = {
         "spoken": _do_spoken,
         "sre": _do_sre,
         "status": _do_status,
+        "corpusstatus": _do_corpusstatus,
         "md": _do_md,
         "page": _do_page,
         "fetch": _do_fetch,

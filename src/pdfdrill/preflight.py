@@ -47,8 +47,8 @@ _REPO_SKILL = Path(__file__).resolve().parents[2] / ".claude" / "skills" / "pdfd
 # NOT in this set is a build/mutate/cost command and is gated.
 EXEMPT = frozenset({
     "preflight", "doctor", "help", "--help", "-h", "config", "skill",
-    "size", "pdfinfo", "steps", "plan", "status", "artifacts", "ls",
-    "links", "dests", "urls", "fonts", "fonts_layer", "images", "route",
+    "size", "pdfinfo", "steps", "plan", "status", "corpusstatus", "artifacts",
+    "ls", "links", "dests", "urls", "fonts", "fonts_layer", "images", "route",
 })
 
 
