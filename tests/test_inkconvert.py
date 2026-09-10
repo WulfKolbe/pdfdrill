@@ -212,3 +212,55 @@ def test_scale_stable_accepts_the_spellings_inkdrill_emits(tmp_path):
     # and the gate is only consulted past the floor
     assert flag_of(0, 0, False) == "clean"
     assert flag_of(3, 0, True) == "noise"
+
+
+def test_cmd_inkconvert_records_crop_sha256_and_rung_per_row(tmp_path):
+    """667 — `cmd_inkconvert` (not `inkconvert.convert` itself, which takes
+    no crops directory and stays untouched) is where the measurement's own
+    crop identity is recorded: the sha256 of `report-crops/<id>.jpg`, the
+    file the measure build actually embedded (`cmd_reporttex` never calls
+    `report_tex.scale_crops`, so `rung` is always the "nothing re-encoded"
+    value — recorded explicitly, per HANDOVER-RULES rule 5, rather than
+    left for a reader to assume)."""
+    import hashlib
+    import json as _j
+    from pdfdrill import commands as C
+    d = tmp_path / "DOC3"
+    d.mkdir()
+    (d / "DOC3.pdf").write_bytes(b"%PDF-1.4\n")
+    rows = [_row(1, 1, [10, 0, 0, 0, 0], [10, 0, 0, 0, 0]), _row(1, 2, FOOT, FOOT)]
+    (d / "report.compare.tsv").write_text("\n".join([HDR] + rows) + "\n",
+                                          encoding="utf-8")
+    (d / "report.tex").write_text(
+        "\\ident{DOC3\\_EQ0001} & 1 & x & y \\\\ \\hline\n", encoding="utf-8")
+    crops = d / "report-crops"
+    crops.mkdir()
+    crop_bytes = b"\xff\xd8\xff" + b"jpegbytes" * 100     # > 500 bytes
+    (crops / "DOC3_EQ0001.jpg").write_bytes(crop_bytes)
+    C.cmd_inkconvert(d / "DOC3.pdf")
+    payload = _j.loads((d / "report.ink.json").read_text(encoding="utf-8"))
+    row = payload["rows"][0]
+    assert row["id"] == "DOC3_EQ0001"
+    assert row["crop_sha256"] == hashlib.sha256(crop_bytes).hexdigest()
+    assert row["rung"] is None
+
+
+def test_cmd_inkconvert_records_none_when_no_crop_exists(tmp_path):
+    """A row with nothing to crop from must say so explicitly (None), not
+    omit the key — an absent field and a matched-nothing field are different
+    claims and a gate reading the row back must be able to tell them apart."""
+    import json as _j
+    from pdfdrill import commands as C
+    d = tmp_path / "DOC4"
+    d.mkdir()
+    (d / "DOC4.pdf").write_bytes(b"%PDF-1.4\n")
+    rows = [_row(1, 1, [10, 0, 0, 0, 0], [10, 0, 0, 0, 0]), _row(1, 2, FOOT, FOOT)]
+    (d / "report.compare.tsv").write_text("\n".join([HDR] + rows) + "\n",
+                                          encoding="utf-8")
+    (d / "report.tex").write_text(
+        "\\ident{DOC4\\_EQ0001} & 1 & x & y \\\\ \\hline\n", encoding="utf-8")
+    C.cmd_inkconvert(d / "DOC4.pdf")
+    payload = _j.loads((d / "report.ink.json").read_text(encoding="utf-8"))
+    row = payload["rows"][0]
+    assert "crop_sha256" in row and row["crop_sha256"] is None
+    assert row["rung"] is None

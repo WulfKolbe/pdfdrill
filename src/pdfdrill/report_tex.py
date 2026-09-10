@@ -2233,6 +2233,30 @@ def crop_file(crops_dir: "Path | None", title: str,
     return None
 
 
+def crop_sha256(crops_dir: "Path | None", title: str,
+                bibkey: str = "", history: "list[str] | None" = None):
+    """sha256 of `crop_file(...)`'s result, or None if there is no crop.
+
+    667 — this hashes the SOURCE file in `report-crops/`, the one file every
+    rung of 655's re-encoding ladder is derived FROM and never overwrites
+    (`scale_crops` writes into the separate `report-crops-b/`). A measurement
+    records this per row so a later build's re-encoded copy — smaller, same
+    aspect ratio, same picture — can be told apart from one whose SOURCE
+    picture actually changed underneath it: the first is a rung difference
+    and benign (666), the second means the row was measured against a
+    picture nobody is looking at any more.
+    """
+    f = crop_file(crops_dir, title, bibkey, history)
+    if f is None:
+        return None
+    import hashlib
+    h = hashlib.sha256()
+    with f.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,
                  kinds=("_TAB",), dpi: int = 400, trim: bool = True):
     r"""Crop the scan for every region-bearing tiddler WITHOUT a CDN uri (461).

@@ -184,7 +184,53 @@ def compile_gate(doc_dir) -> tuple:
 glyphs_gate = compile_gate
 
 
-def checklist(doc_dir) -> dict:
+#: 667 — a rung alone cannot answer "is the picture I am looking at the
+#: picture this residual was measured on": `budget.CROP_LADDER` says how a
+#: crop was ENCODED (scale, quality), never WHICH crop a row was measured
+#: against, and 666 measured that a rung difference alone (same aspect ratio,
+#: uniformly smaller — 655's re-encoding) is benign on 11 of 11 pairs
+#: checked. So this gate is keyed on `crop_sha256` — the sha256 of the SOURCE
+#: file in `report-crops/`, which every rung is derived from and which
+#: `report_tex.scale_crops` never overwrites (it writes the scaled copy into
+#: the separate `report-crops-b/`) — never on the embedded PDF bytes, which a
+#: rung change legitimately moves. `rung` is still carried on the row (set
+#: by `commands.cmd_inkconvert` at measure time) so a caller can SAY why a
+#: displayed crop's bytes differ from the measured one without that being
+#: mistaken for a defect.
+#:
+#: Rows measured before 667 carry no `crop_sha256` at all — absence is not
+#: evidence of a mismatch (rule 5: no plausible default for an unknown), so
+#: this check passes vacuously on them rather than refusing every document
+#: measured before the field existed.
+def crop_gate(doc_dir, bibkey: str = "", history=None) -> tuple:
+    doc_dir = Path(doc_dir)
+    ink = _ink(doc_dir)
+    rows = ink.get("rows") or []
+    if not rows:
+        return True, "no measured rows to check"
+    tagged = [r for r in rows if r.get("crop_sha256")]
+    if not tagged:
+        return True, "ink carries no crop identity (measured before 667)"
+    crops = doc_dir / "report-crops"
+    mismatched = []
+    for r in tagged:
+        ident = r.get("id") or "?"
+        got = rt.crop_sha256(crops, ident, bibkey, history)
+        if got is None:
+            mismatched.append("%s: crop no longer on disk" % ident)
+            continue
+        if got != r["crop_sha256"]:
+            mismatched.append("%s: crop changed since it was measured "
+                              "(measured %s, now %s)"
+                              % (ident, str(r["crop_sha256"])[:12], str(got)[:12]))
+    if mismatched:
+        return False, ("%d row(s) show a crop the ink did not measure: %s"
+                       % (len(mismatched), "; ".join(mismatched[:8])))
+    return True, ("%d row(s) checked, every displayed crop is the one "
+                 "measured" % len(tagged))
+
+
+def checklist(doc_dir, bibkey: str = "", history=None) -> dict:
     doc_dir = Path(doc_dir)
     ink_p = doc_dir / "report.ink.json"
     live = [n for n in ("report.ink.json.REFUSED", "report.ink.json.MISPAIRED")
@@ -199,4 +245,5 @@ def checklist(doc_dir) -> dict:
                  if live else "no report.ink.json")),
         "timestamp": timestamp_gate(doc_dir),
         "coverage": coverage_gate(doc_dir),
+        "crop": crop_gate(doc_dir, bibkey=bibkey, history=history),
     }

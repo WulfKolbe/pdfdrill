@@ -1637,8 +1637,9 @@ def publish_ready(pdf: Path) -> dict:
     # legacy path kept for documents not yet rebuilt.
     if (d / "residuals.pdf").is_file():
         from .reports import gate as G
-        checks = G.checklist(d)
-        fields = {"bibkey": sc.get_evidence("bibkey") or pdf.stem,
+        _bibkey = sc.get_evidence("bibkey") or pdf.stem
+        checks = G.checklist(d, bibkey=_bibkey, history=_bibkey_history(sc))
+        fields = {"bibkey": _bibkey,
                   "folder": d.name, "pages": None, "equations": None,
                   "residual": None, "refined_rows": 0}
         return {"ready": all(v[0] for v in checks.values()),
@@ -2256,6 +2257,21 @@ def cmd_inkconvert(pdf: Path, force: bool = False) -> str:
         payload = _ic.convert(tsv, tex, stamp=stamp)
     except _ic.ConversionRefused as e:
         return "\n".join(out + ["REFUSING to convert: %s" % e, rt.stamp()])
+    # 667 — record, per row, the crop this MEASUREMENT actually saw. The
+    # measure build (`cmd_reporttex`) never calls `report_tex.scale_crops`
+    # (only `reports/crops.ensure_crops` does, for evidence-*.pdf/
+    # residuals.pdf), so `rung` is always the "nothing re-encoded" value —
+    # recorded explicitly rather than assumed, because a rung alone cannot
+    # answer "is this the same picture": it says how a crop was ENCODED, not
+    # WHICH crop a row was measured against. `crop_sha256` is that identity —
+    # the source file every rung derives from and never overwrites — and is
+    # what `reports.gate.crop_gate` checks a later build against.
+    _crops_dir = d / "report-crops"
+    _bibkey = sc.get_evidence("bibkey") or ""
+    _history = _bibkey_history(sc)
+    for _r in payload["rows"]:
+        _r["crop_sha256"] = rt.crop_sha256(_crops_dir, _r["id"], _bibkey, _history)
+        _r["rung"] = None
     _ic.write(payload, dest)
     # 310 — reporttex now DECLARES inkconvert, and the capability graph derives
     # what a command establishes from its add_fact calls. Without this the

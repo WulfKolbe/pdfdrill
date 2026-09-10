@@ -115,6 +115,71 @@ def test_artefacts_and_glyphs(tmp_path):
     assert G.glyphs_gate(d2)[0] is False
 
 
+# ---------------------------------------------------------------- 667
+
+
+def _crop_doc(tmp_path, *, measured_bytes=b"crop-bytes-v1" * 50,
+             on_disk_bytes=b"crop-bytes-v1" * 50, ident="D_EQ0001", present=True):
+    """A minimal doc for `crop_gate`: one measured row carrying
+    `crop_sha256` of `measured_bytes`, and (unless `present` is False) a
+    `report-crops/<ident>.jpg` holding `on_disk_bytes`. Matching bytes is
+    the PASS direction; differing bytes is the REFUSE direction, by name."""
+    import hashlib
+    d = tmp_path / "D"
+    d.mkdir(parents=True)
+    (d / "report.ink.json").write_text(json.dumps(
+        {"rows": [{"id": ident, "code": "K|0",
+                   "crop_sha256": hashlib.sha256(measured_bytes).hexdigest(),
+                   "rung": None}]}))
+    if present:
+        crops = d / "report-crops"
+        crops.mkdir()
+        (crops / ("%s.jpg" % ident)).write_bytes(on_disk_bytes)
+    return d
+
+
+def test_crop_gate_passes_when_the_displayed_crop_is_the_one_measured(tmp_path):
+    d = _crop_doc(tmp_path)
+    ok, detail = G.crop_gate(d)
+    assert ok and "1 row(s) checked" in detail
+
+
+def test_crop_gate_refuses_by_name_when_the_crop_changed(tmp_path):
+    d = _crop_doc(tmp_path, measured_bytes=b"crop-bytes-v1" * 50,
+                 on_disk_bytes=b"crop-bytes-v2-rescaled-differently" * 50)
+    ok, detail = G.crop_gate(d)
+    assert not ok
+    assert "D_EQ0001" in detail and "crop changed since it was measured" in detail
+
+
+def test_crop_gate_refuses_by_name_when_the_crop_is_gone(tmp_path):
+    d = _crop_doc(tmp_path, present=False)
+    ok, detail = G.crop_gate(d)
+    assert not ok
+    assert "D_EQ0001" in detail and "no longer on disk" in detail
+
+
+def test_crop_gate_passes_vacuously_when_ink_predates_667(tmp_path):
+    """A measurement taken before this task recorded no crop_sha256 at all;
+    absence must not be read as a mismatch (rule 5) or every document
+    measured before 667 would refuse on this check alone."""
+    d = tmp_path / "D"
+    d.mkdir()
+    (d / "report.ink.json").write_text(json.dumps(
+        {"rows": [{"id": "D_EQ0001", "code": "K|0"}]}))
+    ok, detail = G.crop_gate(d)
+    assert ok and "before 667" in detail
+
+
+def test_crop_gate_reused_via_checklist(tmp_path):
+    """`checklist` (what `publish_ready` calls) must carry the new check —
+    not a fourth reimplementation beside it."""
+    d = _crop_doc(tmp_path, measured_bytes=b"x", on_disk_bytes=b"y")
+    checks = G.checklist(d)
+    assert "crop" in checks and checks["crop"][0] is False
+    assert "D_EQ0001" in checks["crop"][1]
+
+
 # ---------------------------------------------------------------- 634
 
 def test_tex_errors_pairs_a_bang_line_with_its_source_line_number():

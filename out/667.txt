@@ -1,0 +1,262 @@
+667 - record the rung per row; refuse a published crop the ink never measured
+==============================================================================
+
+WHAT 666 ESTABLISHED, AND THE GAP IT LEFT
+------------------------------------------------------------------------------
+   666 measured 11 of 11 report.pdf/residuals.pdf crop pairs differing on
+   "Introduction to Linear and Matrix Algebra" — same aspect ratio, uniformly
+   smaller in residuals.pdf (655's re-encoding). Benign, but report.ink.json
+   records NOTHING per row that says which crop, specifically, produced its
+   ink numbers -- only a page-level `measured_against` naming the PDF-as-a-
+   whole that was measured, which for this document already names a report.pdf
+   that no longer exists under that name.
+
+DOES A RUNG ALONE ANSWER "IS THIS THE PICTURE I AM LOOKING AT"? NO.
+------------------------------------------------------------------------------
+   A rung (`reports.budget.CROP_LADDER`, `(scale, quality)`) says HOW a crop
+   was re-encoded. It says nothing about WHICH crop -- two structurally
+   different crops re-encoded at the same rung would still pass a rung-only
+   check, and the rung the user asked to have recorded is, on THIS
+   architecture, always the same constant value: `cmd_reporttex` (the
+   MEASURE build, report.pdf) never calls `report_tex.scale_crops` --
+   only `reports.crops.ensure_crops` does, for evidence-*.pdf/residuals.pdf --
+   so every row the measure build embeds is unscaled by construction. Recording
+   "rung: None" on every row is honest and traceable, but by itself it cannot
+   distinguish "re-encoded, same picture" from "a different picture,
+   coincidentally re-encoded the same way."
+
+   WHAT I ADDED BEYOND IT: `crop_sha256` -- the sha256 of the SOURCE file in
+   `report-crops/<id>.jpg`, the one file every rung of the ladder is derived
+   FROM and which `scale_crops` never overwrites (it writes the scaled copy
+   into the separate `report-crops-b/`). report.pdf always embeds this file
+   directly; residuals.pdf embeds either this file or a re-encoded copy of
+   it. Recording its identity, not the embedded PDF bytes, is what makes a
+   rung difference and a genuine content change distinguishable: the same
+   `crop_sha256` under two different rungs is exactly 666's finding (benign);
+   a changed or vanished `crop_sha256` is the defect the gate exists to
+   catch.
+
+WHAT WAS BUILT
+------------------------------------------------------------------------------
+   `report_tex.crop_sha256(crops_dir, title, bibkey, history)` (new,
+   src/pdfdrill/report_tex.py, beside `crop_file` which it reuses for the
+   bibkey-rename fallback -- 264) -- sha256 of the resolved crop file, or
+   None if there is no crop.
+
+   `commands.cmd_inkconvert` (src/pdfdrill/commands.py) now writes
+   `crop_sha256` and `rung` (always None today, for the reason above) onto
+   EVERY row of the payload `inkconvert.convert` returns, before writing
+   report.ink.json. `inkconvert.convert`/`convert_by_page` and
+   `regionink.pair` (the three `measured_against` writers named in this
+   task) are UNCHANGED -- the enrichment is additive, at the one call site
+   that feeds the redrawn surface's report.ink.json, not a fourth pairing
+   implementation.
+
+   `reports.gate.crop_gate(doc_dir, bibkey="", history=None)` (new,
+   src/pdfdrill/reports/gate.py) -- for every measured row that carries a
+   `crop_sha256`, recomputes it against what's on disk NOW and refuses,
+   NAMING THE IDENTIFIER, on a change or an absence. A row measured before
+   667 carries no `crop_sha256` at all and passes vacuously (HANDOVER-RULES
+   rule 5: absence is not evidence of a mismatch) rather than refusing every
+   pre-existing measurement. Wired into `checklist()` under the key `"crop"`,
+   which `publish_ready` already calls for every document carrying
+   residuals.pdf -- one new key on the existing five-key surface, not a
+   parallel gate.
+
+REUSED / EXTENDED / BYPASSED, PER THE THREE EXISTING COMPARISONS NAMED
+------------------------------------------------------------------------------
+   Read before writing anything: `regionink.py:267`, `inkconvert.py:223/323`
+   (all three write `payload["measured_against"] = stamp` -- the WHOLE-PDF
+   claim, never compared against a live file inside these modules
+   themselves), `inkmeasure.py:190` (`rows_manifest` refuses when
+   `pdfdrill-rows.json`'s OWN sha256 of report.pdf disagrees with the file on
+   disk -- a manifest-vs-PDF check, whole file), `inkreport.py:289`
+   (`_measurement_still_covers`-style resume check: ink's `measured_against`
+   .sha256 against `report.build.measure.json`'s sha256, PLUS formula_rule,
+   pages_bound, model_sha256 -- whole-PDF and whole-model, used to decide
+   whether inkreport can SKIP re-measuring).
+
+   All three existing comparisons are WHOLE-ARTEFACT (PDF-vs-PDF or
+   PDF-vs-manifest) and none is per-row. `crop_gate` is the first PER-ROW
+   identity check and answers a question none of the three ask: not "is the
+   PDF I measured still the PDF on disk" (all three ask exactly that, in
+   different contexts) but "is the PICTURE this specific row shows still the
+   picture I measured." I EXTENDED the existing infrastructure (reused
+   `crop_file`'s bibkey-history resolution; added `crop_sha256` beside it)
+   rather than writing a fourth whole-PDF sha comparison -- there already are
+   three of those and a fourth was not needed.
+
+THE SECOND FAILURE -- DECIDED: DOES NOT GET ITS OWN NEW GATE
+------------------------------------------------------------------------------
+   666 also found `report.ink.json`'s `measured_against` naming a 458-page
+   report.pdf that was overwritten 32 minutes later, still cited by a
+   residuals.pdf built 4 days after that. The task asked me to decide whether
+   this belongs here.
+
+   It does not, for a reason specific to this architecture: the MEASURE
+   build is DELIBERATE scaffolding (`_inkreport_chain`'s own comment: "The
+   measure build is scaffolding; the reading build is the artefact") --
+   destroyed by construction on every single run, always, the moment the
+   reading build replaces it. A gate that refuses whenever the measured PDF
+   no longer exists under its own name would refuse EVERY published
+   document, always -- it would not separate a real problem from the normal
+   operation of the two-phase design, which is exactly the failure mode
+   `gate.timestamp_gate`'s own docstring already names for the OLD
+   PDF-checksum gate it replaced. What `timestamp_gate` compares instead --
+   the MODEL's sha256/mtime -- is the right continuity check for "has the
+   thing that was measured moved", and it already exists. Verified this is
+   not a hidden false-pass: on johnston, the model has not changed since the
+   Sep 5 measurement, so `timestamp_gate` correctly reports READY on that
+   axis; what was actually missing was per-row crop identity, which
+   `crop_gate` now supplies and which -- unlike a whole-PDF-existence check
+   -- can genuinely tell a benign case from a bad one.
+
+TESTED BOTH DIRECTIONS
+------------------------------------------------------------------------------
+   Fixture-based (tests/test_reports_gate.py, tmp_path, no library document
+   touched):
+     test_crop_gate_passes_when_the_displayed_crop_is_the_one_measured  PASS
+     test_crop_gate_refuses_by_name_when_the_crop_changed               PASS
+       -> "D_EQ0001" named, "crop changed since it was measured"
+     test_crop_gate_refuses_by_name_when_the_crop_is_gone               PASS
+       -> "D_EQ0001" named, "no longer on disk"
+     test_crop_gate_passes_vacuously_when_ink_predates_667              PASS
+     test_crop_gate_reused_via_checklist                                PASS
+
+   Real-data (out/667/script.py, beside the 666 document; no file measured
+   by any check was mutated -- everything runs against a COPY under
+   out/667/work/):
+     EQ0040's real report-crops/ (source, what report.pdf embeds): 847x418,
+       sha256 3d5b8fede20c... (matches 666's own table exactly).
+     EQ0040's real report-crops-b/ (655's rung, what residuals.pdf embeds):
+       719x355, sha256 d983012f5026... (also matches 666's table exactly).
+     match direction    (copy untouched):                    PASS
+       "1 row(s) checked, every displayed crop is the one measured"
+     mismatch direction (copy replaced with the REAL
+       report-crops-b bytes -- an actually different picture
+       on disk, not a synthetic corruption):                 REFUSED
+       "johnston-linear-matrix-algebra_EQ0040: crop changed since it was
+       measured (measured 3d5b8fede20c, now d983012f5026)"
+     gone direction (copy deleted):                            REFUSED
+       "johnston-linear-matrix-algebra_EQ0040: crop no longer on disk"
+
+   inkconvert-level (tests/test_inkconvert.py):
+     test_cmd_inkconvert_records_crop_sha256_and_rung_per_row           PASS
+     test_cmd_inkconvert_records_none_when_no_crop_exists               PASS
+
+REGRESSION -- EXISTING PUBLISHREADY/GATE TESTS, BY NAME
+------------------------------------------------------------------------------
+   tests/test_reports_gate.py (20 tests, all pre-existing ones unmodified in
+   assertion, "crop" key addition is additive):
+     test_matching_model_passes
+     test_newer_model_fails_and_names_the_fix
+     test_no_ink_fails
+     test_pdf_checksum_is_never_compared
+     test_coverage_excepts_straddlers_and_refuses_unknown_rows
+     test_shown_identifiers_reads_every_ident_form_at_once
+     test_coverage_gate_catches_an_unmeasured_corrected_pair
+     test_artefacts_and_glyphs
+     test_tex_errors_pairs_a_bang_line_with_its_source_line_number
+     test_tex_errors_ignores_the_underfull_hbox_wrap
+     test_tex_errors_counts_two_real_errors
+     test_compile_gate_refuses_a_log_with_a_remaining_xelatex_error
+     test_compile_gate_is_the_new_name_glyphs_gate_stays_an_alias
+     test_publish_ready_uses_the_new_surface_when_residuals_exist
+     test_handover_rows_survives_the_new_surface_and_names_its_checks
+     (+ 6 new crop_gate tests, listed above)
+   tests/test_publish_ready.py -- all pre-existing, unmodified
+   tests/test_publishcheck.py -- all pre-existing, unmodified
+   tests/test_inkconvert.py -- all pre-existing, unmodified (+ 2 new)
+   68 passed, 0 failed (these four files together).
+
+FULL SUITE, BASE COMMIT VS. THIS CHANGE
+------------------------------------------------------------------------------
+   Base (abf0a996, `git stash` before running):
+     3515 passed, 0 failed, 0 skipped
+   This change (working tree, `git stash pop` restored):
+     3522 passed, 0 failed, 0 skipped
+   Delta +7 == exactly the 7 new tests added: 5 in test_reports_gate.py
+   (test_crop_gate_passes_when_the_displayed_crop_is_the_one_measured,
+   test_crop_gate_refuses_by_name_when_the_crop_changed,
+   test_crop_gate_refuses_by_name_when_the_crop_is_gone,
+   test_crop_gate_passes_vacuously_when_ink_predates_667,
+   test_crop_gate_reused_via_checklist) + 2 in test_inkconvert.py
+   (test_cmd_inkconvert_records_crop_sha256_and_rung_per_row,
+   test_cmd_inkconvert_records_none_when_no_crop_exists). No pre-existing
+   test's outcome changed either run.
+
+VERDICT ON THE TWO NAMED DOCUMENTS, AS THEY STAND TODAY (no rebuild)
+------------------------------------------------------------------------------
+   PDFs derived from folder name, never a glob:
+     "Introduction to Linear and Matrix Algebra (Nathaniel Johnston)
+     (Z-Library)/Introduction to Linear and Matrix Algebra (Nathaniel
+     Johnston) (Z-Library).pdf"
+     "0902.0431/0902.0431.pdf"
+
+   johnston:  READY  (unchanged by this task)
+     artefacts True  all five present
+     glyphs    True  clean
+     ink       True  present
+     timestamp True  measured 2026-09-05T12:23:12Z against the model on disk
+     coverage  True  43 equation rows shown, all measured (5 straddle)
+     crop      True  ink carries no crop identity (measured before 667)
+
+   0902.0431: NOT READY (unchanged by this task -- was already failing
+              `timestamp` before 667, on an unrelated, pre-existing cause)
+     artefacts True  all five present
+     glyphs    True  clean
+     ink       True  present
+     timestamp False measured 2026-09-05T10:59:49Z, but the model was
+                      rebuilt since (model mtime 1789032779 > measured
+                      1788385319); run `pdfdrill residuals --measure --pdf
+                      <pdf>`
+     coverage  True  17 equation rows shown, all measured (9 straddle)
+     crop      True  ink carries no crop identity (measured before 667)
+
+   NEITHER document's READY/NOT READY verdict changed. This is expected, not
+   a weakening: both documents' report.ink.json predate 667 and carry no
+   `crop_sha256` on any row, and the new check passes vacuously on absent
+   evidence by design (rule 5) rather than retroactively refusing every
+   document measured before the field existed. The check is ARMED --
+   demonstrated against real bytes above -- but has nothing to compare on
+   either currently-published document until the next `residuals --measure`
+   run writes it. Zero currently-published documents are newly refused by
+   this task.
+
+WHAT WAS NOT DONE
+------------------------------------------------------------------------------
+   No artefact was rebuilt: johnston's and 0902.0431's real report.pdf,
+   residuals.pdf, report.ink.json, report-crops/, report-crops-b/ are all
+   exactly as 666 and prior sessions left them. The real-data demonstration
+   above ran against a COPY under out/667/work/, deleted copies included --
+   nothing under the document's own report-crops/report-crops-b/
+   report.ink.json was written to. report_tex.py's PREAMBLE was not touched
+   (a separate agent is reviewing 665 there, read-only). No mathpix call was
+   made. No push.
+
+EVIDENCE
+------------------------------------------------------------------------------
+   .../Introduction to Linear and Matrix Algebra (Nathaniel Johnston)
+   (Z-Library)/out/667/script.py     — the real-data demonstration, runnable
+   .../Introduction to Linear and Matrix Algebra (Nathaniel Johnston)
+   (Z-Library)/out/667/result.json   — its output (sizes, shas, all 3 verdicts)
+   .../Introduction to Linear and Matrix Algebra (Nathaniel Johnston)
+   (Z-Library)/out/667/INSPECT.txt   — paths below, existence verified
+
+   /home/wkolbe/pdfdrill-library/Introduction to Linear and Matrix Algebra
+   (Nathaniel Johnston) (Z-Library)/out/667/script.py
+   /home/wkolbe/pdfdrill-library/Introduction to Linear and Matrix Algebra
+   (Nathaniel Johnston) (Z-Library)/out/667/result.json
+   /home/wkolbe/pdfdrill-library/Introduction to Linear and Matrix Algebra
+   (Nathaniel Johnston) (Z-Library)/report-crops/
+   johnston-linear-matrix-algebra_EQ0040.jpg
+   /home/wkolbe/pdfdrill-library/Introduction to Linear and Matrix Algebra
+   (Nathaniel Johnston) (Z-Library)/report-crops-b/
+   johnston-linear-matrix-algebra_EQ0040.jpg
+   /home/wkolbe/pdfdrill-library/Introduction to Linear and Matrix Algebra
+   (Nathaniel Johnston) (Z-Library)/report.ink.json
+
+   Code: src/pdfdrill/report_tex.py (crop_sha256), src/pdfdrill/commands.py
+   (cmd_inkconvert enrichment, publish_ready threading bibkey/history),
+   src/pdfdrill/reports/gate.py (crop_gate, checklist wiring). Tests:
+   tests/test_reports_gate.py, tests/test_inkconvert.py.
