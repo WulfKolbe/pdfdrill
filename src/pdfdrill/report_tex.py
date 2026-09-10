@@ -18,6 +18,8 @@ import os
 import re
 from pathlib import Path
 
+from .text_escapes import CJK_TEXT_MACROS, text_spans
+
 _ESC = {"\\": r"\textbackslash{}", "{": r"\{", "}": r"\}", "$": r"\$",
         "&": r"\&", "#": r"\#", "_": r"\_", "%": r"\%",
         "^": r"\textasciicircum{}", "~": r"\textasciitilde{}"}
@@ -1045,9 +1047,13 @@ def has_bare_align_marker(lx: str) -> bool:
 #: document whose glyphs xelatex silently DROPPED — a report that looks finished
 #: and is missing symbols with no visible trace.
 _IDC = range(0x2FF0, 0x2FFC)
-#: Unified ideographs + extensions + compatibility. A maths value has no
-#: business containing any of them.
-_CJK_BLOCKS = ((0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xF900, 0xFAFF),
+#: Unified ideographs + extensions + compatibility, CJK Symbols & Punctuation
+#: (662 — where 〔 〕 U+3014/5 live; dropped silently like ideographs under
+#: xeCJK before this range covered them), and Fullwidth/Halfwidth Forms (662
+#: — the same script's own digits and Latin letters set full-width). A maths
+#: value has no business containing any of them.
+_CJK_BLOCKS = ((0x3000, 0x303F), (0x3400, 0x4DBF), (0x4E00, 0x9FFF),
+               (0xF900, 0xFAFF), (0xFF00, 0xFFEF),
                (0x20000, 0x2A6DF), (0x2A700, 0x2EBEF), (0x2F800, 0x2FA1F))
 _ZH_CMD = re.compile(r"\\zh(?![a-zA-Z])")
 
@@ -1090,28 +1096,80 @@ def cjk_defect(latex: str) -> str:
     ISOLATED characters — runs of three or more are zero in all fifteen
     affected documents — while genuine Chinese is nothing but runs.
 
-    So: an ideographic description character refuses always (it is a recipe,
-    not a glyph, and only the decomposition emits one); `\zh` refuses always;
-    isolated ideographs refuse; and a value carrying a run of CJK_RUN_MIN or
-    more is text and is permitted.
+    662 — TWO INDEPENDENT DISCRIMINATORS, COMBINED. 617 built a run-length
+    rule (isolated ideograph -> decomposition; run of CJK_RUN_MIN or more ->
+    text) that never asked WHERE a character sits. The auditor asks for a
+    text-mode rule (scope ideograph detection to `\text`/`\mbox`/etc. via
+    `text_spans`) that never asked run length. Neither replaces the other;
+    they answer different questions and both apply. Decision table, over
+    (does the character sit inside a `CJK_TEXT_MACROS` argument) x (which
+    class of CJK signal):
+
+    | class \\ location          | inside a text span | outside (bare math) |
+    |-----------------------------|---------------------|----------------------|
+    | IDC (U+2FF0-2FFB)           | REFUSE              | REFUSE               |
+    | `\zh` command               | REFUSE              | REFUSE               |
+    | run < CJK_RUN_MIN            | PERMIT              | REFUSE               |
+    | run >= CJK_RUN_MIN           | PERMIT              | PERMIT               |
+
+    Justification per cell:
+      - IDC, either location: an IDC is not a glyph, it is a RECIPE for one —
+        only the decomposition path ever emits one, so its meaning does not
+        change depending on which macro happens to wrap it. Unscoped, per
+        the auditor's explicit instruction.
+      - `\zh`, either location: existing behaviour (test_zh_command_is_flagged
+        pins `\zh{x}` refused even though "x" is not CJK at all), and the
+        docstring's own worked example (0902.0431_EQ1187) shows `\zh` as a
+        companion marker to a decomposition, not a deliberate language
+        switch an author would reach for. Unscoped for the same reason as
+        the IDC row: its meaning is about HOW the value was produced, not
+        where the OCR happened to place it.
+      - run < CJK_RUN_MIN, inside a text span: this is the one cell 662
+        actually changes. A single Chinese particle or classifier inside
+        `\text{...}` (e.g. `\text{的}`) is ordinary prose that happens to be
+        one character long; refusing it because it is "isolated" was
+        conflating "short" with "decomposition", and the decomposition path
+        never emits its recipe inside a text macro in the first place — it
+        emits bare IDCs in math mode (see the IDC row, which stays refused
+        regardless). PERMIT.
+      - run < CJK_RUN_MIN, outside a text span: unchanged from 617 — a lone
+        ideograph sitting bare in math mode, with no run beside it and no
+        text macro around it, is exactly the decomposition shape 617
+        measured (isolated characters, zero multi-character runs across all
+        fifteen affected documents). REFUSE. This is also why
+        `\mathrm{中}` and `\operatorname{中}` both still refuse: neither is
+        in CJK_TEXT_MACROS (see text_escapes.py's second judgement call —
+        both select a math alphabet for a symbol/operator name, not prose),
+        so a single ideograph inside either one is "outside a text span" by
+        this table, i.e. this cell, not the one above it.
+      - run >= CJK_RUN_MIN, either location: unchanged from 617 — a run is
+        text by construction (measured: zero multi-character runs in the
+        decomposition path), so text-scoping cannot add anything new here;
+        it was already permitted and staying inside a text span does not
+        make it MORE permitted. PERMIT either way.
     """
-    for ch in latex or "":
+    lx = latex or ""
+    for ch in lx:
         c = ord(ch)
         if c in _IDC:
             return "ideographic description character U+%04X (%s)" % (c, ch)
-    if _ZH_CMD.search(latex or ""):
+    if _ZH_CMD.search(lx):
         return "\\zh command"
-    runs = cjk_runs(latex)
+    runs = cjk_runs(lx)
     if not runs:
         return ""
     if max(runs) >= CJK_RUN_MIN:
         return ""                      # a run is text, not a decomposition
-    for ch in latex or "":
+    text_ranges = text_spans(lx, CJK_TEXT_MACROS)
+    for i, ch in enumerate(lx):
         c = ord(ch)
-        if any(lo <= c <= hi for lo, hi in _CJK_BLOCKS):
-            return ("isolated CJK ideograph U+%04X (%s) — no run of %d or "
-                    "more, so this is a decomposition and not text"
-                    % (c, ch, CJK_RUN_MIN))
+        if not any(lo <= c <= hi for lo, hi in _CJK_BLOCKS):
+            continue
+        if any(a <= i < b for a, b in text_ranges):
+            continue                   # 662 — real text mode: permitted
+        return ("isolated CJK ideograph U+%04X (%s) — no run of %d or "
+                "more and not inside \\text{}/\\mbox{}/etc, so this is a "
+                "decomposition and not text" % (c, ch, CJK_RUN_MIN))
     return ""
 
 

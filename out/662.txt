@@ -1,0 +1,269 @@
+662 — scope the CJK gate to text mode; promote text_spans out of tools/
+========================================================================
+
+"start 662 and port text_spans." text_spans was not missing: it existed at
+tools/audit_glyph_sites.py:91-103, working, driven by a `TEXT_IN_MATH`
+regex at :57. This task PROMOTES it into a real module and makes the
+script import it, and — the substantive half — COMBINES it with the
+run-length rule task 617 already built, rather than replacing it (the
+auditor's task text describes a naive presence gate that no longer exists
+on this branch; out/657's inventory established that first).
+
+WHERE text_spans NOW LIVES, AND WHY
+------------------------------------
+`src/pdfdrill/text_escapes.py` — new module. Not inlined into report_tex.py
+(which has no OTHER consumer for it) and not folded into
+la2speech/latexproject.py (a different, parser-dependent, inverted-sense
+version already serves that module's own TTS need — out/657 item 5 ruled
+this out explicitly). `latex_repairs.py`'s surviving harness copy
+(~/Downloads/latex_repairs.py:103) already hardcodes
+`from text_escapes import text_spans` — matching that name and shape is
+the cheapest-to-port choice and leaves the door open for that harness file
+to be ported later without a rename.
+`tools/audit_glyph_sites.py` now does `from pdfdrill.text_escapes import
+text_spans` and its own former copy (lines 91-103) is deleted — one
+implementation, not two that can drift.
+
+TWO JUDGEMENT CALLS ON THE PROMOTED CODE
+-------------------------------------------
+1. THE ESCAPE BUG — FIXED. The original walker tested `s[j-1] != "\\"` to
+   decide whether a `{`/`}` was escaped: correct for `\{` (one backslash),
+   wrong for `\\{` (an escaped backslash, THEN a real unescaped brace) and
+   for any even-length backslash run before a brace — looking one
+   character back cannot tell those apart. Fixed in the style
+   `has_bare_align_marker` (report_tex.py) already uses for the identical
+   class of problem: a backslash is consumed together with whatever
+   follows it, so a bare `{`/`}` is never re-examined on a later
+   iteration and the walker never looks backward.
+   Tested: tests/test_text_escapes.py::
+   test_escaped_backslash_before_brace_is_not_an_escaped_brace — for
+   `\text{a\\{b}}` the old walker (reproduced inline in the test, since the
+   buggy code no longer exists to call) returns span end 11 (`s[6:11] =
+   "a\\{b"`, missing the real closing brace); the fix returns 12
+   (`s[6:12] = "a\\{b}"`, fully balanced). Also
+   test_escaped_brace_is_not_counted pins the case the OLD code already
+   got right (`\{`, one backslash), so the fix does not regress it.
+
+2. \operatorname — EXCLUDED from the CJK gate's notion of "text mode",
+   KEPT in the general list. `TEXT_IN_MATH` (moved unchanged) answers a
+   FONT question for tools/audit_glyph_sites.py: which face renders a
+   glyph inside a `$\displaystyle ...$` cell, and `\operatorname` really
+   does set its argument in the main/roman font, same as `\text`. The CJK
+   gate asks a different, CONTENT question: is this ideograph prose, or a
+   hallucinated decomposition sitting inside some brace group? The
+   auditor's own pinned case — `\mathrm{中}` stays REJECTED because "a
+   math alphabet is not text mode" — applies just as much to
+   `\operatorname`: it selects an upright math alphabet for an operator
+   NAME, not a sentence, and CJK inside one is far more likely to be OCR
+   misrouting a variable name than an author writing Chinese. So
+   `report_tex.CJK_TEXT_MACROS` is a second, narrower regex (text_escapes.py)
+   used ONLY by cjk_defect, excluding `\operatorname` (and `\mathrm`, never
+   in either list) — TEXT_IN_MATH is untouched because its own, different
+   job needs `\operatorname` in it.
+   Tested: tests/test_cjk_text_scope.py::test_9_operatorname_cjk_is_refused;
+   tests/test_text_escapes.py::
+   test_operatorname_is_not_in_the_cjk_text_macro_list (contrasted directly
+   against test_operatorname_is_in_the_default_font_audit_list, which pins
+   TEXT_IN_MATH's unchanged behaviour).
+
+THE COMBINED DECISION TABLE (report_tex.cjk_defect)
+-------------------------------------------------------
+Two independent discriminators exist and BOTH apply — text-scoping does
+not replace 617's run-length rule, it adds one more distinction inside the
+run-length rule's own "short run" case:
+
+  | class \ location     | inside CJK_TEXT_MACROS | outside (bare math) |
+  |-----------------------|-------------------------|----------------------|
+  | IDC (U+2FF0-2FFB)     | REFUSE                  | REFUSE               |
+  | `\zh` command         | REFUSE                  | REFUSE               |
+  | run < CJK_RUN_MIN (3) | PERMIT  <- the one       | REFUSE               |
+  |                       |    cell 662 changes      |                      |
+  | run >= CJK_RUN_MIN    | PERMIT                  | PERMIT               |
+
+Justification per cell (full version lives as the cjk_defect docstring,
+report_tex.py:1084 area, so it travels with the code):
+  - IDC, either location: not a glyph, a RECIPE for one; only the
+    decomposition path ever emits one, so location cannot change its
+    meaning. Unscoped per the auditor's explicit instruction.
+  - `\zh`, either location: existing pin (test_zh_command_is_flagged
+    refuses `\zh{x}` where "x" isn't even CJK) and the docstring's own
+    worked example show `\zh` as a decomposition companion marker, not a
+    deliberate language switch. Unscoped for the same reason as the IDC row.
+  - run < CJK_RUN_MIN, INSIDE a text span — THE CHANGE: a single Chinese
+    particle/classifier inside `\text{...}` is ordinary prose that happens
+    to be one character long. Refusing it conflated "short" with
+    "decomposition"; the decomposition path never emits its recipe inside
+    a text macro (it emits bare IDCs — see the IDC row, unaffected).
+  - run < CJK_RUN_MIN, OUTSIDE any text span: unchanged from 617 — a lone
+    ideograph bare in math mode is exactly the decomposition shape 617
+    measured. This is also WHY `\mathrm{中}` and `\operatorname{中}` both
+    still refuse: neither macro is in CJK_TEXT_MACROS (judgement call 2),
+    so a single ideograph inside either one falls in THIS cell, not the
+    one above it.
+  - run >= CJK_RUN_MIN, either location: unchanged from 617 (a run was
+    already permitted everywhere; text-scoping cannot make it MORE
+    permitted).
+
+Rule 17's fixture: tests/test_cjk_text_scope.py, 12 cases, one per
+decision-table cell plus edge cases — case 12 places one ideograph INSIDE
+a text span immediately adjacent to one OUTSIDE it (`\text{中}文`, the `}`
+breaks cjk_runs' run so both are individually "short"), proving the walk
+scores per-character location, not whole-string presence of some macro
+name.
+
+THE TWO MEASUREMENTS, KEPT APART (rule 12)
+-----------------------------------------------
+Method: report_tex.cjk_defect is measured under THREE configurations by
+MONKEYPATCHING the two module globals it reads at call time
+(`rt._CJK_BLOCKS`, and the `text_spans` name bound into report_tex's
+namespace) — not by hand-copying the algorithm a second time, the same
+method task 659 used for its own before/after:
+
+  OLD          narrow _CJK_BLOCKS (pre-662), no text-scoping at all
+               (structurally = task 617's gate)
+  TEXT_SCOPED  narrow _CJK_BLOCKS (unchanged), WITH text-scoping
+  FINAL        widened _CJK_BLOCKS (662), WITH text-scoping
+               (today's shipped report_tex.cjk_defect, unmodified)
+
+  delta A (text-scoping alone)   = TEXT_SCOPED vs OLD,         range held narrow
+  delta B (range-widening alone) = FINAL       vs TEXT_SCOPED, scoping held on
+
+Script: ~/pdfdrill-library/out/662/662_measure.py (also holds the doc-
+specific copies under each document's own out/662/, per rule 19 — same
+script, run once per document). In-memory only: no report or PDF was
+rebuilt, per the brief.
+
+POPULATION 1 — arXiv 0902.0431 (Lie-groups paper), all math-typed objects
+----------------------------------------------------------------------------
+4,389 math-typed objects (1,219 Equation — the exact population task 659
+measured — plus 3,170 Formula, a type that task's own script did not
+query); 2 candidates ever refused by any of the three configurations.
+
+  OLD: 2 refused.  TEXT_SCOPED: 2 refused.  FINAL: 2 refused.
+  delta A: 0 rows changed.  delta B: 0 rows changed.
+
+Both refusals are the same two rows task 659 already found and left
+out of scope (out/659.txt): obj_128e57e0e8d7 (page 173, U+2FF1 ⿱) and
+obj_57f7fb159a25 (page 200, U+2FFB ⿻) — both carry an Ideographic
+Description Character, the unscoped row of the table, so text-scoping
+cannot touch them and does not. THEY STILL REFUSE, AND THAT IS RIGHT: an
+IDC is a recipe for a glyph MathPix could not identify, never legitimate
+content, regardless of what macro happens to sit around it — this
+document has no genuine Chinese anywhere, so there is nothing here for
+text-scoping to find.
+Evidence: ~/pdfdrill-library/0902.0431/out/662/662_measure.json
+
+POPULATION 2 — BH1org_OCR (Burkhard Heim, "Elementarstrukturen der
+Materie", 1980, a scanned GERMAN physics book — chosen because it is the
+only library document, of 96 with ANY CJK codepoint and 24 checked for CJK
+specifically inside a math-typed object's latex, that has more than one
+math-typed CJK occurrence: 6, against 0 for every arXiv-style candidate
+checked (2604.04771v2, DH2017-abstracts, 2509.22186, 2409.01704v1, and 20
+more) and 1-2 for the next-largest candidates — no OmniDocBench-shaped
+"real Chinese paper" is in this library; this is the closest available
+real document with genuine math+CJK interaction, and it is a REVEALING
+case, not a clean confirmation)
+----------------------------------------------------------------------------
+5,248 Equation+Formula objects; 6 candidates.
+
+  OLD: 6 refused.  TEXT_SCOPED: 3 refused.  FINAL: 3 refused.
+  delta A: 3 rows changed (refused -> permitted).  delta B: 0 rows changed.
+
+  delta A, refused -> permitted (all three: single ideograph inside
+  `\text{}`, exactly the changed cell):
+    obj_3f0db307f8a3  page 178  `...\left[\begin{array}{c} i \\ m \\
+                                 \text { 真 } \end{array}\right]...`
+    obj_4289c98e3dee  page 116  `\stackrel{n}{\boldsymbol{S}}_{n_1}
+                                 \stackrel{\text { }}{\text { 作 }}...`
+    obj_dcaddea4d979  page 116  `n+\underset{n_2}{\underline{S}_1}
+                                 \stackrel{\text { }}{\text { 互 }}`
+
+  Still refused throughout (IDC, unscoped, unaffected by either change):
+    obj_0ac8e100997f  page 122  `\mathscr{⿸}_{\eta_i}=...`
+    obj_a0a2f2a0b596  page 223  `2\underline{⿱ ㇒ ⿺ 丄 丅 八}_5 \gamma_56...`
+    obj_182af8e8e2aa  page 249  `...\underline{⿱ ㇒ ⿺ 丄 丅 八}_m...`
+
+Evidence: ~/pdfdrill-library/BH1org_OCR/out/662/662_measure.json
+
+SAY WHETHER THEY STILL REFUSE AND WHETHER THAT IS RIGHT
+-------------------------------------------------------------
+0902.0431: yes, both still refuse, and that is right — see above, IDCs,
+untouched by this task, no genuine Chinese in this document at all.
+
+BH1org_OCR's 3 IDC rows: yes, still refuse, and that is right, same
+reasoning (⿸/⿱/⿺ are recipes, not content).
+
+BH1org_OCR's 3 newly-PERMITTED rows: this is NOT clearly right, and is the
+open finding of this task. "Elementarstrukturen der Materie" is a German
+physics monograph — Burkhard Heim's unified field theory book — with no
+Chinese-language content anywhere in the library metadata or the visible
+surrounding LaTeX (indices i, m, k, p, n; \boldsymbol S; \gamma). 真 ("true/
+real"), 作 ("make/do"), 互 ("mutual") do not read as a sentence or a
+caption; they read as three MORE instances of exactly what the IDC rows
+already are — MathPix failing to identify a symbol (probably an accent,
+subscript glyph, or index mark specific to Heim's notation) and this time
+guessing a real (wrong) ideograph instead of emitting a decomposition
+recipe, and happening to wrap its guess in `\text{}` rather than leaving
+it bare (obj_4289c98e3dee's `\stackrel{\text { }}{\text { 作 }}` — an
+EMPTY `\text{}` stacked with a one-character `\text{}` — is a strong
+tell: no author writes an empty text argument as a stacking partner for a
+real word). The auditor's rule (isolated ideograph inside `\text{}` = real
+prose) is correct for the population it was measured on — OmniDocBench,
+Chinese exam papers, where `\text{}` really does carry Chinese sentences —
+and is exactly what CRxz.md's defect 5 asked for. It is not obviously
+correct as a UNIVERSAL rule: "inside `\text{}`" is necessary but not
+sufficient evidence of genuine prose on a document that has no Chinese
+content to begin with. This task implements exactly what the auditor
+specified, measures it honestly, and surfaces this as a real risk rather
+than either silently shipping it or silently second-guessing the auditor's
+instruction — see OPEN below.
+
+CODE
+----
+src/pdfdrill/text_escapes.py       — new module (text_spans, TEXT_IN_MATH,
+                                      CJK_TEXT_MACROS)
+tools/audit_glyph_sites.py         — imports text_spans, own copy deleted
+src/pdfdrill/report_tex.py         — cjk_defect text-scoped (decision
+                                      table above); _CJK_BLOCKS widened to
+                                      add U+3000-303F and U+FF00-FFEF
+tests/test_text_escapes.py         — 6 tests (contract + escape-bug fix)
+tests/test_cjk_text_scope.py       — 12 tests (the decision table, rule 17)
+tests/test_refine.py               — test_validate_rejects_cjk's fixture
+                                      (`\text{孔}`) was EXACTLY the cell
+                                      this task flips; changed to a bare
+                                      isolated ideograph (`x + 孔`), which
+                                      is the unchanged cell, and documented
+                                      why in the test itself
+
+TESTS
+-----
+Baseline (base commit 44f9b40a, stashed working tree): 3527 passed, 0
+failed. With this change: 3545 passed, 0 failed (3527 + 18 new: 6 + 12).
+One pre-existing test (test_refine.py::test_validate_rejects_cjk) failed
+transiently against its OLD fixture — updated per above, not skipped.
+
+OPEN
+----
+- BH1org_OCR's 3 newly-permitted rows (above): whether text-scoping alone
+  is a strong enough discriminator on a non-Chinese document, or whether
+  it needs a second signal (e.g. an empty-`\text{}` neighbour, as seen in
+  two of the three rows here, or a document-level "does this corpus item
+  carry genuine CJK anywhere in its running text" check) before it reaches
+  a real report. Not fixed here — flagging honestly is what the brief
+  asked for ("say whether that is right"), and the corpus rebuild is on
+  hold regardless (see below), so nothing ships on this finding yet.
+- No OmniDocBench-shaped document (a corpus of genuinely Chinese-language
+  exam papers, the auditor's own population) exists in this library to
+  confirm the auditor's 93-of-2,066 number style of measurement directly;
+  BH1org_OCR is the best available substitute and is deliberately reported
+  as a MIXED result, not a clean win, rather than overstating confidence.
+- No corpus-wide (335,043-value, per 617's docstring) re-scan was run —
+  the brief asked for "at least one real document," measured directly in
+  memory, and the corpus rebuild itself is explicitly on hold (task 666/
+  667's territory) until a separate tool lands; a corpus-wide number would
+  require exactly that hold to lift.
+- `latex_repairs.py`'s other four repairs (array widening, macro
+  absorption, double-row collapse, hostless-`\\` wrap) and its own
+  `fix_bare_cjk` (which now has a real `text_spans` to import) are not
+  ported here — out of scope for 662, which was scoped to the CJK GATE and
+  text_spans alone.

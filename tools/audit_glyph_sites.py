@@ -44,6 +44,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from pdfdrill import report_tex as rt
+#: 662 — promoted out of this file into a real module (a capability living
+#: only in tools/ is invisible to the planner/status/--ensure); imported,
+#: not re-implemented, so this script and report_tex.cjk_defect cannot drift
+#: apart the way two copies of the same brace walker eventually would.
+from pdfdrill.text_escapes import text_spans
 
 ROW = re.compile(r"\\\\\s*\\hline\s*$")
 AMP = re.compile(r"(?<!\\)&")
@@ -52,10 +57,6 @@ DECL = re.compile(r"^\\newunicodechar\{(.)\}\{(.*)\}$")
 LOST = re.compile(r"Missing character: There is no (.+?) "
                   r"\((?:U\+([0-9A-Fa-f]+)|\"([0-9A-Fa-f]+))\)")
 MONO_COLS = (0, 3)
-
-#: inside $...$ these set their argument in TEXT mode, on the main font
-TEXT_IN_MATH = re.compile(
-    r"\\(?:text|textrm|textnormal|textit|textbf|mbox|operatorname)\s*\{")
 
 FORMS = {
     "none": None,
@@ -86,21 +87,6 @@ def form_of(body_tex):
     if body_tex.startswith(r"\ifmmode\text{"):
         return "ambient"
     return "ok"
-
-
-def text_spans(s):
-    out = []
-    for m in TEXT_IN_MATH.finditer(s):
-        i = m.end()
-        depth, j = 1, i
-        while j < len(s) and depth:
-            if s[j] == "{" and s[j - 1] != "\\":
-                depth += 1
-            elif s[j] == "}" and s[j - 1] != "\\":
-                depth -= 1
-            j += 1
-        out.append((i, j - 1))
-    return out
 
 
 def sites(text):
