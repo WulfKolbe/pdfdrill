@@ -1,6 +1,34 @@
 665 — \cos renders bold uppercase "COS": fontspec's math takeover, not \cos
 ============================================================================
 
+ROUND 1 (code review, commit abf0a996 -> this commit)
+-------------------------------------------------------
+Review verdict: spec compliance PASS (independently reproduced the boundary,
+the fix, the corpus numbers, the Rule-17 test discriminating on both
+commits). Code quality FAIL, one blocking finding: the VERIFICATION section
+below claimed "every claim above was checked by rasterizing... and reading
+the image" but never rendered `\mathrm`, `\mathbf`, `\mathit`, `\mathsf` or
+`\mathtt` — the five math alphabets the fix's own preamble comment names as
+also re-pointed by fontspec's takeover. The reviewer built that render
+themselves, found `\mathsf` and `\mathtt` DO change font resource between
+the two commits (confirmed by exact pixel diff — `\mathrm`/`\mathbf`/
+`\mathit` do not change), and inferred this was a second latent bug the fix
+also happens to correct, but said plainly that was an inference, not a
+check: "are the new glyphs CORRECT, or merely DIFFERENT?" was left open.
+
+Settled below, in a new section (MATH ALPHABETS): rendered known
+sans-serif/monospace maths at both commits and read the output against what
+those alphabets are supposed to look like, not against each other. Answer:
+DIFFERENT, not broken — a harmless font-family substitution, the same
+category of change `\mathrm`/`\mathbf`/`\mathit` also undergo. Not a second
+bug. VERIFICATION below is corrected to describe exactly what was and
+wasn't rasterized, in both the original pass and this one, rather than
+claiming exhaustiveness. The corpus-population script (minor finding) now
+filters by object type as the report already claimed it did; the corrected
+count is 3,837, not 3,843 (6 objects were `Table`, not `Equation`/
+`Formula`) — see CORPUS-WIDE POPULATION. Test fixture extended so a future
+preamble edit that moves any of the five alphabets is caught (TESTS).
+
 THE CAUSE
 ---------
 `report_tex.PREAMBLE` (src/pdfdrill/report_tex.py) loads fontspec bare:
@@ -107,9 +135,10 @@ custom `\DeclareMathOperator`) was redefined.
 VERIFICATION — rendered pixels, not error absence
 --------------------------------------------------
 The defect compiles with 0 LaTeX errors today; that silence is exactly
-why it survived. Every claim above was checked by rasterizing (ghostscript,
-the project's only rasterizer) and reading the image, not by grepping a
-log for "!":
+why it survived. Every claim in THE CAUSE / THE BOUNDARY / THE FIX above —
+about `\cos`, the amsopn operator names, and the `operators` symbol font —
+was checked by rasterizing (ghostscript, the project's only rasterizer)
+and reading the image, not by grepping a log for "!":
   - Reproduced 659's isolated cos_lt.tex/.png (unmodified
     `report_tex.preamble()`, `$\cos x$` and `$\displaystyle \cos x$`, two
     longtables): both "COS x", bold, uppercase.
@@ -132,6 +161,86 @@ log for "!":
     established by the isolated reproductions above, which use the
     identical unmodified preamble).
 
+ROUND 1 CORRECTION — what this did NOT cover the first time. The claim
+"every claim above was checked by rasterizing" was true only for the
+operator-name claims it followed; it did not extend to the preamble's own
+new comment naming `\mathrm/\mathbf/\mathit/\mathsf/\mathtt` as also
+re-pointed by the same fontspec takeover — none of the five had been
+rendered at all before this fix first shipped. That gap is closed in
+MATH ALPHABETS below, added in round 1.
+
+MATH ALPHABETS — \mathrm/\mathbf/\mathit/\mathsf/\mathtt (round 1)
+---------------------------------------------------------------------
+The preamble comment for `[no-math]` names five math alphabets besides
+`\symoperators` that fontspec's takeover re-points at the main text font.
+None were rendered in the original pass. Built `$\mathrm{ABCxyz}$`,
+`$\mathbf{ABCxyz}$`, `$\mathit{ABCxyz}$`, `$\mathsf{ABCxyz}$`,
+`$\mathtt{ABCxyz}$` in real longtables, using `report_tex.preamble()`
+checked out verbatim from BOTH commits (`git show 249b9717:...` and
+`git show abf0a996:...`, not a hand-copied stand-in), compiled with
+xelatex, rasterized at 300dpi, and read the PDF's own font resource name
+for each run (pdfminer `LTChar.fontname`) plus a zoomed pixel crop:
+
+    alphabet   base (249b9717)        fix (this commit)
+    \mathrm    DejaVuSerif            CMR10   (Computer Modern Roman)
+    \mathbf    DejaVuSerif-Bold       CMBX10  (Computer Modern Bold Ext.)
+    \mathit    DejaVuSerif-Italic     CMTI10  (Computer Modern Text Italic)
+    \mathsf    LMSans10-Regular       CMSS10  (Computer Modern Sans Serif)
+    \mathtt    DejaVuSansMono         CMTT10  (Computer Modern Typewriter)
+
+`\mathrm`/`\mathbf`/`\mathit` are DIFFERENT font families before/after but
+were already known-good (both DejaVu Serif and Computer Modern Roman/Bold/
+Italic are unambiguously correct roman/bold/italic serif faces; not what
+the review flagged). `\mathsf` and `\mathtt` are the two the reviewer's
+pixel diff flagged as changing, and the two the review left as an open
+question: correct, or merely different?
+
+Answer, read directly off the rasterized page (not inferred from the
+diff): CORRECT, in both commits, at both ends of the diff. Zoomed 6-8x
+crops (665_zoom_mathsf_base/fix.png, 665_zoom_mathtt_base/fix.png) show:
+  - `\mathsf` before is Latin Modern Sans (LMSans10) — a real sans-serif
+    face, cleanly shaped, no serifs, correct letterforms. After is
+    Computer Modern Sans (CMSS10) — likewise. The two are near-clones by
+    design (Latin Modern is CM's own Unicode-extended redrawing) and are
+    visually almost indistinguishable at this size.
+  - `\mathtt` before is DejaVu Sans Mono — genuine monospace: constant
+    5.69pt advance width per character (measured from the PDF, not
+    assumed), sans-serif slab letterforms, correctly shaped A/B/C/x/y/z.
+    After is Computer Modern Typewriter (CMTT10) — likewise monospace
+    (constant 5.23pt advance width), with CMTT's characteristic thin
+    serifs. Also checked a combined `$\mathsf{ABCxyz} \mathtt{ABCxyz}$`
+    cell (665_combined_mathsf_mathtt_base/fix.tex/.png), in case the two
+    alphabets interact when set together in one math group — same result,
+    both correctly shaped and clearly distinct from each other, at both
+    commits.
+  - Neither `\mathsf` nor `\mathtt`, at either commit, resembles the
+    `\cos` defect's signature (correct font resource name, correct
+    /Widths, WRONG drawn outline). Here the font resource name itself
+    changes (a real, intentional font substitution: DejaVu Sans / DejaVu
+    Sans Mono before, because fontspec's takeover defaults an
+    unconfigured `\mathsf` to whatever `\sfdefault` resolves to and
+    `\mathtt` to the explicitly-`\setmonofont`'d DejaVu Sans Mono;
+    Computer Modern Sans / Typewriter after, because `[no-math]` leaves
+    `\mathsf`/`\mathtt` at the LaTeX kernel's own classic defaults) — and
+    the glyphs drawn under each name are exactly what that name is
+    supposed to look like.
+
+Conclusion: this is NOT a second latent bug. It is a cosmetic font-family
+substitution, the same category of (harmless, expected) change `\mathrm`/
+`\mathbf`/`\mathit` also undergo, caused by the same one-line fix for the
+same reason (`[no-math]` stops ALL SIX alphabets from being taken over,
+not just `\symoperators`). The review's inference was reasonable given
+what it checked, but does not hold up under direct verification.
+
+Corpus exposure, independently measured (not re-quoting the review's
+numbers — see CORPUS-WIDE POPULATION for the script): `\mathsf{...}`
+appears in 17 documents; `\mathtt{...}` appears in 5 documents, 35
+occurrences. (The review reported 24 and 6/81; the difference is very
+likely counting scope — not chased further, since the question that
+mattered was correctness, not the exact exposure count, and both counts
+agree the exposure is small.) None of these need any action: the new
+Computer Modern glyphs are correct.
+
 BEFORE / AFTER, by identifier — 0902.0431
 -------------------------------------------
   0902.0431_EQ0368 (obj_082ae30b2f7d, p60 model / p58 evidence-equation.pdf):
@@ -150,19 +259,39 @@ BEFORE / AFTER, by identifier — 0902.0431
 
 CORPUS-WIDE POPULATION (measured — ~/pdfdrill-library/out/665/)
 -----------------------------------------------------------------
-Scanned every document directory under ~/pdfdrill-library (2,826 dirs) for
-an Equation/Formula object whose latex carries a bare `\cos` — the same
-word-boundary match that separates it from `\arccos`/`\cosh` in the
-visual test (`(?<![A-Za-z\\])\cos(?![A-Za-z])`):
+ROUND 1 CORRECTION: the original scan (`665_scan_corpus.py`) scanned every
+object carrying a `latex`/`latex_original` prop regardless of `type`, while
+describing the population as "an Equation/Formula object" — a real mismatch
+between what was measured and what was claimed (review finding, minor). A
+per-document type census found a third type also carries `latex`: `Table`
+(the table's own LaTeX source, read by evidence-table.pdf) — TableCell,
+Diagram, Paragraph etc. do not. `665_scan_corpus_v2.py` filters to
+`{"Equation", "Formula"}` exactly as claimed, and separately counts what a
+Table-inclusive total would have been so the correction is visible rather
+than silently replacing a number. Numbers below are v2's, corrected.
 
-    docs with >=1 bare-\cos equation .......... 306
-    total bare-\cos equations/formulas ........ 3,843
+Scanned every document directory under ~/pdfdrill-library (2,826 dirs) for
+an Equation or Formula object (type-checked) whose latex carries a bare
+`\cos` — the same word-boundary match that separates it from `\arccos`/
+`\cosh` in the visual test (`(?<![A-Za-z\\])\cos(?![A-Za-z])`):
+
+    docs with >=1 bare-\cos Equation/Formula .. 306
+    total bare-\cos equations/formulas ........ 3,837   (was reported
+      3,843; 6 were Table objects, now correctly excluded — see below)
     of those docs, with report.pdf and/or
-      an evidence-*.pdf already on disk ....... 288  (2,931 equations)
+      an evidence-*.pdf already on disk ....... 288  (2,925 equations)
     docs with bare \cos but no published PDF
       built yet .................................18  (source-only; the
       defect is not visible anywhere for these YET, but would appear on
       their first build without this fix)
+    (excluded, for transparency) docs whose ONLY
+      bare-\cos object is a Table, not an
+      Equation/Formula .......................... 3 docs / 6 objects
+      (all 3 also have a genuine Equation/Formula \cos and are already
+      counted in the 306 above; the 6 Table objects themselves are not
+      part of any of the counts above — the Table object's own
+      evidence-table.pdf render was not checked for the same defect,
+      see WHAT IS OPEN)
 
 288 is the population whose CURRENTLY PUBLISHED artifact is presumed to
 carry the defect today (same mechanism, same shared preamble; only
@@ -171,7 +300,7 @@ WHAT IS OPEN).
 
 TESTS
 -----
-tests/test_report_tex.py, 2 new (62 in the file, was 60):
+tests/test_report_tex.py, 3 new (63 in the file, was 60):
   - test_fontspec_does_not_take_over_the_math_fonts — static: PREAMBLE
     carries `\usepackage[no-math]{fontspec}` and not the bare form.
   - test_cos_in_a_longtable_compiles_without_fontspec_repointing_the_operators_font
@@ -187,16 +316,33 @@ tests/test_report_tex.py, 2 new (62 in the file, was 60):
     Live/font versions when the mechanism check already discriminates
     perfectly (present with the bare preamble, absent with the fix, on
     every variant tried during this investigation).
+  - test_math_alphabets_render_computer_modern_not_the_main_text_font
+    (round 1, closes the review's blocking gap) — real `longtable`, real
+    unmodified `report_tex.preamble()`, one row each for `\mathrm`,
+    `\mathbf`, `\mathit`, `\mathsf`, `\mathtt`. Compiles, then reads each
+    run's actual PDF font resource name via pdfminer and asserts it is
+    the Computer Modern family (CMR10/CMBX10/CMTI10/CMSS10/CMTT10) with
+    no "DejaVu"/"LMSans" anywhere — pins the POST-FIX state so a future
+    preamble edit that moves any of these five alphabets again is caught
+    here, rather than requiring another manual pixel review.
 
 Full suite: `PYTHONDONTWRITEBYTECODE=1 python3 -m pytest tests/ -q -p no:cacheprovider`
-  base commit 249b9717 (current HEAD in this working tree when this task
-    started — NOT 1a26103e as the task brief named; origin/eqblobs-and-gzip-tex
-    is still at 1a26103e, and 249b9717 ("666: report.pdf vs residuals.pdf
-    crop identity") sat on top of it, already committed and unpushed,
-    before this task touched anything. It does not touch report_tex.py or
-    tests/test_report_tex.py — confirmed with `git show --stat` — so it is
-    orthogonal to this fix.): 3513 passed
-  after this fix + the 2 new tests: 3515 passed (0 regressions)
+  base commit 249b9717 (HEAD when the ORIGINAL pass started — NOT
+    1a26103e as the original task brief named; origin/eqblobs-and-gzip-tex
+    is still at 1a26103e, and 249b9717 "666: report.pdf vs residuals.pdf
+    crop identity" sat on top of it, already committed and unpushed,
+    before this task touched anything. Confirmed orthogonal — does not
+    touch report_tex.py or tests/test_report_tex.py.): 3513 passed
+  after the original fix + 2 tests (commit abf0a996): 3515 passed
+  round 1: tree moved again, to 84bec00b (task 667, "record crop identity
+    per row at measure time" — also confirmed orthogonal with `git show
+    --stat`, does not touch report_tex.py). Measured via `git stash` /
+    `git stash pop` around this round's edits, both against the ACTUAL
+    tree, not assumed:
+      84bec00b alone (includes abf0a996's 2 tests, plus whatever 667
+        itself added): 3522 passed
+      84bec00b + this round's 1 new test: 3523 passed
+    0 regressions either commit-to-commit step.
 
 WHAT IS OPEN
 ------------
@@ -227,11 +373,23 @@ WHAT IS OPEN
     removes the whole precondition for every future build), but the
     ALREADY-PUBLISHED corpus (288 documents, pre-fix) could in principle
     carry other instances of this class under a different trigger string.
+  - (round 1) The 3 documents whose only Table-typed object carries a
+    bare `\cos` were not checked for whether evidence-table.pdf shows the
+    same `\cos`-in-longtable defect for that table's own rendered LaTeX —
+    excluded from the Equation/Formula population by definition (it is a
+    different object type, likely rendered through a different code path
+    than the row-per-equation longtable), not investigated further.
+  - (round 1) `\mathsf`/`\mathtt` corpus-exposure counts (17 docs / 5
+    docs, 35 occurrences) were measured independently of the review's
+    (24 / 6, 81) and the two do not match; not reconciled, since both
+    agree the exposure is small and — the actual open question — both
+    agree (now checked directly, not inferred) that the new glyphs are
+    correct. No action follows from either count.
 
 EVIDENCE
 --------
-~/pdfdrill-library/0902.0431/out/665/ (INSPECT.txt lists 12 checked,
-non-empty, existing paths):
+~/pdfdrill-library/0902.0431/out/665/ (INSPECT.txt lists every checked,
+non-empty, existing path below):
   before-EQ0368-p58.png, after-EQ0368-p58.png    — the document's own
     published evidence-equation.pdf, before and after the fix
   after-EQ0370-p36.png, after-EQ0529-p97.png,
@@ -243,10 +401,21 @@ non-empty, existing paths):
   665_allops_test.tex, _p1.png/_p2.png — the 32-operator boundary matrix
   665_measure.py/.json (machine-readable, not in INSPECT.txt per rule 20)
     — the 9 affected ids/pages for 0902.0431
+  (round 1) 665_alphabets_base.tex/.png, 665_alphabets_fix.tex/.png —
+    \mathrm/\mathbf/\mathit/\mathsf/\mathtt, one row each, both commits
+  (round 1) 665_combined_mathsf_mathtt_base.tex/.png,
+    665_combined_mathsf_mathtt_fix.tex/.png — \mathsf and \mathtt set
+    together in one math group, both commits (interaction check)
+  (round 1) 665_zoom_mathsf_base.png/_fix.png,
+    665_zoom_mathtt_base.png/_fix.png — 6-8x zoomed crops the MATH
+    ALPHABETS section's "correct, not merely different" reading is based on
 ~/pdfdrill-library/out/665/ (corpus-wide scan; no single document, per
   rule 19 — script and result only, no INSPECT.txt: nothing here is a
   human-openable artefact, the summary above is the report):
-  665_scan_corpus.py, 665_corpus_cos_scan.json
+  665_scan_corpus.py, 665_corpus_cos_scan.json — original pass (superseded
+    population count, kept for provenance — see CORPUS-WIDE POPULATION)
+  665_scan_corpus_v2.py, 665_corpus_cos_scan_v2.json (round 1) — type-
+    filtered rescan; also carries the \mathsf/\mathtt occurrence counts
 ~/pdfdrill-library/0902.0431/evidence-equation.pdf (rebuilt, in the
   document folder, not out/665) — 1219 rows, 176 pages, 0 errors,
   0 demoted.

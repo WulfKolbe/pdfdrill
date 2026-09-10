@@ -582,6 +582,73 @@ def test_cos_in_a_longtable_compiles_without_fontspec_repointing_the_operators_f
     assert "Overwriting symbol font `operators'" not in log
 
 
+def test_math_alphabets_render_computer_modern_not_the_main_text_font(tmp_path):
+    r"""665 fix round 1 — a code-review finding: the preamble comment for
+    `[no-math]` names FIVE alphabets fontspec's takeover re-points besides
+    the operator names — \mathrm, \mathbf, \mathit, \mathsf, \mathtt — and
+    none of them were rendered or checked before this task first shipped.
+    Checked now, against both commits (249b9717 base, this fix), by reading
+    the actual PDF font resource each alphabet used, not by comparing the
+    two renders to each other:
+
+      \mathrm  DejaVuSerif        -> CMR10   (Computer Modern Roman)
+      \mathbf  DejaVuSerif-Bold   -> CMBX10  (Computer Modern Bold Extended)
+      \mathit  DejaVuSerif-Italic -> CMTI10  (Computer Modern Text Italic)
+      \mathsf  LMSans10-Regular   -> CMSS10  (Computer Modern Sans Serif)
+      \mathtt  DejaVuSansMono     -> CMTT10  (Computer Modern Typewriter)
+
+    \mathsf and \mathtt are the ones a pixel diff flags (LMSans10/
+    DejaVuSansMono are not byte-identical to CMSS10/CMTT10) — the question
+    the review asked and did not itself answer is whether the NEW glyphs
+    are CORRECT or merely DIFFERENT. Read against what each alphabet is
+    supposed to look like (rasterized at 300dpi, zoomed 6-8x, both
+    commits): every one of the ten renders is a genuine, correctly shaped,
+    appropriately serif/bold/italic/sans/monospace font — LMSans10 and
+    DejaVuSansMono are both real sans/monospace fonts, not corrupted or
+    collapsed to roman, unlike the actual \cos defect (font resource name
+    correct, /Widths correct, DRAWN GLYPH wrong). This is a harmless font-
+    family substitution — the exact same category of change \mathrm/
+    \mathbf/\mathit also undergo — not a second latent bug.
+
+    This test pins the POST-FIX state (Computer Modern for all five) so a
+    future preamble edit that reintroduces fontspec's math takeover, or
+    swaps in some other font, is caught here rather than requiring another
+    pixel-by-pixel corpus review.
+    """
+    import shutil
+    if shutil.which("xelatex") is None:
+        import pytest
+        pytest.skip("xelatex not installed")
+    from pdfminer.high_level import extract_pages
+    from pdfminer.layout import LTChar, LTTextContainer
+    from pdfdrill import report_tex as rt
+    pre = rt.preamble().split(r"\begin{document}")[0]
+    macros = ["mathrm", "mathbf", "mathit", "mathsf", "mathtt"]
+    rows = "".join(
+        r"\begin{longtable}{|p{35mm}|}\hline $\%s{ABCxyz}$ \\ \hline \end{longtable} "
+        % m for m in macros)
+    doc = pre + r"\begin{document}" + "\n" + rows + "\n" + r"\end{document}" + "\n"
+    tex = tmp_path / "report.tex"
+    tex.write_text(doc)
+    res = rt.compile_fixpoint(tex)
+    assert res is not None
+    pages, nerr, demoted = res
+    assert nerr == 0 and demoted == 0
+
+    fonts_seen = []
+    for page_layout in extract_pages(str(tmp_path / "report.pdf")):
+        for element in page_layout:
+            if not isinstance(element, LTTextContainer):
+                continue
+            for line in element:
+                chars = [c for c in line if isinstance(c, LTChar)]
+                if chars and "".join(c.get_text() for c in chars) == "ABCxyz":
+                    fonts_seen.append(chars[0].fontname.split("+", 1)[-1])
+    expect = ["CMR10", "CMBX10", "CMTI10", "CMSS10", "CMTT10"]
+    assert fonts_seen == expect, (fonts_seen, expect)
+    assert not any("DejaVu" in f or "LMSans" in f for f in fonts_seen)
+
+
 def test_align_only_refusal_is_exact_and_ignores_an_empty_value():
     r"""443 — the standalone route fires only when a depth-0 `&` is the SOLE
     objection.
