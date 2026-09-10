@@ -215,8 +215,8 @@ TESTED BOTH DIRECTIONS
 
 REGRESSION -- EXISTING PUBLISHREADY/GATE TESTS, BY NAME
 ------------------------------------------------------------------------------
-   tests/test_reports_gate.py (21 tests, by name, current state after fix
-   round 1 -- pre-existing ones below are unmodified in assertion, "crop" key
+   tests/test_reports_gate.py (24 tests, by name, current state after fix
+   round 2 -- pre-existing ones below are unmodified in assertion, "crop" key
    addition is additive):
      test_matching_model_passes
      test_newer_model_fails_and_names_the_fix
@@ -230,8 +230,9 @@ REGRESSION -- EXISTING PUBLISHREADY/GATE TESTS, BY NAME
      test_crop_gate_refuses_by_name_when_the_crop_changed
      test_crop_gate_refuses_by_name_when_the_crop_is_gone
      test_crop_gate_passes_vacuously_when_ink_predates_667
-     test_crop_gate_verified_flag_survives_a_bare_2tuple_unpack  (new, fix round 1)
+     test_crop_gate_verified_flag_survives_a_bare_2tuple_unpack  (fix round 1)
      test_crop_gate_reused_via_checklist
+     test_gatestatus_json_dumps_silently_drops_verified_this_is_the_trap  (new, fix round 2)
      test_tex_errors_pairs_a_bang_line_with_its_source_line_number
      test_tex_errors_ignores_the_underfull_hbox_wrap
      test_tex_errors_counts_two_real_errors
@@ -239,12 +240,14 @@ REGRESSION -- EXISTING PUBLISHREADY/GATE TESTS, BY NAME
      test_compile_gate_is_the_new_name_glyphs_gate_stays_an_alias
      test_publish_ready_uses_the_new_surface_when_residuals_exist
      test_handover_rows_survives_the_new_surface_and_names_its_checks
+     test_publishready_output_marks_an_unarmed_crop_pass_distinctly  (new, fix round 2, OUTPUT surface)
+     test_publishready_output_marks_a_verified_crop_pass_distinctly  (new, fix round 2, OUTPUT surface)
    tests/test_publish_ready.py -- all pre-existing, unmodified
    tests/test_publishcheck.py -- all pre-existing, unmodified
    tests/test_inkconvert.py -- all pre-existing, unmodified (+ 2 from
      round 0: test_cmd_inkconvert_records_crop_sha256_and_rung_per_row,
      test_cmd_inkconvert_records_none_when_no_crop_exists)
-   69 passed, 0 failed (these four files together, current state).
+   72 passed, 0 failed (these four files together, current state).
 
 FULL SUITE, BASE COMMIT VS. THIS CHANGE
 ------------------------------------------------------------------------------
@@ -258,16 +261,25 @@ FULL SUITE, BASE COMMIT VS. THIS CHANGE
    (test_cmd_inkconvert_records_crop_sha256_and_rung_per_row,
    test_cmd_inkconvert_records_none_when_no_crop_exists).
 
-   Round 1 (this fix round -- GateStatus/.verified, the out/666.txt
-   amendment). Tree moved to cd0d3b4e (665 fix round 1, unrelated files:
-   the preamble and a corpus scan script) -- linear on top of round 0's
-   commit, no rebase conflict. Base cd0d3b4e (`git stash`): 3523 passed.
+   Round 1 (GateStatus/.verified, the out/666.txt amendment). Tree moved to
+   cd0d3b4e (665 fix round 1, unrelated files: the preamble and a corpus
+   scan script) -- linear on top of round 0's commit, no rebase conflict.
+   Base cd0d3b4e (`git stash`): 3523 passed. Working tree (`git stash pop`
+   restored) with this round's changes: 3524 passed. Delta +1 == the one
+   new test (test_crop_gate_verified_flag_survives_a_bare_2tuple_unpack);
+   the other four pre-existing crop_gate tests gained a `.verified`
+   assertion each without becoming new tests.
+
+   Round 2 (this fix round -- thread `.verified` to cmd_publishready's
+   json/printed output; the JSON-degradation trap, pinned; two output-
+   surface tests). Tree unchanged at round 1's own commit (3d6578b4) --
+   no further rebase needed. Base 3d6578b4 (`git stash`): 3524 passed.
    Working tree (`git stash pop` restored) with this round's changes:
-   3524 passed. Delta +1 == the one new test
-   (test_crop_gate_verified_flag_survives_a_bare_2tuple_unpack); the other
-   four pre-existing crop_gate tests gained a `.verified` assertion each
-   without becoming new tests. No pre-existing test's outcome changed in
-   either round.
+   3527 passed. Delta +3 == the three new tests
+   (test_gatestatus_json_dumps_silently_drops_verified_this_is_the_trap,
+   test_publishready_output_marks_an_unarmed_crop_pass_distinctly,
+   test_publishready_output_marks_a_verified_crop_pass_distinctly). No
+   pre-existing test's outcome changed in any of the three rounds.
 
 VERDICT ON THE TWO NAMED DOCUMENTS, AS THEY STAND TODAY (no rebuild)
 ------------------------------------------------------------------------------
@@ -312,6 +324,89 @@ VERDICT ON THE TWO NAMED DOCUMENTS, AS THEY STAND TODAY (no rebuild)
    `(True, "ink carries no crop identity (measured before 667)")` pair shown
    above -- the structural signal the reviewer asked for, confirmed live on
    the two documents this task is scored against, not only in fixtures.
+
+   FIX ROUND 2 -- `pdfdrill publishready` on both documents now prints
+   `[un] crop  ink carries no crop identity (measured before 667)`,
+   visibly distinct from `[ok]` (artefacts/glyphs/ink/coverage) and `[  ]`
+   (0902.0431's failing timestamp) on the SAME run, and `--json`'s
+   `checks.crop.verified` is `false` on both. Re-run and pasted below --
+   the printed line is what a person actually reads, and it now says
+   "unarmed" without saying "refused."
+
+FIX ROUND 2 (REVIEW) -- THREADING `.verified` TO THE SURFACES A PERSON READS
+------------------------------------------------------------------------------
+   Round 1 made the distinction structural on `GateStatus` itself but never
+   followed it past `reports.gate` -- a grep for `.verified` outside gate.py
+   and its own test file found nothing. The four places that read
+   `publish_ready()`'s checks dict all unpack or index `(ok, detail)` and
+   discard the third thing: `commands.py`'s `handover_rows` (`blocked_by`/
+   `reason`), `_inkreport_chain`'s step-7 ink summary ("FAILING" lines), and
+   `cmd_publishready`'s own `--json` and printed output. Round 1's tests
+   never exercised any of the four -- every one asserted on the GATE's
+   return value, not on an OUTPUT surface, which is exactly why the gap
+   survived a full review round.
+
+   THREADED: `cmd_publishready`'s `--json` output now puts
+   `"verified": getattr(v, "verified", None)` on every check (`None` for
+   every gate but `crop`, which has no such concept -- an honest "not
+   applicable", not a guess). Its printed line now marks a check `[un]`
+   when `ok` is True and `verified` is False -- an unarmed pass, distinct
+   from `[ok]` (a verified pass or a gate with no `.verified` at all) and
+   `[  ]` (a refusal) -- so a person reading the line sees "unarmed"
+   without it reading as a refusal, per the brief.
+
+   NOT THREADED, DECIDED AND SAID WHY: `handover_rows`'s `blocked_by`/
+   `reason` and the ink-summary's "FAILING" lines both iterate ONLY checks
+   where `ok` is False. `crop_gate`'s only `verified=False` returns are
+   both `ok=True` (the two vacuous-pass branches); every `ok=False` return
+   is `verified=True` by construction -- a refusal is always verified. So
+   neither loop is missing information by ignoring the attribute: there is
+   no case where `.verified` would change what a FAILING check already
+   says. Threading it in anyway would add a column no failing check can
+   ever populate differently. Both sites got a one-paragraph comment
+   recording this reasoning in place, so the next reader does not
+   re-derive it.
+
+   THE SILENT JSON DEGRADATION: `json.dumps(some_gate_status)` -- handing
+   the tuple-subclass object DIRECTLY to `json.dumps` rather than reading
+   its fields -- serialises `[ok, detail]` and drops `.verified` with no
+   error, because `json` has no tuple-subclass hook. `cmd_publishready`
+   never did this (it always built an explicit `{"ok":.., "detail":..}`
+   dict, which is why threading `.verified` there was a one-line addition,
+   not a rewrite), but nothing said the trap existed for the next caller
+   who reaches for the obvious `json.dumps(v)`. Strengthened
+   `GateStatus`'s docstring to name it explicitly and pinned it with
+   `tests/test_reports_gate.py::test_gatestatus_json_dumps_silently_drops_verified_this_is_the_trap`
+   -- `json.loads(json.dumps(GateStatus(True, "x", False))) == [True, "x"]`,
+   asserted, so this stays a documented limitation rather than something
+   rediscovered by losing data.
+
+   NEW OUTPUT-SURFACE TESTS (not the gate's return value):
+     tests/test_reports_gate.py::test_publishready_output_marks_an_unarmed_crop_pass_distinctly
+       -- calls `cmd_publishready(..., as_json=True)` and asserts
+       `checks["crop"] == {"ok": True, "detail": ..., "verified": False}`;
+       calls it again with `as_json=False` and asserts the printed line's
+       mark for "crop" is `"un"`, and that an ordinary passing check
+       ("artefacts") still reads `"ok"`.
+     tests/test_reports_gate.py::test_publishready_output_marks_a_verified_crop_pass_distinctly
+       -- the same document with real `crop_sha256`/`report-crops/*.jpg`
+       added so `crop_gate` actually compares; asserts `verified: True` in
+       JSON and mark `"ok"` in the printed line -- the two tests together
+       are the "matching passes / mismatched-style distinction visible"
+       check at the OUTPUT boundary the review asked for.
+     tests/test_reports_gate.py::test_gatestatus_json_dumps_silently_drops_verified_this_is_the_trap
+       -- pins the JSON trap (above).
+
+   VERIFIED LIVE ON THE TWO SCORED DOCUMENTS (re-run after this round,
+   `pdfdrill publishready`, printed output):
+     johnston:    "[un] crop       ink carries no crop identity (measured
+                  before 667)" -- among "[ok] artefacts/glyphs/ink/
+                  coverage", overall READY (unchanged).
+     0902.0431:   "[un] crop       ink carries no crop identity (measured
+                  before 667)" next to "[  ] timestamp  measured ...";
+                  overall NOT READY (unchanged, still blocked only by the
+                  pre-existing timestamp failure). Both `--json` outputs'
+                  `checks.crop.verified` read `false`.
 
 WHAT WAS NOT DONE
 ------------------------------------------------------------------------------

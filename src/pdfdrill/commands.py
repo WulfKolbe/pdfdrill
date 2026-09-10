@@ -2143,6 +2143,17 @@ def handover_rows(root: Path, *, ready_only: bool = False) -> list:
         # document handed over in bulk.
         f["blocked_by"] = [k for k in r["checks"] if not r["checks"][k][0]]
         f["reason"] = "; ".join(r["checks"][k][1] for k in f["blocked_by"])
+        # 667 fix round 2 — decided NOT to thread `GateStatus.verified`
+        # through this bulk listing. `blocked_by`/`reason` are built only
+        # from FAILING checks, and `crop_gate` (the one gate that returns a
+        # `GateStatus`) only ever returns `verified=False` alongside
+        # `ok=True` — a refusal is always `verified=True` by construction,
+        # so nothing this loop already selects is missing information by
+        # ignoring the attribute. `.verified` matters only for a PASSING
+        # check, which a bulk readiness listing deliberately does not carry
+        # a reason for at all; surfacing "ready but unverified" per document
+        # here would be a new column, not a fix to this one, and is left to
+        # `pdfdrill publishready` on the one document someone is looking at.
         if f["path"] in seen:
             raise HandoverCollision(
                 "two documents resolved to one path %s (%s and %s)"
@@ -2664,6 +2675,12 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
     r = publish_ready(pdf)
     out.append("")
     out.append("PUBLISHREADY: %s" % ("READY" if r["ready"] else "NOT READY"))
+    # 667 fix round 2 — same reasoning as handover_rows: this only ever
+    # prints FAILING checks, and `GateStatus.verified` (crop_gate) is only
+    # ever False alongside `ok=True`, never alongside a refusal — so this
+    # loop already sees everything `.verified` could add. `pdfdrill
+    # publishready` is where an unarmed PASS is shown, distinctly, on the
+    # one document someone is actually reading.
     for k, (ok, why) in r["checks"].items():
         if not ok:
             out.append("  FAILING  %-10s %s" % (k, why))
@@ -2724,18 +2741,39 @@ def cmd_publishready(pdf: Path, as_json: bool = False) -> str:
     from . import report_tex as rt
     _t0 = _dt.datetime.now(_dt.timezone.utc)      # 242: the real start
     r = publish_ready(pdf)
+    # 667 fix round 2 — `GateStatus.verified` (reports.gate) distinguishes a
+    # check that looked and found nothing wrong from one that passed because
+    # it had nothing to look at, and `ok` alone cannot carry both. Only
+    # `crop_gate` returns a `GateStatus` today; every other check's tuple has
+    # no such attribute, so `getattr(..., None)` is the honest reading for
+    # them ("not applicable"), not a guess at what they would have said.
+    # `json.dumps` has NO tuple-subclass hook — handing it a `GateStatus`
+    # directly serialises only `(ok, detail)` as a plain list, silently, no
+    # error (pinned in tests/test_reports_gate.py so this stays a documented
+    # limitation rather than something the next caller rediscovers) — which
+    # is why this builds an explicit dict per check rather than dumping the
+    # tuple object itself.
     if as_json:
         return _json.dumps({"started": rt.stamp(_t0),
                             "ready": r["ready"], "fields": r["fields"],
-                            "checks": {k: {"ok": v[0], "detail": v[1]}
+                            "checks": {k: {"ok": v[0], "detail": v[1],
+                                          "verified": getattr(v, "verified", None)}
                                        for k, v in r["checks"].items()},
                             "finished": rt.stamp()},
                            indent=1)
     lines = [rt.stamp(_t0),
              "%s: %s" % (r["fields"]["bibkey"],
                          "READY" if r["ready"] else "NOT READY")]
-    for k, (ok, detail) in r["checks"].items():
-        lines.append("  [%s] %-10s %s" % ("ok" if ok else "  ", k, detail))
+    for k, v in r["checks"].items():
+        ok, detail = v[0], v[1]
+        # An unarmed pass (`verified is False`) is a PASS, not a refusal —
+        # it gets its own mark ("un") rather than either "ok"'s claim of
+        # having been checked or blank's claim of having failed. A gate
+        # with no `.verified` at all (every one but `crop`) reads `ok`
+        # exactly as before this task.
+        mark = "un" if (ok and getattr(v, "verified", None) is False) else \
+               ("ok" if ok else "  ")
+        lines.append("  [%s] %-10s %s" % (mark, k, detail))
     f = r["fields"]
     if r["ready"] and f.get("pages") is not None:
         lines.append("  handover: %s | %s | %s pages | %s equations | %s | "

@@ -210,6 +210,21 @@ def test_crop_gate_reused_via_checklist(tmp_path):
     assert checks["crop"].verified is True
 
 
+def test_gatestatus_json_dumps_silently_drops_verified_this_is_the_trap():
+    """667 fix round 2 (reviewer-found) — `json.dumps` has no tuple-subclass
+    hook, so handing it a `GateStatus` directly serialises only
+    `(ok, detail)` as a plain list; `.verified` vanishes with no error.
+    Pinned here so this stays a documented limitation rather than something
+    a future caller rediscovers by losing data. The one real JSON caller
+    (`commands.cmd_publishready`'s `--json`) does not do this — it reads
+    `.verified` explicitly and puts it in the dict itself."""
+    import json
+    r = G.GateStatus(True, "x", verified=False)
+    dumped = json.loads(json.dumps(r))
+    assert dumped == [True, "x"]         # verified is GONE, silently
+    assert len(dumped) == 2
+
+
 # ---------------------------------------------------------------- 634
 
 def test_tex_errors_pairs_a_bang_line_with_its_source_line_number():
@@ -298,3 +313,65 @@ def test_handover_rows_survives_the_new_surface_and_names_its_checks(tmp_path, m
     assert not r["ready"]
     assert set(r["blocked_by"]) >= {"timestamp", "coverage"}
     assert "timestamp" in r["blocked_by"] and "coverage" in r["blocked_by"]
+
+
+# --------------------------------------------------- 667 fix round 2
+
+def _mark_for(text: str, key: str) -> str:
+    """The two-character mark `cmd_publishready`'s printed line gives one
+    check ("ok", "un", or "  "), read back off the OUTPUT text — not off
+    the gate's return value, which is what every test above this point
+    asserts on and exactly why fix round 2 was needed at all."""
+    import re
+    m = re.search(r"\[(..)\]\s+%s\b" % re.escape(key), text)
+    assert m, "no printed line for %r in:\n%s" % (key, text)
+    return m.group(1)
+
+
+def test_publishready_output_marks_an_unarmed_crop_pass_distinctly(tmp_path, monkeypatch):
+    """A row measured before 667 carries no `crop_sha256` — an unarmed PASS.
+    The printed line and the JSON output must both show that, not just
+    `ok=True` indistinguishable from a real comparison."""
+    from pdfdrill.commands import cmd_publishready
+    import json as _j
+    d = _doc(tmp_path)                    # its ink rows carry no crop_sha256
+    (d / "D.pdf").write_bytes(b"%PDF-1.4\n")
+    monkeypatch.setattr(G.rt, "model_state", lambda dd: {"model_sha256": "S",
+                                                         "model_mtime": 100})
+    payload = _j.loads(cmd_publishready(d / "D.pdf", as_json=True))
+    assert payload["checks"]["crop"] == {
+        "ok": True, "detail": "ink carries no crop identity (measured "
+                              "before 667)", "verified": False}
+
+    text = cmd_publishready(d / "D.pdf", as_json=False)
+    assert _mark_for(text, "crop") == "un"
+    assert _mark_for(text, "artefacts") == "ok"   # an ordinary pass is unaffected
+
+
+def test_publishready_output_marks_a_verified_crop_pass_distinctly(tmp_path, monkeypatch):
+    """The same document, with its rows now carrying `crop_sha256` matching
+    real files on disk — a VERIFIED pass, and the printed mark must differ
+    from the unarmed one above even though both are `ok=True`."""
+    from pdfdrill.commands import cmd_publishready
+    import hashlib
+    import json as _j
+    d = _doc(tmp_path)
+    (d / "D.pdf").write_bytes(b"%PDF-1.4\n")
+    monkeypatch.setattr(G.rt, "model_state", lambda dd: {"model_sha256": "S",
+                                                         "model_mtime": 100})
+    crop_bytes = b"real-crop-bytes" * 50
+    crops = d / "report-crops"
+    crops.mkdir()
+    ink = _j.loads((d / "report.ink.json").read_text(encoding="utf-8"))
+    for row in ink["rows"]:
+        (crops / ("%s.jpg" % row["id"])).write_bytes(crop_bytes)
+        row["crop_sha256"] = hashlib.sha256(crop_bytes).hexdigest()
+        row["rung"] = None
+    (d / "report.ink.json").write_text(_j.dumps(ink), encoding="utf-8")
+
+    payload = _j.loads(cmd_publishready(d / "D.pdf", as_json=True))
+    assert payload["checks"]["crop"]["ok"] is True
+    assert payload["checks"]["crop"]["verified"] is True
+
+    text = cmd_publishready(d / "D.pdf", as_json=False)
+    assert _mark_for(text, "crop") == "ok"

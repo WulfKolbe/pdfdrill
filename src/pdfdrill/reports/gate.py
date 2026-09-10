@@ -33,6 +33,19 @@ class GateStatus(tuple):
     checks.items()` — every existing caller of every OTHER gate in this file
     is unaffected; `.verified` is additional, not a replacement for the
     2-tuple contract those callers already rely on.
+
+    THE TRAP (667 fix round 2, reviewer-found): `json.dumps` has no hook for
+    a tuple SUBCLASS — it serialises any tuple, this one included, as a
+    plain `[ok, detail]` list. `.verified` is gone, silently, with no
+    exception raised anywhere: `json.dumps(GateStatus(True, "x", False))`
+    returns `'[true, "x"]'`, not an error. Pinned in
+    tests/test_reports_gate.py so this stays a documented limitation rather
+    than something the next caller discovers by losing data. A caller that
+    needs `.verified` in a JSON payload (`commands.cmd_publishready`'s
+    `--json` output is the one that exists) must read the attribute
+    explicitly (`getattr(v, "verified", None)`, since every OTHER gate's
+    plain tuple has no such attribute at all) and put it in the dict itself
+    — never `json.dumps` the object directly.
     """
     def __new__(cls, ok: bool, detail: str, verified: bool):
         self = super().__new__(cls, (ok, detail))
