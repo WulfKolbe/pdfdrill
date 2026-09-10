@@ -14849,9 +14849,58 @@ def _corpus_status_row(pdf: Path, blob_dir: Path, library: Path) -> dict:
     }
 
 
+def _corpus_error_row(pdf: Path, blob_dir: Path, library: Path,
+                      exc: BaseException) -> dict:
+    """The row a document gets when `_corpus_status_row` itself raised — 653
+    fix round 1 (finding 3). `_status_conserve_ledger` pre-checks existence
+    and staleness but does not guard `load_model`/`conserve`/`gate`/
+    `ledger.materialize` against a corrupt or schema-mismatched
+    `model.docmodel.json`, and a corpus walk visits thousands of documents,
+    so ONE malformed model must not void every row already computed for the
+    other 2,930. `errored=True` marks this as a THIRD reason a row can be
+    unavailable (distinct from no-model/stale/oversized) so a run can
+    report how many documents this happened to rather than folding them
+    silently into "no model yet" — a wrong count is exactly the failure
+    finding 1 named this task family for."""
+    try:
+        folder = _href_from_library(library, blob_dir)
+    except Exception:                                      # noqa: BLE001
+        folder = str(blob_dir)
+    try:
+        artefacts = _corpus_artefacts(blob_dir)
+    except Exception:                                      # noqa: BLE001
+        artefacts = {"present": 0, "total": 0, "missing": []}
+    return {
+        "bibkey": pdf.stem,
+        "pdf_name": pdf.name,
+        "folder": folder,
+        "model": {"built": False, "date": None},
+        "gold_bib": {"present": False, "count": 0},
+        "conserve": {
+            "available": False,
+            "reason": f"corpusstatus could not read this document "
+                      f"({type(exc).__name__}: {exc}) — caught and skipped "
+                      f"rather than aborting the whole corpus walk"},
+        "artefacts": artefacts,
+        "status_href": None,
+        "errored": True,
+    }
+
+
+def _corpus_row_or_error(pdf: Path, blob_dir: Path, library: Path) -> dict:
+    """`_corpus_status_row`, but a document that cannot be read gets an
+    error row instead of propagating out of the whole corpus walk (finding
+    3) — the ONE place both `corpus_status_rows` loops call this, so a fix
+    here cannot miss one of them the way a duplicated try/except could."""
+    try:
+        return _corpus_status_row(pdf, blob_dir, library)
+    except Exception as e:                                 # noqa: BLE001
+        return _corpus_error_row(pdf, blob_dir, library, e)
+
+
 def corpus_status_rows(library: "str | Path", only_published: bool = False) -> dict:
-    """{rows, library, only_published, elapsed_s[, error]} — one row per
-    document, read-only, never building anything.
+    """{rows, library, only_published, elapsed_s, skipped[, error]} — one
+    row per document, read-only, never building anything.
 
     Default: every self-contained document `sidecar.iter_documents` finds
     under `library` (a directory is not a document — `BH1/` can hold two;
@@ -14859,7 +14908,9 @@ def corpus_status_rows(library: "str | Path", only_published: bool = False) -> d
     the enumeration). `only_published=True` reads
     `<library>/out/documents.json` instead — publishcheck.py's own "the
     published set" — so `--only-published` stays cheap regardless of how
-    large the rest of the library has grown.
+    large the rest of the library has grown. `skipped` counts published-set
+    entries with no path or a path that no longer resolves to a file
+    (finding 10) — reported, not silently dropped.
     """
     import time as _time
     from .sidecar import blob_dir_for, iter_documents
@@ -14867,34 +14918,68 @@ def corpus_status_rows(library: "str | Path", only_published: bool = False) -> d
     library = Path(library)
     t0 = _time.monotonic()
     rows: list[dict] = []
+    skipped = 0
 
     if only_published:
         pub_path = library / "out" / "documents.json"
         if not pub_path.is_file():
             return {"rows": [], "library": str(library),
-                    "only_published": True, "elapsed_s": 0.0,
+                    "only_published": True, "elapsed_s": 0.0, "skipped": 0,
                     "error": f"no published set at {pub_path}"}
         try:
             entries = json.loads(pub_path.read_text(encoding="utf-8"))
         except (OSError, ValueError) as e:
             return {"rows": [], "library": str(library),
-                    "only_published": True, "elapsed_s": 0.0,
+                    "only_published": True, "elapsed_s": 0.0, "skipped": 0,
                     "error": f"cannot read {pub_path}: {e}"}
         for _key, path in sorted(entries.items()):
             if not path:
+                skipped += 1
                 continue
             pdf = Path(path)
             if not pdf.is_file():
+                skipped += 1
                 continue
             blob_dir, _js = blob_dir_for(pdf)
-            rows.append(_corpus_status_row(pdf, blob_dir, library))
+            rows.append(_corpus_row_or_error(pdf, blob_dir, library))
     else:
         for pdf, blob_dir, _js in iter_documents(library):
-            rows.append(_corpus_status_row(pdf, blob_dir, library))
+            rows.append(_corpus_row_or_error(pdf, blob_dir, library))
 
     return {"rows": rows, "library": str(library),
-            "only_published": only_published,
+            "only_published": only_published, "skipped": skipped,
             "elapsed_s": round(_time.monotonic() - t0, 2)}
+
+
+def _corpus_row_state(r: dict) -> str:
+    """One of 'ok' | 'unaudited' | 'bad' | 'unavailable' | 'errored' — 653
+    fix round 1 (finding 2). Computed ONCE, here, and read by both the row
+    renderer and the page's/command's own summary counts, so those two can
+    never silently disagree (the exact failure finding 1 named this task
+    for: a narrative computed separately from what the rows actually say).
+
+    'unaudited' is reserved for a document whose ONLY reason for failing
+    `_status_verdict` is an unbaselined violation type — zero real
+    unclaimed/doubly-claimed anchors AND no `conserve_baseline.json` row for
+    its bibkey. That is "nobody has reviewed this yet," a different fact
+    from "this document has a real, measured transclusion defect" or "this
+    document regressed against a baseline someone DID record" — both of
+    which stay 'bad'. 656's own zero-tolerance stance for an unaudited
+    bibkey is unchanged; this only gives its OWN shape of failure a name
+    instead of rendering identically to a genuine anchor defect."""
+    if r.get("errored"):
+        return "errored"
+    cons = r["conserve"]
+    if not cons.get("available"):
+        return "unavailable"
+    if cons["verdict"] == "conserved":
+        return "ok"
+    c = cons["counts"]
+    anchor_defect = c["unclaimed"] > 0 or c["doubly_claimed"] > 0
+    if (not anchor_defect and not cons.get("has_baseline_row")
+            and cons.get("unresolved", 0) > 0):
+        return "unaudited"
+    return "bad"
 
 
 def _corpus_row_html(r: dict) -> str:
@@ -14902,18 +14987,24 @@ def _corpus_row_html(r: dict) -> str:
     a plain-comparable string/zero-padded-int so the inline JS sorter never
     has to parse a formatted cell."""
     cons = r["conserve"]
-    if cons.get("available"):
-        verdict = cons["verdict"]
-        cls = "ok" if verdict == "conserved" else "bad"
-        unclaimed = cons["counts"]["unclaimed"]
-        verdict_cell = (f'<td class="{cls}" data-sort="{_esc(verdict)}">'
-                        f'{_esc(verdict)}</td>')
-        unclaimed_cell = f'<td data-sort="{unclaimed:08d}">{unclaimed}</td>'
-    else:
+    state = _corpus_row_state(r)
+    if state in ("unavailable", "errored"):
         reason = cons.get("reason", "")
-        verdict_cell = (f'<td class="unknown" data-sort="~unavailable">'
-                        f'unavailable — {_esc(reason)}</td>')
+        verdict_cell = (f'<td class="unknown" data-sort="~{state}">'
+                        f'{state} — {_esc(reason)}</td>')
         unclaimed_cell = '<td class="dim" data-sort="-1">-</td>'
+    else:
+        verdict = cons["verdict"]
+        unclaimed = cons["counts"]["unclaimed"]
+        if state == "unaudited":
+            label = (f"unaudited — {cons.get('unresolved', 0)} unbaselined "
+                     f"violation object(s), no baseline row recorded yet "
+                     f"(0 unclaimed, 0 doubly-claimed)")
+        else:
+            label = verdict
+        verdict_cell = (f'<td class="{state}" data-sort="{state}-{_esc(verdict)}">'
+                        f'{_esc(label)}</td>')
+        unclaimed_cell = f'<td data-sort="{unclaimed:08d}">{unclaimed}</td>'
 
     model = r["model"]
     if model["built"]:
@@ -14941,17 +15032,25 @@ def _corpus_row_html(r: dict) -> str:
            f'{art_cell}{link_cell}</tr>')
 
 
+def _corpus_state_counts(rows: "list[dict]") -> dict:
+    """`{ok, unaudited, bad, unavailable, errored}` — the ONE place both the
+    page and the command's own prose count rows, via `_corpus_row_state`, so
+    the two can never disagree (finding 1/2's whole point)."""
+    counts = {"ok": 0, "unaudited": 0, "bad": 0, "unavailable": 0, "errored": 0}
+    for r in rows:
+        counts[_corpus_row_state(r)] += 1
+    return counts
+
+
 def _render_corpus_index_html(data: dict) -> str:
     """The library-root index page: one row per document, sortable by column
     in plain inline JS (no network, no CDN — this repo's own artifact-design
     convention, same tokens `_render_status_html` (652) already uses)."""
     rows = data["rows"]
     body = "".join(_corpus_row_html(r) for r in rows)
-    n_avail = sum(1 for r in rows if r["conserve"].get("available"))
-    n_conserved = sum(1 for r in rows if r["conserve"].get("available")
-                      and r["conserve"]["verdict"] == "conserved")
-    n_not = n_avail - n_conserved
-    n_unavail = len(rows) - n_avail
+    counts = _corpus_state_counts(rows)
+    n_conserved, n_unaudited, n_bad = counts["ok"], counts["unaudited"], counts["bad"]
+    n_unavail = counts["unavailable"] + counts["errored"]
     subset = " — published subset" if data.get("only_published") else ""
     cols = ["bibkey", "folder", "model built", "gold bib", "conserved",
             "unclaimed anchors", "artefacts", "status page"]
@@ -14961,13 +15060,15 @@ def _render_corpus_index_html(data: dict) -> str:
 <!-- pdfdrill corpusstatus — 653 -->
 <style>
 :root {{ --bg:#fff; --fg:#1a1a1a; --dim:#666; --border:#ddd; --ok:#0a7d2c;
-        --bad:#a3221c; --card:#f7f7f7; }}
+        --bad:#a3221c; --warn:#9a6a00; --card:#f7f7f7; }}
 @media (prefers-color-scheme: dark) {{
   :root:not([data-theme="light"]) {{ --bg:#1a1a1a; --fg:#eee; --dim:#aaa;
-    --border:#3a3a3a; --ok:#4fd671; --bad:#ff6b60; --card:#242424; }}
+    --border:#3a3a3a; --ok:#4fd671; --bad:#ff6b60; --warn:#e0b34d;
+    --card:#242424; }}
 }}
 :root[data-theme="dark"] {{ --bg:#1a1a1a; --fg:#eee; --dim:#aaa;
-  --border:#3a3a3a; --ok:#4fd671; --bad:#ff6b60; --card:#242424; }}
+  --border:#3a3a3a; --ok:#4fd671; --bad:#ff6b60; --warn:#e0b34d;
+  --card:#242424; }}
 body {{ background:var(--bg); color:var(--fg);
        font:14px/1.5 -apple-system,system-ui,sans-serif; margin:2rem; }}
 h1 {{ font-size:1.3rem; }}
@@ -14979,15 +15080,19 @@ th {{ cursor:pointer; user-select:none; position:sticky; top:0;
 th:hover {{ color:var(--ok); }}
 td.ok {{ color:var(--ok); }}
 td.bad {{ color:var(--bad); }}
+td.unaudited {{ color:var(--warn); }}
 td.unknown, td.dim {{ color:var(--dim); }}
 a {{ color:inherit; text-decoration:underline; }}
 footer {{ color:var(--dim); margin-top:1rem; font-size:.85rem; }}
 </style>
 <h1>PDFDRILL corpus status{_esc(subset)}</h1>
 <p>{len(rows)} document(s) under <code>{_esc(data["library"])}</code> —
-{n_conserved} conserved, {n_not} NOT conserved, {n_unavail} conservation
-unavailable (no/stale/oversized model). Generated in
-{data.get("elapsed_s", 0):.1f}s.</p>
+{n_conserved} conserved, {n_bad} NOT conserved (a real unclaimed/doubly-claimed
+anchor defect, or a regression against a recorded baseline),
+{n_unaudited} unaudited (an unbaselined violation type only — no anchor
+defect, never reviewed against the 656 ratchet), {n_unavail} conservation
+unavailable (no/stale/oversized model, or a document this walk could not
+read at all). Generated in {data.get("elapsed_s", 0):.1f}s.</p>
 <table id="corpus">
 <thead><tr>{head}</tr></thead>
 <tbody>{body}</tbody>
@@ -15075,23 +15180,48 @@ def cmd_corpusstatus(library: "str | Path | None" = None,
 
     out_path = _write_corpus_index_html(lib, result)
     rows = result["rows"]
-    n_avail = sum(1 for r in rows if r["conserve"].get("available"))
-    n_conserved = sum(1 for r in rows if r["conserve"].get("available")
-                      and r["conserve"]["verdict"] == "conserved")
-    n_not = n_avail - n_conserved
-    n_unavail = len(rows) - n_avail
-    not_conserved_bibkeys = [r["bibkey"] for r in rows
-                             if r["conserve"].get("available")
-                             and r["conserve"]["verdict"] != "conserved"]
+    counts = _corpus_state_counts(rows)
+    n_conserved, n_unaudited, n_bad = counts["ok"], counts["unaudited"], counts["bad"]
+    n_errored, n_unavail_model = counts["errored"], counts["unavailable"]
+    bad_bibkeys = [r["bibkey"] for r in rows if _corpus_row_state(r) == "bad"]
+    unaudited_bibkeys = [r["bibkey"] for r in rows
+                         if _corpus_row_state(r) == "unaudited"]
+    errored_bibkeys = [r["bibkey"] for r in rows if r.get("errored")]
+
     lines = [
         f"{len(rows)} document(s) in {lib}{' (published subset)' if only_published else ''} "
         f"→ {out_path}",
-        f"  conserved: {n_conserved}, NOT conserved: {n_not}, "
-        f"conservation unavailable: {n_unavail} (no/stale/oversized model)",
+        f"  conserved: {n_conserved}, NOT conserved: {n_bad} (real anchor "
+        f"defect or baseline regression), unaudited: {n_unaudited} (unbaselined "
+        f"violation type only, no baseline row), conservation unavailable: "
+        f"{n_unavail_model + n_errored} (no/stale/oversized model)",
         f"  elapsed: {result['elapsed_s']:.1f}s",
     ]
-    if not_conserved_bibkeys:
-        lines.append("  NOT conserved: " + ", ".join(sorted(not_conserved_bibkeys)))
+    if n_errored:
+        # finding 3 — a document `_corpus_status_row` could not read at all,
+        # caught rather than aborting the whole walk. Reported by count and
+        # (up to a point) by name, so it is never silently folded into
+        # "no model yet".
+        lines.append(f"  could not be read at all ({n_errored} — caught, not "
+                     f"aborted): " + ", ".join(sorted(errored_bibkeys)[:50])
+                     + (" …" if n_errored > 50 else ""))
+    if only_published and result.get("skipped"):
+        lines.append(f"  skipped from the published set ({result['skipped']}): "
+                     f"no path recorded, or the path no longer resolves to a "
+                     f"file")
+
+    def _bibkey_block(label: str, keys: "list[str]") -> "str | None":
+        if not keys:
+            return None
+        if len(keys) <= 50:
+            return f"  {label}: " + ", ".join(sorted(keys))
+        return (f"  {label} ({len(keys)} bibkeys — see index.html, sortable "
+               f"by the 'conserved' column, for the full list)")
+
+    for block in (_bibkey_block("NOT conserved", bad_bibkeys),
+                 _bibkey_block("unaudited", unaudited_bibkeys)):
+        if block:
+            lines.append(block)
     return "\n".join(lines)
 
 

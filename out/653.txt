@@ -1,5 +1,12 @@
 653 — one status page across the corpus
 =========================================
+(fix round 1 folded in: three BLOCKING findings from the review at
+task-653-review.md, all addressed — the narrative rewritten from the real
+artefact [finding 1], a third "unaudited" row state added and rendered
+distinctly [finding 2], per-document exception isolation added to the
+corpus walk [finding 3] — plus two minor findings [10, 11]. Corpus re-run
+after every fix; every number below is read off that re-run's artefact, not
+carried over from the first draft.)
 
 WHAT CHANGED
   `pdfdrill corpusstatus [--library DIR] [--only-published]`: walks every
@@ -13,271 +20,289 @@ WHAT CHANGED
 
   `src/pdfdrill/commands.py`:
     corpus_status_rows(library, only_published=False)   the corpus walker.
-                        Default enumerates through `sidecar.iter_documents`
-                        (not a bare folder-name scan — see WHY BELOW).
+                        Default enumerates through `sidecar.iter_documents`.
                         `only_published=True` reads
-                        `<library>/out/documents.json` instead (the small
+                        `<library>/out/documents.json` instead — the small
                         named set `publishcheck.py` calls "the published
-                        set"), so `--only-published` stays cheap regardless
-                        of how large the rest of the library grows.
+                        set". Returns `skipped` (fix round 1, finding 10):
+                        how many published-set entries had no path or a
+                        path that no longer resolves to a file.
+    _corpus_row_or_error / _corpus_error_row   fix round 1, finding 3 — see
+                        THE EXCEPTION ISOLATION FIX below.
     _corpus_status_row(pdf, blob_dir, library)   one read-only row. Never
                         calls `cmd_model`; reuses 652's OWN read-only
                         gatherer, `_status_conserve_ledger`, UNCHANGED, for
-                        the conservation/ledger numbers — see THE SECOND
-                        DICT BUILDER below for why there is no second one.
-    _corpus_model_date(sc, model_path)   the model's own transition-log
-                        entry ("to MODEL_BUILT"), falling back to the
-                        model file's mtime for a build path that never logs
-                        the transition (`add`).
-    _corpus_gold_bib(sc)   `{present, count}` from `BIBSOURCE_BUILT` +
-                        `bibsource_references` — the author's GOLD `.bbl`/
-                        `.bib` (`cmd_bibsource`), NOT the heuristic/web
-                        bibliography and NOT bare embedded `BIBTEX_KNOWN`.
-    _corpus_artefacts(blob_dir)   `{present, total, missing}` over
-                        `reports.gate.PUBLISHED_FILES` — the five
-                        632/633 evidence/residuals PDFs — present in this
-                        doc's own folder.
+                        the conservation/ledger numbers.
+    _corpus_row_state(r)   fix round 1, finding 2 — the ONE place a row's
+                        state (`ok`/`unaudited`/`bad`/`unavailable`/
+                        `errored`) is decided; read by both the row
+                        renderer and the page's/command's own summary
+                        counts so the two cannot silently disagree. See
+                        THE THREE-STATE FIX below.
+    _corpus_state_counts(rows)   the one aggregator both
+                        `_render_corpus_index_html` and `cmd_corpusstatus`
+                        call — a second, hand-rolled count in each place is
+                        exactly how finding 1 happened the first time.
+    _corpus_model_date / _corpus_gold_bib / _corpus_artefacts /
     _href_from_library / _render_corpus_index_html / _corpus_row_html /
-    _write_corpus_index_html   the page. `_write_corpus_index_html` is
-                        deliberately NOT `cmd_`-prefixed (same convention
-                        `_write_status_html`, 652, already uses) — see
-                        THE LOCK below. Written as BYTES with
-                        `errors="replace"`, not `write_text(encoding=
-                        "utf-8")` — see THE SURROGATE BUG below, found live
-                        on this corpus.
-    cmd_corpusstatus(library=None, only_published=False)   the command.
+    _write_corpus_index_html   unchanged in shape from the first round
+    (confirmed correct by the review, findings 4-9) except where noted
+    above; `_write_corpus_index_html` still writes bytes with
+    `errors="replace"` (the surrogate fix, review finding 7, unchanged and
+    re-confirmed).
+    cmd_corpusstatus(library=None, only_published=False)   the command;
+                        its printed prose now reports all four states plus
+                        how many rows the exception handler caught, and
+                        (only_published) how many published-set entries
+                        were skipped.
 
-  `src/pdfdrill/cli.py`: `_do_corpusstatus` parses `--library`/
-  `--only-published`; registered in `HANDLERS`.
-  `src/pdfdrill/preflight.py`: `corpusstatus` added to `EXEMPT` — it is as
-  read-only as `status` (already exempt), never builds, never costs money
-  or network, so it should not be gated behind the preflight attestation
-  any more than `status` is.
-  `.claude/skills/pdfdrill/commands.yaml`: new `corpusstatus` entry, no
-  `requires:` (it reads other documents' pages and models, never a
-  prerequisite of its own — the brief's own instruction). `skillsync all .`
-  run; manifest <-> HANDLERS confirmed in sync.
+  `src/pdfdrill/cli.py` / `preflight.py` / `commands.yaml`: unchanged from
+  round 1 (review findings 9: manifest/skillsync/preflight all confirmed
+  correct; no reason to touch them this round).
 
-THE SECOND DICT BUILDER — THE BRIEF ASKED TO VERIFY ONE EXISTS BEFORE
-ASSUMING IT
-  The brief (written before 652 landed for real) said to "call the same
-  dict builder" from 652. Checked, not assumed: 652 never factored its
-  per-document `data` dict into one function. `cmd_status` builds it inline
-  from several SEPARATE read-only gatherers — `_status_conserve_ledger`,
-  `_status_budget_notes`, `_status_update_record`, `_list_artifacts` — and
-  the expensive one, the one this task actually needs (the conservation/
-  ledger numbers), IS already its own function. That one is called
-  directly, unchanged, from `_corpus_status_row`. There was no single "the
-  dict builder" to reuse, so none was invented — a second one would drift
-  from the first, which out/652.txt and out/656.txt both name as the exact
-  failure this codebase keeps rediscovering (652's own first draft summed
-  raw violations and wrongly marked both audited documents NOT conserved
-  before being corrected to use `gate()`'s partition). This task reuses
-  `_status_verdict`/`_status_conserve_ledger` as 652 left them; it does not
-  redefine "conserved."
+THE THREE-STATE FIX (review finding 2)
+  Round 1 rendered every non-"conserved" available row the same red
+  `class="bad"`, whether the row carried a real anchor defect or was
+  simply never audited against the 656 ratchet. `_status_conserve_ledger`
+  already returns `has_baseline_row`; round 1's `_corpus_row_html` computed
+  it and never read it. Fixed by giving the row ITS OWN state:
 
-THE LOCK — WHY THIS COMMAND TAKES NONE, PER-DOCUMENT OR OTHERWISE
-  The brief said so explicitly (item 2): no lock per document (this only
-  reads), and one lock on the index file itself is unnecessary. Confirmed
-  against the mechanism, not just asserted: `test_doclock.py`'s
-  `_doc_folder_writers` AST-walks every top-level `cmd_*` function and
-  flags one whose body contains BOTH a literal write-op call AND a
-  reference to `blob_dir`/`Sidecar`/`sc`. `cmd_corpusstatus`'s own body has
-  neither — it delegates the read-only gathering to `_corpus_status_row`
-  (which DOES reference `Sidecar`) and the one literal write to
-  `_write_corpus_index_html` (which does NOT reference any of those three
-  names) — so the scanner's `writes` counter is 0 for `cmd_corpusstatus`
-  and it is never flagged. `tests/test_doclock.py::
-  test_every_pdf_writer_holds_the_lock` and `::
-  test_lock_coverage_is_reported_not_assumed` (which hardcodes "5
-  unguardable rows" as the known remainder) both still pass UNCHANGED —
-  confirming `cmd_corpusstatus` added neither a missing-lock finding nor a
-  sixth unguardable row.
+    ok         verdict == "conserved".
+    unaudited  verdict != "conserved", AND unclaimed == 0 AND
+               doubly_claimed == 0, AND NOT has_baseline_row. The ONLY
+               thing wrong is an unbaselined violation type — no measured
+               anchor defect at all. Rendered in its own colour
+               (`--warn`, amber/orange, not red) with its own cell text
+               ("unaudited — N unbaselined violation object(s), no
+               baseline row recorded yet (0 unclaimed, 0 doubly-claimed)").
+    bad        verdict != "conserved" and it is NOT the unaudited shape —
+               i.e. a real unclaimed/doubly-claimed anchor (regardless of
+               baseline status), OR a genuine regression against a
+               baseline someone DID record (`new_types`/`increased` on an
+               audited bibkey). Stays red.
+    unavailable / errored   `conserve.available == False` — no model, a
+               stale one, one skipped by the size guard, or (new) one this
+               walk could not read at all. Both render the same dim/grey
+               class (`unknown`) on the page — the reader-facing fact is
+               the same ("no conservation number for this row") — but are
+               counted SEPARATELY in the command's own prose (see below),
+               because "the walk itself failed on this document" is a
+               different, more actionable fact than "nobody has built a
+               model yet."
 
-THE CWD TRAP — WHY A CORPUS WALK CANNOT REUSE 652's GATHERER AS-IS WITHOUT
-THIS
-  652's own CONCERNS #1: a `MODEL_BUILT` content-hash proof records each
-  input path AS GIVEN AT BUILD TIME — almost always relative
-  ("penev_A.lines.json"), because `pdfdrill model` is normally run with the
-  document's own folder as cwd. `proofs.verify()` re-hashes that recorded
-  string against THIS PROCESS's cwd, so calling `_status_conserve_ledger`
-  from wherever `corpusstatus` itself was invoked (the repo root, in every
-  test above) would re-hash a nonexistent relative path and read every
-  genuinely fresh model as STALE. 652 sidestepped this by hand, running its
-  own two-document evidence from each document's own folder; a corpus walk
-  visits thousands of folders, so getting this wrong would not be one row's
-  problem, it would be nearly every row's. Fixed mechanically:
-  `_corpus_status_row` chdirs into `pdf.parent` for the one call that
-  touches the model, and restores the prior cwd in a `finally` — verified
-  both on the happy path and when the gatherer raises
-  (`test_cwd_is_restored_after_each_document`,
-  `test_cwd_restored_even_when_the_gatherer_raises`).
+  `_corpus_row_state(r)` is the ONE function that decides this, called by
+  both the row HTML and the aggregate counts (`_corpus_state_counts`) — a
+  second hand-rolled tally anywhere else is exactly the mechanism that
+  produced finding 1's wrong narrative the first time, and this closes
+  that seam rather than papering over its one visible symptom.
 
-SCALE — WHAT WAS MEASURED, AND WHAT WAS DONE ABOUT THE OUTLIERS
-  The library holds 2,931 documents `sidecar.iter_documents` finds (a PDF
-  count, not a model count — most have no model at all and get a row that
-  says so). 1,359 of them carry a `model.docmodel.json`. Two guards:
+THE EXCEPTION ISOLATION FIX (review finding 3)
+  Round 1's `corpus_status_rows` called `_corpus_status_row` directly in
+  both loops with no try/except. `_status_conserve_ledger` pre-checks
+  existence and staleness but does not itself guard `load_model`/
+  `conserve`/`gate`/`ledger.materialize` against a corrupt or
+  schema-mismatched model — a genuinely malformed `model.docmodel.json`
+  (truncated write, bad JSON, an old schema `conserve()` cannot parse)
+  would raise straight out of `cmd_corpusstatus`, aborting the ENTIRE walk
+  and writing NO `index.html` at all — losing every row already computed
+  for the other ~2,930 documents. `test_cwd_restored_even_when_the_
+  gatherer_raises` (round 1) demonstrated the raise reaching all the way
+  out; it is now rewritten to demonstrate the OPPOSITE (see TESTS).
 
-  1. A hard size guard, `_CORPUS_MODEL_SIZE_GUARD = 500_000_000` bytes
-     (500 MB). 656's own corpus scan found exactly one outlier at 4.96 GB
-     against a 149 MB runner-up; this corpus scan found the SAME one
-     (`1511.08771`, now 4.96 GB) and skipped it the same way, unconditionally
-     BEFORE any attempt to load it — the row says why
-     ("model is 4.96 GB — skipped by the corpus size guard (500 MB); run
-     `pdfdrill status --html 1511.08771.pdf` on it directly instead"), it
-     does not vanish silently.
-  2. `--only-published` reads `<library>/out/documents.json` (21 documents,
-     ~630 MB of models total) instead of walking the whole library. Measured
-     twice, independently: 32.1s via the shipped CLI
-     (`pdfdrill corpusstatus --library ~/pdfdrill-library --only-published`)
-     and 35.4s calling `corpus_status_rows` directly from the evidence
-     script (`out/653/script.py`) — ~18-20 MB/s of model JSON parsed +
-     conserved, the same per-document cost `status --html` already pays,
-     just run 21 times in one process instead of one. That is "genuinely
-     cheap" relative to the full corpus (roughly 1/13th the wall-clock time
-     for 1/140th the documents), not instantaneous — there is no way to
-     check even the published subset's conservation without loading each
-     one's model, and this reuses that exact same, already-audited cost
-     rather than inventing a cheaper approximation that could silently
-     disagree with `status --html`'s own numbers.
+  Fixed with one seam, `_corpus_row_or_error`, called from both loops in
+  `corpus_status_rows`: `_corpus_status_row` wrapped in try/except, and on
+  ANY exception a `_corpus_error_row` is appended instead — `errored:
+  True`, `conserve.available: False`, `reason` naming the exception type
+  and message, artefacts/folder computed defensively (each itself wrapped,
+  so a broken `blob_dir` cannot cascade into a second, unhandled
+  exception). Verified two ways, per the review's own request to show the
+  handler working AND report what it did on the real corpus, separately:
 
-  THE FULL CORPUS RUN (no `--only-published`): 2,931 documents, 466.2s
-  (7:46.66 wall clock, /usr/bin/time -v), 99% CPU, 907 MB peak RSS — well
-  within the machine's 62 GB, and NOT accumulating without bound across the
-  run (checked by hand mid-run: RSS climbed from ~170 MB to ~500 MB over the
-  first four minutes of ~1,000 small/medium models, then the process
-  finished cleanly rather than climbing further). 34 conserved, 1,303 NOT
-  conserved, 1,594 conservation unavailable — breakdown: 1,591 no model on
-  disk, 2 stale (`2503.04772v1`, `chung2019combinatorics` — their MODEL_BUILT
-  proof no longer hash-matches; each reads "unavailable" and is not counted
-  toward either verdict bucket), 1 skipped by the size guard (`1511.08771`,
-  4.96 GB — the same one 656 found).
+    - CONSTRUCTED: `test_one_malformed_model_does_not_abort_the_whole_walk`
+      writes a REAL invalid-JSON `model.docmodel.json` (not a monkeypatched
+      stub) for one of three documents and confirms `cmd_corpusstatus`
+      does NOT raise, `index.html` still gets all 3 rows, and the broken
+      one reads `errored=True`, state `"errored"`, with the caught
+      exception's type+message in its `reason`.
+    - REAL CORPUS: re-ran the full walk on `~/pdfdrill-library` (2,931
+      documents) AFTER this fix. **0 rows were caught by the exception
+      handler on this run** (`errored_rows_on_this_real_run: 0` in
+      `out/653b/report.json`, cross-checked against the actual
+      `index.html` text — no row anywhere reads "errored — "). This is a
+      fact about the CURRENT state of this library, not evidence the
+      handler is inert: the constructed test above proves the handler
+      fires and survives when a document IS unreadable; this run says none
+      of the 2,931 documents encountered on THIS pass happened to be in
+      that state (the 2 stale + 1 oversized are all caught earlier, by the
+      existing staleness/size checks, before `_status_conserve_ledger`
+      would ever raise on them).
 
-THE SURROGATE BUG — FOUND LIVE ON THE FIRST REAL FULL-CORPUS RUN
-  The first attempt at the full run failed: `UnicodeEncodeError: 'utf-8'
-  codec can't encode character '\udcd6' ... surrogates not allowed`, after
-  7:01 of CPU time — a folder somewhere in the 2,931 has a name that is not
-  valid UTF-8 (CP1252 bytes; `taskout._write`'s own docstring already names
-  18 such folders in this library, from a prior corpus census). No
-  single-document command had ever needed to encode such a name into a file
-  written from a DIFFERENT process before — `status --html` writes into the
-  document's OWN folder, where the bad name is a directory component, never
-  a piece of TEXT inside the file it writes. `corpusstatus` is the first
-  command to put a folder's NAME into a string that gets written elsewhere
-  (the index's link/bibkey columns), and `write_text(encoding="utf-8")`
-  cannot encode a lone surrogate back out.
+THE NUMBERS — READ OFF THE ARTEFACT `pdfdrill corpusstatus` ACTUALLY WROTE,
+AFTER THE FIX (review finding 1: the whole point of this section)
+  Full corpus re-run, `~/pdfdrill-library`, 2,931 documents:
 
-  Fixed the same way `taskout._write` already fixes it for exactly this
-  library: `_write_corpus_index_html` now writes BYTES,
-  `html.encode("utf-8", "replace")`, rather than `write_text`. A byte
-  replaced in one row's link text is a far smaller loss than the whole
-  index failing to write. Regression test added
-  (`test_surrogate_escaped_filename_does_not_crash_the_index_write`) —
-  confirmed FAILING against the pre-fix `write_text` call with the exact
-  same `UnicodeEncodeError` before being fixed, kept in the suite as the
-  case that would catch it coming back. Re-ran the full corpus after the
-  fix: 2,931 documents, 7:46.66, exit status 0.
+    state          count   what it means
+    -----          -----   -------------
+    conserved         34   verdict == "conserved" (`_status_verdict`)
+    NOT conserved   1,196   a real unclaimed/doubly-claimed anchor, OR a
+                            genuine regression against a recorded baseline
+    unaudited         107   ONLY an unbaselined violation type — zero real
+                            anchor defect, no baseline row for this bibkey
+    unavailable     1,594   no model (1,591) / stale (2) / oversized,
+                            size-guard-skipped (1) / errored (0 — see above)
+    -----          -----
+    TOTAL          2,931
 
-WHICH DOCUMENTS FAIL CONSERVATION
-  1,303 of 2,931 (44.4%). Two are the audited pair whose real failure mode
-  is unrelated to the ratchet at all — real unclaimed/doubly-claimed
-  anchors, unchanged from 646/652's own numbers:
-    penev_A:  NOT conserved: 243 unclaimed, 29 doubly-claimed, 0 unreachable
-              object(s) beyond what is already recorded
-    penev_B, SteerableWaveletFramesBasedontheRieszTransform, 1811.06102,
-    narcissus, 2602.12042v1, kolbe2018hubbard: also carry a
-    `conserve_baseline.json` row and would read the same way — NOT
-    conserved for their own, real, already-tracked anchor counts, not for
-    an unaudited violation type.
-  The remaining ~1,296 have NO baseline row and get 656's own zero-tolerance
-  stance: every VIOLATION-class object they carry (Citation, List, Theorem,
-  …) counts as `new_types` until someone audits that bibkey and records a
-  baseline row — the SAME posture `conserve --gate` already takes on any
-  document outside the seven-bibkey baseline. This is not a regression this
-  task introduced; it is 656's ratchet, read honestly, for the first time
-  across the WHOLE corpus rather than the two documents 652 checked by hand.
-  Full per-bibkey list: `~/pdfdrill-library/index.html` (sortable by the
-  "conserved" column), or `~/pdfdrill-library/out/653/report.json`.
+  Every number above is read off `~/pdfdrill-library/index.html` by CSS
+  class per row (`out/653b/script.py`), cross-checked against
+  `cmd_corpusstatus`'s own printed summary from the SAME run — the two
+  agree exactly, because both now go through `_corpus_row_state`/
+  `_corpus_state_counts`, the fix for finding 1/2.
+
+  THE "NOT CONSERVED" BUCKET, BROKEN DOWN (this is what round 1 got wrong):
+  1,196 = 5 baseline bibkeys (of the 7 in `conserve_baseline.json`) that
+  read "bad" for their OWN real anchor counts, unchanged from 646/652:
+    penev_A: 243 unclaimed, 29 doubly-claimed
+    penev_B, SteerableWaveletFramesBasedontheRieszTransform, narcissus,
+    kolbe2018hubbard: also "bad", each for its own real anchor counts
+  PLUS 1,191 non-baseline bibkeys that ALSO carry a real, nonzero
+  unclaimed and/or doubly-claimed anchor count — genuine, baseline-
+  independent transclusion defects, not ratchet noise. Named examples
+  (from the review, re-verified against this run's own `index.html`):
+  `Infineon-motorcontrol_handbook-...` (31 unclaimed, 2,533 doubly-claimed),
+  `0008113v1` (43 unclaimed, 41 doubly-claimed), `0110026` (186 unclaimed).
+
+  THE SEVEN-BIBKEY BASELINE, CORRECTED: round 1's `out/653.txt` claimed all
+  seven baseline bibkeys were "the real failures." Two are NOT failures at
+  all — `1811.06102` and `2602.12042v1` read "conserved" (`class="ok"`) on
+  this run, exactly at their recorded baseline with zero unclaimed/doubly-
+  claimed anchors. Only 5 of the 7 are in the "bad" bucket.
+
+  THE 107 "unaudited" ROWS are a genuinely different population from the
+  1,196 "bad" ones: zero measured anchor defect, the sole issue an
+  unbaselined violation type. Sample (first 10 alphabetically):
+  1405.0030vG, 1605.0232v1, 1609.03457, 1611.09182, 1703.01192, 1707.08872,
+  1708.00006, 1710.04811, 1711.04607, 1711.10105 — full list in
+  `~/pdfdrill-library/index.html` (sort by the "conserved" column) or
+  `out/653b/report.json`.
+
+  DO NOT read "1,303 documents fail conservation" (1,196 + 107) as one
+  homogeneous group, as round 1 did — that IS the mistake this fix round
+  corrects. 1,196 are measurably broken; 107 have simply never been
+  reviewed.
+
+  `--only-published`: 21 named documents, 34.8s. All 21 read "bad" (0 ok, 0
+  unaudited, 0 unavailable) — every one of the 21 currently curated
+  documents carries a real anchor defect of its own. 1 entry in
+  `documents.json` was skipped (finding 10): `pdf-dc99cf88` has a null path
+  recorded (a pre-existing data-quality fact about the published set, not
+  something this task caused) — reported by `cmd_corpusstatus`'s own prose
+  now ("skipped from the published set (1): ..."), not silently dropped
+  from the row count as round 1 did.
+
+SCALE — UNCHANGED FROM ROUND 1, RE-MEASURED
+  Same two guards as before (500 MB hard size guard; `--only-published` for
+  a cheap subset check), confirmed correct by the review (finding 6). This
+  round's full-corpus run: 2,931 documents, 444.0s command-reported /
+  7:24.43 wall clock (`/usr/bin/time -v`), 99% CPU, 908 MB peak RSS, exit
+  status 0 — essentially identical to round 0's 466.2s/7:46.66/907 MB
+  (normal run-to-run variance on the same machine; the exception-isolation
+  try/except adds no measurable overhead on a corpus with 0 real
+  exceptions to catch).
+
+THE SURROGATE BUG — UNCHANGED, RE-CONFIRMED (review finding 7)
+  `_write_corpus_index_html` still writes bytes with
+  `html.encode("utf-8", "replace")`. The review reproduced the pre-fix
+  `UnicodeEncodeError` independently against the actual committed code with
+  the fix reverted, and confirmed the regression test
+  (`test_surrogate_escaped_filename_does_not_crash_the_index_write`) fails
+  the same way pre-fix and passes post-fix. Not touched this round.
 
 TESTS
-  `tests/test_corpusstatus.py`, 13 tests, new:
-    - the basic shape: a temp library with two document folders (one with a
-      model AND a status page, one without) → two rows, right verdicts
-      ("conserved" class ok for the by-design-only doc, "unavailable — no
-      model on disk yet" for the other), links relative
-      (`docA/docA.status.html`, checked to NOT contain the tmp_path prefix
-      and to NOT start with `/`).
-    - not-conserved documents are named in the command's own returned
-      prose, not only on the page.
-    - `--only-published`: reads `<library>/out/documents.json`, restricts to
-      the named set (1 of 2 documents), and a missing set reports an error
-      rather than crashing.
-    - the size guard: an oversized model is skipped WITHOUT ever calling
-      `_status_conserve_ledger` (checked directly — a monkeypatched stub
-      raises if invoked).
-    - the CWD trap: the process cwd is restored after each document, both on
-      the happy path and when the gatherer raises.
-    - artefacts present counted against the five `PUBLISHED_FILES`.
-    - the page: sortable inline JS, no `<script src=`, no `http(s)://`
-      anywhere in the file.
-    - "no such library directory" does not crash.
-    - the surrogate-escaped-filename regression (above) — confirmed failing
-      against the pre-fix code first.
-    - the write helper is not `cmd_`-prefixed (mirrors 652's own
-      confirmation of the same mechanism).
-    - CLI flag parsing (`--library`, `--only-published`), stubbed.
-    - `corpusstatus` never calls `cmd_model`, checked in every test above
-      via a monkeypatched `cmd_model` that raises if invoked — not one test
-      alone.
+  `tests/test_corpusstatus.py`, 17 tests (round 1 had 13; net +4 this
+  round: 5 added, 1 replaced):
+    - the basic shape, `--only-published`, the size guard, the CWD trap
+      (happy path), artefacts-present, the sortable page, "no such library
+      directory", the surrogate regression, the not-`cmd_`-prefixed write
+      helper, CLI flag parsing — all UNCHANGED from round 1, still passing.
+    - REPLACED: `test_not_conserved_documents_are_named_in_the_report`
+      (asserted the now-corrected-away behaviour: an unaudited-only
+      document counted as "NOT conserved"). Split into:
+        `test_real_anchor_defect_is_named_not_conserved_in_the_report` — a
+          document with a genuinely unclaimed anchor (no violation type at
+          all) reads "bad"/"NOT conserved: 1", never "unaudited".
+        `test_unaudited_violation_only_document_is_not_the_same_bucket` — a
+          document with only an unbaselined Citation (zero unclaimed,
+          zero doubly-claimed) reads "unaudited: 1", never "NOT conserved",
+          rendered `class="unaudited"` on the page, never `class="bad"`.
+        `test_a_real_anchor_defect_and_an_unaudited_document_get_
+          different_states` — both shapes in ONE library, so the split
+          itself is exercised, not each shape in isolation.
+    - REWRITTEN: `test_cwd_restored_even_when_the_gatherer_raises` — round
+      1 asserted `pytest.raises(RuntimeError)` around the whole command
+      (the bug finding 3 named); now asserts the OPPOSITE — the command
+      does NOT raise, the cwd is still restored, and the row reads
+      "could not be read at all" in the returned prose.
+    - NEW: `test_one_malformed_model_does_not_abort_the_whole_walk` — a
+      REAL corrupt `model.docmodel.json` (not monkeypatched) among 3
+      documents; `index.html` still gets all 3 rows, the broken one
+      `errored=True`.
+    - NEW: `test_only_published_reports_skipped_entries_not_silently` — a
+      `documents.json` with a null-path and a nonexistent-file entry:
+      `skipped == 2`, and the command's prose names the count.
+    - Every test above still stubs `cmd_model` to raise if called; still
+      true after this round (no new code path reaches it).
 
   FULL SUITE: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
-  tests/ -q -p no:cacheprovider` -> 3491 passed, 0 failed (13 new in
+  tests/ -q -p no:cacheprovider` -> 3504 passed, 0 failed (17 in
   `tests/test_corpusstatus.py`; `test_doclock.py`, `test_skill_sync.py`,
-  `test_status_html.py`, `test_conserve_gate.py`,
-  `test_cmd_conserve_gate.py` also run standalone first, all green).
+  `test_status_html.py` also run standalone first, all green — 54 passed
+  in the combined targeted run).
 
 EVIDENCE
-  `~/pdfdrill-library/index.html` — 2,931 rows, 1,595,809 bytes, generated
-  by `pdfdrill corpusstatus --library ~/pdfdrill-library` (real run, real
-  documents; git-backed, deny-by-default library, never committed here —
-  rule 19).
-  `~/pdfdrill-library/out/653/script.py` — reproduces the `--only-published`
-  measurement directly (35.4s on this re-run vs 32.1s on the original CLI
-  run — normal process-to-process variance) and cross-checks the
-  full-corpus counts baked into `index.html` (2,931 rows, 34/1,303/1,594 by
-  CSS class) against the numbers the command printed when it ran.
-  `~/pdfdrill-library/out/653/report.json` — both measurements' full
-  numbers, including which two bibkeys are stale and which one was
-  size-guard-skipped.
-  `~/pdfdrill-library/out/653/INSPECT.txt` — one path, `index.html`, checked
-  to exist and be non-empty, its first line (now `<title>PDFDRILL corpus
-  status (2931)</title>`) checked to NAME "corpus" (rule 20's `expect=`).
+  Round 0 (superseded by this round for the numeric narrative, kept for the
+  mechanics it verified — the surrogate bug and its fix):
+    `~/pdfdrill-library/out/653/{script.py,report.json,INSPECT.txt}`.
+  Round 1 (fix round — THIS report's numbers):
+    `~/pdfdrill-library/index.html` — 2,931 rows, 1,603,606 bytes, written
+    by a real run of `pdfdrill corpusstatus --library ~/pdfdrill-library`
+    (2,931 documents, 444.0s / 7:24.43 wall clock, exit 0).
+    `~/pdfdrill-library/out/653b/script.py` — reads the state (CSS class)
+    of every row directly from `index.html`, buckets the "bad" rows into
+    baseline vs non-baseline, samples the "unaudited" rows, and separately
+    re-runs `corpus_status_rows(..., only_published=True)` live (34.8s,
+    matching the shipped command's own 34.8s).
+    `~/pdfdrill-library/out/653b/report.json` — the full numeric record
+    every count in this file was read from.
+    `~/pdfdrill-library/out/653b/INSPECT.txt` — one path, `index.html`,
+    checked to exist/be non-empty, first line (`<title>PDFDRILL corpus
+    status (2931)</title>`) checked to NAME "corpus".
 
 CONCERNS / THINGS I NOTICED BUT DID NOT FIX
   1. `iter_documents` enumerates every PDF, not only ones with a model —
-     2,931 rows for 1,359 models. This matches the brief's own instruction
-     ("a document with no model gets a row that says so — never build") but
-     makes the page large (1.6 MB, ~2,900 `<tr>`s). It renders and sorts
-     fine in the environments checked, but was not checked against a
-     resource-constrained mobile browser; if that becomes a problem the fix
-     is pagination or a "hide no-model rows" toggle, not a change to what
-     this task measures.
+     2,931 rows for 1,359 models. Unchanged from round 0; the page is
+     1.6 MB, ~2,900 `<tr>`s, renders fine in the environments checked, not
+     checked on a resource-constrained mobile browser.
   2. Two documents are genuinely STALE (`2503.04772v1`,
-     `chung2019combinatorics`) — their recorded content-hash proof no
-     longer matches the `lines.json` on disk. This is orthogonal to 653;
-     it is exactly what `_status_conserve_ledger`/`status --html` would
-     also report for them, unchanged, and the fix is `pdfdrill model` on
-     each, which this command correctly never does on its own.
-  3. `_corpus_model_date` falls back to the model file's mtime when no
-     "to MODEL_BUILT" transition is recorded. Not exercised against a real
-     document built that way in this task's evidence (both audited
-     documents' models DO carry the transition) — covered by a synthetic
-     path only if a future model build ever skips `log_transition`; not
-     believed to be a live gap today.
-  4. The size guard threshold (500 MB) is a judgment call, not a measured
-     boundary: 656 found the corpus's largest non-outlier at 149 MB and its
-     outlier at 4.96 GB, a thirty-fold gap with nothing recorded in between.
-     500 MB sits comfortably in that gap but is not itself derived from a
-     measurement of where loading starts to hurt — if a future document
-     lands between 150 MB and 500 MB and is slow enough to matter, the
-     threshold is the first place to look, not a mystery to re-diagnose.
+     `chung2019combinatorics`); orthogonal to this task, fix is
+     `pdfdrill model` on each, never done automatically.
+  3. `_corpus_model_date`'s mtime fallback remains untested against a real
+     document (review finding 11, self-disclosed in round 0, "no action
+     needed beyond noting it stands" — unchanged this round).
+  4. The 500 MB size-guard threshold remains an undemonstrated judgment
+     call in the 149 MB-4.96 GB gap (review finding 6: "accurately
+     characterized as a judgment call, not a defect" — unchanged).
+  5. NEW this round: `pdf-dc99cf88`'s null path in
+     `~/pdfdrill-library/out/documents.json` is a genuine, pre-existing
+     data-quality issue in the published set (not introduced by this
+     task) that `--only-published` now surfaces (`skipped: 1`) instead of
+     hiding. Not fixed here — fixing `documents.json` itself is
+     `publishcheck.py`/whatever wrote that entry's territory, not
+     `corpusstatus`'s.
+  6. The "unaudited" vs "bad" split depends entirely on
+     `conserve_baseline.json` covering only 7 bibkeys (656's own scope
+     decision, unchanged). If that baseline is ever extended, some of the
+     1,191 non-baseline "bad" rows and some of the 107 "unaudited" rows
+     will move between buckets — expected, not a defect in this task's
+     classification logic, which reads the baseline file, not a cached
+     copy of it.
