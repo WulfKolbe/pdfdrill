@@ -372,6 +372,77 @@ def test_one_malformed_model_does_not_abort_the_whole_walk(tmp_path, monkeypatch
     assert "could not read this document" in by_key["brokenC"]["conserve"]["reason"]
 
 
+def test_render_phase_isolates_a_single_row_failure(tmp_path, monkeypatch):
+    """Fix round 2 — a row that raises while being RENDERED (not gathered)
+    is the SAME catastrophic shape finding 3 fixed for the gather phase,
+    one phase later: `_render_corpus_index_html`'s
+    `"".join(_corpus_row_html(r) for r in rows)` had no isolation at all,
+    so one bad row would void the HTML for every other row already
+    gathered. Every other row must still appear on the page, and the
+    failed one gets a VISIBLE marker rather than vanishing."""
+    _never_build(monkeypatch)
+    monkeypatch.setattr(C, "_stale_or_absent", lambda *a, **k: False)
+    import docops.conserve as conserve_mod
+    monkeypatch.setattr(conserve_mod, "load_baseline", lambda: {})
+
+    _make_doc(tmp_path, "goodA", _by_design_doc("goodA"))
+    _make_doc(tmp_path, "goodB", _unclaimed_anchor_doc("goodB"))
+    _make_doc(tmp_path, "renderboom", _by_design_doc("renderboom"))
+
+    real_render = C._corpus_row_html
+
+    def _boom(r):
+        if r["bibkey"] == "renderboom":
+            raise RuntimeError("render boom")
+        return real_render(r)
+    monkeypatch.setattr(C, "_corpus_row_html", _boom)
+
+    out = C.cmd_corpusstatus(library=str(tmp_path))
+    assert "3 document(s)" in out
+
+    index_path = tmp_path / "index.html"
+    assert index_path.is_file() and index_path.stat().st_size > 0
+    index = index_path.read_text(encoding="utf-8")
+
+    # every row is on the page — nothing vanished because one raised
+    assert "goodA" in index
+    assert "goodB" in index
+    assert "renderboom" in index
+    assert "could not be rendered on this page" in index
+    assert "render boom" in index
+
+    rows = re.findall(r"<tr>.*?</tr>", index, re.S)
+    assert len(rows) == 4                                  # header + 3
+    boom_row = next(r for r in rows if "renderboom" in r)
+    good_a_row = next(r for r in rows if "goodA" in r)
+    # the broken row still carries 8 real <td> cells, one per column header
+    # — a colspan cell would leave `a.children[idx]` undefined for later
+    # columns and break the inline JS sorter on THIS row's account.
+    assert boom_row.count("<td") == 8 == good_a_row.count("<td")
+
+
+def test_page_summary_gives_errored_its_own_number(tmp_path, monkeypatch):
+    """Minor finding: the summary paragraph used to fold `errored` into
+    `unavailable`, so the headline sentence carried no separate count for
+    it even though the per-row text and the CLI prose both did."""
+    _never_build(monkeypatch)
+    monkeypatch.setattr(C, "_stale_or_absent", lambda *a, **k: False)
+    import docops.conserve as conserve_mod
+    monkeypatch.setattr(conserve_mod, "load_baseline", lambda: {})
+
+    _make_doc(tmp_path, "goodA", _by_design_doc("goodA"))
+    _make_doc(tmp_path, "nomodel", None)
+    _make_doc(tmp_path, "brokenC", _by_design_doc("brokenC"))
+    (tmp_path / "brokenC" / "model.docmodel.json").write_text(
+        "{not valid json at all", encoding="utf-8")
+
+    C.cmd_corpusstatus(library=str(tmp_path))
+    index = (tmp_path / "index.html").read_text(encoding="utf-8")
+    flat = " ".join(index.split())
+    assert "1 conservation unavailable" in flat
+    assert "1 could not be read at all (errored" in flat
+
+
 # --------------------------------------------------------------- artefacts / page
 
 def test_artefacts_present_counted_against_the_five_published_files(

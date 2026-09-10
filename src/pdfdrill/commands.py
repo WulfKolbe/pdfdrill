@@ -15119,15 +15119,61 @@ def _corpus_state_counts(rows: "list[dict]") -> dict:
     return counts
 
 
+def _corpus_row_render_error_html(r: dict, exc: BaseException) -> str:
+    """The `<tr>` a row gets when `_corpus_row_html` ITSELF raised — fix
+    round 2 (review finding: the render phase had no isolation, only the
+    gather phase did). A row that was successfully gathered but cannot be
+    rendered must not simply vanish from the page: a page silently missing
+    a row it gathered is lying by omission, which is worse than a visibly
+    broken row (the review's own wording). Exactly 8 `<td>` cells — one per
+    column the header declares — so the inline JS sorter's
+    `a.children[idx]` always finds a real cell at every column index, on
+    every row, including this one; a `colspan` cell would leave later
+    columns with no DOM child at all and break sorting on THIS row's
+    account, the same "it happens not to matter today" reasoning already
+    rejected once for the gather phase."""
+    try:
+        bibkey = r.get("bibkey", "?") if isinstance(r, dict) else "?"
+    except Exception:                                       # noqa: BLE001
+        bibkey = "?"
+    msg = f"{type(exc).__name__}: {exc}"
+    cells = [
+        f'<td class="unknown" data-sort="{_esc(bibkey)}">{_esc(bibkey)}</td>',
+        f'<td class="unknown" data-sort="">could not be rendered on this '
+        f'page ({_esc(msg)}) — this row WAS gathered; only rendering it '
+        f'raised, and it is shown here rather than silently dropped</td>',
+    ]
+    cells += ['<td class="dim" data-sort="">—</td>' for _ in range(6)]
+    return "<tr>" + "".join(cells) + "</tr>"
+
+
+def _corpus_render_row_or_error(r: dict) -> "tuple[str, bool]":
+    """(`<tr>` html, `render_failed`) — `_corpus_row_html`, but a row that
+    raises while being rendered gets `_corpus_row_render_error_html`
+    instead of propagating out of `_render_corpus_index_html` and voiding
+    every other row's HTML that was already built (the render-phase twin of
+    `_corpus_row_or_error`, fix round 2)."""
+    try:
+        return _corpus_row_html(r), False
+    except Exception as e:                                 # noqa: BLE001
+        return _corpus_row_render_error_html(r, e), True
+
+
 def _render_corpus_index_html(data: dict) -> str:
     """The library-root index page: one row per document, sortable by column
     in plain inline JS (no network, no CDN — this repo's own artifact-design
     convention, same tokens `_render_status_html` (652) already uses)."""
     rows = data["rows"]
-    body = "".join(_corpus_row_html(r) for r in rows)
+    row_htmls = []
+    n_render_failed = 0
+    for r in rows:
+        html, failed = _corpus_render_row_or_error(r)
+        row_htmls.append(html)
+        n_render_failed += failed
+    body = "".join(row_htmls)
     counts = _corpus_state_counts(rows)
     n_conserved, n_unaudited, n_bad = counts["ok"], counts["unaudited"], counts["bad"]
-    n_unavail = counts["unavailable"] + counts["errored"]
+    n_unavail, n_errored = counts["unavailable"], counts["errored"]
     subset = " — published subset" if data.get("only_published") else ""
     cols = ["bibkey", "folder", "model built", "gold bib", "conserved",
             "unclaimed anchors", "artefacts", "status page"]
@@ -15168,8 +15214,13 @@ footer {{ color:var(--dim); margin-top:1rem; font-size:.85rem; }}
 anchor defect, or a regression against a recorded baseline),
 {n_unaudited} unaudited (an unbaselined violation type only — no anchor
 defect, never reviewed against the 656 ratchet), {n_unavail} conservation
-unavailable (no/stale/oversized model, or a document this walk could not
-read at all). Generated in {data.get("elapsed_s", 0):.1f}s.</p>
+unavailable (no/stale/oversized model), and {n_errored} could not be read
+at all (errored — its own number, never folded into "unavailable").
+Generated in {data.get("elapsed_s", 0):.1f}s.{
+    f' {n_render_failed} row(s) gathered successfully but could not be '
+    f'rendered — shown below with a visible marker rather than dropped.'
+    if n_render_failed else ""
+}</p>
 <table id="corpus">
 <thead><tr>{head}</tr></thead>
 <tbody>{body}</tbody>
@@ -15188,10 +15239,14 @@ network, no model rebuild. Click a column header to sort.</footer>
       var tbody = table.querySelector('tbody');
       var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
       rows.sort(function(a, b) {{
-        var av = a.children[idx].getAttribute('data-sort');
-        var bv = b.children[idx].getAttribute('data-sort');
-        if (av === null) {{ av = a.children[idx].textContent.trim(); }}
-        if (bv === null) {{ bv = b.children[idx].textContent.trim(); }}
+        var ca = a.children[idx], cb = b.children[idx];
+        if (!ca || !cb) return 0;           // a row with fewer cells than
+                                             // this column — never crash
+                                             // the sort over it
+        var av = ca.getAttribute('data-sort');
+        var bv = cb.getAttribute('data-sort');
+        if (av === null) {{ av = ca.textContent.trim(); }}
+        if (bv === null) {{ bv = cb.textContent.trim(); }}
         if (av < bv) return asc ? -1 : 1;
         if (av > bv) return asc ? 1 : -1;
         return 0;

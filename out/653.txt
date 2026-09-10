@@ -6,7 +6,19 @@ artefact [finding 1], a third "unaudited" row state added and rendered
 distinctly [finding 2], per-document exception isolation added to the
 corpus walk [finding 3] — plus two minor findings [10, 11]. Corpus re-run
 after every fix; every number below is read off that re-run's artefact, not
-carried over from the first draft.)
+carried over from the first draft.
+
+fix round 2 folded in: one new BLOCKING finding — round 1's exception
+isolation covered the GATHER phase only; the RENDER phase
+[`_render_corpus_index_html`'s row loop] had none, so one row raising while
+being rendered would still void the whole index for every other row already
+gathered — the identical catastrophic shape finding 3 was raised to
+prevent, one phase later in the same pipeline. Fixed with the render-phase
+twin of round 1's gather-phase fix [`_corpus_render_row_or_error`], plus a
+minor: the page's summary paragraph now gives "errored" its own number
+instead of folding it into "unavailable". Corpus re-run again after this
+fix; the gather-phase numbers are UNCHANGED — confirmed by assertion in
+`out/653c/script.py`, not merely restated.)
 
 WHAT CHANGED
   `pdfdrill corpusstatus [--library DIR] [--only-published]`: walks every
@@ -137,6 +149,78 @@ THE EXCEPTION ISOLATION FIX (review finding 3)
       existing staleness/size checks, before `_status_conserve_ledger`
       would ever raise on them).
 
+THE RENDER-PHASE ISOLATION FIX (fix round 2 — new BLOCKING finding)
+  Round 1 fixed the GATHER phase only. `_render_corpus_index_html`'s row
+  loop — `body = "".join(_corpus_row_html(r) for r in rows)` — had no
+  try/except at all, and neither did `_write_corpus_index_html`. A row that
+  raised while being RENDERED (not gathered) would propagate straight out
+  of `cmd_corpusstatus`, voiding the HTML write for every one of the other
+  2,930 rows that had already been gathered successfully — the identical
+  catastrophic failure finding 3 was raised to prevent, relocated one phase
+  later in the same pipeline. No test exercised the render phase at all
+  before this round.
+
+  The defence that "it has not happened" is not a defence, for the same
+  reason it was rejected for the gather phase: today's row shapes happen to
+  carry every key `_corpus_row_html` reads. A future row shape (a new
+  `conserve` field renamed, a `None` where a dict was assumed, a legacy row
+  from an older schema) would hit this exact seam.
+
+  Fixed with the render-phase twin of round 1's gather-phase mechanism:
+    `_corpus_render_row_or_error(r)`   tries `_corpus_row_html(r)`; on ANY
+                        exception returns `_corpus_row_render_error_html(r,
+                        exc)` instead and reports `render_failed=True`.
+    `_corpus_row_render_error_html(r, exc)`   a row that was gathered but
+                        cannot be rendered must not vanish — it is shown,
+                        with the bibkey (defensively re-read, never
+                        trusting `r` is even a dict), the exception's
+                        type+message, and a sentence making clear the row
+                        WAS gathered and only rendering it failed. Built
+                        with exactly 8 `<td>` cells — one per column the
+                        header declares, `1 + 1 + 6` — never a `colspan`
+                        cell: a `colspan` merges columns VISUALLY but does
+                        NOT create the extra DOM children the inline JS
+                        sorter's `a.children[idx]` reads, so a colspan row
+                        would leave every later column with no cell to sort
+                        on THIS row's account — the same "it happens not to
+                        matter today" shape being fixed, recurring one line
+                        lower if not watched for.
+  Also hardened the sort script itself: `a.children[idx]`/`b.children[idx]`
+  are now null-checked before `.getAttribute` is called, so even a FUTURE
+  row shape with fewer than 8 cells cannot throw inside the click handler
+  and silently break sorting for the whole page.
+
+  The page's summary paragraph also used to fold `errored` into
+  `unavailable` (minor finding alongside this one) — the headline sentence
+  carried no separate count for it even though the per-row cell text and
+  the CLI's own prose both did. Fixed: the summary now reads "...N
+  conservation unavailable (no/stale/oversized model), and M could not be
+  read at all (errored — its own number, never folded into
+  'unavailable')."; when `n_render_failed > 0` a further sentence names it
+  too.
+
+  VERIFIED FAILING PRE-FIX, THEN FIXED (same convention as every other
+  regression test in this task): reverted just `_render_corpus_index_html`'s
+  guard (via `git stash` on `commands.py` alone, test file kept) and ran
+  `test_render_phase_isolates_a_single_row_failure` — it failed with the
+  bare `RuntimeError` propagating out of `cmd_corpusstatus`, through
+  `_write_corpus_index_html`, through `_render_corpus_index_html`'s
+  generator expression — the exact call chain the finding named. Restored
+  the fix; the same test then passes, and the malformed row's `<tr>` has
+  exactly 8 `<td>` cells like every other row, confirmed by direct count.
+
+  Re-ran the full corpus AGAIN after this fix (2,931 documents, 415.7s
+  command-reported / 6:56.07 wall clock, exit 0): the state counts are
+  BYTE-IDENTICAL to fix round 1's (34/1,196/107/1,594) — asserted, not
+  merely restated, in `out/653c/script.py` (`unchanged_from_fix_round_1`).
+  0 rows on this real run needed either the gather-phase or the
+  render-phase error path (`errored_rows_on_this_real_run: 0`,
+  `render_failed_rows_on_this_real_run: 0`, checked against the real
+  `>errored — ` cell-text marker, NOT a bare substring search — a bare
+  search for "errored" false-positives on the summary paragraph's own
+  explanatory prose, which names the word without any row being in that
+  state).
+
 THE NUMBERS — READ OFF THE ARTEFACT `pdfdrill corpusstatus` ACTUALLY WROTE,
 AFTER THE FIX (review finding 1: the whole point of this section)
   Full corpus re-run, `~/pdfdrill-library`, 2,931 documents:
@@ -219,8 +303,25 @@ THE SURROGATE BUG — UNCHANGED, RE-CONFIRMED (review finding 7)
   the same way pre-fix and passes post-fix. Not touched this round.
 
 TESTS
-  `tests/test_corpusstatus.py`, 17 tests (round 1 had 13; net +4 this
-  round: 5 added, 1 replaced):
+  `tests/test_corpusstatus.py`, 19 tests (round 0 had 13; round 1 net +4;
+  round 2 net +2, both new, none replaced):
+    - NEW (round 2): `test_render_phase_isolates_a_single_row_failure` —
+      monkeypatches `_corpus_row_html` to raise for exactly one of three
+      documents; confirms `cmd_corpusstatus` does NOT raise, all 3 rows
+      appear on the page (nothing vanished), the failed row's cell reads
+      "could not be rendered on this page" with the exception's message,
+      and its `<tr>` still carries exactly 8 `<td>` cells (sortability
+      preserved). Confirmed FAILING pre-fix (`git stash` on `commands.py`
+      alone): the bare `RuntimeError` propagated through
+      `cmd_corpusstatus` -> `_write_corpus_index_html` ->
+      `_render_corpus_index_html`'s generator expression, exactly the call
+      chain the finding named.
+    - NEW (round 2): `test_page_summary_gives_errored_its_own_number` — a
+      library with one gather-phase error among 3 documents; the page's
+      summary paragraph (whitespace-collapsed before the substring check,
+      since the source wraps mid-sentence) names BOTH "1 conservation
+      unavailable" AND "1 could not be read at all (errored" — two
+      numbers, not one folded into the other.
     - the basic shape, `--only-published`, the size guard, the CWD trap
       (happy path), artefacts-present, the sortable page, "no such library
       directory", the surrogate regression, the not-`cmd_`-prefixed write
@@ -254,27 +355,33 @@ TESTS
       true after this round (no new code path reaches it).
 
   FULL SUITE: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
-  tests/ -q -p no:cacheprovider` -> 3504 passed, 0 failed (17 in
+  tests/ -q -p no:cacheprovider` -> 3509 passed, 0 failed (19 in
   `tests/test_corpusstatus.py`; `test_doclock.py`, `test_skill_sync.py`,
-  `test_status_html.py` also run standalone first, all green — 54 passed
+  `test_status_html.py` also run standalone first, all green — 59 passed
   in the combined targeted run).
 
 EVIDENCE
-  Round 0 (superseded by this round for the numeric narrative, kept for the
-  mechanics it verified — the surrogate bug and its fix):
+  Round 0 (superseded for the numeric narrative, kept for the mechanics it
+  verified — the surrogate bug and its fix):
     `~/pdfdrill-library/out/653/{script.py,report.json,INSPECT.txt}`.
-  Round 1 (fix round — THIS report's numbers):
-    `~/pdfdrill-library/index.html` — 2,931 rows, 1,603,606 bytes, written
+  Round 1 (superseded for the numeric narrative by round 2's confirmation —
+  the two are byte-identical in every count — kept for the baseline/
+  non-baseline breakdown it computed):
+    `~/pdfdrill-library/out/653b/{script.py,report.json,INSPECT.txt}`.
+  Round 2 (fix round — THIS report's numbers, and the render-phase check):
+    `~/pdfdrill-library/index.html` — 2,931 rows, 1,603,873 bytes, written
     by a real run of `pdfdrill corpusstatus --library ~/pdfdrill-library`
-    (2,931 documents, 444.0s / 7:24.43 wall clock, exit 0).
-    `~/pdfdrill-library/out/653b/script.py` — reads the state (CSS class)
-    of every row directly from `index.html`, buckets the "bad" rows into
-    baseline vs non-baseline, samples the "unaudited" rows, and separately
-    re-runs `corpus_status_rows(..., only_published=True)` live (34.8s,
-    matching the shipped command's own 34.8s).
-    `~/pdfdrill-library/out/653b/report.json` — the full numeric record
-    every count in this file was read from.
-    `~/pdfdrill-library/out/653b/INSPECT.txt` — one path, `index.html`,
+    AFTER the render-phase fix (2,931 documents, 415.7s / 6:56.07 wall
+    clock, exit 0).
+    `~/pdfdrill-library/out/653c/script.py` — reads the state (CSS class)
+    of every row from `index.html`, asserts the four counts are
+    BYTE-IDENTICAL to round 1's (34/1,196/107/1,594 — a real assertion,
+    not a restated number), and counts real row-level "errored"/"could not
+    be rendered" markers (0 each) using a pattern that cannot false-positive
+    on the summary paragraph's own explanatory prose.
+    `~/pdfdrill-library/out/653c/report.json` — the full numeric record for
+    this round.
+    `~/pdfdrill-library/out/653c/INSPECT.txt` — one path, `index.html`,
     checked to exist/be non-empty, first line (`<title>PDFDRILL corpus
     status (2931)</title>`) checked to NAME "corpus".
 
@@ -306,3 +413,12 @@ CONCERNS / THINGS I NOTICED BUT DID NOT FIX
      will move between buckets — expected, not a defect in this task's
      classification logic, which reads the baseline file, not a cached
      copy of it.
+  7. NEW this round: `_write_corpus_index_html` itself still has no
+     try/except around its own `write_bytes` call. Deliberately left
+     unguarded — a failed WRITE of the whole index (disk full, permissions)
+     is a different class of failure than one bad ROW among thousands, and
+     swallowing it would hide a real operational problem with no row-level
+     substitute to show instead; round 2's fix is scoped to per-row
+     isolation, which is what both blocking findings (3 and this round's)
+     asked for, not "no exception anywhere in this command can ever
+     surface."
