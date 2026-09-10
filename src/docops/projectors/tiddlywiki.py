@@ -487,6 +487,278 @@ def tiddler_integrity(tiddlers: list[dict]) -> dict:
             "unreferenced_by_prefix": dict(sorted(by_prefix.items()))}
 
 
+# ---------------------------------------------------------------------------
+# 651 -- `pdfdrill tiddlers --update <old.tiddlers.json>`
+# ---------------------------------------------------------------------------
+#
+# 650 proved the precondition this leans on: a title survives a rebuild from
+# lines.json unchanged (three consecutive full drills, identical title sets,
+# every kind, on both corpus documents). That is what makes MATCH BY TITLE
+# safe -- a title in an OLDER array still names the same logical object in a
+# freshly-projected one, so a field carried on it is being restored onto the
+# right thing, not merely a coincidence of naming.
+#
+# The rule, plain: a field present in OLD and absent from the matching NEW
+# tiddler is restored -- the model has nothing to say about it at all, most
+# commonly because a paid/manual enrichment step (translate/refine/speak/
+# trailingpunct) was never re-run after the model was rebuilt. A field
+# present in BOTH is the model's, UNLESS it is on KEEP_LIST below, in which
+# case OLD wins -- because for exactly these fields "present in both, but
+# different" does not mean "the model has a better answer now"; it means a
+# human, or a paid and separately-verified pipeline, already decided, and an
+# ordinary `model` + `tiddlers` rebuild has no path that reproduces that
+# decision, right or wrong.
+
+
+class KeepEntry(NamedTuple):
+    reason: str
+    # None = unconditional: mere presence of the field in OLD is the
+    # decision. A predicate = the SAME field name is ALSO what an ordinary,
+    # CORRECT rebuild legitimately overwrites (a retranslation reverting to
+    # the source language, an un-re-run trailing-punct split), so presence
+    # alone cannot be trusted -- only OLD's own shape (never NEW's) decides
+    # whether this is hand-work or just yesterday's ordinary projection.
+    predicate: Optional[object] = None
+
+
+def _is_hand_edited(old_tiddler: dict) -> bool:
+    """True if OLD's own prose carries a translation marker (`*_source` /
+    `translated_lang` -- written ONLY by `pdfdrill translate`'s tiddler-level
+    pass, `_translate_tiddler_file_inplace` in commands.py; `tiddlers` alone
+    never writes either) or was opened and saved inside TiddlyWiki after
+    being written (`modified` strictly newer than `created`). `_t()` above
+    stamps both identically on every freshly-projected tiddler, so any
+    daylight between them on the OLD file is edit history no rebuild can
+    have -- the model does not remember it."""
+    if any(k == "translated_lang" or k.endswith("_source") for k in old_tiddler):
+        return True
+    created, modified = old_tiddler.get("created"), old_tiddler.get("modified")
+    return bool(created and modified and modified > created)
+
+
+#: ONE constant, one comment per entry: the field, and why an ordinary
+#: `model` + `tiddlers` rebuild cannot regenerate it. Argued against this
+#: file's own field vocabulary, `docs/layers/PROPS.md`'s translate/refine
+#: props, and `commands.ENRICHMENT_MARKERS` (431's own list of what a model
+#: rebuild destroys) -- not merely plausible, checked against all three.
+#:
+#: What is DELIBERATELY NOT here, and why:
+#:   `text_source` / `caption_source` / `content_source` / `translated_lang`
+#:     -- the projector never emits any of these itself (grep of this file's
+#:     own `["..."] =` / `"...":` vocabulary: zero hits); only
+#:     `_translate_tiddler_file_inplace` (commands.py, a POST-process on the
+#:     written array) does. They are therefore always "present in OLD,
+#:     absent from NEW", restored by the baseline rule above with no
+#:     keep-list entry needed. Listing them here would be vacuous -- it
+#:     would matter only if the projector itself started writing a
+#:     same-named field, which `user_`/`note*` below cover for the reserved
+#:     wiki-author namespace, not for these.
+#:   `latex_pretail` / `latex_prepunct` / `edit_source` -- real enrichment
+#:     markers (`commands.ENRICHMENT_MARKERS`) a `model --force` destroys,
+#:     but the projector never puts any of the three onto a TIDDLER at all
+#:     (grep of this file: zero hits) -- a tiddler-ARRAY merge cannot keep a
+#:     field that was never a tiddler field. `trailing_punct`, the fourth
+#:     marker in that same list, IS a tiddler field, and is kept, below.
+#:   `tags` -- deliberately excluded, and named rather than left silent (see
+#:     out/651.txt): the model recomputes tags freshly every run (kind /
+#:     bibkey / tikz / stub tags all describe the CURRENT object), and a
+#:     hand-added tag (e.g. the `translated` marker
+#:     `_translate_tiddler_file_inplace` adds) is lost on an `--update` merge
+#:     even when the SAME title also keeps `text`/`caption` -- that restores
+#:     the CONTENT, not the filter tag naming it.
+KEEP_LIST: dict[str, KeepEntry] = {
+    "text": KeepEntry(
+        "the projector rebuilds a Paragraph/Footnote/Sidenote/Abstract "
+        "tiddler's `text` deterministically from the model's OWN "
+        "realization on every run (650's whole subject) -- restoring it "
+        "unconditionally would freeze every future OCR/transclusion fix "
+        "onto every such tiddler forever, which is the opposite of what "
+        "650 bought. Kept only when OLD's own value is hand-work: "
+        "translated in the wiki, or edited after being written.",
+        _is_hand_edited),
+    "caption": KeepEntry(
+        "the same rebuild-from-model path as `text`, for a Section's "
+        "heading and for Picture/Diagram/Table's caption. The latter three "
+        "are translated at the MODEL layer (`_TRANSLATE_MODEL_FIELD`, "
+        "commands.py) with no tiddler-level `caption_source` twin at all, "
+        "so `modified` > `created` is the ONLY signal available for them -- "
+        "named as a concern in out/651.txt, not papered over: a translate "
+        "that never touches `modified` leaves this blind for exactly that "
+        "case.",
+        _is_hand_edited),
+    "trailing_punct": KeepEntry(
+        "moved out of `latex` by the SEPARATE `pdfdrill trailingpunct` "
+        "command (025), never by `model`/`tiddlers`, and named in "
+        "`commands.ENRICHMENT_MARKERS` as an enrichment a model rebuild "
+        "destroys. The projector emits it UNCONDITIONALLY, as `\"\"` when "
+        "the model has nothing (`e.props.get('trailing_punct', '')`) -- so "
+        "a rebuilt model that has not re-run `trailingpunct` yet is "
+        "'present in both' with an EMPTY new value, which would blank out "
+        "a correct split rather than leave it alone if this were not kept."),
+    "latex_refined": KeepEntry(
+        "a VERIFIED refinement (`pdfdrill refine`; ink-gate- or "
+        "LLM-proposed, human- or automated-verified) held on a TWIN prop "
+        "precisely so `latex` itself is never overwritten (PROPS.md, "
+        "232/233) -- regenerating it means re-running the paid "
+        "verification pipeline, not a `model`/`tiddlers` rebuild, and once "
+        "a value is verified a later, unverified pass does not get to "
+        "silently replace it."),
+    "refined_basis": KeepEntry(
+        "evidence FOR `latex_refined` (`_refined_fields`) -- meaningless "
+        "detached from it; kept for the same reason, with it."),
+    "refined_verified_by": KeepEntry(
+        "who/what verified `latex_refined` -- same reasoning as "
+        "refined_basis."),
+    "refined_author": KeepEntry(
+        "provenance of `latex_refined`'s source -- same reasoning."),
+    "spoken": KeepEntry(
+        "a TTS phonetic spelling (`pdfdrill speak`) a human can correct "
+        "for a pronunciation the engine gets wrong; the engine has no way "
+        "to reproduce a person's correction, and the field is emitted only "
+        "when non-empty (`if f.props.get('spoken')`), so this only ever "
+        "fires on a genuine disagreement between two non-empty readings, "
+        "never on a document that has simply never run `speak`."),
+}
+
+#: Reserved for the wiki author; the projector has never written a field
+#: under either prefix (grep of this file's own key vocabulary) and this
+#: comment is the promise not to start without updating this list -- a
+#: future field that happens to share the name must still lose to the
+#: human's, by convention, not by omission.
+_KEEP_PREFIXES = ("user_", "note")
+
+#: Fields that can carry a `{{target}}` / `{{target||tpl}}` transclusion.
+#: Restoring OLD's value here can dangle if the model's object tree moved
+#: (a different footnote count, a renumbered section) between the two
+#: builds -- exactly the class of bug 650 fixed one shape of (a stale
+#: Realization rendered through the ordinary path). Guarded below, not
+#: assumed safe.
+_TRANSCLUDE_FIELDS = ("text", "caption")
+
+
+def _dangling_targets(value: str, titles: set) -> list:
+    """Every `{{target...}}` in `value` whose target is not in `titles`."""
+    out = []
+    for m in _TRANSCLUDE_RE.finditer(value or ""):
+        inner = m.group(1).strip()
+        if inner.startswith("!!"):                # {{!!field}} -> no title
+            continue
+        target = inner.split("||")[0].split("!!")[0].strip()
+        if target and target not in titles:
+            out.append(target)
+    return out
+
+
+def _keep_old(field: str, old_tiddler: dict) -> Optional[str]:
+    """None if the model's NEW value should win; else the reason OLD wins."""
+    entry = KEEP_LIST.get(field)
+    if entry is not None:
+        if entry.predicate is None or entry.predicate(old_tiddler):
+            return entry.reason
+        return None
+    if any(field.startswith(p) for p in _KEEP_PREFIXES):
+        return ("reserved wiki-author namespace (user_/note*); never "
+                "written by the projector.")
+    return None
+
+
+def merge_updated_tiddlers(fresh: list, old: list) -> dict:
+    """The `--update` merge (651). Match BY TITLE, exact (650: a title names
+    the same object across a rebuild). For each match: a field in OLD and
+    absent from the matching NEW tiddler is restored; a field in both is the
+    model's unless `_keep_old` says otherwise. An OLD title with no match in
+    `fresh` is NOT inserted (650: titles survive a rebuild, so an unmatched
+    one is stale, not merely renamed) -- it is counted and returned, never
+    silently dropped. A kept/restored `text`/`caption` that would dangle a
+    transclusion (the model's object tree moved between the two builds) is
+    refused and counted instead of applied -- the `footnote_not_narrowed`
+    pattern (650): anything this merge refuses to do is counted, not silent.
+
+    Mutates and returns the tiddlers in `fresh` in place; does not touch
+    `old`. Returns {merged, restored, unmatched, unmatched_by_kind,
+    refused_dangling}:
+      merged            `fresh`, with matched tiddlers patched in place
+      restored          {title: {field: reason}} -- every field this run changed
+      unmatched         OLD titles with no match in `fresh`, sorted
+      unmatched_by_kind {kind: count} via `parse_title` ("unparsed" for the rest)
+      refused_dangling  {title: {field: reason}} -- restores refused as unsafe
+    newly_orphaned    titles reachable in `fresh` before the merge that a
+                      restored `text`/`caption` made unreferenced -- the
+                      OTHER direction from `refused_dangling` (a restored
+                      value pointing at nothing, vs. a restored value that
+                      drops a citation/footnote marker the fresh prose still
+                      carried). Not refused -- the field itself is still
+                      hand-work and still wins -- but counted, not silent,
+                      the same `footnote_not_narrowed` pattern: measured
+                      live on penev_A (out/651.txt) when a hand-typed
+                      replacement paragraph did not carry the two `{{...
+                      ||CIT}}` markers its own fresh text did.
+    """
+    all_titles = {t.get("title") for t in fresh}
+    by_title = {t.get("title"): t for t in old if t.get("title")}
+    restored: dict = {}
+    refused: dict = {}
+    matched_titles: set = set()
+    unreferenced_before = set(tiddler_integrity(fresh)["unreferenced"])
+    for t in fresh:
+        title = t.get("title")
+        o = by_title.get(title)
+        if o is None:
+            continue
+        matched_titles.add(title)
+        changes: dict = {}
+        skipped: dict = {}
+        for field, ovalue in o.items():
+            if field == "title":
+                continue
+            present_in_new = field in t
+            if present_in_new:
+                if t[field] == ovalue:
+                    continue
+                why = _keep_old(field, o)
+                if not why:
+                    continue
+            else:
+                why = "restored (absent from the fresh projection)"
+            if field in _TRANSCLUDE_FIELDS:
+                bad = _dangling_targets(ovalue, all_titles)
+                if bad:
+                    skipped[field] = (
+                        "kept the FRESH value instead -- the OLD value would "
+                        f"dangle on {bad[:3]} (the model's object tree moved "
+                        "between the two builds).")
+                    continue
+            t[field] = ovalue
+            changes[field] = why
+        if changes:
+            restored[title] = changes
+        if skipped:
+            refused[title] = skipped
+    unmatched = sorted(set(by_title) - matched_titles)
+    unmatched_by_kind: dict = {}
+    for title in unmatched:
+        parsed = parse_title(title)
+        key = parsed.kind if parsed else "unparsed"
+        unmatched_by_kind[key] = unmatched_by_kind.get(key, 0) + 1
+    unreferenced_after = set(tiddler_integrity(fresh)["unreferenced"])
+    newly_orphaned = sorted(unreferenced_after - unreferenced_before)
+    return {"merged": fresh, "restored": restored, "unmatched": unmatched,
+            "unmatched_by_kind": dict(sorted(unmatched_by_kind.items())),
+            "refused_dangling": refused, "newly_orphaned": newly_orphaned}
+
+
+def keep_list_report() -> list:
+    """KEEP_LIST as printable lines: field, whether it is conditional, and
+    the reason -- what `--update` prints and what out/651.txt records."""
+    lines = []
+    for field, entry in KEEP_LIST.items():
+        cond = " [conditional: OLD must itself show hand-work]" if entry.predicate else ""
+        lines.append(f"{field}{cond}: {entry.reason}")
+    lines.append(f"(field prefixes) {'/'.join(_KEEP_PREFIXES)}*: reserved wiki-author "
+                "namespace; never written by the projector.")
+    return lines
+
+
 def _bibtag(bibkey: str) -> str:
     """The bibkey as a single TiddlyWiki tag ([[...]]-wrapped if it has spaces)."""
     bibkey = bibkey or "DOC"

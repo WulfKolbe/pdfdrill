@@ -514,7 +514,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill llm <pdf> [--show SHOW] [--runtime RUNTIME]` | Keyless LLM-delegation driver: show detected runtime (cli/sandbox/none) and any pending vision/bibtex/links requests deferred to the running Claude agent; --show dumps open prompts, --runtime prints the runtime only |
 | `pdfdrill embedimages <pdf> [--force]` | Lift pdfimages + pdfplumber image rects into the model as EmbeddedImage nodes (pixel size/encoding/ppi + page rect), fused onto MathPix crops they contain |
 | `pdfdrill geometry <pdf> [--force]` | Fuse pdftotext -tsv layout (indent/margins) onto the model — substrate for block detection |
-| `pdfdrill tiddlers <pdf> [--bibkey BIBKEY] [--embed] [--force] [--no-embed-svg]` | Emit a TiddlyWiki JSON tiddler array (latex/displayMode/canonical_uri/width/height) for quick inspection; --bibkey KEY sets the title prefix + filename. Diagram SVGs inline by default; --embed-svg=false writes them to .drill/svg/<title>.svg and references via _canonical_uri (leaner store) |
+| `pdfdrill tiddlers <pdf> [--bibkey BIBKEY] [--embed] [--force] [--no-embed-svg] [--update UPDATE]` | Emit a TiddlyWiki JSON tiddler array (latex/displayMode/canonical_uri/width/height) for quick inspection; --bibkey KEY sets the title prefix + filename. Diagram SVGs inline by default; --embed-svg=false writes them to .drill/svg/<title>.svg and references via _canonical_uri (leaner store) |
 | `pdfdrill translate <pdf> [--to TO] [--from FROM_] [--limit LIMIT] [--force]` | DeepL-translate the document IN PLACE (--to EN-US --from RU): writes the changed tiddler file (translated text field) AND a bi-layer Markdown <bibkey>.md (translation + hidden source, CSS toggle); original kept under <field>_source (needs DEEPL_API_KEY) _(network)_ |
 | `pdfdrill lists <pdf> [--force]` | Nest flat ListItems into recursive List blocks using fused indentation (auto-chains geometry) |
 | `pdfdrill algorithms <pdf> [--force]` | Reconstruct Algorithm blocks from MathPix pseudocode lines (caption + indented steps) |
@@ -665,6 +665,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-e8ec9bb5` before any build/extract command.
-DRILL-e8ec9bb5
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-c2e4318f` before any build/extract command.
+DRILL-c2e4318f
 <!-- PREFLIGHT-TOKEN:END -->

@@ -11192,7 +11192,8 @@ def _tiddler_translation_warning(claims_translated, lang, tiddlers) -> str:
 
 @_writes("tiddlers")
 def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
-                 bibkey: str | None = None, embed_svg: bool = True) -> str:
+                 bibkey: str | None = None, embed_svg: bool = True,
+                 update: str | None = None) -> str:
     """Emit a TiddlyWiki JSON tiddler array from the unified model.
 
     Quick way to eyeball the structure: drop the array into TiddlyWiki and a
@@ -11204,6 +11205,20 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
 
     `bibkey` sets the tiddler-prefix / title namespace + the artifact filename;
     it falls back to the key persisted by `model` (sidecar), then the stem.
+
+    `update=<old.tiddlers.json>` (651): after projecting fresh, merge an OLDER
+    tiddler array onto it, matched BY TITLE (650: a title survives a rebuild
+    unchanged, so it still names the same object). A field in the old file and
+    absent from the fresh one is restored; a field in both is the model's
+    unless it is on `tiddlywiki.KEEP_LIST` (hand-work the model cannot
+    regenerate: a translated/hand-edited `text`/`caption`, `spoken`
+    corrections, a verified `latex_refined`, a `trailing_punct` split, any
+    `user_`/`note*` field), in which case the old value wins. An old title
+    with no match is never re-inserted -- it is listed, printed, and written
+    to `<bibkey>.update-unmatched.json` beside the output. A restoration that
+    would dangle a transclusion (the object tree moved between builds) is
+    refused and counted rather than applied. `<bibkey>.update.json` records
+    what changed, what was refused, and the keep-list used.
     """
     from docmodel.core import Document
     from docops.base import OperatorConfig
@@ -11279,6 +11294,66 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
             svg_note = (f" {n_ext} diagram SVG(s) written to {rel_dir}/ and referenced "
                         f"via _canonical_uri (svg/<title>.svg) — copy that folder "
                         f"alongside your wiki HTML.")
+
+    # 651 -- `--update <old.tiddlers.json>`: merge hand-work from an older
+    # projection onto this fresh one, matched by title (650: a title survives
+    # a rebuild unchanged). See `tiddlywiki.merge_updated_tiddlers`/
+    # `KEEP_LIST` for the rule and the exact reasons.
+    update_note = ""
+    if update:
+        from docops.projectors.tiddlywiki import (
+            merge_updated_tiddlers, keep_list_report, KEEP_LIST,
+            _KEEP_PREFIXES)
+        old_path = Path(update)
+        if not old_path.is_file():
+            return f"--update: {old_path} does not exist."
+        try:
+            old_tiddlers = json.loads(old_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as e:
+            return f"--update: could not read/parse {old_path} as JSON ({e})."
+        fresh_tiddlers = json.loads(result)
+        m = merge_updated_tiddlers(fresh_tiddlers, old_tiddlers)
+        result = _jsonio.dumps(m["merged"], indent=1)
+        restored_titles = len(m["restored"])
+        restored_fields = sum(len(v) for v in m["restored"].values())
+        refused_fields = sum(len(v) for v in m["refused_dangling"].values())
+        unmatched = m["unmatched"]
+        unmatched_by_kind = m["unmatched_by_kind"]
+        newly_orphaned = m["newly_orphaned"]
+
+        unmatched_path = sc.blob_dir / f"{bibkey}.update-unmatched.json"
+        unmatched_path.write_text(_jsonio.dumps(unmatched, indent=1),
+                                  encoding="utf-8")
+        update_path = sc.blob_dir / f"{bibkey}.update.json"
+        update_path.write_text(_jsonio.dumps({
+            "old_file": str(old_path),
+            "keep_list": {f: e.reason for f, e in KEEP_LIST.items()},
+            "keep_prefixes": list(_KEEP_PREFIXES),
+            "restored": m["restored"],
+            "refused_dangling": m["refused_dangling"],
+            "unmatched": unmatched,
+            "unmatched_by_kind": unmatched_by_kind,
+            "newly_orphaned": newly_orphaned,
+        }, indent=1), encoding="utf-8")
+
+        unmatched_bits = (", ".join(f"{v} {k}" for k, v in unmatched_by_kind.items())
+                          if unmatched_by_kind else "none")
+        update_note = (
+            f"\n  --update {old_path.name}: {restored_fields} field(s) restored "
+            f"across {restored_titles} title(s); {len(unmatched)} old title(s) "
+            f"unmatched ({unmatched_bits}) -> "
+            f"{unmatched_path.relative_to(sc.pdf_path.parent)}"
+            + (f"; {refused_fields} restoration(s) refused (would dangle a "
+               f"transclusion)" if refused_fields else "")
+            + (f"; {len(newly_orphaned)} previously-reachable tiddler(s) now "
+               f"unreferenced (a restored text/caption dropped a marker the "
+               f"fresh prose still carried, e.g. {', '.join(newly_orphaned[:3])})"
+               if newly_orphaned else "")
+            + f".\n  keep-list used ({len(KEEP_LIST)} field(s) + "
+              f"{'/'.join(_KEEP_PREFIXES)}* prefixes): "
+            + "; ".join(keep_list_report())
+            + f"\n  update record: {update_path.relative_to(sc.pdf_path.parent)}"
+        )
     out_path.write_text(result, encoding="utf-8")
 
     sc.set_evidence("tiddlers_path", str(out_path.relative_to(sc.pdf_path.parent)))
@@ -11363,7 +11438,7 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
             f"diagram SVGs render via {{{{!!svg_tiddler}}}} "
             f"({'inline' if embed_svg else 'external _canonical_uri'}).{svg_note}"
             f"{integ_note}{placeholder_note}{span_note}{outside_note}{guard}"
-            f"{stale_note}{trans_note}")
+            f"{stale_note}{trans_note}{update_note}")
 
 
 # Tag -> the tiddler field whose prose gets translated. Math/code/image/toc

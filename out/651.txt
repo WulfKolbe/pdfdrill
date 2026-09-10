@@ -1,0 +1,337 @@
+651 — `pdfdrill tiddlers --update <old.tiddlers.json>`
+======================================================
+
+WHAT CHANGED
+  `pdfdrill tiddlers <pdf> --update <old.tiddlers.json>`: after projecting
+  fresh (unchanged), merge an OLDER tiddler array onto it, matched BY TITLE
+  (650's own result — a title survives a rebuild from lines.json unchanged —
+  is the precondition this leans on; without it, matching by title would be
+  matching two unrelated things).
+
+  New in `src/docops/projectors/tiddlywiki.py`:
+    KEEP_LIST            {field: KeepEntry(reason, predicate)} — ONE constant,
+                         one argued comment per entry (below).
+    _is_hand_edited      the predicate for the two conditional entries
+                         (text/caption): a translation marker (`*_source` /
+                         `translated_lang`, written only by
+                         `_translate_tiddler_file_inplace`) or `modified` >
+                         `created` in the OLD tiddler (a fresh projection
+                         always stamps both identically — `_t()` — so any
+                         daylight between them is real TiddlyWiki edit
+                         history the model cannot have).
+    _keep_old            field, old tiddler -> the reason OLD wins, or None.
+    _dangling_targets    every `{{target}}`/`{{target||tpl}}` in a value
+                         whose target isn't in the fresh title set.
+    merge_updated_tiddlers(fresh, old) -> {merged, restored, unmatched,
+                         unmatched_by_kind, refused_dangling, newly_orphaned}
+                         — the whole rule, in one function; see below.
+    keep_list_report()   printable keep-list lines, used by both the CLI
+                         message and this file.
+
+  New in `src/pdfdrill/commands.py`: `cmd_tiddlers(..., update=<path>)` —
+  loads the old array, calls `merge_updated_tiddlers`, writes the merged
+  array in place of the fresh one, and writes two records beside it:
+    <bibkey>.update.json            old_file, keep_list (with reasons),
+                                    keep_prefixes, restored, refused_dangling,
+                                    unmatched, unmatched_by_kind, newly_orphaned
+    <bibkey>.update-unmatched.json  the unmatched OLD titles, bare (a list)
+  and appends a summary to the command's own return string: fields restored,
+  titles unmatched (by kind), restorations refused (dangling), tiddlers newly
+  unreferenced, and the keep-list itself (name + reason for every entry).
+
+  CLI: `--update <path>` on `pdfdrill tiddlers` (`src/pdfdrill/cli.py`,
+  `_do_tiddlers`). Manifest: `.claude/skills/pdfdrill/commands.yaml` gained
+  the flag (type: path); `requires`/`done_when` unchanged (this is not a new
+  layer, it is an option on an existing one — nothing new to reach). Synced:
+  `python3 tools/skillsync.py all .` (SKILL.md, `_help_generated.txt`, the
+  bundled skill copy).
+
+THE RULE, PLAIN
+  For each fresh tiddler matched by title:
+    field in OLD, absent from fresh        -> restored unconditionally
+                                              (the model has NOTHING to say —
+                                              a paid/manual step, translate/
+                                              refine/speak/trailingpunct, was
+                                              never re-run after the model
+                                              was rebuilt)
+    field in BOTH, same value               -> no-op
+    field in BOTH, different, NOT on
+      KEEP_LIST (and no user_/note* prefix) -> the model's fresh value wins
+    field in BOTH, different, ON KEEP_LIST
+      (predicate passes, if any)            -> OLD wins
+    a text/caption restoration (either path
+      above) that would DANGLE              -> REFUSED; fresh value kept
+                                              instead, counted in
+                                              `refused_dangling`
+  An OLD title with no match in fresh is never inserted (650: an unmatched
+  title is stale, not merely renamed) — it is counted (`unmatched`,
+  `unmatched_by_kind` via `parse_title`) and written to
+  `<bibkey>.update-unmatched.json`, never silently dropped.
+
+THE KEEP-LIST, ARGUED (also `keep_list_report()`, printed by the CLI itself)
+
+  text          [conditional — OLD must show hand-work]
+                Restoring `text` unconditionally would freeze every future
+                OCR/transclusion fix onto every Paragraph/Footnote/Sidenote/
+                Abstract tiddler forever — exactly the opposite of what 650
+                bought (the projector rebuilds `text` deterministically from
+                the model's OWN realization on every run; a stale hand
+                value re-baked in stops that dead). So it is kept ONLY when
+                OLD's own value is hand-work: a translation marker
+                (`text_source`/`translated_lang`, from `pdfdrill translate`'s
+                tiddler-level pass) or `modified` newer than `created` (a
+                real wiki edit — `_t()` stamps both identically on every
+                fresh build, so daylight between them is history no rebuild
+                has).
+
+  caption       [conditional — same predicate]
+                Same rebuild-from-model path as `text`, for a Section's
+                heading and for Picture/Diagram/Table's caption. The latter
+                three are translated at the MODEL layer
+                (`_TRANSLATE_MODEL_FIELD`, commands.py) with NO tiddler-level
+                `caption_source` twin at all — see CONCERNS: for these three
+                kinds, `modified` > `created` is the ONLY signal, and
+                `pdfdrill translate` never touches `modified`.
+
+  trailing_punct
+                Moved out of `latex` by the SEPARATE `pdfdrill trailingpunct`
+                command (025), never by `model`/`tiddlers`, and named in
+                `commands.ENRICHMENT_MARKERS` (431) as an enrichment a model
+                rebuild destroys. The projector emits it UNCONDITIONALLY —
+                `e.props.get('trailing_punct', '')` — so a rebuilt model
+                that has not re-run `trailingpunct` yet is "present in
+                both" with an EMPTY fresh value, which would blank out a
+                correct split rather than leave it alone if this were not
+                kept. (The three siblings of this same ENRICHMENT_MARKERS
+                entry — `latex_pretail`, `latex_prepunct`, `edit_source` —
+                are NOT here: the projector never puts any of them onto a
+                tiddler at all, grep-confirmed zero hits, so a tiddler-array
+                merge has nothing to keep.)
+
+  latex_refined, refined_basis, refined_verified_by, refined_author
+                A VERIFIED refinement (`pdfdrill refine`; ink-gate- or
+                LLM-proposed, human- or automated-verified) held on a TWIN
+                prop precisely so `latex` itself is never overwritten
+                (PROPS.md 232/233). Regenerating it means re-running the
+                paid, separately-verified pipeline, not a `model`/
+                `tiddlers` rebuild; once verified, a later unverified pass
+                does not get to silently replace it. The three evidence
+                fields are meaningless detached from `latex_refined` and
+                are kept with it for the same reason.
+
+  spoken        A TTS phonetic spelling (`pdfdrill speak`) a human can
+                correct for a pronunciation the engine gets wrong. The
+                engine cannot reproduce a person's correction, and the
+                field is emitted only when non-empty, so this only ever
+                fires on a genuine disagreement between two non-empty
+                readings — never on a document that has simply never run
+                `speak` (that case is the plain absent-rule instead).
+
+  user_* / note*  [prefixes, not exact field names]
+                Reserved wiki-author namespace. The projector has never
+                written a field under either prefix (grep of its own key
+                vocabulary) — this is currently redundant with the
+                absent-rule (these fields are always "present in OLD,
+                absent from fresh" today) but is written down as a promise:
+                if the model ever grows a same-named field, the human's
+                still wins, by convention, not by omission.
+
+  DELIBERATELY NOT ON THE LIST, AND WHY (argued, not omitted):
+    text_source / caption_source / content_source / translated_lang
+      Never emitted by the projector itself (only by
+      `_translate_tiddler_file_inplace`, a POST-process on the written
+      array) — always "present in OLD, absent from fresh", so the baseline
+      absent-rule restores them with no keep-list entry needed. An entry
+      here would be vacuous.
+    latex_pretail / latex_prepunct / edit_source
+      Real `commands.ENRICHMENT_MARKERS` a model rebuild destroys, but
+      never projected onto a tiddler at all (zero hits in tiddlywiki.py) —
+      a tiddler-ARRAY merge cannot keep a field that was never a tiddler
+      field. `trailing_punct`, the fourth marker in that same list, IS a
+      tiddler field, and is kept (above).
+    tags
+      Deliberately excluded, not silent. The model recomputes tags fresh
+      every run (kind/bibkey/tikz/stub tags describe the CURRENT object),
+      and a hand-added tag — e.g. the `translated` marker
+      `_translate_tiddler_file_inplace` adds — is lost on `--update` even
+      when the SAME title also keeps `text`/`caption`. That restores the
+      CONTENT, not the filter tag naming it. See CONCERNS.
+    latex, displayMode, canonical_uri, page, confidence, mathpix_text, …
+      Everything else the projector writes is a pure, deterministic
+      function of the CURRENT model with no separate human/paid decision
+      recorded anywhere else — the brief's own worked example (`latex`):
+      the model wins, always. (A verified correction to `latex` has its
+      OWN twin field, `latex_refined`, precisely so `latex` never needs
+      this kind of protection — PROPS.md 232.)
+
+THE OTHER COUNT — `newly_orphaned` (not asked for verbatim, found doing the
+evidence run; the brief's own hint: "consider whether there are others")
+  `refused_dangling` guards one direction: a restored `text`/`caption`
+  pointing at a target that no longer exists. The OTHER direction is
+  symmetric and just as silent if uncounted: a restored `text`/`caption`
+  that simply DROPS a `{{...}}` marker the FRESH prose still carried,
+  orphaning a tiddler that was reachable a moment ago. This is not refused
+  (the field is still hand-work and still wins — dropping content is not
+  the same defect as a broken pointer) but it IS counted:
+  `merge_updated_tiddlers` diffs `tiddler_integrity(...)["unreferenced"]`
+  before and after the merge and returns the new titles under
+  `newly_orphaned`; `cmd_tiddlers` surfaces it in the CLI note and in
+  `<bibkey>.update.json`. Measured live on penev_A below — this is not a
+  hypothetical.
+
+EVIDENCE, penev_A (`~/pdfdrill-library/penev_A/out/651/`, script.py + this
+repo's committed copy `out/651/script.py`, byte-identical)
+  Protocol (rule 14 — measured, not assumed): copy the CURRENT
+  `penev_A.tiddlers.json` (1265 tiddlers) as "old"; hand-edit 3 fields in the
+  copy — a translation (with `text_source`) on `penev_A_PARA_0006`'s `text`,
+  a new `note_review` field on `penev_A_FO0001`, a hand-edited `latex` on
+  `penev_A_EQ0001`; `pdfdrill tiddlers penev_A.pdf` (fresh, no --update,
+  overwrites the live file); `pdfdrill tiddlers penev_A.pdf --update
+  <old-copy>`; read the result back; restore the live file to its
+  pre-experiment bytes (this task changes nothing lasting in the corpus).
+
+  RESULT:
+    fields restored:      3 raw fields across 2 titles — text + text_source
+                          on the PARA (ONE hand-work event: the translation,
+                          its backup travels with it) + note_review on the
+                          FO (the wiki note). Matches the brief's own count
+                          ("2: the translation and the note").
+    latex won back:       penev_A_EQ0001.latex == the MODEL's original
+                          value, byte-identical to before the hand edit —
+                          NOT the hand-edited string. Confirmed.
+    unmatched titles:     0 (expected — nothing about the model changed
+                          between the two builds, so old==fresh's title set
+                          exactly; 650's whole point, re-confirmed here as a
+                          side effect).
+    restorations refused: 0 (no restored value pointed at a missing title).
+    newly_orphaned:       2 — `penev_A_REF_Yuille1991`,
+                          `penev_A_REF_Yuille1992`. EXPLAINED, not left as an
+                          unexplained delta (rule 12): my hand-typed
+                          "translation" was a short fabricated placeholder
+                          sentence, not a real translation of the real
+                          prose — the REAL `penev_A_PARA_0006` carries
+                          `{{penev_A_REF_Yuille1991||CIT}}` and
+                          `{{penev_A_REF_Yuille1992||CIT}}` inline (verified
+                          by reading the live file directly), and my
+                          placeholder text carries neither. A REAL
+                          `pdfdrill translate` output would not do this — its
+                          own docstring: "DeepL translates the prose AROUND
+                          [the already-inserted `{{...}}` tokens]" — but a
+                          human retyping a paragraph free-hand in the wiki
+                          absolutely could, and this is exactly the failure
+                          mode `newly_orphaned` exists to make visible
+                          rather than silent.
+    integrity:            0 dangling, 0 orphan_synthetic, both before and
+                          after the merge. orphan_ref rose 5 -> 7 — the SAME
+                          two titles as `newly_orphaned` (Yuille1991/1992);
+                          the other 5 pre-exist in this corpus, unrelated to
+                          this task (already present in the fresh rebuild
+                          before any merge ran).
+  INSPECT.txt (rule 20, checked existing+non-zero before writing):
+    ~/pdfdrill-library/penev_A/out/651/script.py
+    ~/pdfdrill-library/penev_A/out/651/old_hand_edited.tiddlers.json
+    ~/pdfdrill-library/penev_A/out/651/result.json
+    ~/pdfdrill-library/penev_A/out/651/update.json
+    ~/pdfdrill-library/penev_A/out/651/update-unmatched.json
+
+TESTS
+  `tests/test_tiddler_update.py`, 21 tests (TDD — the module had no such API
+  before this task):
+    * every `merge_updated_tiddlers` branch on hand-built tiddler dicts:
+      translation-marker restore, modified>created restore, the PLAIN-STALE
+      CONTROL (neither signal -> model wins, the converse nothing else in
+      this suite tests), wiki-added note/user_ fields, the SAME field name
+      present on both sides still keeping old (not just the absent case),
+      `latex` always model's, `trailing_punct` kept even when fresh is
+      blank, `spoken` correction kept, `latex_refined` + its 3 evidence
+      fields kept together;
+    * unmatched: listed not inserted, and the unparsed-title bucket;
+    * the dangling refusal (a restored transclusion pointing at nothing) AND
+      its converse (a live target is never refused);
+    * `newly_orphaned`: a restore that drops a still-valid marker is counted
+      (not refused — the hand-work still wins) and the null case (nothing
+      reachable to begin with, so nothing to orphan);
+    * `tiddler_integrity` on a merged array stays 0 dangling with an
+      unmatched stale title mixed in;
+    * the keep-list is non-vacuous (every reason > 20 chars) and
+      `keep_list_report()` marks the two conditional entries;
+    * `_is_hand_edited` directly, all four truth-table cells;
+    * end-to-end through the REAL pipeline (`cmd_model` -> `cmd_tiddlers`,
+      no mocks): a translated PARA + wiki note + hand-edited `latex` + one
+      stale title, matching the brief's own scenario exactly, asserting the
+      written `<bibkey>.tiddlers.json`, `<bibkey>.update.json` and
+      `<bibkey>.update-unmatched.json` on disk;
+    * a missing `--update` path reports cleanly rather than raising.
+  Also exercised through the ACTUAL CLI entry point (`python3 -m pdfdrill
+  tiddlers <pdf> --update <path>`, not just the Python function), on a
+  scratch document — confirmed the same behaviour end to end including the
+  printed keep-list.
+
+  FULL SUITE: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+  tests/ -q -p no:cacheprovider` -> 3452 passed, 0 failed (3431 at 935b621e,
+  the commit this task started from, measured directly by stashing this
+  task's changes and re-running — +21, exactly this task's new tests, no
+  regressions either side).
+
+CONCERNS
+  1. Picture/Diagram/Table `caption` translation has NO tiddler-level
+     marker at all (translated at the MODEL layer only, before the first
+     projection — no `caption_source` twin is ever written to the tiddler).
+     `modified` > `created` is the ONLY signal `_is_hand_edited` has for
+     these three kinds, and `pdfdrill translate` never touches `modified`
+     on ANY tiddler (checked: `_translate_tiddler_file_inplace` sets
+     `text`/`caption`, the `_source` backup, `tags`, `translated_lang` — not
+     `modified`). So a translated Picture/Diagram/Table caption surviving a
+     `model --force` (the exact scenario 650's own refusal gate exists to
+     protect against, when overridden with `--force-discard-translation`)
+     is NOT reliably protected by this merge unless a human ALSO opens and
+     re-saves the tiddler in TiddlyWiki itself afterward. Named, not fixed:
+     out of this task's own corpus (penev_A/Steerable carry no such
+     translated caption to measure against) and would need either a
+     tiddler-level `caption_source` write at translate time (a change to
+     `cmd_translate`, not to `--update`) or accepting the gap.
+  2. `tags` are never merged. A hand-added tag (most notably the
+     `translated` marker `_translate_tiddler_file_inplace` writes) is lost
+     on `--update` even on a title whose `text`/`caption` IS correctly
+     restored — the wiki stops FLAGGING the tiddler as translated even
+     though it still reads as translated. Deliberately out of scope (the
+     brief asked for a field keep-list, and `tags` mixes structural,
+     freshly-recomputed information with occasional hand additions in one
+     string) but worth a reader's attention before assuming tag-based
+     filtering survives an `--update`.
+  3. `newly_orphaned` is INFORMATIONAL, not a refusal — unlike
+     `refused_dangling`, nothing here stops the hand-work from winning even
+     when it demonstrably drops a reachable citation/footnote. That is the
+     correct call (a translator's own retyped paragraph choosing to drop a
+     parenthetical citation is a legitimate editorial decision, not a bug),
+     but it means a large or careless hand-edit could silently thin out a
+     document's reachability graph one `--update` at a time if nobody reads
+     the count. `pdfdrill conserve` (the wider "is every object reachable"
+     question) is the standing check for that; this task only makes the
+     PER-RUN delta visible, the same posture 650 took with
+     `footnote_not_narrowed`.
+  4. `--update` is matched by EXACT title only, per the brief. A document
+     whose bibkey changed between the two files (a `--bibkey` override
+     between builds) will match NOTHING and report every old title as
+     unmatched — correct per the rule (a title is bibkey-qualified,
+     `<bibkey>_PREFIX...`), but worth knowing before assuming a large
+     unmatched count means something is broken rather than a bibkey
+     mismatch.
+
+FILES
+  src/docops/projectors/tiddlywiki.py   KEEP_LIST, _is_hand_edited, _keep_old,
+                                        _dangling_targets, _TRANSCLUDE_FIELDS,
+                                        merge_updated_tiddlers, keep_list_report
+  src/pdfdrill/commands.py              cmd_tiddlers(update=...)
+  src/pdfdrill/cli.py                   _do_tiddlers --update
+  .claude/skills/pdfdrill/commands.yaml  --update flag (type: path)
+  src/pdfdrill/_help_generated.txt,
+  .claude/skills/pdfdrill/SKILL.md,
+  src/pdfdrill/skill/{SKILL.md,commands.yaml}   regenerated (skillsync)
+  tests/test_tiddler_update.py          21 new tests
+  out/651/script.py                     the exact evidence script (committed,
+                                        byte-identical to the library copy)
+
+EVIDENCE
+  ~/pdfdrill-library/penev_A/out/651/{script.py,old_hand_edited.tiddlers.json,
+  result.json,update.json,update-unmatched.json,INSPECT.txt}

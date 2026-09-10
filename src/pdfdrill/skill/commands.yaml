@@ -1178,6 +1178,10 @@ commands:
     type: flag
     flag: --no-embed-svg
     help: write SVGs to files
+  - name: update
+    type: path
+    flag: --update
+    help: merge an older tiddlers.json onto the fresh projection, matched by title (651); writes <bibkey>.update.json + <bibkey>.update-unmatched.json
   typed: true
   requires:
   - model

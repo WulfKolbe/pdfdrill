@@ -944,16 +944,19 @@ def _do_translate(args):
 
 
 def _do_tiddlers(args):
-    """pdfdrill tiddlers <pdf> [--bibkey KEY] [--force] [--embed] [--embed-svg=false]"""
+    """pdfdrill tiddlers <pdf> [--bibkey KEY] [--force] [--embed]
+    [--embed-svg=false] [--update OLD.tiddlers.json]"""
     from .commands import cmd_tiddlers
     bibkey, args = _opt(args, "--bibkey")
+    update, args = _opt(args, "--update")
     # diagram SVGs: inline in the svg_tiddler field (default) or external files
     # referenced by _canonical_uri (--embed-svg=false / --no-embed-svg).
     embed_svg = not any(a in ("--embed-svg=false", "--no-embed-svg") for a in args)
     flags = ("--force", "--embed", "--embed-svg=false", "--embed-svg=true", "--no-embed-svg")
     pdf_args = [a for a in args if a not in flags]
     return cmd_tiddlers(_pdf(pdf_args), force="--force" in args,
-                        embed="--embed" in args, bibkey=bibkey, embed_svg=embed_svg)
+                        embed="--embed" in args, bibkey=bibkey, embed_svg=embed_svg,
+                        update=update)
 
 
 def _do_lists(args):
