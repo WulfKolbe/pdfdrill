@@ -5511,7 +5511,17 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
     document built with no `marks_path` is byte-identical to one built
     before this parameter existed (see tests/test_reports_marks.py's
     `test_apply_is_a_no_op_without_a_marks_path` and out/672.txt's real-
-    document proof)."""
+    document proof).
+
+    672 review, fix round 1 — `MK.apply` is given `rungs.get("formula")`,
+    the SAME `(scale, quality)` `ensure_crops` already chose for this
+    kind, so a marked crop is re-encoded at ITS OWN rung's quality
+    (never a constant unrelated to it — a scaled kind's crops are
+    already lossy, and re-encoding them again at a higher quality only
+    spends more bytes without recovering anything). It also refuses a
+    crop with no visible content at all rather than drawing a rectangle
+    on nothing (`reports.marks._is_blank`, confirmed against real
+    production crops that already render "---")."""
     from . import report_tex as rt
     from .reports import KINDS
     from .reports import evidence as EV
@@ -5546,7 +5556,8 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
     # `.crop` must already point at the marked file when evidence-
     # formula.pdf's Image column reads it). A no-op, `rows` unchanged,
     # when `marks_path` is falsy.
-    rows, marks_counts = MK.apply(rows, marks_path, doc_dir)
+    rows, marks_counts = MK.apply(rows, marks_path, doc_dir,
+                                  rung=rungs.get("formula"))
     # counted from the FULL row dict, independent of which kind(s) this call
     # actually renders — the old cmd_report's FormulaReportProjector counted
     # every inline Formula / display Equation in the document the same way.

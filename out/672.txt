@@ -195,14 +195,19 @@ repo). `rows` = this document's own formula-row count; `marked_in_file`
   mielke-geometrodynamics           1793    185     185    185   not-in-file: 3
   voloshin-hypergraph               2554    524     524    524   not-in-file: 1
   johnston-linear-matrix-algebra    5143   1590    1590   1590   not-in-file: 24
-  gilmore-lie-groups                3473    577     577    576   not-in-file: 120, no-crop: 1
+  gilmore-lie-groups                3473    577     577    577   not-in-file: 120
   lyche-numerical-linear-algebra    4638   1110    1110   1110   not-in-file: 7
-  kohlhase-omdoc                     458     55      55     43   not-in-file: 9, no-crop: 12
-  fong-spivak-seven-sketches        4028    450     450    449   not-in-file: 32, no-crop: 1
+  kohlhase-omdoc                     458     55      55     42   not-in-file: 9, blank: 13
+  fong-spivak-seven-sketches        4028    450     450    450   not-in-file: 32
   bradley_spring22                   181     23      23     23   —
   penev_A                            674     90      90     90   not-in-file: 1
   penev_B                            497     50      50     50   —
   rph8-g15q                          489     96      96     96   —
+
+(Table corrected in FIX ROUND 1 below — see there for what changed and
+why. Numbers above are POST-FIX, from the corrected dry-run
+methodology; the pre-fix numbers, which undercounted the real defect,
+are kept in FIX ROUND 1 for the record.)
 
 Zero rows anywhere were refused for a REGION/host_page mismatch or a
 MATH mismatch — expected, since these 21 marks.json files were produced
@@ -222,26 +227,14 @@ all ("not placed" / "no line match", `not_measured`, never entered into
 either side, and `check_row` correctly never sees them (they are not in
 `by_id` because inkdrill's own file does not offer a mark for them).
 
-"no-crop" (`"no crop to draw on"`, 16 rows across 4 documents) is a
-methodology artefact of THIS DRY-RUN SCRIPT, not of `reports/marks.py`
-or of `cmd_evidence`'s real wiring — disclosed rather than smoothed over
-(rule 19). The script resolves each row's crop via
-`report_tex.crop_file()`, which (like `crop_cell()` at render time)
-refuses a file at or under 500 bytes as "not really there". Twelve of
-kohlhase-omdoc's already-scaled `report-crops-b/` files are legitimately
-tiny (416-436 bytes — very low-content crops compressed hard) and fail
-that floor. Checked for real: `kohlhase-omdoc_FO0045.jpg` (436 bytes,
-807x30, opens fine in PIL) draws successfully and the MARKED result is
-5,272 bytes — comfortably over the 500-byte floor. So a real
-`cmd_evidence --marks` run (which sets `row.crop` the way `ensure_crops`
-always has, unconditional of final byte size, not via `crop_file`) would
-draw these 16, not refuse them; this document's own evidence-formula.pdf
-ALREADY shows "---" for these 12 rows today, with or without marks,
-because `crop_cell()` applies the identical 500-byte floor at render
-time — a pre-existing, unrelated property of `crop_file()`, not
-introduced or changed by this task. Marking one of these rows would, as
-a side effect, make its crop visible for the first time (the re-encoded,
-outlined file clears the floor) — worth knowing, not a regression.
+"blank" (`"crop has no visible content (blank)"`, 15 rows across 2
+documents post-fix: 13 kohlhase-omdoc, 2 in 1510.06699) is the review's
+finding 1, fixed this round — see FIX ROUND 1 below. `kohlhase-omdoc_
+FO0045` (436 bytes, 807x30) is one of them: `stddev == 0.0`, PURE WHITE,
+not "legitimately tiny content" as this report claimed before the
+review — that claim was wrong, and correcting it is the point of this
+section. `apply()` now refuses every one of these, by name, rather than
+drawing a rectangle on nothing.
 
 STEPS 2 AND 3, RUNNABLE (nothing new needed; documented so the sequence
 is unambiguous)
@@ -263,20 +256,26 @@ republish is left to the controller, as instructed.
 
 TESTS
 -----------------------------------------------------------------------------
-tests/test_reports_marks.py — 17 new: `check_row` (pass, region
-mismatch, host_page mismatch, math mismatch via `display_safe` — not raw
-latex —, no host line at all); `apply` (no-op without `marks_path`,
-real-JPEG draw + source untouched, whole-document refusal tallied,
-missing-id counted not skipped, `mark: false` left alone and not
-counted as refused, no-crop refusal, only the `formula` kind touched);
-`_draw` (rect_frac survives a scaled-down copy at the same relative
-position, line width floored on a tiny crop, returns False on an
-unreadable file, never raises); `commands._marks_line` (all four
-numbers, `?` not `None` for an unknown marked-count).
+tests/test_reports_marks.py — 25, 17 from round 0 plus 8 from FIX ROUND 1
+(below): `check_row` (pass, region mismatch, host_page mismatch, math
+mismatch via `display_safe` — not raw latex —, no host line at all);
+`apply` (no-op without `marks_path`, real-JPEG draw + source untouched,
+whole-document refusal tallied, missing-id counted not skipped, `mark:
+false` left alone and not counted as refused, no-crop refusal, BLANK-crop
+refusal, missing-`rect_frac` refusal instead of a crash, rung-quality
+threading both when scaled and when not, only the `formula` kind
+touched); `_draw` (rect_frac survives a scaled-down copy at the same
+relative position, line width floored on a tiny crop, returns False on
+an unreadable file, never raises, quality 92 measurably costs more bytes
+than quality 70 on the same content); `_is_blank` (true on a uniform
+crop, false on real content, false rather than raising on an unreadable
+file); `commands._marks_line` (all four numbers, `?` not `None` for an
+unknown marked-count).
 
-Full suite, base commit `ac722fdf` (`git stash -u`): 3616 passed. This
-task (`git stash pop`): 3633 passed, 0 failed — delta +17, exactly the
-new tests; nothing else moved.
+Full suite, base commit `ac722fdf` (`git stash -u`): 3616 passed. Round 0
+(`git stash pop`): 3633 passed. FIX ROUND 1 (this round): 3641 passed,
+0 failed — delta +8 over round 0, exactly the new tests; nothing else
+moved.
 
 WHAT WAS NOT DONE
 -----------------------------------------------------------------------------
@@ -295,24 +294,181 @@ WHAT WAS NOT DONE
 
 CONCERNS
 -----------------------------------------------------------------------------
-1. The corpus-wide dry-run script (a scratch verification tool, not
-   committed to this repo, not part of the deliverable) resolves crops
-   via `crop_file()` directly rather than by calling the
-   real `ensure_crops`, which slightly OVER-counts "no crop to draw on"
-   (16 rows, all confirmed drawable in practice) relative to what a real
-   `cmd_evidence --marks` run would do. Documented above with the exact
-   verification (kohlhase_FO0045); not a defect in the shipped module.
-2. Marking a pathologically small, already-heavily-compressed crop can
-   incidentally push it back over `crop_file()`'s 500-byte "is this
-   really a crop" floor, making a row visible that was silently "---"
-   before, with or without marks. Pre-existing floor, unrelated to this
-   task's own logic, but a real, disclosed side effect of drawing on it.
-3. `report-crops-marks/` is a NEW, unbounded directory per document
-   (kept out of any budget accounting — the marked file is set at the
-   SAME resolution `ensure_crops` already chose, so it does not grow the
-   published PDF beyond what a rectangle overlay costs, but nothing
-   caps it, deletes stale entries, or reuses it across dates the way
-   `report-crops-b/`'s mtime cache does). Left as `force`-equivalent
-   (always redrawn on every `--marks` run) since a marked copy is
-   presentation-only and cheap to regenerate; flagging in case corpus
-   size becomes a concern once all 21 publish with `--marks`.
+1. `report-crops-marks/` is a NEW, unbounded directory per document
+   (documented in `reports/budget.py`'s own module docstring as of FIX
+   ROUND 1 — see below). The marked file is set at the SAME resolution
+   `ensure_crops` already chose, so it does not grow the published PDF
+   beyond the rectangle's own ink plus the re-encode cost measured in
+   FIX ROUND 1 (below), but nothing caps it, deletes stale entries, or
+   reuses it across dates the way `report-crops-b/`'s mtime cache does.
+   Left as `force`-equivalent (always redrawn on every `--marks` run)
+   since a marked copy is presentation-only and cheap to regenerate;
+   flagging in case corpus size becomes a concern once all 21 publish
+   with `--marks`.
+2. Marking still costs real bytes even after FIX ROUND 1's quality fix
+   (measured on gilmore: +0.41 MB across 577 rows, down from +1.43 MB
+   pre-fix) — an unavoidable property of adding visible ink to an
+   already-compressed image, not something further code can make free.
+   A document already over 655's budget (gilmore, 20.45 MB) will land
+   somewhat further over once marked; `reports.budget.check_artifact`
+   reports the true final number honestly either way.
+
+===============================================================================
+FIX ROUND 1 (review) — two blocking findings, both confirmed on real
+production data, both fixed
+===============================================================================
+
+Reviewed: task-672-review.md, against commit 9564942d. Verdict
+on both axes: FAIL, two blocking findings — both were things this
+report's own round-0 CONCERNS section raised and then judged benign.
+The review confirmed both against LIVE production crops (not the dry-run
+script, which itself under-reported the defect) and both are real.
+Reproduced independently before fixing anything, per HANDOVER-RULES rule
+19 (write the number down before writing the sentence) and rule 11 (a
+masked success reads exactly like a masked failure — the round-0 dry
+run's "no crop to draw on" count LOOKED like it was catching these rows;
+it was catching some of them, by the wrong mechanism, in the wrong
+place, and missing others entirely).
+
+FINDING 1 (blocking) — `apply()` drew on blank crops
+-------------------------------------------------------------------------
+`marks.py`'s `apply()` refused a row only when `row.crop is None`. A
+crop can EXIST on disk, be a perfectly valid JPEG, and still carry NO
+visible content — verified on real, currently-published production data
+the review named: `1510.06699_FO0765`/`_FO0911` and `kohlhase-omdoc_
+FO0045`, all `stddev == 0.0` (pure white) at every size on disk, all
+already shown as `---` in today's `evidence-formula.tex` because the
+content never rendered upstream. `_draw()` happily draws on these (PIL
+opens a blank JPEG fine); the result is a red rectangle on nothing — an
+evidence claim the crop does not support, worse than the honest `---`
+it would replace. Round 0's own dry-run script had, by coincidence, been
+resolving crops through `crop_file()`'s 500-byte floor, which happened
+to catch SOME of these rows (miscounted as "no crop to draw on") but not
+others, and would not have caught any of them in REAL production, where
+`ensure_crops`/`_apply_budget` repoint `row.crop` at a scaled copy
+unconditionally, with no byte-size re-check.
+
+FIX: `reports.marks._is_blank(path)` — opens the crop, converts to
+greyscale, and refuses when `ImageStat.Stat(im).stddev[0] < 1.0` (a real
+blank crop measures exactly 0.0; the small positive floor tolerates
+ordinary JPEG re-encode noise on an otherwise-flat source without
+letting a genuinely blank crop through). `apply()` now calls it right
+before drawing and refuses under its own reason, "crop has no visible
+content (blank)", counted like every other refusal.
+
+VERIFIED on the exact rows the review named, using the module's real
+`apply()`, not a synthetic case: fed `1510.06699`'s real rows (crop
+resolved the way `ensure_crops` actually resolves it — full-size
+`crop_file()` floor first, then an unconditional repoint to the scaled
+copy) through `apply()`: `FO0765` and `FO0911` are BOTH refused
+("crop has no visible content (blank)"), NEITHER produces a file under
+`report-crops-marks/`.
+
+CORPUS COUNT (the review's own ask: "say how many exist across the
+corpus"), re-run with row.crop resolved the SAME way `ensure_crops`
+actually resolves it (not the round-0 script's `crop_file()`-on-
+`report-crops-b` shortcut, which both over- and under-counted this):
+**15 blank crops across 2 of the 21 documents** — 13 in kohlhase-omdoc,
+2 in 1510.06699. Zero elsewhere. All 15 now refused, none drawn on.
+Round 0's table (above) is corrected to show `blank` as its own reason;
+"not-in-file" counts are unaffected (a separate, unrelated population —
+see the "not-in-file" paragraph above, still accurate).
+
+FINDING 2 (blocking) — `_draw()` hardcoded JPEG quality 92
+-------------------------------------------------------------------------
+`_draw()` always saved at quality 92, regardless of the `(scale,
+quality)` rung 655's budget chose for that kind. Measured on REAL
+gilmore crops at the published floor (0.42/q70): a 30-row sample grew
+from 86,805 to 163,231 bytes (review's own number, independently
+reproduced this round). Re-encoding an already-scaled, already-quality-
+70 source at quality 92 does not recover detail — it just spends more
+bits on the same lossy pixels plus the rectangle's own high-frequency
+edges. Gilmore is already reported OVER BUDGET at 20.45 MB (out/655);
+this made it worse by construction, for every document at every rung
+below 1.0, independent of anything `choose_rung`/`check_artifact`
+already do.
+
+FIX: `apply()` now takes a `rung` parameter — the SAME `(scale, quality)`
+(or `None`) `ensure_crops` already computed for the "formula" kind
+(`rungs.get("formula")` in `commands.cmd_evidence`, the identical value
+`_evidence_line`'s own OVER-BUDGET message already reads) — and threads
+`rung[1]` into `_draw`'s `quality` parameter. `rung is None` (this kind
+was never scaled) draws at `DEFAULT_QUALITY` (92), which matches
+`report_tex.render_crops`'s OWN save quality for a freshly-rendered,
+unscaled crop — so an unscaled document's marked bytes cost only the
+rectangle's own ink, exactly as claimed in round 0, and only a SCALED
+kind's behaviour changes.
+
+RE-MEASURED on gilmore, ALL 577 real marked rows (not a 30-row sample —
+the exact, whole population), both before and after this fix, through
+the real `apply()`:
+
+    quality 92 (the bug, unfixed):  1,676,529 -> 3,177,365 bytes
+                                     (+1,500,836 B, +1.43 MB, x1.895)
+    quality 70 (fixed — gilmore's
+    real published floor rung):     1,676,529 -> 2,101,979 bytes
+                                     (+425,450 B, +0.41 MB, x1.254)
+
+The fix does not make marking free — adding a rectangle's own ink to an
+already-compressed JPEG always costs some bytes, and re-decoding +
+re-encoding a lossy source a second time is not lossless even at the
+same quality — but it cuts the real growth by ~3.5x (from +1.43 MB to
++0.41 MB on gilmore) by no longer re-encoding at a quality the rung
+never chose. Round 0's CONCERNS claim ("does not grow the published PDF
+beyond what a rectangle overlay costs") was wrong before this fix and is
+now approximately true, not exactly — corrected in the CONCERNS section
+above rather than repeated.
+
+MINOR FINDING 3 (fixed) — `mrow["rect_frac"]` could raise
+-------------------------------------------------------------------------
+Indexed directly; a malformed/hand-edited marks file with a `mark: true`
+row missing `rect_frac` would raise `KeyError` and abort the whole
+evidence build, instead of refusing that one row and continuing — the
+one place this module's own stated design (every failure mode is a
+counted refusal, never a crash) had a gap. Fixed: `mrow.get("rect_frac")`,
+validated as a 4-element list/tuple, refused as "marks file row is
+missing rect_frac" otherwise. Test:
+`test_apply_refuses_a_row_whose_marks_entry_has_no_rect_frac`.
+
+MINOR FINDING 4 (fixed) — undocumented third directory
+-------------------------------------------------------------------------
+`reports/budget.py`'s own module docstring now names `report-crops-
+marks/` as a third crop directory this module's ladder/prediction never
+reads or writes, and explains why `reports.marks` re-encodes at the SAME
+rung's quality (so a future budget audit does not have to rediscover
+either fact).
+
+WHAT DID NOT CHANGE THIS ROUND
+-------------------------------------------------------------------------
+The two mandatory checks (`check_row`), crop identity (`MARKS_DIR`
+untouched `report-crops/`/`report-crops-b/`, `crop_gate` re-verified
+910/910 after this round's own real run), downsampling survival, the
+no-`--marks` byte-identity path, and the marking-rate discipline are all
+UNCHANGED by this fix round — the review verified all of them correct
+against 9564942d and none of this round's edits touch that code.
+Re-confirmed the no-`--marks` path is still a true no-op
+(`test_apply_is_a_no_op_without_a_marks_path`, unmodified, still passes)
+and re-ran the real end-to-end `--marks` CLI path on rph8-g15q (rung
+`None` for this document, so FINDING 2's fix changes nothing for it):
+identical output to round 0, "489 formula row(s), 96 marked in the file,
+96 checked, 96 drawn", 0 refused — restored afterward.
+
+TESTS ADDED THIS ROUND (8, tests/test_reports_marks.py)
+-------------------------------------------------------------------------
+  test_apply_refuses_a_blank_crop_instead_of_drawing_on_nothing
+  test_apply_refuses_a_row_whose_marks_entry_has_no_rect_frac
+  test_apply_threads_the_rungs_own_quality_into_the_draw
+  test_apply_uses_default_quality_when_the_kind_was_never_scaled
+  test_a_fixed_high_quality_reencode_measurably_inflates_an_already_scaled_crop
+  test_is_blank_true_for_a_uniform_crop
+  test_is_blank_false_for_a_crop_with_real_content
+  test_is_blank_false_rather_than_raising_on_an_unreadable_file
+
+(`_real_jpg`, the shared test fixture, was also changed to draw actual
+non-uniform content — a plain colour fill is now BLANK by the module's
+own new check and would have made every existing "draws successfully"
+test pass for the wrong reason.)
+
+Full suite: base `ac722fdf` 3616 passed; this round (working tree)
+3641 passed, 0 failed — delta +8 over round 0's 3633, exactly the new
+tests.

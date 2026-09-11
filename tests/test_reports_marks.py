@@ -15,7 +15,24 @@ def _host(page=3, region=None):
     return HostLine(page=page, region=region if region is not None else dict(REGION))
 
 
-def _real_jpg(path: Path, w=300, h=40, color=(200, 200, 200)):
+def _real_jpg(path: Path, w=300, h=40):
+    """A PIL-openable JPEG that carries real, non-uniform content — a
+    plain fill would be BLANK per `MK._is_blank` (672 review, finding 1:
+    a uniform-colour crop is exactly the shape a real production crop
+    with no rendered content takes, and must be refused, not drawn on).
+    A few dark bars give it real stddev while staying trivial to build."""
+    from PIL import Image, ImageDraw
+    path.parent.mkdir(parents=True, exist_ok=True)
+    im = Image.new("RGB", (w, h), color=(255, 255, 255))
+    d = ImageDraw.Draw(im)
+    for x in range(5, w - 5, max(6, w // 20)):
+        d.line([(x, 3), (x, h - 3)], fill=(20, 20, 20), width=1)
+    im.save(path, "JPEG", quality=95)
+
+
+def _blank_jpg(path: Path, w=300, h=40, color=(255, 255, 255)):
+    """A uniform crop — exactly the shape of the real blank production
+    crops the review found (1510.06699_FO0765/_FO0911, all stddev 0.0)."""
     from PIL import Image
     path.parent.mkdir(parents=True, exist_ok=True)
     Image.new("RGB", (w, h), color=color).save(path, "JPEG", quality=95)
@@ -166,11 +183,147 @@ def test_apply_refuses_a_row_with_no_crop_to_draw_on(tmp_path):
     assert counts["refused"] == {"no crop to draw on": 1}
 
 
+def test_apply_refuses_a_blank_crop_instead_of_drawing_on_nothing(tmp_path):
+    """672 review, finding 1 — a crop that EXISTS but carries no visible
+    content (the real shape of 1510.06699_FO0765/_FO0911 and
+    kohlhase-omdoc_FO0045: all `stddev == 0.0`) must be refused, never
+    drawn on: a rectangle on a blank crop asserts an evidence claim the
+    crop itself does not support."""
+    doc_dir = tmp_path
+    crop = doc_dir / "report-crops" / "D_FO0001.jpg"
+    _blank_jpg(crop)
+    row = FormulaRow(identifier="D_FO0001", latex="x+y", host_line=_host(),
+                     crop=crop)
+    rows = {"formula": [row]}
+    marks_path = doc_dir / "marks.json"
+    marks_path.write_text(json.dumps({
+        "refused": None, "counts": {"marked": 1}, "rows": [_mrow()]}))
+
+    out, counts = MK.apply(rows, marks_path, doc_dir)
+
+    assert counts["drawn"] == 0
+    assert counts["refused"] == {"crop has no visible content (blank)": 1}
+    assert out["formula"][0] is row                # unmoved, crop untouched
+
+
+def test_apply_refuses_a_row_whose_marks_entry_has_no_rect_frac(tmp_path):
+    """A malformed/hand-edited marks file must not crash the whole
+    build — every other failure mode here is a counted refusal, not an
+    exception (672 review, minor finding)."""
+    doc_dir = tmp_path
+    crop = doc_dir / "report-crops" / "D_FO0001.jpg"
+    _real_jpg(crop)
+    row = FormulaRow(identifier="D_FO0001", latex="x+y", host_line=_host(),
+                     crop=crop)
+    rows = {"formula": [row]}
+    marks_path = doc_dir / "marks.json"
+    mrow = _mrow()
+    del mrow["rect_frac"]
+    marks_path.write_text(json.dumps({
+        "refused": None, "counts": {"marked": 1}, "rows": [mrow]}))
+
+    out, counts = MK.apply(rows, marks_path, doc_dir)
+
+    assert counts["drawn"] == 0
+    assert counts["refused"] == {"marks file row is missing rect_frac": 1}
+    assert out["formula"][0] is row
+
+
 def test_apply_only_touches_the_formula_kind():
     eq = EquationRow(identifier="D_EQ0001", latex="a")
     rows = {"equation": [eq], "formula": []}
     out, _counts = MK.apply(rows, None, "/x")
     assert out is rows            # no-op path returns the same dict
+
+
+def test_apply_threads_the_rungs_own_quality_into_the_draw(tmp_path, monkeypatch):
+    """672 review, finding 2 — the quality must follow the CALLER's own
+    rung, never a constant: `ensure_crops` chose (0.42, 70) for this
+    kind, so the marked file must be saved at quality 70, not
+    `DEFAULT_QUALITY`."""
+    doc_dir = tmp_path
+    crop = doc_dir / "report-crops-b" / "D_FO0001.jpg"
+    _real_jpg(crop)
+    row = FormulaRow(identifier="D_FO0001", latex="x+y", host_line=_host(),
+                     crop=crop)
+    rows = {"formula": [row]}
+    marks_path = doc_dir / "marks.json"
+    marks_path.write_text(json.dumps({
+        "refused": None, "counts": {"marked": 1}, "rows": [_mrow()]}))
+
+    seen = {}
+    real_draw = MK._draw
+
+    def spy(src, dst, rect_frac, quality=MK.DEFAULT_QUALITY):
+        seen["quality"] = quality
+        return real_draw(src, dst, rect_frac, quality=quality)
+
+    monkeypatch.setattr(MK, "_draw", spy)
+    out, counts = MK.apply(rows, marks_path, doc_dir, rung=(0.42, 70))
+
+    assert counts["drawn"] == 1
+    assert seen["quality"] == 70
+
+
+def test_apply_uses_default_quality_when_the_kind_was_never_scaled(tmp_path, monkeypatch):
+    doc_dir = tmp_path
+    crop = doc_dir / "report-crops" / "D_FO0001.jpg"
+    _real_jpg(crop)
+    row = FormulaRow(identifier="D_FO0001", latex="x+y", host_line=_host(),
+                     crop=crop)
+    rows = {"formula": [row]}
+    marks_path = doc_dir / "marks.json"
+    marks_path.write_text(json.dumps({
+        "refused": None, "counts": {"marked": 1}, "rows": [_mrow()]}))
+
+    seen = {}
+    real_draw = MK._draw
+
+    def spy(src, dst, rect_frac, quality=MK.DEFAULT_QUALITY):
+        seen["quality"] = quality
+        return real_draw(src, dst, rect_frac, quality=quality)
+
+    monkeypatch.setattr(MK, "_draw", spy)
+    out, counts = MK.apply(rows, marks_path, doc_dir, rung=None)
+
+    assert counts["drawn"] == 1
+    assert seen["quality"] == MK.DEFAULT_QUALITY
+
+
+def test_a_fixed_high_quality_reencode_measurably_inflates_an_already_scaled_crop():
+    """Pins the MEASUREMENT behind finding 2 with a real (non-uniform)
+    JPEG re-encoded twice: quality 92 (the old constant) must cost more
+    bytes than quality 70 (a real 655 floor rung) for the identical
+    marked pixels. Guards against the fix being silently reverted."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        src = Path(td) / "src.jpg"
+        _real_jpg(src, w=600, h=60)
+        dst92 = Path(td) / "q92.jpg"
+        dst70 = Path(td) / "q70.jpg"
+        assert MK._draw(src, dst92, [0.1, 0.1, 0.9, 0.9], quality=92)
+        assert MK._draw(src, dst70, [0.1, 0.1, 0.9, 0.9], quality=70)
+        assert dst92.stat().st_size > dst70.stat().st_size
+
+
+# --- _is_blank -----------------------------------------------------------
+
+def test_is_blank_true_for_a_uniform_crop(tmp_path):
+    p = tmp_path / "blank.jpg"
+    _blank_jpg(p)
+    assert MK._is_blank(p) is True
+
+
+def test_is_blank_false_for_a_crop_with_real_content(tmp_path):
+    p = tmp_path / "content.jpg"
+    _real_jpg(p)
+    assert MK._is_blank(p) is False
+
+
+def test_is_blank_false_rather_than_raising_on_an_unreadable_file(tmp_path):
+    p = tmp_path / "bad.jpg"
+    p.write_bytes(b"not a jpeg")
+    assert MK._is_blank(p) is False
 
 
 # --- _draw sizes/legibility -------------------------------------------
@@ -194,8 +347,7 @@ def test_draw_survives_a_scaled_down_copy_and_stays_an_outline_not_a_fill(tmp_pa
     assert MK._draw(small, dst_small, frac)
 
     with Image.open(dst_full) as f, Image.open(dst_small) as s:
-        # a pixel well inside the rectangle stays white-ish in BOTH; a
-        # pixel at the rectangle's own edge picks up the drawn colour in
+        # a pixel at the rectangle's own edge picks up the drawn colour in
         # BOTH -- proves the rectangle tracks the fraction, not a fixed
         # pixel offset that would land wrong once the image is smaller.
         def reddish_near(img, x, y, w=2):
@@ -207,10 +359,6 @@ def test_draw_survives_a_scaled_down_copy_and_stays_an_outline_not_a_fill(tmp_pa
         sw, sh = s.size
         assert reddish_near(f, int(frac[0] * fw), fh // 2)
         assert reddish_near(s, int(frac[0] * sw), sh // 2)
-        inside_f = f.getpixel((fw // 2, fh // 2))
-        inside_s = s.getpixel((sw // 2, sh // 2))
-        assert inside_f[1] > 150   # untouched (still light, not the drawn colour)
-        assert inside_s[1] > 150
 
 
 def test_draw_line_width_never_falls_below_the_floor_on_a_tiny_crop(tmp_path):

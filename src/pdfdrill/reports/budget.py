@@ -15,6 +15,22 @@ needs, by predicting real re-encoded bytes rather than rebuilding the PDF.
 Model-agnostic by design, like every other module in this package except
 `from_document.py`: this reads only crop FILES on disk and a list of
 titles, never a `docmodel.core.Document`.
+
+672 review, fix round 1 (minor finding, disclosure only) — `reports.marks`
+writes a THIRD crop directory beside `reports.crops.CROPS_DIR`/
+`CROPS_DIR_B` (`reports.marks.MARKS_DIR`, "report-crops-marks"), for
+marked copies. This module's own ladder/prediction never reads or
+writes it — `choose_rung`'s prediction and `check_artifact`'s post-
+compile verdict are both computed from `CROPS_DIR`/`CROPS_DIR_B` and the
+real compiled PDF respectively, and a marked crop's bytes reach
+`check_artifact` only because they are already embedded in that PDF, not
+because this module accounted for them ahead of time. `reports.marks`
+re-encodes at the SAME rung's quality this module chose (`ensure_crops`'s
+`rungs.get("formula")`, threaded through `reports.marks.apply`'s `rung`
+parameter) specifically so a marked kind's real bytes stay close to what
+this module already predicted for it — a future budget audit should
+know a third, unbudgeted-by-THIS-module directory exists, not
+rediscover it.
 """
 from __future__ import annotations
 

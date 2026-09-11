@@ -46,6 +46,35 @@ either fails:
 Model-agnostic, like every module in this package except `from_document.py`
 (that package's one rule): this reads `FormulaRow` objects and files on
 disk, never a `docmodel.core.Document`.
+
+672 review, fix round 1 — two findings confirmed on real, currently-
+published production data (not this module's own dry-run script, which
+under-reported both):
+
+  * A crop can EXIST (not `None`) and still carry no visible content at
+    all — `1510.06699_FO0765`/`_FO0911` and `kohlhase-omdoc_FO0045` are
+    all pure white (`stddev == 0.0`) at every size on disk, and
+    `evidence-formula.tex` already shows `---` for them today because
+    the content never rendered upstream, not because of anything this
+    module does. Drawing a rectangle on one of these asserts an evidence
+    claim that is not there — worse than the "---" it would replace, and
+    exactly the failure the two mandatory checks above exist to prevent.
+    `apply()` now refuses these too (`_is_blank`), counted under their
+    own reason, never silently — see out/672.txt for the corpus count.
+  * `_draw`'s JPEG quality must follow the RUNG `reports.budget` chose
+    for this kind (`reports.crops._apply_budget`'s `(scale, quality)`),
+    not a constant: measured on real gilmore crops at the 655 floor
+    (0.42/q70), a fixed quality of 92 nearly doubled a 30-row sample's
+    bytes (86,805 -> 163,231) — re-encoding an already-scaled, already-
+    quality-70 source at quality 92 does not shrink it back down, it
+    just spends more bits on the SAME lossy pixels plus the rectangle's
+    own high-frequency edges. `apply()` now takes the caller's own
+    `rung` and threads its quality through; a kind that was never scaled
+    (`rung is None`) draws at `DEFAULT_QUALITY` (92), matching
+    `report_tex.render_crops`'s own save quality for an UNSCALED crop —
+    so an unscaled document sees no quality change at all, only a
+    scaled one does, and it now uses ITS OWN rung's quality rather than
+    a value unrelated to it.
 """
 from __future__ import annotations
 
@@ -78,7 +107,37 @@ LINE_RGB = (220, 20, 20)
 _MIN_LINE_PX = 2
 _LINE_FRACTION = 0.018
 
+#: 672 review, fix round 1 — the quality `_draw` uses for a kind whose rung
+#: is `None` (never scaled by 655's ladder — `reports.budget.choose_rung`
+#: returned `scale >= 1.0`). Matches `report_tex.render_crops`'s own save
+#: quality for a freshly-rendered, unscaled crop, so an unscaled document's
+#: marked crops cost no more than the rectangle's own ink. A SCALED kind
+#: never uses this constant — see `apply`'s `rung` parameter.
+DEFAULT_QUALITY = 92
+
 _REGION_KEYS = ("top_left_x", "top_left_y", "width", "height")
+
+#: 672 review, fix round 1 — a crop this uniform carries no ink at all.
+#: Measured on the real blank crops the review found (`1510.06699_FO0765`/
+#: `_FO0911`, `kohlhase-omdoc_FO0045`): all exactly `stddev == 0.0` (a
+#: perfectly flat JPEG). A small positive floor, not exactly 0.0, allows
+#: for JPEG re-encoding noise on an otherwise-blank source without
+#: letting a genuinely blank crop through.
+_BLANK_STDDEV = 1.0
+
+
+def _is_blank(path: Path) -> bool:
+    """True when `path` carries no visible content — drawing on it would
+    assert an evidence claim the crop itself does not support (672
+    review, finding 1). `False`, never raises, when the file cannot be
+    read at all: that failure belongs to `_draw`'s own try/except, not to
+    this check, which only ever makes REFUSAL more likely, not less."""
+    try:
+        from PIL import Image, ImageStat
+        im = Image.open(path).convert("L")
+        return ImageStat.Stat(im).stddev[0] < _BLANK_STDDEV
+    except Exception:
+        return False
 
 
 def load(path: "Path | str") -> dict:
@@ -110,14 +169,20 @@ def check_row(row: FormulaRow, mark_row: dict) -> "str | None":
     return None
 
 
-def _draw(src: Path, dst: Path, rect_frac) -> bool:
+def _draw(src: Path, dst: Path, rect_frac, quality: int = DEFAULT_QUALITY) -> bool:
     """One outline rectangle, `rect_frac` = (x0, y0, x1, y1) as FRACTIONS
     of the image — the same rectangle regardless of which resolution `src`
     happens to be at (full-size `report-crops/` or an already-scaled
     `report-crops-b/` copy), so one code path handles both sizes rather
     than a scale-specific branch. Never mutates `src`; returns False on
     any failure (no PIL, unreadable/corrupt image) so the caller counts a
-    refusal instead of raising mid-build."""
+    refusal instead of raising mid-build.
+
+    `quality` (672 review, fix round 1) MUST be the rung's own quality
+    for a scaled crop, never a constant independent of it — `apply` is
+    the only production caller and always passes one; a caller of this
+    function directly (tests) gets `DEFAULT_QUALITY`, which is only
+    correct for an unscaled crop."""
     try:
         from PIL import Image, ImageDraw
     except Exception:
@@ -134,7 +199,7 @@ def _draw(src: Path, dst: Path, rect_frac) -> bool:
     lw = max(_MIN_LINE_PX, round(min(w, h) * _LINE_FRACTION))
     ImageDraw.Draw(im).rectangle(box, outline=LINE_RGB, width=lw)
     dst.parent.mkdir(parents=True, exist_ok=True)
-    im.save(dst, "JPEG", quality=92)
+    im.save(dst, "JPEG", quality=quality)
     return True
 
 
@@ -143,13 +208,29 @@ def _empty_counts(n_rows: int) -> dict:
             "drawn": 0, "refused": {}}
 
 
-def apply(rows: dict, marks_path: "Path | str | None", doc_dir: "Path | str"):
+def apply(rows: dict, marks_path: "Path | str | None", doc_dir: "Path | str",
+         rung=None):
     """Formula rows only; every other kind passes through untouched.
 
     Off by construction when `marks_path` is falsy — returns `rows`
     UNCHANGED (the same dict, not a copy) so a document with no marks file
     builds byte-identical to before this module existed (672's own
     required proof; see tests/test_reports_marks.py and out/672.txt).
+
+    `rung` (672 review, fix round 1) is the caller's OWN `(scale,
+    quality)` — or `None` — that `reports.crops.ensure_crops` chose for
+    the "formula" kind (the SAME value it already carries for
+    `commands._evidence_line`'s "OVER BUDGET" message, `rungs.get(
+    "formula")`). Every marked crop is re-encoded at THIS rung's quality,
+    never a constant independent of it: a scaled kind's crops are already
+    lossy at the rung's own quality, and re-encoding them again at a
+    HIGHER quality does not recover detail, it only spends more bytes on
+    the same pixels plus the rectangle's own edges (measured: a fixed 92
+    nearly doubled a 30-row real sample at gilmore's 0.42/q70 floor).
+    `rung is None` (this kind was never scaled) draws at
+    `DEFAULT_QUALITY`, matching the quality an unscaled crop was already
+    saved at, so an unscaled document's marked bytes cost only the
+    rectangle's own ink.
 
     Otherwise returns a NEW `{kind: [rows]}` — every kind but `formula`
     is the caller's own list object, reused; `formula` is a new list
@@ -166,13 +247,18 @@ def apply(rows: dict, marks_path: "Path | str | None", doc_dir: "Path | str"):
     ({reason: count}) — a silent skip here would be indistinguishable
     from a mark that was never offered (the brief's own words), so every
     row that does not get drawn is accounted for under exactly one of
-    "not in the file", "not marked in the file", a `check_row` reason, or
+    "not offered a mark", a `check_row` reason, "no crop to draw on",
+    "marks file row is missing rect_frac", "crop has no visible content
+    (blank)" (672 review, finding 1 — verified on real production data:
+    a crop can exist and still carry no ink at all, and drawing a
+    rectangle on one asserts an evidence claim that is not there), or
     "could not draw (no PIL or unreadable crop)".
     """
     formula = rows.get("formula") or ()
     counts = _empty_counts(len(formula))
     if not marks_path:
         return rows, counts
+    quality = rung[1] if rung else DEFAULT_QUALITY
 
     def _refuse(reason, n=1):
         counts["refused"][reason] = counts["refused"].get(reason, 0) + n
@@ -198,14 +284,20 @@ def apply(rows: dict, marks_path: "Path | str | None", doc_dir: "Path | str"):
             continue
         counts["checked"] += 1
         reason = check_row(row, mrow)
+        rect_frac = mrow.get("rect_frac")
         if reason is None and row.crop is None:
             reason = "no crop to draw on"
+        elif reason is None and not (isinstance(rect_frac, (list, tuple))
+                                     and len(rect_frac) == 4):
+            reason = "marks file row is missing rect_frac"
+        elif reason is None and _is_blank(row.crop):
+            reason = "crop has no visible content (blank)"
         if reason is not None:
             _refuse(reason)
             out_formula.append(row)
             continue
         dst = doc_dir / MARKS_DIR / row.crop.name
-        if _draw(row.crop, dst, mrow["rect_frac"]):
+        if _draw(row.crop, dst, rect_frac, quality=quality):
             out_formula.append(dataclasses.replace(row, crop=dst))
             counts["drawn"] += 1
         else:
