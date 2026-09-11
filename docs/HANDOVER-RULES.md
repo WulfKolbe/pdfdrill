@@ -136,6 +136,41 @@ Each of these cost real time or real data in this project.
     term by term. Same shape as the `(page,row)` key: a consistent-looking
     result produced by two mechanisms nobody had separated.
 
+19. **Write the number down before you write the sentence.** Six reports in
+    the 650-670 run carried a central claim that did not survive a reviewer
+    opening the artefact, and the shape never varied: a plausible sentence
+    written from expectation, then evidence gathered that did not actually
+    test it. 650's evidence run used an unchanged model, so it could not
+    have failed. 653 said ~1,296 documents failed for a harmless reason
+    when 1,191 carried real defect counts. 665 claimed exhaustive font
+    verification without testing the five alphabets the change moved. 661
+    verified "the production path" and had verified the retired one. 669
+    said all 31 refined objects were Equations while a live Formula was
+    already exercising the path and PROPS.md said both types. 670 presented
+    git statistics under a heading asserting they were measured, over a
+    range it had not measured, off by sevenfold. The controller did it
+    twice too. The fix is not more care; it is order — measure, paste the
+    number, then write the prose around it. And when a measurement is
+    offered as proof, ask what result would have refuted it: 650's could
+    not fail, and that was visible before it ran.
+
+20. **`git worktree` does not isolate imports in this repo.** `pip install
+    -e .` pins an absolute `sys.path` entry to the main checkout, so a
+    worktree runs the main tree's modules unless `PYTHONPATH=<worktree>/src`
+    is set explicitly. A reviewer hit this while checking whether three test
+    failures belonged to a concurrent session: the first worktree run
+    reproduced the other session's failure and looked like a real
+    regression. This is exactly how a live defect hides behind a "verified
+    in isolation" claim. Set PYTHONPATH, and say you did.
+
+21. **One implementer at a time, and the controller is not exempt.**
+    Dispatching a second writing agent while the first still held the tree
+    cost a near-miss (one session's uncommitted work briefly vanished),
+    three test failures that needed attributing rather than fixing, and two
+    agents hand-crafting `git apply --cached` patches to stage only their
+    own hunks of a shared file. Nothing was lost, and only because both
+    agents noticed. Read-only reviewers may overlap freely; writers may not.
+
 ---
 
 ## 2. Environment facts that are not obvious
