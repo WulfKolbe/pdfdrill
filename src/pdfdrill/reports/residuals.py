@@ -52,7 +52,15 @@ def findings(rows_by_kind: dict, doc_dir) -> dict:
         title, latex, page = row.identifier, row.latex, row.page
         if not latex or title in done:
             continue
-        if not rt.renderable(latex):
+        # 661 — display_safe(), matching report_tex.findings_rows(): this
+        # is a SECOND, independent classification of "does this row
+        # render" (this module's own docstring above notes it is ported
+        # over row objects, not delegating to findings_rows), so the bare
+        # gate here would classify a split/align/etc.-carrying row as
+        # unresolved on residuals.pdf even after report_tex.py's own
+        # classifier was fixed to agree with the artifact it actually
+        # renders.
+        if not rt.display_safe(latex):
             unresolved.append({"identifier": title, "page": page,
                                "latex": latex, "why": "does not render"})
             continue

@@ -27,7 +27,20 @@ def widths_for(paper: str, landscape: bool, with_image: bool) -> tuple:
 
 
 def _rendered(r: EvidenceRow, widths, out_dir) -> str:
-    safe = rt.renderable(r.latex) if r.latex else ""
+    # 661 — display_safe(), not the bare gate: this is the site that backs
+    # evidence-equation.pdf/evidence-formula.pdf/report.pdf (the PUBLISHED
+    # surface, per docs/HANDOVER.md:25-42), and report_tex.py's OWN
+    # equivalent site (row()) was switched to display_safe() for exactly
+    # this reason — a raw display environment (align/gather/eqnarray/
+    # alignat/flalign/multline/split) cannot typeset inside `$...$` at all
+    # (measured: "Package amsmath Error: \begin{split} won't work here"),
+    # so the bare gate here would leave this artifact carrying the exact
+    # defect 661 exists to remove. `r.latex` itself stays untouched: only
+    # this function's OWN local `safe` is mapped — `render_row()`'s `src`
+    # cell reads `r.latex` directly, so the LaTeX-source column still shows
+    # the reading unchanged, matching report_tex.row()'s published-form
+    # decision.
+    safe = rt.display_safe(r.latex) if r.latex else ""
     tail = rt.esc_text(r.trailing_punct) if r.trailing_punct else ""
     if safe:
         return "\\FitMath{$\\displaystyle %s$}%s" % (safe, tail)

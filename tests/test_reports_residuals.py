@@ -75,6 +75,21 @@ def test_findings_classifies_from_row_objects(tmp_path):
     assert [r["identifier"] for r in found["doubted"]] == ["D_EQ0001"]
 
 
+def test_findings_does_not_flag_a_display_environment_as_unresolved(tmp_path):
+    r"""661 finding 2 — `findings()` is a SECOND, independent
+    classification of "does this row render" (this module's own docstring:
+    ported over row objects, not delegating to report_tex.findings_rows),
+    so fixing the latter alone leaves residuals.pdf disagreeing with it on
+    the exact population this task targets. RULE 17: a genuine display
+    environment, never already `aligned`."""
+    raw = r"\begin{split} a &= b \\ c &= d \end{split}"
+    rows = {"equation": [EquationRow(identifier="D_EQ0100", latex=raw,
+                                     confidence=0.9)],
+           "formula": [], "table": [], "image": []}
+    found = R.findings(rows, tmp_path)
+    assert found["unresolved"] == []
+
+
 import json
 
 

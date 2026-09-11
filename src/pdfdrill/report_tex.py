@@ -1574,7 +1574,7 @@ _ENV_MAP = (("align", "aligned"), ("alignat", "aligned"),
             ("flalign", "aligned"), ("eqnarray", "aligned"),
             ("gather", "gathered"), ("multline", "gathered"),
             # `split` is NOT standalone: amsmath requires a host equation
-            # env ("\begin{split} won't work here"). `aligned` is its
+            # env ("\\begin{split} won't work here"). `aligned` is its
             # in-math equivalent and needs no host.
             ("split", "aligned"))
 

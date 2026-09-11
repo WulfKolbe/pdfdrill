@@ -24,11 +24,24 @@ ported VERBATIM into `src/pdfdrill/report_tex.py`, right before `renderable()`
         out = re.sub(r"\(?:begin|end)\{equation\*?\}", "", out)
         return out.strip()
 
-No change to the regex, the pairs, or the order. Only the docstring's
-citations and a `-> str` type hint were added, matching this module's
-style — 659's precedent (Rule 3: reuse a measured artefact over
-re-deriving a look-alike) argues for this directly, and out/657 confirms
-no equivalent exists anywhere on this path to conflict with it.
+No change to the regex, the pairs, or the order. CORRECTION (fix round 1,
+finding 4): the original claim here said a `-> str` type hint was added to
+`to_inline_env`'s signature — false, checked directly against
+`scratchpad/full_report.salvaged.py:61`, which already reads
+`def to_inline_env(latex: str) -> str:`. Nothing was added to the
+signature; only the docstring's citations were added, matching this
+module's style — 659's precedent (Rule 3: reuse a measured artefact over
+re-deriving a look-alike) argues for taking the code verbatim, and
+out/657 confirms no equivalent exists anywhere on this path to conflict
+with it.
+
+CORRECTION (fix round 1, finding 5): the ported comment on `split`
+inside `_ENV_MAP` originally read `\begin{split}` (one backslash) where
+the salvaged original (`scratchpad/full_report.salvaged.py:56`) has
+`\\begin{split}` (two, confirmed with `cat -A`) — an undisclosed,
+unintentional deviation on comment TEXT (no behavioural effect; the code
+itself, verified separately, was already identical). Restored to match
+the salvaged original exactly.
 
 THE INVENTORY'S OTHER FINDING, checked directly
 -------------------------------------------------
@@ -224,8 +237,20 @@ its own arXiv e-print LaTeX source — `injectlatex`'s path, not MathPix OCR).
 directly in `props["latex"]` — by far the largest population of the nine
 hit-documents (next largest: 2304.14263 at 59 of 372, a smaller fraction).
 
-MEASURED, 1911.08029, all 94 Equation objects
---------------------------------------------------
+MEASURED, 1911.08029, all 94 Equation objects — FIX ROUND 0, SUPERSEDED PATH
+--------------------------------------------------------------------------------
+CORRECTION, fix round 1 (blocking finding 3): everything in this section
+was verified through `report_tex.row()`/`compile_fixpoint()` only — the
+`reporttex` command. Per `docs/HANDOVER.md:25-42` this is RETIRED from
+the site / "superseded for reading, kept as the ink chain's measure
+build"; the artefact all 21 published documents actually ship is built by
+`pdfdrill evidence`/`pdfdrill residuals` through `src/pdfdrill/reports/`,
+a SEPARATE code path this section never touched. The claim below to have
+verified "through the production ... path" is true of the superseded path
+and false of the one that ships — kept here UNCHANGED as a record of what
+fix round 0 actually did (and did not do), with the real published-path
+measurement in its own section below.
+
 Script: ~/pdfdrill-library/1911.08029/out/661/661_measure_script.py.
 
 Gate state (renderable/display_safe refused vs not) — UNCHANGED, as
@@ -276,6 +301,130 @@ NOT REBUILT: report.pdf/residuals.pdf/etc. for 1911.08029 were not rebuilt
 measured in memory / in throwaway probe cells under out/661/, never by
 touching a published artefact.
 
+FIX ROUND 1 — THE PUBLISHED PATH WAS NOT SWITCHED
+======================================================
+Blocking review findings 1-3. `docs/HANDOVER.md:25-42` — read for the
+original task, apparently not acted on — names the published surface for
+all 21 live documents explicitly: `evidence-*.pdf`/`residuals.pdf`, built
+by `pdfdrill evidence`/`pdfdrill residuals` through `src/pdfdrill/
+reports/`. `report.pdf`/`reporttex` (the only path fix round 0 touched)
+"is retired from the site" / "superseded for reading, kept as the ink
+chain's measure build." The reports package reimplements the exact
+"does this row render" decision in two more places, neither switched, and
+neither mentioned in the first pass:
+
+  - `src/pdfdrill/reports/tex.py:30`, `_rendered()` — backs
+    `render_row`/`render_table`, which back `evidence.py`'s `build()`
+    (`pdfdrill evidence`, aliased `pdfdrill report`) and `residuals.py`
+    (`pdfdrill residuals`, aliased `pdfdrill breport`). Called bare
+    `rt.renderable(r.latex)`.
+  - `src/pdfdrill/reports/residuals.py:55`, `findings()` — a SECOND,
+    independent classification of "does this row render" (this module's
+    own docstring: "Selection reuses report_tex.findings_rows" is aspirational
+    for the SELECTION shape, not the render decision — the actual code
+    reimplements the check over row objects rather than delegating to
+    `findings_rows`, so fixing `findings_rows` in fix round 0 did not fix
+    this). Called bare `rt.renderable(latex)`.
+
+FIX: both switched to `rt.display_safe(...)`, one line each, matching the
+seven sites already switched inside `report_tex.py`:
+
+    # reports/tex.py, _rendered()
+    safe = rt.display_safe(r.latex) if r.latex else ""
+
+    # reports/residuals.py, findings()
+    if not rt.display_safe(latex):
+
+WHERE THE MAPPING BELONGS — the seam question, answered
+-------------------------------------------------------------
+`reports/from_document.py`'s own docstring states the package's design
+rule directly: "The ONLY model-aware module in the package." `reports/
+tex.py` and `reports/residuals.py` never touch the `Document`/DocGraph;
+they operate on plain `EvidenceRow`/`EquationRow` dataclasses (`.latex`
+is a bare `str`) and already import `report_tex` freely for exactly this
+kind of string-level helper — `reports/tex.py`'s own docstring: "Imports
+report_tex's cell helpers; it copies nothing, so a fix there is a fix
+here." `esc_text`, `conf_cell`, `preamble`, `compile_fixpoint`,
+`corrected_pairs`, `flagged_split`, `findings_tex` are ALL already called
+this way from `reports/`. `to_inline_env`/`display_safe` are the same
+kind of helper — a pure `str -> str` transform-then-gate with no model
+awareness at all — so calling `rt.display_safe(...)` from `reports/tex.py`
+and `reports/residuals.py` is not importing across the model-aware seam,
+it is using the seam exactly as every other cell-level decision in this
+package already does. The alternative considered and rejected: moving
+`to_inline_env`/`display_safe` INTO `reports/` (or duplicating the map
+there) would put the same logic in two places for one gate — the opposite
+of "a fix there is a fix here" — and would still need `report_tex.py`'s
+own `renderable()`/`_strip_innermost_envs`/`has_bare_align_marker`
+machinery, so nothing is actually gained by relocating it. Applying the
+map at ROW CONSTRUCTION time (inside `from_document.build_rows`, the one
+model-aware module) was also considered and rejected: `EquationRow.latex`
+is read for BOTH the LaTeX-source cell and the Rendered cell in
+`render_row()` — mapping it at that point would corrupt the published-form
+decision fix round 0 made (the source column must stay the untransformed
+reading), exactly the trap the design-question section above already
+worked through once for `report_tex.row()`.
+
+RE-MEASURED, 1911.08029, through the PUBLISHED path (evidence.py + residuals.py)
+-------------------------------------------------------------------------------------
+Script: ~/pdfdrill-library/1911.08029/out/661/661_evidence_measure.py. Runs
+`reports.from_document.build_rows()` (the real row objects, from the real
+model — no tiddlers, no substitute), then `reports.evidence.EV.build()`
+and `reports.residuals.RS.findings()`/`RS.select()`/`RS.build()` — the
+SAME functions `cmd_evidence`/`cmd_residuals` call — writing into
+`out/661/throwaway_before/` and `out/661/throwaway_after/` (never the
+document's own folder: 1911.08029 carries no published `evidence-*.pdf`/
+`residuals.pdf` at all today, only the old `report.pdf`, whose mtime
+predates this session and is untouched). "before" reverts ONLY
+`rt.display_safe` to bare `rt.renderable` (the exact pre-fix-round-1
+state); everything else, including `renderable()`/`to_inline_env()`
+themselves, is untouched.
+
+evidence-equation.pdf (the artefact `evidence.py` actually writes, the one
+`docs/HANDOVER.md` names published):
+  BEFORE: 11 pages, 0 (residual) errors, 48 demoted. Verified directly by
+    grepping the built .tex: exactly 48 occurrences of the literal string
+    "(not rendered)" — one per split-carrying equation, none elsewhere
+    (consistent with fix round 0's gate-refusal count of 0/94: nothing
+    else on this document was ever refused).
+  AFTER: 12 pages, 0 errors, 0 demoted. 0 occurrences of "(not rendered)".
+
+So the exact defect named in blocking finding 1 — a split-carrying
+equation silently demoted on the artifact that ships — is confirmed
+present before this round's fix and confirmed gone after it, on the
+PUBLISHED path this time, not the superseded one.
+
+residuals.pdf / `findings()`:
+  BEFORE and AFTER both: `findings()` returns 0 unresolved rows either
+  way, and `RS.build()` writes "Nothing open" both times (1 page, 0
+  errors, 0 demoted, unchanged). This is NOT evidence the finding-2 fix
+  has no effect — it means THIS document has no `report.ink.json` (no
+  ink measurement has ever been run for it — confirmed, no `*.ink.json`
+  file exists anywhere under its folder), and residuals.pdf on an
+  unmeasured document draws every equation/formula band from ink/
+  confidence classification that a `split`-carrying row never enters
+  either way, matching fix round 0's own finding that raw `split` is
+  never gate-refused (`renderable(raw_split)` returns the input
+  unchanged) — so `findings()`'s bare-gate call was never actually
+  MIS-classifying anything on THIS document's specific population. The
+  `residuals.py:55` fix is still necessary and correct — it is a genuinely
+  independent classification site that could disagree with `report_tex.
+  findings_rows` on some OTHER malformed input, and the review named it
+  as its own defect regardless of measured impact here — but the honest
+  report is: 0 measured delta on residuals.pdf for THIS document, verified
+  by the unit test (`test_findings_does_not_flag_a_display_environment_
+  as_unresolved`) rather than a corpus number. A document WITH ink
+  measurement and a split-carrying flagged/doubted/low-confidence row
+  would be needed to show a residuals.pdf-level delta; none was found in
+  the corpus search above (the 9 hit-documents were not cross-checked
+  against `report.ink.json` presence — left open below).
+
+NOT REBUILT (fix round 1): no published artefact was rebuilt here either
+— `~/pdfdrill-library` git status stays clean and 1911.08029/report.pdf's
+mtime is untouched; the evidence/residuals builds above ran entirely into
+`out/661/throwaway_before/`/`throwaway_after/`, both under the
+deny-by-default `/*` library `.gitignore`.
+
 TESTS
 -----
 tests/test_report_tex.py, 10 new tests (73 in the file, was 63):
@@ -297,6 +446,17 @@ tests/test_report_tex.py, 10 new tests (73 in the file, was 63):
     gated on `shutil.which("xelatex")`; reproduces the exact named error
     before, and its absence after)
 
+FIX ROUND 1 — two more, against the published-path call sites:
+tests/test_reports_tex.py, 1 new test (7 in the file, was 6):
+  - test_rendered_maps_a_display_environment_but_source_keeps_it_raw
+    (`_rendered()`/`render_row()` — the site backing evidence-equation.pdf/
+    report.pdf; Rule 17 fixture; checks the Rendered cell is mapped AND
+    the LaTeX-source cell stays raw, in one real `render_row()` call)
+tests/test_reports_residuals.py, 1 new test (20 in the file, was 19):
+  - test_findings_does_not_flag_a_display_environment_as_unresolved
+    (`findings()` — the second, independent classification site; Rule 17
+    fixture)
+
 tests/test_alphabet_safe.py: one PRE-EXISTING test
 (`test_the_source_column_is_not_what_this_touches`) asserted `row()`'s
 source verbatim, via `inspect.getsource`, for the literal string
@@ -308,21 +468,25 @@ rather than silently accepting the stale assertion.
 
 Full suite: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
 tests/ -q -p no:cacheprovider`
-  base commit f25ca1cc: 3549 passed
-  after this fix:        3559 passed (10 new tests; 0 regressions)
+  base commit f25ca1cc:      3549 passed
+  after fix round 0:         3559 passed (10 new tests; 0 regressions)
+  after fix round 1 (this):  3561 passed (2 more new tests; 0 regressions)
 
 EVIDENCE
 --------
-Both required, both produced:
+Both required, both produced (updated for fix round 1):
   ~/pdfdrill-library/out/661/INSPECT.txt (corpus-level, no single document —
-    525's convention) — 3 paths, the grep-candidate list, the DocGraph
-    re-check script, and its output naming 1911.08029.
-  ~/pdfdrill-library/1911.08029/out/661/INSPECT.txt — 23 paths: the
-    measurement script and its JSON, one representative before/after
-    single-cell compile (tex/log/pdf, showing the literal "won't work here"
-    and its absence), the 10-row and 48-row production-`row()` probes
-    (before and after, tex/log/pdf each). All 23 checked to exist and be
-    non-empty by `pdfdrill.taskout.inspect_list` itself (0 failed).
+    525's convention) — 3 paths, unchanged by fix round 1: the
+    grep-candidate list, the DocGraph re-check script, and its output
+    naming 1911.08029.
+  ~/pdfdrill-library/1911.08029/out/661/INSPECT.txt — 36 paths (was 23):
+    the original 23 (gate/single-cell measurement + the superseded-path
+    `row()`/`compile_fixpoint` probes, now labelled FIX-ROUND-0/superseded
+    in the file's own reasons) plus 13 new for fix round 1 — the
+    published-path measurement script and, for both `throwaway_before/`
+    and `throwaway_after/`, `evidence-equation.tex/.log/.pdf` and
+    `residuals.tex/.log/.pdf`. All 36 checked to exist and be non-empty by
+    `pdfdrill.taskout.inspect_list` itself (0 failed).
 
 WHAT IS OPEN
 ------------
@@ -341,3 +505,19 @@ WHAT IS OPEN
   - No published artefact was rebuilt (report.pdf/residuals.pdf/etc. for
     1911.08029, or anything for 0902.0431), per the brief. The corpus
     rebuild is on hold until inkdrill's in-line formula marking lands.
+  - FIX ROUND 1: `residuals.py::findings()`'s fix has 0 measured delta on
+    1911.08029 specifically (no ink measurement exists for it, so no
+    equation ever enters a flagged/doubted/lowconf band there regardless
+    of this fix) — verified correct by code review and a direct unit test,
+    not by a corpus-measured residuals.pdf number. Finding a document that
+    both HAS an ink measurement (`report.ink.json`) AND carries one of the
+    9 split-hit identifiers from the corpus search, to show an actual
+    residuals.pdf-level before/after delta, was not done — the 9
+    hit-documents were not cross-checked against ink-measurement presence.
+  - `tools/census509.py`, `tools/midstring486.py`, `tools/bed492.py`,
+    `tools/refine444.py`, `tools/beddiag492.py`, `tools/rightdelim517.py`,
+    `tools/prompt448.py` (review finding 6, informational, not blocking)
+    call `rt.renderable()` directly and were not switched — one-off
+    diagnostic scripts outside the command surface (`commands.yaml`), not
+    shipped artefacts. Left untouched; named here so a future pass does
+    not have to rediscover them.

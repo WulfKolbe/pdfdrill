@@ -80,6 +80,29 @@ def test_standalone_math_gets_the_real_out_dir(tmp_path, monkeypatch):
     assert "SA" in body
 
 
+def test_rendered_maps_a_display_environment_but_source_keeps_it_raw(tmp_path):
+    r"""661 finding 1 — `_rendered()` backs evidence-equation.pdf/report.pdf,
+    the artifact `docs/HANDOVER.md:25-42` names as the PUBLISHED surface;
+    the bare gate here left a `split`/`align`/etc.-carrying row demoted to
+    "(not rendered)" even after report_tex.row() was fixed, because this is
+    a SEPARATE call site. RULE 17: this fixture is a genuine display
+    environment (`\begin{split}` with a bare `&`/`\\` inside), never
+    already `aligned`."""
+    raw = r"\begin{split} a &= b \\ c &= d \end{split}"
+    r = EquationRow(identifier="D_EQ0099", latex=raw, page="3")
+    w = T.widths_for("a3", True, with_image=False)
+    body = T.render_row(r, w, out_dir=tmp_path, px2mm=None, bibkey="D")
+    assert "(not rendered)" not in body
+    assert r"\begin{aligned}" in body        # the RENDERED cell: mapped
+    # the SOURCE cell: the raw environment name, unmapped, escaped verbatim
+    from pdfdrill import report_tex as rt
+    assert rt.esc_text(raw) in body
+    # the raw name must not survive inside \FitMath's own argument
+    start = body.index(r"\FitMath{$\displaystyle ")
+    arg = body[start:body.index("$}", start)]
+    assert r"\begin{split}" not in arg
+
+
 def test_no_legend_and_no_bullets_by_default(tmp_path):
     body = T.render_table([EquationRow(identifier="D_EQ0001", latex="x")],
                           "equation", widths=T.widths_for("a3", True, True),
