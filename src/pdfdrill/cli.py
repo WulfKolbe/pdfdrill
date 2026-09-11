@@ -1238,11 +1238,14 @@ def _do_breport(args):
 def _do_evidence(args):
     """pdfdrill evidence <pdf> --kind equation|formula|table|image [--pdf]
     [--all-kinds] [--no-images] [--paper a4|a3] [--portrait] [--no-compile]
-    [--budget-mb F]  — 655: crop size budget per built PDF, default 20"""
+    [--budget-mb F] [--marks PATH]  — 655: crop size budget per built PDF,
+    default 20; 672: draw inkdrill's formula marks (~/inkdrill-marks/
+    <bibkey>/marks.json) onto a copy of each marked crop"""
     from .commands import cmd_evidence
     kind, args = _opt(args, "--kind")
     paper, args = _opt(args, "--paper")
     budget, args = _opt(args, "--budget-mb")
+    marks, args = _opt(args, "--marks")
     pdf_args = [a for a in args if a not in ("--pdf", "--all-kinds",
                                              "--no-images", "--portrait",
                                              "--no-compile")]
@@ -1252,7 +1255,8 @@ def _do_evidence(args):
                         paper=paper or "a3",
                         landscape="--portrait" not in args,
                         compile_pdf="--no-compile" not in args,
-                        budget_mb=float(budget) if budget is not None else None)
+                        budget_mb=float(budget) if budget is not None else None,
+                        marks_path=marks)
 
 
 def _do_residuals(args):

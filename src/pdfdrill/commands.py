@@ -5372,6 +5372,28 @@ def _evidence_line(r: dict, pdf_out: bool, compile_pdf: bool) -> str:
     return line
 
 
+def _marks_line(counts: dict) -> str:
+    """672 — the per-document report the brief asks for (rows, marked in
+    the file, drawn, refused by each reason), pulled out as a pure
+    function so it is unit-testable without building a document. Mirrors
+    `_evidence_line`'s own reason for existing as a separate function.
+
+    `counts["marked_in_file"]` is `None` when the marks file refused the
+    whole document (or when `apply()` had no marks file to read at all --
+    a caller only reaches this function when it DID) -- printed as "?"
+    rather than "None", since the number is genuinely unknown, not zero.
+    """
+    marked = counts["marked_in_file"]
+    line = ("marks: %d formula row(s), %s marked in the file, %d checked, "
+            "%d drawn" % (counts["rows"], marked if marked is not None else "?",
+                         counts["checked"], counts["drawn"]))
+    if counts["refused"]:
+        line += "; refused: " + ", ".join(
+            "%s: %d" % (reason, n) for reason, n in
+            sorted(counts["refused"].items(), key=lambda kv: -kv[1]))
+    return line
+
+
 def _keyless_math_steering(pdf_name: str, inline: int, eqs: int, bearing: bool,
                            why: str = "", aid: "str | None" = None) -> str:
     """The keyless-math recovery message, ported verbatim from the pre-alias
@@ -5466,7 +5488,8 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
                  all_kinds: bool = False, images: bool = True,
                  paper: str = "a3", landscape: bool = True,
                  compile_pdf: bool = True,
-                 budget_mb: "float | None" = None) -> str:
+                 budget_mb: "float | None" = None,
+                 marks_path: "Path | str | None" = None) -> str:
     """Evidence listing: every object of one kind in six columns, HTML by
     default, --pdf for the xelatex build through the document's own preamble.
     Inline formulas show their HOST LINE's page, confidence and picture.
@@ -5476,10 +5499,23 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
     "I have loaded pdf files with 10-20MB without problems from Github.io");
     a document over budget is re-encoded down the measured ladder, floored
     at scale 0.42/quality 70 so the crop stays legible, and reported OVER
-    BUDGET if even the floor does not fit."""
+    BUDGET if even the floor does not fit.
+
+    672 — `marks_path`, when given, is inkdrill's own `<bibkey>/marks.json`
+    (`~/inkdrill-marks/README.md`): a rectangle is drawn on a COPY of a
+    Formula row's crop (`reports.marks.MARKS_DIR`, never `report-crops/` or
+    `report-crops-b/` — 667's `crop_sha256`/655's budget both depend on
+    those staying untouched) wherever the file marks it AND this
+    document's own host line and current reading still agree with what
+    inkdrill measured (`reports.marks.check_row`). Off by default: a
+    document built with no `marks_path` is byte-identical to one built
+    before this parameter existed (see tests/test_reports_marks.py's
+    `test_apply_is_a_no_op_without_a_marks_path` and out/672.txt's real-
+    document proof)."""
     from . import report_tex as rt
     from .reports import KINDS
     from .reports import evidence as EV
+    from .reports import marks as MK
     from .reports.budget import CROP_BUDGET_MB
     from .reports.crops import ensure_crops
     from .reports.from_document import build_rows
@@ -5504,6 +5540,13 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
     rows, crop_note, rungs = ensure_crops(
         rows, doc_dir, pdf, bibkey=bibkey, history=_bibkey_history(sc),
         images=images, budget_mb=budget_mb_final)
+    # 672 — strictly AFTER ensure_crops (the size budget is chosen from the
+    # unmarked report-crops/report-crops-b bytes, never from a marked
+    # copy) and strictly BEFORE any kind is rendered (a Formula row's
+    # `.crop` must already point at the marked file when evidence-
+    # formula.pdf's Image column reads it). A no-op, `rows` unchanged,
+    # when `marks_path` is falsy.
+    rows, marks_counts = MK.apply(rows, marks_path, doc_dir)
     # counted from the FULL row dict, independent of which kind(s) this call
     # actually renders — the old cmd_report's FormulaReportProjector counted
     # every inline Formula / display Equation in the document the same way.
@@ -5511,6 +5554,8 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
     eqs = len(rows.get("equation", []))
     px2mm = rt.auto_px2mm(pdf)
     out = [crop_note]
+    if marks_path:
+        out.append(_marks_line(marks_counts))
     for k in (KINDS if all_kinds else (kind,)):
         r = EV.build(rows, k, "pdf" if pdf_out else "html", doc_dir=doc_dir,
                      pdf=pdf, bibkey=bibkey, history=_bibkey_history(sc),

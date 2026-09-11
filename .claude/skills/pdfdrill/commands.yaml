@@ -1791,6 +1791,10 @@ commands:
     flag: --budget-mb
     type: str
     help: size budget per built PDF in MB (655; default 20 — over budget re-encodes down a floored ladder)
+  - name: marks
+    flag: --marks
+    type: path
+    help: inkdrill's <bibkey>/marks.json (672); draws a rectangle on a copy of each marked, checked formula crop
   typed: true
 - name: residuals
   section: Reporting

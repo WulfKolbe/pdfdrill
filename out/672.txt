@@ -1,0 +1,318 @@
+672 — draw the inkdrill marks on the formula evidence crops
+=============================================================================
+
+Branch eqblobs-and-gzip-tex, HEAD ac722fdf (base, clean). Read CLAUDE.md,
+HANDOVER-RULES.md §1 rules 2, 5, 11, 12, 14, 17, 19, 20, 21,
+~/inkdrill-marks/README.md IN FULL, out/667.txt, out/655.txt, and one
+marks file (gilmore's, `~/inkdrill-marks/Lie Groups, Physics and
+Geometry - An Intro for Physicists, Engineers and Chemists - R. Gilmore
+(/marks.json`) before designing anything.
+
+THIS IS STEP 4 of the user's own four-step order (README, quoted in the
+brief). Step 1 (671, re-render the 159 stale crops) already landed. Steps
+2 and 3 needed nothing new from this task to be runnable — see "STEPS 2
+AND 3, RUNNABLE" below — they are the SAME `pdfdrill evidence` command
+this task's own `--marks` flag hangs off of, and inkdrill's own
+`tools/formulamarks.py`, unchanged.
+
+WHAT WAS BUILT
+-----------------------------------------------------------------------------
+`src/pdfdrill/reports/marks.py` (new) — a module that reads one
+document's `marks.json`, runs the two checks against OUR OWN Formula
+rows, and draws. Kept out of `from_document.py` (that package's rule:
+one module is model-aware, and this one reads only `FormulaRow` objects
+and files on disk, never a `docmodel.core.Document`).
+
+  `check_row(row, mark_row)` — None when both checks pass, else a stable
+  refusal-reason string:
+    * `region`/`host_page` must equal OUR OWN host line
+      (`row.host_line.region`/`.page`) for that row.
+    * `math` must equal the row's current reading taken through
+      `report_tex.display_safe` — NOT raw `latex`. Traced this by
+      reading inkdrill's own `tools/formulafind.py:rows()`: `math` is
+      parsed back OUT of the `\FitMath{$\displaystyle ...$}` group
+      `reports/tex.py:_rendered()` writes, which is `display_safe(latex)`,
+      not `latex` itself. Comparing against raw `latex` would have
+      refused every row whose display form differs from its source
+      (trailing punctuation is outside the group, so that part is
+      already unaffected either way, but `to_inline_env`/`renderable`'s
+      own mapping is not the identity function in general).
+
+  `apply(rows, marks_path, doc_dir)` — off (a true no-op, same dict
+  object returned) when `marks_path` is falsy; otherwise walks
+  `rows["formula"]` only, joins by `identifier` against the file's own
+  `id`, and for every `mark: true` row that passes both checks draws an
+  outline rectangle onto a COPY of the row's crop
+  (`reports.marks.MARKS_DIR = "report-crops-marks"`, a THIRD directory,
+  never `report-crops/` or `report-crops-b/`) and repoints that row's
+  `.crop` at it. Every other kind, and every formula row not drawn
+  (absent from the file, `mark: false`, refused, or undrawable), keeps
+  the exact row object `ensure_crops` already gave it.
+
+  `_draw(src, dst, rect_frac)` draws from `rect_frac` — the SAME
+  fraction-of-region rectangle regardless of whether `src` is the
+  full-size `report-crops/` file or an already-scaled `report-crops-b/`
+  copy — so one code path handles both sizes rather than a scale
+  branch. Outline only (never filled), line width proportional to the
+  image's own short side, floored at 2px so it cannot vanish at 655's
+  0.42 floor.
+
+Wired into `commands.cmd_evidence` (new `marks_path` parameter, CLI
+`--marks PATH`, `.claude/skills/pdfdrill/commands.yaml` +
+`tools/skillsync.py all .`): called strictly AFTER `ensure_crops` (the
+655 budget/rung choice must see only the unmarked bytes) and strictly
+before any kind is rendered. A new `commands._marks_line(counts)`
+appends one line to the command's own output, per brief item 4: rows,
+marked in the file, checked, drawn, refused by each reason.
+
+WHERE THE MARKED IMAGE LIVES, AND WHAT THAT MEANS FOR crop_gate/655
+-----------------------------------------------------------------------------
+`report-crops/<title>.jpg` is an identity: 667's `crop_sha256`/
+`reports.gate.crop_gate` hash that exact file, and 655's
+`reports.budget.choose_rung` predicts re-encoded bytes from it — both
+arguments rest on the file never being overwritten. `scale_crops`
+already keeps this rule (scaled copies go to the separate
+`report-crops-b/`); this module keeps it the same way, into a THIRD
+directory neither `crop_gate` nor `choose_rung` ever reads.
+
+WHAT crop_gate NOW COMPARES, AND WHETHER IT IS STILL THE RIGHT QUESTION.
+Read `reports/gate.py` before answering this: `crop_gate` walks
+`report.ink.json`'s rows, which are ink-measured EQUATION rows
+(`_EQ...`, `report.pdf`'s population) — a population entirely DISJOINT
+from what this task ever touches (Formula rows, `_FO...`, the crops
+`evidence-formula.pdf` shows). So in this task, `crop_gate`'s comparison
+target is UNCHANGED, byte for byte and row for row — confirmed on real
+data below, not just argued from the code. Whether it is still the right
+question: yes, and for a reason stronger than "no overlap today" — a
+marked Formula crop is a PRESENTATION derivative, recomputed FRESH every
+build from the untouched `report-crops/`/`report-crops-b/` source, never
+cached across builds the way a stale `crop_sha256` would need catching.
+Its own correctness (does the rectangle belong on THIS line, with THIS
+reading) is enforced at draw time, every time, by the two checks above —
+a persisted hash a later build could drift from would be solving a
+problem this design does not have. If a future task extended
+`crop_sha256`/`crop_gate` to Formula rows too, this module would still
+not need to change: it never writes into `report-crops/`, so that
+gate's source-of-truth read stays correct regardless.
+
+Verified on real data (gilmore, which has both a real `report.ink.json`
+and, after this task's own real run, real files under
+`out/672/report-crops-marks/`):
+
+    reports.gate.crop_gate(doc_dir, bibkey="gilmore-lie-groups")
+    -> (True, "910 row(s) checked, every displayed crop is the one measured")
+
+910 Equation rows, unaffected — this task drew on Formula crops only,
+and only into `out/672/`, never `report-crops/`.
+
+THE TWO SIZES, PROVED BY RENDERING, NOT BY REASONING ABOUT COORDINATES
+-----------------------------------------------------------------------------
+gilmore-lie-groups is the corpus's floor case (out/655: Formula kind
+built at scale 0.42/q70, the ladder's floor — never reads a fresh
+`choose_rung`, this is the actual published rung). Six real rows
+(`gilmore-lie-groups_FO0001/0006/0009/0010/0015/0016`), matched against
+the real `marks.json`, checked for real against this document's real
+host lines, drawn for real onto BOTH the full-size `report-crops/` file
+and the SAME row's already-scaled `report-crops-b/` copy (images as
+small as 526x18 and 228x16 pixels). Read by eye
+(`out/672/<id>_full.jpg`, `out/672/<id>_scaled_042.jpg` beside this
+document in the library):
+
+  FO0006 full:   "four standard operations of arithmetic (+,-,x,div) as
+                  well as extraction of the nth" — rectangle on exactly
+                  "(+,-,x,div)" (the user's own 655 example crop), glyphs
+                  clear.
+  FO0006 scaled: same rectangle, same position, legible at the floor.
+  FO0001 full/scaled: "U(2) -> H_4" boxed correctly at both sizes,
+                  including at 16px tall.
+  FO0015 full/scaled: "g_i in G, g_j in G" — TWO separate glyph runs
+                  both correctly enclosed by ONE rectangle spanning both,
+                  matching the row's own math string, at both sizes.
+
+A tampered copy of a real row (FO0001's own latex + " + 1") was run
+through `check_row` for real and refused: "reading differs from the
+marks file (math mismatch)" — the refusal path is not just unit-tested,
+it fires on real data too.
+
+BYTE-IDENTITY WITHOUT --marks, PROVED ON A REAL DOCUMENT
+-----------------------------------------------------------------------------
+rph8-g15q (489 formula rows, one of the 21). `pdfdrill evidence
+rph8-g15q.pdf --kind formula --pdf` run twice, in place, once on this
+task's code and once on the base commit (`git stash -u`), original files
+restored after each run:
+
+  evidence-formula.tex: BYTE-IDENTICAL both times
+    sha256 92d9fbdd9671d9c20f257aab24a0b9ccae05e4a804aaee868cf18a9dd87ad277
+  evidence-formula.pdf: differs by 4 bytes / ~85k bytes internally
+    (xelatex's own run-to-run non-determinism — object ordering/ID; the
+    only thing either build actually controls, the .tex, matched exactly)
+
+Also proved structurally (tests/test_reports_marks.py):
+`reports.marks.apply(rows, None, doc_dir)` returns the SAME dict object
+(`out is rows`), not a copy — a caller with no `marks_path` cannot even
+allocate a new list, let alone draw anything.
+
+END-TO-END THROUGH THE REAL CLI, ONE DOCUMENT, WITH --marks
+-----------------------------------------------------------------------------
+Same document, `pdfdrill evidence rph8-g15q.pdf --kind formula --pdf
+--marks ~/inkdrill-marks/rph8-g15q/marks.json`, in place, restored after:
+
+    crops: 0 fetched, 93 cached, 0 failed; 0 rendered from the PDF, 489
+    cached, 0 skipped
+    marks: 489 formula row(s), 96 marked in the file, 96 checked, 96 drawn
+    Wrote evidence-formula.pdf: 489 rows (12 pages, 0 errors, 0 demoted)
+
+0 refused; `report-crops/` untouched (confirmed: no file in it newer
+than the run); 96 new files under `report-crops-marks/` (moved to
+`out/672/report-crops-marks-96/` afterward, not left at the document
+root — this task's own production writes there, but the verification
+artifact belongs under `out/672/`). One row (FO0010, "v =
+(v_1,...,v_d)") read by eye and confirmed correct
+(`out/672/marked-sample/`).
+
+PER-DOCUMENT REPORT, ALL 21 (brief item 4)
+-----------------------------------------------------------------------------
+A read-only dry run (no crop fetch/render/re-encode, no PDF compile, no
+MathPix — a scratch script, not committed to this repo) built each
+document's real Formula rows from its CURRENT model/host-lines and ran
+`check_row`/`apply` against its real marks.json. Evidence and
+`INSPECT.txt` under each document's own `out/672/` (library, not this
+repo). `rows` = this document's own formula-row count; `marked_in_file`
+= the marks file's own count; `checked` = rows this run actually tested;
+`drawn`; `refused`, by reason.
+
+  document                          rows  marked  checked  drawn  refused
+  0707.4470                          213      9       9       9   not-in-file: 2
+  0902.0431                         3170   1474    1474    1474   —
+  1510.06699                        1062    255     255    253   not-in-file: 1, no-crop: 2
+  1605.05775                         138     26      26     26   —
+  2010.14265                         369     51      51     51   not-in-file: 1
+  2106.07890                         319    100     100    100   not-in-file: 1
+  2501.06662                         386     93      93     93   not-in-file: 1
+  fong-spivak-invitation            4059    614     614    614   not-in-file: 40
+  BradleyGastaldiTerilla2023         211     13      13     13   —
+  cardona-qft-methods               3755   1068    1068   1068   not-in-file: 7
+  mielke-geometrodynamics           1793    185     185    185   not-in-file: 3
+  voloshin-hypergraph               2554    524     524    524   not-in-file: 1
+  johnston-linear-matrix-algebra    5143   1590    1590   1590   not-in-file: 24
+  gilmore-lie-groups                3473    577     577    576   not-in-file: 120, no-crop: 1
+  lyche-numerical-linear-algebra    4638   1110    1110   1110   not-in-file: 7
+  kohlhase-omdoc                     458     55      55     43   not-in-file: 9, no-crop: 12
+  fong-spivak-seven-sketches        4028    450     450    449   not-in-file: 32, no-crop: 1
+  bradley_spring22                   181     23      23     23   —
+  penev_A                            674     90      90     90   not-in-file: 1
+  penev_B                            497     50      50     50   —
+  rph8-g15q                          489     96      96     96   —
+
+Zero rows anywhere were refused for a REGION/host_page mismatch or a
+MATH mismatch — expected, since these 21 marks.json files were produced
+2026-09-11 against these documents' current lines.json/model, which this
+task did not touch. `check_row` catching a real mismatch is proved
+separately above (the tampered-FO0001 case) and in
+`tests/test_reports_marks.py`.
+
+"not-in-file" (`"not offered a mark (no row of this id in the file)"`)
+is NOT an identifier mismatch — verified directly on gilmore (its
+largest count, 120): every one of gilmore's 3473 formula identifiers
+appears SOMEWHERE in its marks.json (3353 in `rows` + 120 in
+`not_measured`, exactly 3473), and every `mark: true` id is among our
+own rows. The 120 are rows inkdrill measured but could not POSITION at
+all ("not placed" / "no line match", `not_measured`, never entered into
+`rows` at all) — a limit of inkdrill's own measurement, not a defect on
+either side, and `check_row` correctly never sees them (they are not in
+`by_id` because inkdrill's own file does not offer a mark for them).
+
+"no-crop" (`"no crop to draw on"`, 16 rows across 4 documents) is a
+methodology artefact of THIS DRY-RUN SCRIPT, not of `reports/marks.py`
+or of `cmd_evidence`'s real wiring — disclosed rather than smoothed over
+(rule 19). The script resolves each row's crop via
+`report_tex.crop_file()`, which (like `crop_cell()` at render time)
+refuses a file at or under 500 bytes as "not really there". Twelve of
+kohlhase-omdoc's already-scaled `report-crops-b/` files are legitimately
+tiny (416-436 bytes — very low-content crops compressed hard) and fail
+that floor. Checked for real: `kohlhase-omdoc_FO0045.jpg` (436 bytes,
+807x30, opens fine in PIL) draws successfully and the MARKED result is
+5,272 bytes — comfortably over the 500-byte floor. So a real
+`cmd_evidence --marks` run (which sets `row.crop` the way `ensure_crops`
+always has, unconditional of final byte size, not via `crop_file`) would
+draw these 16, not refuse them; this document's own evidence-formula.pdf
+ALREADY shows "---" for these 12 rows today, with or without marks,
+because `crop_cell()` applies the identical 500-byte floor at render
+time — a pre-existing, unrelated property of `crop_file()`, not
+introduced or changed by this task. Marking one of these rows would, as
+a side effect, make its crop visible for the first time (the re-encoded,
+outlined file clears the floor) — worth knowing, not a regression.
+
+STEPS 2 AND 3, RUNNABLE (nothing new needed; documented so the sequence
+is unambiguous)
+-----------------------------------------------------------------------------
+  2. `pdfdrill evidence <pdf> --all-kinds --pdf` (offline, no MathPix;
+     picks up 671's re-rendered crops and today's "not rendered" state).
+  3. `python3 ~/inkdrill/tools/formulamarks.py marks "<bibkey>" --work
+     ~/inkdrill-marks/"<bibkey>"/work > marks.json` (inkdrill's own tool,
+     untouched by this task; its own `_inputs()` hashes step 2's
+     `evidence-formula.tex` rows, so running 2 before 3 is enforced by
+     inkdrill's own staleness check, not by anything added here).
+  4. `pdfdrill evidence <pdf> --all-kinds --pdf --marks
+     ~/inkdrill-marks/"<bibkey>"/marks.json` — this task.
+Steps 2 and 4 are the SAME command; 4 only adds `--marks`. Neither this
+task's code nor its tests ran step 2 or 3 for the corpus — only single-
+document, in-place, restored-afterward spot checks (rph8-g15q, above)
+to prove the wiring and the byte-identity claim. The corpus-wide
+republish is left to the controller, as instructed.
+
+TESTS
+-----------------------------------------------------------------------------
+tests/test_reports_marks.py — 17 new: `check_row` (pass, region
+mismatch, host_page mismatch, math mismatch via `display_safe` — not raw
+latex —, no host line at all); `apply` (no-op without `marks_path`,
+real-JPEG draw + source untouched, whole-document refusal tallied,
+missing-id counted not skipped, `mark: false` left alone and not
+counted as refused, no-crop refusal, only the `formula` kind touched);
+`_draw` (rect_frac survives a scaled-down copy at the same relative
+position, line width floored on a tiny crop, returns False on an
+unreadable file, never raises); `commands._marks_line` (all four
+numbers, `?` not `None` for an unknown marked-count).
+
+Full suite, base commit `ac722fdf` (`git stash -u`): 3616 passed. This
+task (`git stash pop`): 3633 passed, 0 failed — delta +17, exactly the
+new tests; nothing else moved.
+
+WHAT WAS NOT DONE
+-----------------------------------------------------------------------------
+* No corpus rebuild, no `evidence`/`residuals` PDF republish across all
+  21 documents, no `formulamarks.py run`/`marks` invocation — reserved
+  for the controller.
+* No touch to `.lines.json`, `model.docmodel.json`/`.docpack.json`,
+  `report.ink.json`, or MathPix in any document (the two real-document
+  spot checks, rph8-g15q and gilmore, wrote only under `out/672/` plus
+  one restored-afterward pair of `evidence-formula.{tex,pdf}` on
+  rph8-g15q — confirmed byte-identical to the originals after restore).
+* `residuals.pdf` is NOT wired to `--marks` — the brief scopes this to
+  "the formula evidence build" singular; `reports/residuals.py` still
+  inherits whichever crop `ensure_crops` gave a row, unmarked, exactly
+  as before.
+
+CONCERNS
+-----------------------------------------------------------------------------
+1. The corpus-wide dry-run script (a scratch verification tool, not
+   committed to this repo, not part of the deliverable) resolves crops
+   via `crop_file()` directly rather than by calling the
+   real `ensure_crops`, which slightly OVER-counts "no crop to draw on"
+   (16 rows, all confirmed drawable in practice) relative to what a real
+   `cmd_evidence --marks` run would do. Documented above with the exact
+   verification (kohlhase_FO0045); not a defect in the shipped module.
+2. Marking a pathologically small, already-heavily-compressed crop can
+   incidentally push it back over `crop_file()`'s 500-byte "is this
+   really a crop" floor, making a row visible that was silently "---"
+   before, with or without marks. Pre-existing floor, unrelated to this
+   task's own logic, but a real, disclosed side effect of drawing on it.
+3. `report-crops-marks/` is a NEW, unbounded directory per document
+   (kept out of any budget accounting — the marked file is set at the
+   SAME resolution `ensure_crops` already chose, so it does not grow the
+   published PDF beyond what a rectangle overlay costs, but nothing
+   caps it, deletes stale entries, or reuses it across dates the way
+   `report-crops-b/`'s mtime cache does). Left as `force`-equivalent
+   (always redrawn on every `--marks` run) since a marked copy is
+   presentation-only and cheap to regenerate; flagging in case corpus
+   size becomes a concern once all 21 publish with `--marks`.
