@@ -445,6 +445,24 @@ isolation: with `rt.display_safe` unmodified this row IS added to
 is NOT — a genuine, reproducible discriminating case for this exact call
 site's boolean.
 
+AND THE BEHAVIOUR CHANGE IS DELIBERATE AND CORRECT, not a side effect to
+be tolerated. `\begin{equation} a & b \end{equation}` was ACCEPTED before
+this task and is REFUSED after it. That is the right way round. The map
+strips the wrapper to a bare `a & b`, and an unshielded `&` at brace depth
+0 inside a longtable cell is read as a COLUMN SEPARATOR — precisely the
+corruption `has_bare_align_marker` exists to catch, and precisely what 659
+spent a task removing from the other direction. The old acceptance was the
+wrapper accidentally shielding a defect, not a judgement anyone made.
+
+Population, measured across the 20 published documents: 45,528 Equation and
+Formula rows scanned, ZERO carrying a bare `&` inside an `equation`
+environment. So no live document changes state either way today; the
+refusal is right in principle and inert in practice. It is stated here
+because a behaviour change nobody chose is worth naming even when it is
+the change one would have chosen. Note also that the behaviour has been
+latent since fix round 0 — the `equation` strip introduced it, and round
+2's better tests revealed it rather than causing it.
+
 The misleading test was renamed and rewritten, not just re-argued in
 prose: `test_findings_does_not_flag_a_display_environment_as_unresolved`
 -> `test_findings_uses_display_safe_verified_by_reverting_it`
