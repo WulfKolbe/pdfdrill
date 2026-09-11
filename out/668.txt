@@ -1,0 +1,362 @@
+668 — scope the `$` half of report_tex.renderable's third gate to text_spans
+==============================================================================
+
+Branch eqblobs-and-gzip-tex, base commit 8de4ff87, clean, pushed.
+
+THE FIX
+-------
+`report_tex.renderable()`'s third gate (src/pdfdrill/report_tex.py, around
+line 1691) used to be one line:
+
+    if r"\[" in lx or r"\]" in lx or re.sub(r"\\\$", "", lx).count("$"):
+        return ""
+
+Split into two, per the brief:
+
+    if r"\[" in lx or r"\]" in lx:
+        return ""
+    dollar_mask = re.sub(r"\\\$", r"\\X", lx)   # same escape rule as before,
+    dollar_pos = [m.start() for m in re.finditer(r"\$", dollar_mask)]
+    if dollar_pos:
+        text_ranges = text_spans(lx)
+        if any(not any(a <= p < b for a, b in text_ranges)
+               for p in dollar_pos):
+            return ""
+
+`\[`/`\]` refuse UNCONDITIONALLY, unchanged. `$` is now scoped to
+`text_spans()` — task 662's promoted primitive (`src/pdfdrill/
+text_escapes.py`), the SAME span-finder `cjk_defect` already uses for the
+identical kind of question, reused rather than re-derived, as instructed.
+`text_spans(lx)` with no second argument uses its default `TEXT_IN_MATH`
+macro set (`\text`, `\textrm`, `\textnormal`, `\textit`, `\textbf`,
+`\mbox`, `\operatorname`) — the general "is this text mode" question, not
+`cjk_defect`'s narrower `CJK_TEXT_MACROS` (which excludes `\operatorname`
+for a content-specific reason that does not apply here).
+
+The escape handling for `$` is UNCHANGED in substance: the old code
+removed every `\$` (escaped dollar, i.e. currency) via `re.sub` before
+counting; the new code performs the identical substitution but into a
+same-length placeholder (`\$` -> `\X`) so the surviving `$` positions are
+preserved for the span check. Byte-for-byte the same set of `$` characters
+is now "real" vs "escaped" as before — only what happens to a REAL one
+changed (checked for text-span membership instead of refusing
+unconditionally).
+
+THE `\[`/`\]` DECISION, ARGUED (not left to fall out of the code)
+------------------------------------------------------------------
+`\[`/`\]` keep refusing unconditionally, in every location, including
+inside a `\text{}` argument. They are DISPLAY-math delimiters. Every cell
+this gate judges is already wrapped in the report's own outer `$...$`
+(or, after 661's `to_inline_env()`, addressed from inside that wrapper).
+Display mode cannot legally open inside inline math, and that is true
+regardless of which brace group the `\[` is typed from — a `\[` inside
+`\text{...}` would try to open display math while TeX is already in math
+mode via the surrounding `$...$`, which is exactly as broken as a bare
+`\[` in the cell. Unlike `$` (which pairs with itself and, inside
+`\text{}`, opens and closes ordinary NESTED inline math that never
+touches the cell's own delimiters), `\[`/`\]` have no such "contained"
+reading — there is no scope in which a display-math opener sitting inside
+an inline-math cell is safe. So location never rescues them, and they are
+deliberately NOT run through `text_spans()`.
+
+CONFIRMED: ALL THREE CALL SITES INHERIT THE FIX (not assumed)
+---------------------------------------------------------------
+Per out/661.txt, the three sites that decide "does this row render" are:
+  1. report_tex.py's own seven `display_safe()` call sites (row(),
+     unresolved_formulas(), refused_for_align_only(), findings_rows(),
+     findings_tex()'s rendered() closure, b_tex()'s loop, the Tables loop)
+  2. src/pdfdrill/reports/tex.py:43, `_rendered()` -> `rt.display_safe(...)`
+  3. src/pdfdrill/reports/residuals.py:63, `findings()` -> `rt.display_safe(...)`
+All three call `display_safe()`, which is `renderable(to_inline_env(...))`
+unchanged by this task — only `renderable()` itself moved. Since nothing
+in this task touched `display_safe()`, `to_inline_env()`, or either call
+site, all three inherit the fix by construction. Verified empirically, not
+just by inspection: `reports.residuals.findings()` called directly on a
+constructed EquationRow carrying EQ0006's real latex returns
+`unresolved: []` (was previously refused under the base gate — see below).
+
+THE TWO ROWS — BEFORE/AFTER, VERIFIED BY COMPILING THE PUBLISHED PATH
+--------------------------------------------------------------------------
+Document: "Introduction to Linear and Matrix Algebra" (Nathaniel Johnston),
+bibkey johnston-linear-matrix-algebra. Objects obj_c291fcecac5b (EQ0006,
+page 22) and obj_6dace6681c2e (EQ0063, page 45). Both carry
+`\text{(add $3\mathbf{x}$, subtract $2\mathbf{v}[+2\mathbf{w}]$)}` —
+4 of 4 and 6 of 6 dollars respectively, every one inside a `\text{}`
+argument (checked directly, not assumed).
+
+DISCLOSED PREREQUISITE, checked directly before claiming anything about
+"the published artefact" (rule 14 — re-measure against the CURRENT
+artifact): `reports.from_document.build_rows()` builds `EquationRow.latex`
+from `p.get("latex")` ALONE; it never reads `latex_refined`. For BOTH
+objects, `props["latex"]` (what today's real evidence-equation.pdf shows)
+carries NO `$` at all — the `\text{(add $3x$, ...)}` annotation exists
+only in the TWIN prop `latex_refined` (`refine.py`'s `REFINED_FIELD`,
+`verified_by: "ink"` on both objects' `refined` realization). So on
+TODAY'S literal published evidence-equation.pdf, neither row currently
+carries this defect — build_rows()'s own `.latex` for both already passed
+the OLD (unfixed) gate unchanged. This is stated plainly rather than
+glossed over, matching HANDOVER-RULES rule 2 (state the population beside
+every number): the 22-refused/2-dollar population this task acts on was
+measured over `props.get("latex_refined") or props.get("latex")` — the
+value a verified refinement is FOR, matching what `report_tex.rows_for` +
+`refined_map` already substitutes for the ink-chain's own measure build,
+and what a future "promote a verified refinement into `latex`" step would
+hand this exact path. This is NOT the same population `build_rows()`
+reads today, and the distinction is real, not academic — it is exactly
+the kind of `latex`/`latex_refined` pair CLAUDE.md's `docs/layers/
+PROPS.md` warns compiles silently on a wrong choice.
+
+VERIFICATION METHOD, through `src/pdfdrill/reports/` (the published path,
+docs/HANDOVER.md:25-42), never the superseded `reporttex`/`report.pdf`
+path the sibling task's first attempt mistakenly verified against:
+script `668_verify_compile.py` (beside the document, see EVIDENCE below)
+constructs the two real `EquationRow`s from `build_rows()`, then
+overrides `.latex` with the object's own `latex_refined` (everything else
+— identifier, page, region, confidence — the row's own), and runs them
+through the REAL, unmodified `reports.evidence.EV.build()` (the function
+`cmd_evidence`/`pdfdrill evidence` calls) into a throwaway subdirectory.
+Three modes:
+
+  identity (today's literal `build_rows()` output, unmodified latex):
+    pages=1 errors=0 demoted=0, "(not rendered)" present=False for both
+    -- confirms the disclosed prerequisite: 0 delta on the artefact AS IT
+    STANDS TODAY.
+  before (latex_refined substituted in, base-commit gate monkeypatched
+    into the live module straight from `git show <base>:...report_tex.py`
+    — mirroring 661 fix round 1's technique in reverse):
+    pages=1 errors=0 demoted=0, "(not rendered)" present=True for BOTH
+    rows -- reproduces the defect live.
+  after (latex_refined substituted in, current fixed gate):
+    pages=1 errors=0 demoted=0, "(not rendered)" present=False for BOTH
+    -- fixed, live.
+
+The compiled PDF was also read (pdftotext -layout on the AFTER build), not
+just grepped for "(not rendered)": the Rendered column shows
+"⟹ 4x = −3v + w    (add 3x, subtract 2v)" and "⟹ x = ¼(w − 3v).
+(divide both sides by 4)" — correctly typeset nested inline math inside
+the annotation text, not garbled output that merely avoided the literal
+string "(not rendered)" (rule 11: a masked success reads exactly like a
+masked failure — checked the actual typeset content, not only the error
+count).
+
+CORPUS COUNT AFTER THE CHANGE
+------------------------------
+Corpus-wide scan (script `668_corpus_scan.py`,
+~/pdfdrill-library/out/668/, corpus-level per rule 19's convention — no
+single document), same population definition
+(`props.get("latex_refined") or props.get("latex")`), across the 20
+published documents (~/pdfdrill-library/out/documents.json minus the null
+placeholder and penev_A, per docs/HANDOVER.md's "20 of 21 published"):
+
+  total Equation+Formula rows scanned: 45,538
+  refused BEFORE (base commit 8de4ff87's gate): 22
+  refused AFTER  (this fix):                    20
+
+Breakdown of the 20 remaining, tag-derived directly from `cjk_defect()`/
+the bracket check/the figure-lead prefix (not eyeballed):
+
+    8   CJK — cardona-qft-methods (1), fong-spivak-invitation (2, one
+        Equation one Formula), fong-spivak-seven-sketches (1),
+        gilmore-lie-groups (1), mielke-geometrodynamics (3, two Equation
+        one Formula). All correctly refused, task 662's rule, not in
+        scope for this task.
+    9   contain `\[` or `\]` — 8 begin with `\begin{figure}` across three
+        documents (johnston-linear-matrix-algebra x3, kohlhase-omdoc x1,
+        lyche-numerical-linear-algebra x4); the ninth
+        (lyche-numerical-linear-algebra obj_2697f43fe888) does not.
+        See Part Two below for both.
+    3   malformed plain-TeX remnants — kohlhase-omdoc Formula objects
+        obj_a5740b300724, obj_984767e518ae, obj_e2410e02f1a1 (e.g.
+        `{\,p\mid\hbox{`). Not in scope.
+
+  8 + 9 + 3 = 20. The 2 dollar rows (johnston EQ0006/EQ0063) are gone from
+  the refused list, and no other row's status changed either direction —
+  confirmed by set-diff between the before/after JSON (668_scan_before.json,
+  668_scan_after.json): before-set minus after-set = exactly
+  {obj_c291fcecac5b, obj_6dace6681c2e}; after-set minus before-set = {}.
+
+PART TWO — THE EIGHT (PLUS ONE) FIGURE-SHAPED ROWS: UPSTREAM, NOT TOUCHED
+==============================================================================
+The gate was NOT changed for these, per the brief, and correctly so: a
+`\begin{figure}...\end{figure}` float cannot typeset inside a maths cell
+regardless of what is inside it, and refusing it is the gate doing its
+job. What follows is a measurement of the upstream defect, not a fix.
+
+WHAT THEY LOOK LIKE
+--------------------
+All eight share one shape: `props["latex"]` (the value
+`reports.from_document.build_rows()` actually reads, no `latex_refined`
+involved here) begins with `\begin{figure}`, sometimes followed by
+`\captionsetup{labelformat=empty}` and `\caption{...}`, then the genuine
+display maths (`\[ ... \]`), then `\end{figure}`. Three documents:
+
+  johnston-linear-matrix-algebra   obj_bae5c458d2d2 (p63)
+                                   obj_9d9a967c3992  (p170)
+                                   obj_ec29451028f7  (p224)
+  kohlhase-omdoc                   obj_1107c50ecfd1  (p309)
+  lyche-numerical-linear-algebra   obj_904ab7b5e410  (p82)
+                                   obj_624ac299ffe5   (p93)
+                                   obj_5432f20a4bec   (p106)
+                                   obj_3116f2e9e5fe   (p353)
+
+The existing test `test_a_whole_float_with_its_caption_is_NOT_rescued`
+(tests/test_report_tex.py, task 446) already named this exact shape and
+recorded "42 such rows across 21 documents" as of that measurement — this
+task's 8-of-20-published-documents count is consistent with that (a
+different, smaller population: only the 20 currently-published documents,
+using the current gate before AND after this task's unrelated `$` change,
+since this class was never touched by it).
+
+WHAT CREATED THEM, AND WHY (traced to the exact line, not inferred)
+------------------------------------------------------------------------
+`src/docmodel/modules/equation.py:212`, `EquationProcessor.find_items`:
+
+    latex_raw = payload.get("text_display") or payload.get("text") or ""
+
+For a MathPix `lines.json` line typed `"math"`/`"equation"`
+(`EQ_TYPES`), this prefers `text_display` over `text`. For most line
+types this is the RIGHT choice and is the convention every other
+`docmodel/modules/*.py` reader of these two fields relies on
+(`header.py`'s own docstring: `text_display` is the LaTeX-command form,
+`text` the plain caption/content). For all eight rows here, checked
+directly against each document's own `.lines.json`, the SAME line's two
+fields diverge in a way unique to equations sitting inside a genuine
+LaTeX float:
+
+    type: "math"
+    text:         "\[\nN_{LU}:=...\n\]"                          (clean)
+    text_display: "\n\n\begin{figure}\n\captionsetup{...}
+                  \caption{Listing 3.3 cforwardsolve}\n\[\n
+                  N_{LU}:=...\n\]"                                (wrapped)
+
+(lyche-numerical-linear-algebra obj_904ab7b5e410, verbatim, the richest
+example: the caption text is independently present, correctly typed as
+its OWN `figure_label` line immediately before the math line in the same
+`lines.json` — `text_display` duplicates it into the math line's own
+reconstruction rather than the docmodel ever cross-referencing the two.)
+All eight rows across all three documents show the identical pattern,
+confirmed individually, not sampled: `text` is always bare display math
+with no wrapper; `text_display` always adds the full
+`\begin{figure}[...]...\end{figure}` float around the identical maths.
+
+MathPix's own line-typing is not wrong here (the line genuinely IS the
+equation, per `type: "math"`) — its `text_display` reconstruction is doing
+FULL-PAGE-LAYOUT reconstruction (float, caption, the works) for a field
+the docmodel module reads as if it were just the equation's own latex.
+
+WHY `_normalize_latex`'s existing `_DOC_ENVS` machinery does not already
+catch this: it exists for the MIRROR case (446/483/485) — an UNMATCHED,
+dangling `\begin{itemize}`/`\end{theorem}` etc. glued onto ONE end of an
+equation line by MathPix's own line-splitting — and it explicitly
+declines to strip a wrapper whose opener AND closer are BOTH present and
+balanced. Here `\begin{figure}` and `\end{figure}` are both genuinely
+present (the whole float, caption included), so this is not a dangling
+fragment; it is a real, balanced non-equation environment standing in for
+one. Adding `"figure"` to `_DOC_ENVS` would not, by itself, fix these —
+the strip logic would still decline to touch a balanced wrapper.
+
+PROPOSED OWNER
+---------------
+`src/docmodel/modules/equation.py`, `EquationProcessor.find_items` /
+`_normalize_latex` (same module, same task): the fix belongs at ROW
+EXTRACTION time, not at render time, because the defect is a
+mis-segmentation ("this Equation's own content is not an equation, it is
+a captioned float") rather than an unsafe-to-typeset value. Two directions
+worth weighing (not chosen or implemented here — out of this task's
+scope, per the brief's explicit "do NOT fix" instruction): (a) detect a
+BALANCED `\begin{figure}...\end{figure}` wrapper around genuine display
+math and either fall back to the line's own `text` field or unwrap the
+float while dropping its caption (unlike the itemize/theorem case, this
+would DISCARD content — the caption text — so it needs its own
+judgement call about where that caption text should go instead: probably
+nowhere, since a `figure_label` line elsewhere on the page already carries
+it independently for johnston/lyche, unconfirmed for kohlhase); (b) treat
+a `type: "math"` line whose `text_display` opens `\begin{figure}` as a
+signal to reclassify the object as a Diagram/Picture/Figure rather than
+an Equation, since MathPix's own text_display is effectively telling the
+module "this region is a captioned float, not a bare formula."
+
+THE NINTH ROW — CHARACTERISED SEPARATELY, A DIFFERENT DEFECT, NOT FIXED
+----------------------------------------------------------------------------
+lyche-numerical-linear-algebra obj_2697f43fe888 (page 215) is refused by
+the same `\[`/`\]` substring check but for an UNRELATED reason: its
+`latex_refined` value contains the literal substring `\\[1ex]` — amsmath's
+OPTIONAL SPACING ARGUMENT after a `\\` line break inside an
+`aligned`/`array` body (standard, legal LaTeX, not a display-math opener).
+Checked directly: this value contains ZERO `\]` anywhere at all — so no
+genuine `\[...\]` PAIR is present, confirming there is no real display
+environment here, only the false trigger. The gate's `r"\[" in lx` check
+matches any backslash-immediately-followed-by-bracket, so it cannot
+distinguish `\[` (display math) from the second backslash of `\\[1ex]`
+(line-break spacing) — a GATE FALSE POSITIVE, a different and narrower
+input shape than either the CJK class or the figure-capture class. Named
+here per the brief's instruction, deliberately NOT fixed: 668's scope was
+the `$`-in-`\text{}` decision argued above, not this second, unrelated
+`\[`/`\]` false-positive on amsmath spacing syntax. A future task fixing
+it would need to distinguish `\[`/`\]` (odd or even backslash count
+before the bracket, paired with a genuine partner) from `\\[<length>]`
+(even backslash count immediately before `[`, no matching `\]` at all).
+
+TESTS
+-----
+tests/test_report_tex.py, 5 new (77 in the file, was 72):
+  - test_dollar_inside_a_text_span_is_permitted_but_bare_still_refuses
+  - test_dollar_pair_across_a_text_span_boundary_still_refuses (one `$`
+    inside a text span and its "partner" outside are independent
+    occurrences, not a matched pair — the outside one still refuses)
+  - test_backslash_bracket_still_refuses_unconditionally_even_in_text
+  - test_johnston_linear_matrix_algebra_EQ0006_and_EQ0063_render (the two
+    real corpus rows, verbatim, as a regression pin)
+
+Full suite: `PYTHONDONTWRITEBYTECODE=1 python3 -m pytest tests/ -q -p no:cacheprovider`
+  base commit 8de4ff87:  3561 passed, 0 failed
+  after this fix:        3565 passed, 0 failed (5 new, 0 regressions)
+
+EVIDENCE
+--------
+Corpus-level (no single document, per rule 19's convention):
+  ~/pdfdrill-library/out/668/668_corpus_scan.py
+  ~/pdfdrill-library/out/668/668_scan_before.json
+  ~/pdfdrill-library/out/668/668_scan_after.json
+  ~/pdfdrill-library/out/668/INSPECT.txt
+
+johnston-linear-matrix-algebra (the two-row fix + its share of the figure
+finding):
+  .../out/668/668_verify_compile.py
+  .../out/668/668_figure_capture_finding.py + .json
+  .../out/668/throwaway_identity/evidence-equation.{tex,pdf,log}
+  .../out/668/throwaway_before/evidence-equation.{tex,pdf,log}
+  .../out/668/throwaway_after/evidence-equation.{tex,pdf,log}
+  .../out/668/INSPECT.txt
+
+kohlhase-omdoc and lyche-numerical-linear-algebra (their share of the
+figure finding; lyche's script also characterises the ninth row):
+  .../out/668/668_figure_capture_finding.py + .json (each document)
+  .../out/668/INSPECT.txt (each document)
+
+All paths checked to exist and be non-empty before being listed (rule
+20's "a path in that file is a promise"); none failed.
+
+NOT REBUILT — no published artefact (report.pdf, evidence-*.pdf,
+residuals.pdf for any of the four documents touched) was rebuilt or
+modified. Every verification ran into a throwaway subdirectory of the
+document's own `out/668/`, or read `model.docmodel.json`/`.lines.json`
+without writing to either. `~/pdfdrill-library` git status (it is a
+deny-by-default git repo) shows no tracked changes from this task.
+
+OPEN
+----
+- The upstream figure-capture defect (Part Two) is measured and its exact
+  mechanism named, but not fixed — that is a `docmodel/modules/
+  equation.py` task, not this one.
+- The ninth row's `\[`/`\]` false-positive on `\\[1ex]` is characterised
+  but not fixed — a different, narrower defect than either class this
+  task's population was scoped around.
+- The 45,538-row/22-refused count (this task's own corpus scan) differs
+  slightly from the number this task's brief was handed (45,528/22) —
+  both are real measurements, taken ~5 days apart on a corpus that keeps
+  getting refined/re-ink-verified; the category breakdown (8/9[8+1]/3)
+  matches exactly, and the discrepancy is in the total row count, not in
+  which rows are refused or why. Not chased further, per rule 14: this
+  task re-measured against the CURRENT artifact rather than trusting the
+  handed-down total, and reports what it found.

@@ -911,6 +911,65 @@ def test_renderable_accepts_an_escaped_dollar_and_refuses_a_bare_one():
     assert not renderable(r"a $ b")          # a BARE $ still ends the row
 
 
+def test_dollar_inside_a_text_span_is_permitted_but_bare_still_refuses():
+    r"""668 — scope the `$` half of the gate to `text_spans()` (662's
+    promoted primitive), the same way `cjk_defect` already scopes CJK.
+
+    A `$` bare in `lx` (math position) still ends the cell's own outer
+    $...$ early and refuses, unchanged from 446. A `$` INSIDE a
+    `\text{}`/`\mbox{}`/etc argument opens/closes ORDINARY nested inline
+    math there — standard LaTeX, never touching the cell's own delimiters
+    — and is now permitted.
+    """
+    from pdfdrill.report_tex import renderable
+    assert not renderable(r"a $ b")                       # unchanged: bare, refuses
+    assert renderable(r"\text{(add $3\mathbf{x}$)}")        # new: scoped, permitted
+    # a $ OUTSIDE the text span, even on a value that also carries one
+    # inside a text span, still refuses -- scoping is per-occurrence, not
+    # a switch for the whole value.
+    assert not renderable(r"\text{(add $3\mathbf{x}$)} + $y")
+
+
+def test_dollar_pair_across_a_text_span_boundary_still_refuses():
+    r"""668 — one `$` inside a `\text{}` argument and its "partner" outside
+    it are two INDEPENDENT occurrences to `text_spans()`, not a matched
+    pair; the one outside the span is not rescued by the one inside it."""
+    from pdfdrill.report_tex import renderable
+    assert not renderable(r"\text{a $x} b$ c")
+
+
+def test_backslash_bracket_still_refuses_unconditionally_even_in_text():
+    r"""668 — `\[`/`\]` are DISPLAY-math delimiters; unlike `$`, they are
+    NOT scoped to `text_spans()`. Display mode cannot open inside inline
+    math no matter which brace group it is typed from, so location never
+    rescues them -- argued in out/668.txt."""
+    from pdfdrill.report_tex import renderable
+    assert not renderable(r"\text{\[ x \]}")
+    assert not renderable(r"a \[ x \] b")
+
+
+def test_johnston_linear_matrix_algebra_EQ0006_and_EQ0063_render():
+    r"""668 — the two real corpus rows this task fixes, verbatim
+    (johnston-linear-matrix-algebra objects obj_c291fcecac5b /
+    obj_6dace6681c2e's `latex_refined`; see out/668.txt and
+    ~/pdfdrill-library/.../out/668/668_verify_compile.py for the real
+    compile through the published `reports.evidence` path). Every `$` in
+    both sits inside a `\text{}` argument."""
+    from pdfdrill.report_tex import display_safe
+    eq0006 = (r"\begin{array}{rll}"
+             r" & \mathbf{x}+2(\mathbf{v}+\mathbf{w}) = -\mathbf{v}-3(\mathbf{x}-\mathbf{w}) & \\"
+             r"\Longrightarrow & \mathbf{x}+2\mathbf{v}+2\mathbf{w} = -\mathbf{v}-3\mathbf{x}+3\mathbf{w} & \text{(expand parentheses)} \\"
+             r"\Longrightarrow & 4\mathbf{x} = -3\mathbf{v}+\mathbf{w} & \text{(add $3\mathbf{x}$, subtract $2\mathbf{v}+2\mathbf{w}$)} \\"
+             r"\Longrightarrow & \mathbf{x} = \frac{1}{4}(\mathbf{w}-3\mathbf{v}). & \text{(divide both sides by 4)}"
+             r"\end{array}")
+    eq0063 = (r"\begin{aligned}"
+             r"\Longrightarrow \quad 4\mathbf{x} &= -3\mathbf{v} + \mathbf{w} \qquad &&\text{(add $3\mathbf{x}$, subtract $2\mathbf{v}$)} \\"
+             r"\Longrightarrow \quad \mathbf{x} &= \tfrac{1}{4}(\mathbf{w} - 3\mathbf{v}). \qquad &&\text{(divide both sides by $4$)}"
+             r"\end{aligned}")
+    assert display_safe(eq0006)
+    assert display_safe(eq0063)
+
+
 def test_a_leading_unmatched_opener_is_dropped_like_a_trailing_closer():
     r"""446 — the mirror of the \end{itemize} rule. Only an UNMATCHED opener:
     an environment that opens and closes inside the value keeps its own.

@@ -1688,8 +1688,33 @@ def renderable(latex: str) -> str:
     # `\$ 151` and the crop, the model returned `\$ 151` unchanged — it
     # judged there was nothing to fix, and this gate refused its own input
     # back.
-    if r"\[" in lx or r"\]" in lx or re.sub(r"\\\$", "", lx).count("$"):
+    #
+    # 668 — `\[`/`\]` refuse UNCONDITIONALLY, wherever they sit, including
+    # inside a `\text{}` argument. They are DISPLAY-math delimiters; the
+    # cell is already wrapped in its own outer $...$, and display mode
+    # cannot open inside inline math no matter which brace group it is
+    # typed from — location never rescues them, so they are not scoped.
+    if r"\[" in lx or r"\]" in lx:
         return ""
+    # 668 — `$` IS scoped, because a `$` in TEXT position is not the same
+    # hazard a bare `$` is. Bare in `lx` (math position), a `$` closes the
+    # cell's own outer $...$ early — the corruption the escape-handling
+    # above exists to avoid. But `\text{(add $3\mathbf{x}$, subtract
+    # $2\mathbf{v}$)}` (johnston-linear-matrix-algebra, two real rows) nests
+    # ORDINARY inline math inside a text argument — standard LaTeX: the `$`
+    # pair opens and closes math INSIDE the text group and never reaches the
+    # cell's own delimiters. So a `$` inside a `\text{}`/`\mbox{}`/etc
+    # argument is permitted; a `$` outside one still refuses, unchanged.
+    # `text_spans()` is 662's promoted primitive — the same span-finder
+    # `cjk_defect` already uses for the identical kind of question, reused
+    # rather than re-derived.
+    dollar_mask = re.sub(r"\\\$", r"\\X", lx)   # same escape rule as before,
+    dollar_pos = [m.start() for m in re.finditer(r"\$", dollar_mask)]
+    if dollar_pos:
+        text_ranges = text_spans(lx)
+        if any(not any(a <= p < b for a, b in text_ranges)
+               for p in dollar_pos):
+            return ""
     if re.sub(r"\\%", "", lx).count("%"):
         return ""
     # brace balance, with \\ and escaped \{ \} removed first
