@@ -203,7 +203,7 @@ Each of these cost real time or real data in this project.
       Table, Diagram, Picture, Reference). It never asks whether the
       title scheme has grown since that list was written: the checked-in
       conservation ratchet (`docops/conserve.py`, `conserve_baseline.json`)
-      currently carries eight further VIOLATION-class kinds —  Algorithm,
+      currently carries eight further VIOLATION-class kinds — Algorithm,
       AlgorithmStep, Citation, CodeListing, Link, List, Proof, Theorem —
       that `UNREFERENCED_KINDS` cannot see AT ALL, not a false negative
       but a blind spot. `out/656.txt` caught it directly: two documents
@@ -228,9 +228,12 @@ Each of these cost real time or real data in this project.
       complete list of files this document actually publishes now": a
       new evidence kind added to the pipeline without a matching entry
       here is invisible to both checks, not flagged as unpublished or
-      over budget but simply never looked at. Not yet fixed; named here
-      so the next person who adds a sixth published file does not
-      discover this the way the other four instances were discovered.
+      over budget but simply never looked at. Not yet fixed, and unlike
+      the four instances above this one has no incident on record in
+      this repo's own history to cite — named here on the strength of
+      the same exposed shape, so the next person who adds a sixth
+      published file has a reason to update this tuple in the same
+      commit rather than finding out from a silent gap later.
 
     The general form: a check that is provably correct about the
     population it inspects can still be silently wrong about the
