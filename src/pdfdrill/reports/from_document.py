@@ -54,9 +54,14 @@ def _chosen_reading(obj) -> "tuple[str, dict | None]":
     treats those as NONE "is making the same mistake this function was
     split to end"). What it does not check is whether the VERIFIED value it
     prefers can be typeset at all. Measured across the 20 published
-    documents (2026-09-11): 31 Equation/Formula objects carry a VERIFIED
-    `latex_refined`; 28 have both readings render, 2 have the raw REFUSED
-    and the refined render (the clear win), and exactly 1
+    documents (2026-09-11, counted by `doc.objects_of_type` over BOTH
+    types this function handles -- not assumed from the two-EQ/one-FO
+    sample below, which is the mistake fix round 1 caught in this file's
+    own out/669.txt): 31 objects carry a VERIFIED `latex_refined` --
+    30 Equation, 1 Formula (0707.4470_FO0175, obj_0c9487434929, live in
+    production, both readings render). 28 have both readings render
+    (including that one Formula), 2 have the raw REFUSED and the refined
+    render (the clear win: 0902.0431_EQ1032/EQ1187), and exactly 1
     (lyche-numerical-linear-algebra_EQ0579, a misattributed span) has the
     raw render and the refined REFUSED -- `chosen_latex` alone would
     replace that one rendering row with a blank one. So the raw is kept
@@ -108,7 +113,8 @@ def build_rows(doc, bibkey: str, *, ink: "dict | None" = None,
     row objects (`ensure_crops`/`crops.records`, both do) must keep seeing
     exactly that; a `"refined"` map lived here as a fifth key for one
     iteration and broke both, since `dataclasses.replace` was handed a dict
-    key string instead of a row. `refined_map` below reads it back out.
+    key string instead of a row. `refined_rows_map` below reads it back
+    out.
     """
     ink = ink or {}
     names = dict(math_titles(doc, bibkey))
@@ -163,12 +169,25 @@ def build_rows(doc, bibkey: str, *, ink: "dict | None" = None,
     return out
 
 
-def refined_map(rows_by_kind: dict) -> dict:
+def refined_rows_map(rows_by_kind: dict) -> dict:
     """{identifier: refined-evidence dict} for the rows that published one.
 
     669 -- reads `.refined_info` back off the rows `build_rows` already
     stamped, rather than a second key on that dict (see its docstring for
-    why one was tried and reverted). Shaped for `report_tex.refined_note`.
+    why one was tried and reverted). Shaped for `report_tex.refined_note`
+    (which shares this dict's SHAPE, not this function).
+
+    669, fix round 1 (review, minor finding): named `refined_map` through
+    fix round 0, which collided in NAME (not behaviour -- nothing ever
+    called both, and nothing does today) with `report_tex.refined_map`
+    (128), a same-named, unrelated function on the RETIRED reading path:
+    {tiddler title: info} from a tiddler ARRAY's `latex_refined`/
+    `refined_verified_by` fields, not {identifier: info} from `build_rows`'
+    ROW OBJECTS. Renamed here rather than there -- `report_tex.refined_map`
+    is the older name, has its own tests (`test_prefer_refined.py`) and its
+    own internal caller (`findings_rows`'s `prefer_refined` chain), and
+    touching it would be touching the retired path this task was told not
+    to rebuild for a cosmetic reason.
     """
     out = {}
     for kind in ("equation", "formula"):

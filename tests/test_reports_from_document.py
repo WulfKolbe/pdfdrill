@@ -2,7 +2,7 @@ import json
 
 from docmodel.core import Document, DocObject, Realization
 from pdfdrill import refine as rf
-from pdfdrill.reports.from_document import build_rows, refined_map
+from pdfdrill.reports.from_document import build_rows, refined_rows_map
 from pdfdrill.reports.rows import EquationRow, FormulaRow, TableRow, ImageRow
 
 BK = "DOC"
@@ -197,11 +197,14 @@ def test_orphaned_KEEPS_the_raw():
 
 
 def test_refinement_applies_to_formula_objects_too_and_keeps_host_line_key():
-    """MATH_TYPES is Equation AND Formula (refine.py); `latex_refined` has
-    been measured on Formula objects too even though today's 31-row corpus
-    happens to be all-Equation (docs/layers/PROPS.md's own type list says
-    both). The host-line lookup must still key on the RAW reading -- the
-    text a `first_occurrences` span was recorded against never changes."""
+    """MATH_TYPES is Equation AND Formula (refine.py), and this is not a
+    hypothetical: fix round 1 caught this file's own out/669.txt claiming
+    (unchecked) that the 31-object corpus was all-Equation. Counted
+    directly it is 30 Equation + 1 Formula -- 0707.4470_FO0175
+    (obj_0c9487434929), VERIFIED, both readings render -- matching
+    docs/layers/PROPS.md's own type list for this property. The host-line
+    lookup must still key on the RAW reading -- the text a
+    `first_occurrences` span was recorded against never changes."""
     doc = Document(meta={"bibkey": BK})
     f = _refined_obj("f1", latex="P", refined="Q", state=rf.VERIFIED)
     f.type = "Formula"
@@ -212,12 +215,12 @@ def test_refinement_applies_to_formula_objects_too_and_keeps_host_line_key():
     assert r.latex == "Q" and r.refined_info is not None
 
 
-def test_refined_map_collects_only_the_rows_that_actually_published_one():
+def test_refined_rows_map_collects_only_the_rows_that_actually_published_one():
     doc = Document(meta={"bibkey": BK})
     doc.add(_refined_obj("e1", latex="a=b", refined="c=d", state=rf.VERIFIED))
     doc.add(_refined_obj("e2", latex="x=y", refined="", state=rf.NONE))
     rows = build_rows(doc, BK)
-    m = refined_map(rows)
+    m = refined_rows_map(rows)
     assert set(m) == {"DOC_EQ0001"}
     assert m["DOC_EQ0001"]["basis"] == "measured"
 

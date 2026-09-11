@@ -2147,7 +2147,17 @@ def conf_cell(conf) -> str:
 #: silently showed a corrected value would answer "what does this document
 #: say" while appearing to answer "what did the OCR read", and those are the
 #: two questions this report exists to keep apart.
-def refined_note(refined: dict) -> str:
+def refined_summary_text(refined: dict) -> str:
+    """The plain-text facts behind a refined-rows note: "N rows show a
+    REFINEMENT below...". No markup, no escaping -- a CALLER's job, since
+    the two live callers need two different ones.
+
+    669, fix round 1 (review, minor finding): this used to be inlined
+    near-verbatim in both `refined_note` below (LaTeX, this module) and
+    `reports.evidence._refined_summary` (HTML/plain text) -- the same
+    sentence built twice, escaped two different ways at the two call
+    sites rather than once here.
+    """
     if not refined:
         return ""
     by = {}
@@ -2158,12 +2168,18 @@ def refined_note(refined: dict) -> str:
                     for k, v in sorted(by.items()))
     ids = ", ".join(sorted(refined)[:6]) + (" …" if len(refined) > 6 else "")
     n = len(refined)
-    text = ("%d row%s a REFINEMENT below, not the OCR reading: %s. Each is "
-            "marked [refined] beside its identifier. The model is unchanged — "
-            "the original reading is still what `latex` holds; this projection "
-            "chose the refinement for %s. Rows: %s"
+    return ("%d row%s a REFINEMENT below, not the OCR reading: %s. Each is "
+            "marked [refined] beside its identifier. The model is unchanged "
+            "— the original reading is still what `latex` holds; this "
+            "report chose the refinement for %s. Rows: %s"
             % (n, " shows" if n == 1 else "s show", how,
                "it" if n == 1 else "them", ids))
+
+
+def refined_note(refined: dict) -> str:
+    text = refined_summary_text(refined)
+    if not text:
+        return ""
     return ("\\begin{quote}\\small\\itshape\n%s\\end{quote}\n\\normalsize\n"
             % esc_text(text))
 

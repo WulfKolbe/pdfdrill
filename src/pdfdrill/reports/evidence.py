@@ -9,7 +9,7 @@ from . import KINDS
 from . import budget as _budget
 from . import html as H
 from . import tex as T
-from .from_document import refined_map as _refined_map
+from .from_document import refined_rows_map as _refined_rows_map
 
 OUTPUT = "evidence-%s.%s"
 FORMATS = ("html", "pdf")
@@ -23,25 +23,17 @@ def ordered(rows: list, kind: str) -> list:
 
 
 def _refined_summary(refined: dict) -> str:
-    """The evidence-report top note (669): the HTML/plain-text twin of
-    `report_tex.refined_note` (233) — same facts, no LaTeX markup, since
-    this reaches `H.page_shell`'s plain `meta_lines`, not a `\\quote`."""
-    if not refined:
-        return ""
-    by: dict = {}
-    for info in refined.values():
-        k = info.get("basis") or info.get("verified_by") or "?"
-        by[k] = by.get(k, 0) + 1
-    how = ", ".join("%d verified against the %s" % (v, k)
-                    for k, v in sorted(by.items()))
-    ids = ", ".join(sorted(refined)[:6]) + (" …" if len(refined) > 6 else "")
-    n = len(refined)
-    return ("%d row%s a REFINEMENT below, not the OCR reading: %s. Each is "
-            "marked [refined] beside its identifier. The model is unchanged "
-            "— the original reading is still what `latex` holds; this "
-            "report chose the refinement for %s. Rows: %s"
-            % (n, " shows" if n == 1 else "s show", how,
-               "it" if n == 1 else "them", ids))
+    """The evidence-report top note (669): the plain-text (no LaTeX
+    markup) form of `report_tex.refined_summary_text` -- this reaches
+    `H.page_shell`'s plain `meta_lines`, which escapes it itself, not a
+    `\\quote`.
+
+    669, fix round 1 (review, minor finding): this used to inline its own
+    near-verbatim copy of `refined_note`'s sentence-building; now both
+    read the one shared builder so there is a single place that sentence
+    is written.
+    """
+    return rt.refined_summary_text(refined)
 
 
 def build(rows_by_kind: dict, kind: str, fmt: str, *, doc_dir, pdf, bibkey,
@@ -55,10 +47,10 @@ def build(rows_by_kind: dict, kind: str, fmt: str, *, doc_dir, pdf, bibkey,
     rows = ordered(rows_by_kind.get(kind, []), kind)
     title = "%s: %s evidence" % (bibkey, kind)
     # 669 — {identifier: evidence} for the rows THIS kind's table actually
-    # shows, from `from_document.refined_map`; empty for table/image kinds,
+    # shows, from `from_document.refined_rows_map`; empty for table/image kinds,
     # which never carry `refined_info` (refine.MATH_TYPES is Equation and
     # Formula only).
-    refined = _refined_map({kind: rows}) if kind in ("equation", "formula") else {}
+    refined = _refined_rows_map({kind: rows}) if kind in ("equation", "formula") else {}
     if fmt == "html":
         out = doc_dir / (OUTPUT % (kind, "html"))
         meta = ["%d rows" % len(rows)]

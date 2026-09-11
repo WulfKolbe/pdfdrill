@@ -53,9 +53,30 @@ evidence dict) is truthy and lacks a `"refinement_state"` key exactly when
 `chosen_latex` chose VERIFIED (the non-VERIFIED branch always sets that
 key); that is the discriminator used, not a second reimplementation of
 `refinement_state`. `build_rows()` calls this for every Equation AND
-Formula object (refine.MATH_TYPES is both, even though today's 31-object
-population happens to be all-Equation) and stamps the row's new
-`refined_info` field with the evidence dict, or None.
+Formula object (refine.MATH_TYPES is both, and this is not merely a
+type-signature nicety: today's 31-object population is 30 Equation and 1
+Formula — 0707.4470_FO0175, obj_0c9487434929, VERIFIED, both readings
+render — so the Formula branch is exercised in the LIVE corpus, not only
+by a unit test) and stamps the row's new `refined_info` field with the
+evidence dict, or None.
+
+CORRECTION (fix round 1): the first version of this file said the 31-
+object population "happens to be all-Equation" (here, and again where the
+decision table introduces the same count below); the sdd task report and
+a test-file comment repeated the same unchecked claim. False, caught by
+review: it was never actually counted by type, only inspected for the
+three named decisive rows (which happen to all be Equations) — the other
+28 "both render" objects were never individually checked. Counted
+directly (measured 2026-09-11, `doc.objects_of_type`, both types, on the
+actual model): 30 Equation + 1 Formula. The one Formula, 0707.4470_FO0175
+(obj_0c9487434929), is VERIFIED with both readings rendering — it lands
+in the "28 both render" cell of the decision table below, and its
+`.latex` was already being correctly replaced by the refined reading
+before this correction; only the DISCLOSURE was wrong, not the code's
+behaviour on that row. It also contradicts docs/layers/PROPS.md:142
+itself, which this task was required to read and which lists this
+property's types as "Equation, Formula" — a fact stated plainly in the
+document the false claim should have been checked against.
 
 One trap, avoided the way it needed to be avoided: the Formula loop keeps
 the HOST-LINE lookup keyed on the RAW `p.get("latex")` (renamed `raw_lx`),
@@ -68,26 +89,37 @@ A `"refined"` map was tried as a FIFTH key on `build_rows()`'s return dict
 and reverted in the same session: `ensure_crops`/`crops.records` both do
 `for kind, lst in rows.items(): ... for r in lst: dataclasses.replace(r,
 ...)`, and a fifth value shaped as `{identifier: dict}` handed `dataclasses
-.replace` a dict key STRING instead of a row object. `refined_map(rows_by
-_kind)` is a separate function that reads `.refined_info` back off the rows
-`build_rows` already stamped, so the return shape stays exactly what every
-other consumer already assumes.
+.replace` a dict key STRING instead of a row object. `refined_rows_map
+(rows_by_kind)` is a separate function that reads `.refined_info` back off
+the rows `build_rows` already stamped, so the return shape stays exactly
+what every other consumer already assumes.
+
+CORRECTION (fix round 1): this function was named `refined_map` through
+fix round 0, colliding in NAME (never in behaviour -- nothing called both)
+with `report_tex.refined_map` above, an unrelated, older function on the
+RETIRED reading path (a tiddler-array reader, not a row reader; a review
+minor finding). Renamed to `refined_rows_map` here, in `evidence.py`'s
+import, and in its test; `report_tex.refined_map` (128) was left alone --
+it has its own tests and its own internal caller, and renaming it would
+be touching the retired path this task was told not to rebuild.
 
 THE DECISION TABLE, EACH CELL DEFENDED
 -----------------------------------------
 Measured 2026-09-11 across the 20 published documents (documents.json
 minus penev_A, per HANDOVER.md's "20 of 21 published"):
 
-    31 Equation objects carry `latex_refined`. ALL 31 are `refinement_
-    state` == VERIFIED — none unverified, contradicted or orphaned in the
-    live corpus (a good thing to know, not something the rule may assume:
-    the CONTRADICTED/UNVERIFIED/ORPHANED cells are still real code paths,
+    31 Equation/Formula objects carry `latex_refined` — 30 Equation, 1
+    Formula (0707.4470_FO0175, obj_0c9487434929; counted directly, not
+    assumed — see the CORRECTION below). ALL 31 are `refinement_state` ==
+    VERIFIED — none unverified, contradicted or orphaned in the live
+    corpus (a good thing to know, not something the rule may assume: the
+    CONTRADICTED/UNVERIFIED/ORPHANED cells are still real code paths,
     exercised by tests, just not by anything currently on disk).
     Split by whether each reading survives `display_safe`:
         2   raw REFUSED, refined renders   <- 0902.0431_EQ1032, EQ1187
         1   raw renders, refined REFUSED   <- lyche-numerical-linear-
                                                algebra_EQ0579
-       28   both render, content differs
+       28   both render, content differs   <- includes 0707.4470_FO0175
 
   Rule:                                              | published reading
   ----------------------------------------------------|-------------------
@@ -198,21 +230,20 @@ library/"Numerical Linear Algebra..."/out/669/669_trap_row.py / .json
     have-been-fine, i.e. it stays RENDERING both before and after, because
     the fix keeps its raw. No other document's refusal count moved.
 
-  DISCREPANCY WORTH FLAGGING, not resolved further (HANDOVER-RULES rule
-  12: an unexplained delta is a finding): the brief's own text states this
-  count "should fall by 2, from 21 to 19." The DIRECTION and the DELTA
-  (-2) both match exactly what was measured, by two independent
-  methodologies (the corpus-wide count above, and a `residuals.RS.findings
-  ()`-based count which returned 19 -> 19 unchanged, because 0902.0431's
-  two "clear win" objects are ALSO already excluded from residuals.pdf's
-  Unresolved section by `corrections.py`'s own pre-existing "Corrected"
-  pairing — they are shown there today, before this task, via the was/now
-  mechanism, independent of this fix). Neither of these reproduces the
-  brief's absolute baseline of 21. The most likely explanation is that "21"
-  was read off a specific already-built, on-disk residuals.pdf/evidence.pdf
-  (this task did not rebuild any, per the rules, and did not attempt to
-  reconstruct that exact prior measurement's selection logic); it was not
-  chased further given the fall-by-2 claim is independently confirmed.
+  DISCREPANCY, NOW SETTLED (review, fix round 1): the brief's own text
+  stated this count "should fall by 2, from 21 to 19." The DIRECTION and
+  the DELTA (-2) both matched exactly what was measured here, by two
+  independent methodologies (the corpus-wide count above, and a
+  `residuals.RS.findings()`-based count which returned 19 -> 19 unchanged,
+  because 0902.0431's two "clear win" objects are ALSO already excluded
+  from residuals.pdf's Unresolved section by `corrections.py`'s own pre-
+  existing "Corrected" pairing — they are shown there today, before this
+  task, via the was/now mechanism, independent of this fix). Neither
+  reproduced the brief's absolute baseline of 21. The review independently
+  re-derived both of these alternate baselines and reached the same
+  numbers reported here; the "21" was the brief's own error, not a fact
+  this task measured wrong or a defect in the fix. Nothing further to
+  chase.
 
 TESTS
 ------
@@ -221,9 +252,10 @@ about existing behaviour:
   tests/test_reports_from_document.py (+10): every decision-table cell
     (NONE/VERIFIED-both-render/VERIFIED-raw-refused/VERIFIED-refined-
     refused/CONTRADICTED/UNVERIFIED/ORPHANED), the Formula-type path with
-    its host-line-key preservation, `refined_map`'s selection, and a rule-
-    17 negative control (identical-content VERIFIED refinement — cannot
-    discriminate the fix, documented as such rather than silently omitted).
+    its host-line-key preservation, `refined_rows_map`'s selection, and a
+    rule-17 negative control (identical-content VERIFIED refinement --
+    cannot discriminate the fix, documented as such rather than silently
+    omitted).
   tests/test_reports_rows.py (+1): `refined_info` defaults to None on
     every row kind.
   tests/test_reports_tex.py (+2): the identifier-column mark and its
@@ -241,6 +273,20 @@ about existing behaviour:
 Full suite: 3567 passed at base commit 503beea9 (measured fresh, not
 assumed) -> 3587 passed with this change, 0 failed, 0 skipped-that-
 weren't-already. +20 matches the count above exactly.
+
+FIX ROUND 1's full-suite run, taken in the shared working tree, showed 3
+failures (`test_geometry_signature.py::test_geometry_funcs_is_exactly_
+the_reviewed_set`, `test_image_regions.py::test_the_section_
+distinguishes_the_three_no_source_cases`,
+`test_naming_the_file_does_not_claim_the_latex_is_right`) — all three
+attributable to the CONCURRENT session's own in-progress edit to
+`report_tex.row()`/`build_report` (a cellrect-mark refactor, and its own
+new geometry-signature test), confirmed by re-running the exact same
+suite in a throwaway `git worktree` checked out at this task's commit
+plus its round-1 changes ONLY (no concurrent-session content reachable):
+3587 passed, 0 failed there too. The worktree was removed after
+verifying; nothing about report_tex.row()/build_report was touched by
+this task in either round.
 
 A CONCURRENT SESSION SHARES THIS WORKING TREE
 ------------------------------------------------
@@ -266,6 +312,33 @@ check and this observation, not from any command run here — `git add`,
 `git apply --cached` and `git commit` cannot remove content from a
 working-tree file, and none of this task's commands did.
 
+FIX ROUND 1 (review), SUMMARISED
+------------------------------------
+PASS on both verdicts; one blocking finding, three minor.
+  BLOCKING, fixed: the "31, all Equation" claim was false and unchecked
+    (see the two CORRECTION notes above). Counted directly: 30 Equation,
+    1 Formula (0707.4470_FO0175, obj_0c9487434929, VERIFIED, both readings
+    render, live in production). Fixed in out/669.txt (two places),
+    `from_document.py`'s docstring, the test-file comment that repeated
+    it, and the sdd task report; the measurement script under
+    0902.0431/out/669/ now surfaces a type breakdown instead of only
+    collecting it unread.
+  DISCREPANCY, settled: the review independently re-derived both of this
+    task's alternate baselines and reached the same numbers; the brief's
+    "21" was its own error, not this task's. Recorded above, not chased.
+  MINOR 1, fixed: `report_tex.refined_note`'s sentence-building was
+    near-verbatim duplicated in `evidence._refined_summary`. Factored into
+    `report_tex.refined_summary_text` (plain text, no escaping); both
+    callers now build their own markup (LaTeX `esc_text`, HTML's existing
+    `page_shell` escaping) around the ONE shared sentence.
+  MINOR 2, fixed: `refined_map` existed as two same-named, unrelated
+    functions (`report_tex.refined_map`, the OLDER one, on the tiddler/
+    retired path; this task's NEW one on the row/published path). The
+    new one is renamed `refined_rows_map`, in `from_document.py`,
+    `evidence.py`'s import, and its test; the older, retired-path one
+    (with its own tests and internal caller) was left alone rather than
+    touched for a cosmetic reason.
+
 WHAT A PERSON CAN OPEN
 -------------------------
   /home/wkolbe/MX/PDFDRILL/src/pdfdrill/reports/from_document.py
@@ -274,8 +347,9 @@ WHAT A PERSON CAN OPEN
   /home/wkolbe/MX/PDFDRILL/src/pdfdrill/reports/html.py
   /home/wkolbe/MX/PDFDRILL/src/pdfdrill/reports/evidence.py
   /home/wkolbe/MX/PDFDRILL/src/pdfdrill/report_tex.py (LEGEND_REFINED +
-    legend() only — see the concurrent-session note above for why this
-    file's working-tree diff shows more than the commit does)
+    legend(), and fix round 1's `refined_summary_text` extraction, only —
+    see the concurrent-session note above for why this file's working-tree
+    diff shows more than the commit does)
   /home/wkolbe/MX/PDFDRILL/src/pdfdrill/refine.py (read, not modified)
   ~/pdfdrill-library/0902.0431/out/669/{669_measure_script.py,
     669_measure.json,INSPECT.txt}
