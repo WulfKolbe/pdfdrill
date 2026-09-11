@@ -1,7 +1,8 @@
 import json
 
-from docmodel.core import Document, DocObject
-from pdfdrill.reports.from_document import build_rows
+from docmodel.core import Document, DocObject, Realization
+from pdfdrill import refine as rf
+from pdfdrill.reports.from_document import build_rows, refined_map
 from pdfdrill.reports.rows import EquationRow, FormulaRow, TableRow, ImageRow
 
 BK = "DOC"
@@ -85,3 +86,152 @@ def test_table_latex_is_mathpix_text_and_picture_url_is_its_cdn():
 def test_missing_lines_json_is_not_an_error(tmp_path):
     rows = build_rows(_doc(), BK, lines_path=tmp_path / "nope.json")
     assert all(r.host_line is None for r in rows["formula"])
+
+
+# ---------------------------------------------------------------------------
+# 669 -- publish the refined reading where the raw is worse
+#
+# Decision table, defended cell by cell in from_document._chosen_reading's
+# own docstring. `report_tex.display_safe` on two short, real strings gives
+# a deterministic RENDERS/REFUSED pair for each row of the table without
+# needing xelatex: "a & b \\\\ c & d" is refused (a bare longtable `&`/`\\`
+# with no wrapping env); "a=b" and "c=d" both render.
+# ---------------------------------------------------------------------------
+
+REFUSED = "a & b \\\\ c & d"
+
+
+def _refined_obj(obj_id, *, latex, refined, state, verified_by="ink",
+                 basis="measured"):
+    """One Equation object in each of the five `refine.refinement_state`
+    states, real `DocObject`/`Realization` (not the duck-typed stand-ins
+    `test_refinement_state.py` uses) -- `build_rows` walks the actual
+    `docmodel.core.Document`."""
+    props = {"flow_index": 1, "latex": latex}
+    if state != rf.NONE:
+        props[rf.REFINED_FIELD] = refined
+    o = DocObject(id=obj_id, type="Equation", props=props)
+    if state == rf.VERIFIED:
+        o.add_realization(Realization(
+            stream=rf.REFINED_STREAM, role="latex_candidate",
+            provenance="change",
+            props={rf.REFINED_FIELD: refined, "verified_by": verified_by,
+                  "basis": basis}))
+    elif state == rf.CONTRADICTED:
+        o.add_realization(Realization(
+            stream=rf.REFINED_STREAM, role="latex_candidate",
+            provenance="change",
+            props={rf.REFINED_FIELD: "something else entirely",
+                  "verified_by": verified_by}))
+    elif state == rf.UNVERIFIED:
+        o.add_realization(Realization(
+            stream=rf.REFINED_STREAM, role="latex_candidate",
+            provenance="change", props={rf.REFINED_FIELD: refined}))
+    # ORPHANED: the twin prop with no change realization at all -- nothing
+    # further to add.
+    assert rf.refinement_state(o)["state"] == state, "fixture built the wrong state"
+    return o
+
+
+def _one_equation_row(obj):
+    doc = Document(meta={"bibkey": BK})
+    doc.add(obj)
+    (r,) = build_rows(doc, BK)["equation"]
+    return r
+
+
+def test_no_refinement_reads_latex_alone_as_before():
+    r = _one_equation_row(_refined_obj("e1", latex="a=b", refined="",
+                                       state=rf.NONE))
+    assert r.latex == "a=b" and r.refined_info is None
+
+
+def test_verified_and_both_render_PREFERS_the_refinement():
+    """The defect PROPS.md names: reading `latex` alone ignores an accepted
+    repair even when the raw itself renders fine. 28 of 31 in the corpus are
+    exactly this cell."""
+    r = _one_equation_row(_refined_obj("e1", latex="a=b", refined="c=d",
+                                       state=rf.VERIFIED))
+    assert r.latex == "c=d"
+    assert r.refined_info is not None and r.refined_info["basis"] == "measured"
+
+
+def test_verified_and_raw_refused_PREFERS_the_refinement():
+    """The clear win: 2 of 31 in the corpus. `refinement_state` alone (no
+    render check) already gets this cell right, but the render check must
+    not accidentally refuse it too."""
+    r = _one_equation_row(_refined_obj("e1", latex=REFUSED, refined="c=d",
+                                       state=rf.VERIFIED))
+    assert r.latex == "c=d" and r.refined_info is not None
+
+
+def test_verified_but_refined_refused_KEEPS_the_raw():
+    """The trap: preferring blindly regresses this row from rendering to
+    not rendering. 1 of 31 in the corpus (lyche-numerical-linear-algebra_
+    EQ0579, a misattributed span) is exactly this cell, and it is the reason
+    the rule is not simply `refinement_state(obj) == VERIFIED`."""
+    r = _one_equation_row(_refined_obj("e1", latex="a=b", refined=REFUSED,
+                                       state=rf.VERIFIED))
+    assert r.latex == "a=b" and r.refined_info is None
+
+
+def test_contradicted_KEEPS_the_raw_even_when_the_refinement_would_render():
+    """`refinement_state`, not a truthiness test on `latex_refined`: a
+    CONTRADICTED refinement must never be read as good even though the
+    prop's own value would render."""
+    r = _one_equation_row(_refined_obj("e1", latex="a=b", refined="c=d",
+                                       state=rf.CONTRADICTED))
+    assert r.latex == "a=b" and r.refined_info is None
+
+
+def test_unverified_KEEPS_the_raw():
+    r = _one_equation_row(_refined_obj("e1", latex="a=b", refined="c=d",
+                                       state=rf.UNVERIFIED))
+    assert r.latex == "a=b" and r.refined_info is None
+
+
+def test_orphaned_KEEPS_the_raw():
+    r = _one_equation_row(_refined_obj("e1", latex="a=b", refined="c=d",
+                                       state=rf.ORPHANED))
+    assert r.latex == "a=b" and r.refined_info is None
+
+
+def test_refinement_applies_to_formula_objects_too_and_keeps_host_line_key():
+    """MATH_TYPES is Equation AND Formula (refine.py); `latex_refined` has
+    been measured on Formula objects too even though today's 31-row corpus
+    happens to be all-Equation (docs/layers/PROPS.md's own type list says
+    both). The host-line lookup must still key on the RAW reading -- the
+    text a `first_occurrences` span was recorded against never changes."""
+    doc = Document(meta={"bibkey": BK})
+    f = _refined_obj("f1", latex="P", refined="Q", state=rf.VERIFIED)
+    f.type = "Formula"
+    f.props["flow_index"] = 1
+    doc.add(f)
+    rows = build_rows(doc, BK)
+    (r,) = rows["formula"]
+    assert r.latex == "Q" and r.refined_info is not None
+
+
+def test_refined_map_collects_only_the_rows_that_actually_published_one():
+    doc = Document(meta={"bibkey": BK})
+    doc.add(_refined_obj("e1", latex="a=b", refined="c=d", state=rf.VERIFIED))
+    doc.add(_refined_obj("e2", latex="x=y", refined="", state=rf.NONE))
+    rows = build_rows(doc, BK)
+    m = refined_map(rows)
+    assert set(m) == {"DOC_EQ0001"}
+    assert m["DOC_EQ0001"]["basis"] == "measured"
+
+
+def test_a_fixture_with_no_refinement_or_identical_readings_cannot_discriminate():
+    """Rule 17 -- a pattern verified on a sample that lacks the case it
+    exists to catch cannot fail. Neither a NONE-state object nor a VERIFIED
+    one whose refined text equals the raw would show a difference between
+    'read latex alone' and 'apply the 669 rule' -- both tests above use
+    genuinely different, genuinely renderable content on both sides of the
+    VERIFIED cells for exactly this reason. This test pins the negative: an
+    identical-content VERIFIED refinement is indistinguishable by content,
+    on purpose (nothing to prefer)."""
+    r = _one_equation_row(_refined_obj("e1", latex="a=b", refined="a=b",
+                                       state=rf.VERIFIED))
+    assert r.latex == "a=b"          # same either way -- not a useful probe
+    assert r.refined_info is not None  # but the state IS still VERIFIED

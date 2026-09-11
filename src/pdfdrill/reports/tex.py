@@ -63,10 +63,18 @@ def _conf(r: EvidenceRow, ink_bullets: bool) -> str:
 def render_row(r: EvidenceRow, widths, *, out_dir, px2mm, bibkey,
                history=None, ink_bullets=False) -> str:
     extra = getattr(r, "eqnum", "")
-    ident = "\\ident{%s}%s%s" % (
+    # 669 -- `refined_flag`, unchanged from the retired path's own use of it
+    # (233, `report_tex.row()`): the mark that says "this row is not
+    # MathPix's own reading" belongs in the IDENTIFIER column, beside
+    # `conf_flag`, for the reason 064 already established for confidence
+    # (HANDOVER-RULES rule 16) -- the LaTeX-source and Rendered columns stay
+    # exactly what they would otherwise be for every OTHER row, so a
+    # per-column ink probe still has an unchanged control.
+    ident = "\\ident{%s}%s%s%s" % (
         rt.breakable_ident(r.identifier),
         ("~\\eqnum{%s}" % rt.esc_text(extra)) if extra else "",
-        rt.conf_flag(r.shown_confidence))
+        rt.conf_flag(r.shown_confidence),
+        rt.refined_flag(getattr(r, "refined_info", None)))
     src = ("{\\ttfamily\\footnotesize %s}" % rt.esc_text(r.latex)
            if r.latex else "---")
     cells = [ident, rt.esc_text(r.shown_page), _conf(r, ink_bullets), src,

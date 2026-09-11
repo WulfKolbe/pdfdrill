@@ -103,6 +103,30 @@ def test_rendered_maps_a_display_environment_but_source_keeps_it_raw(tmp_path):
     assert r"\begin{split}" not in arg
 
 
+def test_a_refined_row_is_marked_in_the_identifier_column_not_the_source_one(tmp_path):
+    """669 -- `refined_flag` (233, reused not rebuilt) goes beside `conf_flag`
+    in the Identifier cell, matching 064's own reason for putting confidence
+    there: the LaTeX-source/Rendered/Scan cells stay whatever they would be
+    for any other row (HANDOVER-RULES rule 16's free control), so the mark
+    has to live somewhere else."""
+    r = EquationRow(identifier="D_EQ0001", latex="c=d", page="3",
+                    refined_info={"basis": "measured", "verified_by": "ink"})
+    w = T.widths_for("a3", True, with_image=False)
+    body = T.render_row(r, w, out_dir=tmp_path, px2mm=None, bibkey="D")
+    assert "[refined: measured]" in body
+    ident_cell = body.split(" & ")[0]
+    assert "[refined" in ident_cell
+    src_cell = body.split(" & ")[3]
+    assert "[refined" not in src_cell
+
+
+def test_an_unrefined_row_carries_no_mark(tmp_path):
+    r = EquationRow(identifier="D_EQ0002", latex="a=b", page="3")
+    w = T.widths_for("a3", True, with_image=False)
+    body = T.render_row(r, w, out_dir=tmp_path, px2mm=None, bibkey="D")
+    assert "refined" not in body
+
+
 def test_no_legend_and_no_bullets_by_default(tmp_path):
     body = T.render_table([EquationRow(identifier="D_EQ0001", latex="x")],
                           "equation", widths=T.widths_for("a3", True, True),

@@ -163,6 +163,40 @@ def test_evidence_line_says_nothing_extra_when_under_budget():
     assert "OVER BUDGET" not in _evidence_line(r, pdf_out=True, compile_pdf=True)
 
 
+def _refined_rows():
+    return {"equation": [EquationRow(identifier="D_EQ0001", latex="c=d",
+                                     confidence=0.3,
+                                     refined_info={"basis": "measured",
+                                                   "verified_by": "ink"})],
+            "formula": [], "table": [], "image": []}
+
+
+def test_html_evidence_names_the_refined_rows_in_meta_and_marks_the_row(tmp_path):
+    r = E.build(_refined_rows(), "equation", "html", doc_dir=tmp_path,
+                pdf=tmp_path / "D.pdf", bibkey="D", history=None,
+                px2mm=None, paper="a3", landscape=True, compile_pdf=False)
+    body = r["out"].read_text()
+    assert "REFINEMENT" in body and "verified against the measured" in body
+    assert "[refined: measured]" in body
+
+
+def test_pdf_evidence_prepends_refined_note_before_the_table(tmp_path):
+    r = E.build(_refined_rows(), "equation", "pdf", doc_dir=tmp_path,
+                pdf=tmp_path / "D.pdf", bibkey="D", history=None,
+                px2mm=None, paper="a3", landscape=True, compile_pdf=False)
+    tex = (tmp_path / "evidence-equation.tex").read_text()
+    assert "\\begin{quote}" in tex and "REFINEMENT" in tex
+    assert tex.index("\\begin{quote}") < tex.index("\\begin{longtable}")
+    assert "[refined: measured]" in tex
+
+
+def test_evidence_with_no_refined_rows_carries_no_note(tmp_path):
+    r = E.build(_rows(), "equation", "html", doc_dir=tmp_path,
+                pdf=tmp_path / "D.pdf", bibkey="D", history=None,
+                px2mm=None, paper="a3", landscape=True, compile_pdf=False)
+    assert "REFINEMENT" not in r["out"].read_text()
+
+
 def test_unknown_kind_or_format_is_refused(tmp_path):
     with pytest.raises(ValueError):
         E.build(_rows(), "prose", "html", doc_dir=tmp_path, pdf=tmp_path / "D.pdf",

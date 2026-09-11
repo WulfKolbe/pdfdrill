@@ -73,13 +73,27 @@ def _img(r: EvidenceRow, doc_dir: Path) -> str:
         _h.escape(str(rel).replace("\\", "/")), _h.escape(r.identifier))
 
 
+def _refined_mark(r: EvidenceRow) -> str:
+    """669 -- the HTML twin of `report_tex.refined_flag` (233): a row whose
+    `latex` is a VERIFIED refinement, not MathPix's own reading, says so
+    beside its identifier rather than by disagreeing silently with the
+    rendered cell."""
+    info = getattr(r, "refined_info", None)
+    if not info:
+        return ""
+    basis = info.get("basis") or info.get("verified_by") or "?"
+    return ' <span class="note">[refined: %s]</span>' % _h.escape(str(basis))
+
+
 def _row(r: EvidenceRow, doc_dir: Path, display: bool, ink_codes: bool = False) -> str:
     latex = r.latex or ""
     rendered = ('<span class="math-render" data-latex="%s" data-display="%s"></span>'
                 % (_h.escape(latex, quote=True), "true" if display else "false")
                 ) if latex else "---"
+    ident = "<td>%s%s</td>" % (
+        "---" if not r.identifier else _h.escape(r.identifier), _refined_mark(r))
     return ("<tr>%s%s%s<td class=\"src\">%s</td><td>%s</td>%s</tr>\n"
-            % (_cell(r.identifier), _cell(r.shown_page), _conf(r, ink_codes),
+            % (ident, _cell(r.shown_page), _conf(r, ink_codes),
                _h.escape(latex) if latex else "---", rendered,
                _img(r, doc_dir)))
 

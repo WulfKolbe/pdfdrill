@@ -36,6 +36,17 @@ class EvidenceRow:
     #: now be routed through `reports.budget`'s scaled copies, so every kind
     #: needs somewhere to carry the ORIGINAL pixel width forward.
     px_width: str = ""
+    #: 669 -- set only when `latex` is a VERIFIED refinement (`refine.
+    #: REFINED_FIELD`) that `from_document._chosen_reading` preferred over
+    #: MathPix's own reading, because the raw did not survive
+    #: `report_tex.display_safe` and the refined one did. Shaped like
+    #: `refine.chosen_latex`'s VERIFIED evidence dict (`basis`,
+    #: `verified_by`, `author`, `original`, `evidence`) so the existing
+    #: `report_tex.refined_flag`/`refined_note` (233, the retired path's
+    #: own mechanism for this) can be reused here unchanged. None on every
+    #: other row -- no behaviour change for the population this does not
+    #: touch.
+    refined_info: "dict | None" = None
 
     @property
     def shown_page(self) -> str:

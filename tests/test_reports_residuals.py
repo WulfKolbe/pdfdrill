@@ -121,6 +121,20 @@ def test_findings_uses_display_safe_verified_by_reverting_it(tmp_path, monkeypat
     assert R.findings(rows, tmp_path)["unresolved"] == []
 
 
+def test_a_row_publishing_a_refinement_that_renders_leaves_unresolved(tmp_path):
+    """669's effect on residuals.pdf: `findings()` reads `row.latex`
+    directly, never `refined_info`, so once `from_document.build_rows`
+    publishes the refined reading (raw REFUSED, refined renders) the row
+    simply stops being unresolved -- no change to this module was needed
+    for the refusal count to fall. Measured on the 20-document corpus:
+    2 of 21 raw-refused rows move out of Unresolved this way (21 -> 19)."""
+    row = EquationRow(identifier="D_EQ0300", latex="c=d", confidence=0.2,
+                      refined_info={"basis": "measured", "verified_by": "ink"})
+    rows = {"equation": [row], "formula": [], "table": [], "image": []}
+    found = R.findings(rows, tmp_path)
+    assert found["unresolved"] == []
+
+
 import json
 
 

@@ -9,6 +9,7 @@ from . import KINDS
 from . import budget as _budget
 from . import html as H
 from . import tex as T
+from .from_document import refined_map as _refined_map
 
 OUTPUT = "evidence-%s.%s"
 FORMATS = ("html", "pdf")
@@ -21,6 +22,28 @@ def ordered(rows: list, kind: str) -> list:
                                        else 2.0))
 
 
+def _refined_summary(refined: dict) -> str:
+    """The evidence-report top note (669): the HTML/plain-text twin of
+    `report_tex.refined_note` (233) — same facts, no LaTeX markup, since
+    this reaches `H.page_shell`'s plain `meta_lines`, not a `\\quote`."""
+    if not refined:
+        return ""
+    by: dict = {}
+    for info in refined.values():
+        k = info.get("basis") or info.get("verified_by") or "?"
+        by[k] = by.get(k, 0) + 1
+    how = ", ".join("%d verified against the %s" % (v, k)
+                    for k, v in sorted(by.items()))
+    ids = ", ".join(sorted(refined)[:6]) + (" …" if len(refined) > 6 else "")
+    n = len(refined)
+    return ("%d row%s a REFINEMENT below, not the OCR reading: %s. Each is "
+            "marked [refined] beside its identifier. The model is unchanged "
+            "— the original reading is still what `latex` holds; this "
+            "report chose the refinement for %s. Rows: %s"
+            % (n, " shows" if n == 1 else "s show", how,
+               "it" if n == 1 else "them", ids))
+
+
 def build(rows_by_kind: dict, kind: str, fmt: str, *, doc_dir, pdf, bibkey,
           history, px2mm, paper, landscape, compile_pdf,
           budget_mb: "float | None" = None, rung=None) -> dict:
@@ -31,16 +54,30 @@ def build(rows_by_kind: dict, kind: str, fmt: str, *, doc_dir, pdf, bibkey,
     doc_dir = Path(doc_dir)
     rows = ordered(rows_by_kind.get(kind, []), kind)
     title = "%s: %s evidence" % (bibkey, kind)
+    # 669 — {identifier: evidence} for the rows THIS kind's table actually
+    # shows, from `from_document.refined_map`; empty for table/image kinds,
+    # which never carry `refined_info` (refine.MATH_TYPES is Equation and
+    # Formula only).
+    refined = _refined_map({kind: rows}) if kind in ("equation", "formula") else {}
     if fmt == "html":
         out = doc_dir / (OUTPUT % (kind, "html"))
+        meta = ["%d rows" % len(rows)]
+        summary = _refined_summary(refined)
+        if summary:
+            meta.append(summary)
         out.write_text(H.render_page(rows, kind, title=title, doc_dir=doc_dir,
-                                     meta_lines=("%d rows" % len(rows),)),
+                                     meta_lines=tuple(meta)),
                        encoding="utf-8")
         return {"out": out, "rows": len(rows), "pages": None, "errors": 0,
                 "demoted": 0}
     widths = T.widths_for(paper, landscape, with_image=True)
     body = T.render_table(rows, kind, widths=widths, out_dir=doc_dir,
                           px2mm=px2mm, bibkey=bibkey, history=history)
+    if refined:
+        # 233's own note, unchanged: this is the retired path's mechanism
+        # for saying "these rows are refinements," reused rather than
+        # rebuilt — see rt.refined_note's own docstring.
+        body = rt.refined_note(refined) + body
     tex_path = doc_dir / (OUTPUT % (kind, "tex"))
     tex_path.write_text(T.document(body, paper=paper, landscape=landscape,
                                    pages=None, title=title), encoding="utf-8")

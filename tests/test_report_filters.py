@@ -108,6 +108,16 @@ def test_absent_residual_half_is_NAMED_not_silently_dropped():
     assert "not shown for this document" not in rt.legend(True)
 
 
+def test_legend_always_states_the_refined_mark_too():
+    """669, same "always" as 181/661: the mechanism (refine.REFINED_FIELD,
+    refined_flag) is present on every table this legend serves whether or
+    not the document at hand has a row it fires on."""
+    from pdfdrill import report_tex as rt
+    for form in (True, False):
+        assert "refined:" in rt.legend(form)
+        assert "VERIFIED" in rt.legend(form)
+
+
 def test_measured_legend_lists_the_residual_classes():
     from pdfdrill import report_tex as rt
     for cls in ("C component", "W weak", "S stable", "N noise", "K clean"):

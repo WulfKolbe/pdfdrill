@@ -44,6 +44,16 @@ def test_an_equation_row_carries_its_ink_code():
     assert EquationRow(identifier="D_EQ0003", latex="x").ink_code == ""
 
 
+def test_refined_info_defaults_to_none_for_every_kind():
+    """669 -- the vast majority of rows never touch this; the default must
+    stay None (not a truthy sentinel) so `bool(row.refined_info)` and
+    `report_tex.refined_flag(row.refined_info)` both read "not refined"."""
+    assert EquationRow(identifier="a", latex="x").refined_info is None
+    assert FormulaRow(identifier="a", latex="x").refined_info is None
+    assert TableRow(identifier="a", latex="x").refined_info is None
+    assert ImageRow(identifier="a", latex="x").refined_info is None
+
+
 def test_row_kind_names_the_kind():
     assert row_kind(EquationRow(identifier="a", latex="")) == "equation"
     assert row_kind(FormulaRow(identifier="a", latex="")) == "formula"

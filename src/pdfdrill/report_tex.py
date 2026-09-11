@@ -2055,6 +2055,20 @@ GLYPHLOSS_NOTE = (
 LEGEND_NO_INK = (r"\textbf{Residual} not shown for this document — no residual "
                  r"measurements are paired with these rows.")
 
+#: 669 — said, for the same reason 661 says LEGEND_SRC: a reader who notices
+#: the LaTeX-source and Rendered cells describing content the raw MathPix
+#: reading does not have no way to tell "this report disagrees with itself"
+#: from "this row published an accepted repair." Unlike 661's map (which
+#: only changes an environment NAME), a refinement can change the content
+#: outright, so BOTH cells are drawn from it — the source column is not a
+#: byte-identical control on a marked row, only on an unmarked one.
+LEGEND_REFINED = (r"\textbf{[refined: \textit{basis}]} beside an identifier: "
+                  r"the LaTeX-source and Rendered cells both show a VERIFIED "
+                  r"refinement, not MathPix's own reading --- \textit{basis} "
+                  r"names what verified it (e.g. ink, source). The original "
+                  r"reading is unchanged in the model but is not the one "
+                  r"drawn here.")
+
 
 def unmeasured_note(kind: str = "unpairable") -> str:
     """The top-of-report note.
@@ -2088,6 +2102,10 @@ def legend(form: bool) -> str:
     # out — the difference between "this report has one column" and "this
     # report is missing a column" is not visible from an incomplete key.
     out += r" \newline " + (LEGEND_INK if form else LEGEND_NO_INK)
+    # 669 — same "always", same reason: the mechanism (refine.REFINED_FIELD,
+    # refined_flag) is present on every table this legend serves, whether or
+    # not THIS document happens to have a row it fires on.
+    out += r" \newline " + LEGEND_REFINED
     return out + "}"
 
 

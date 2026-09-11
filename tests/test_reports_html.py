@@ -60,3 +60,20 @@ def test_render_section_has_no_doctype(tmp_path):
         "equation", doc_dir=tmp_path)
     assert "<!DOCTYPE" not in section and "<head>" not in section
     assert section.startswith("<h2>") and "<table>" in section
+
+
+def test_a_refined_row_is_marked_beside_its_identifier(tmp_path):
+    """669's HTML twin of `report_tex.refined_flag` (233) -- the mark rides
+    with the identifier cell, not the LaTeX-source or Rendered ones."""
+    row = EquationRow(identifier="D_EQ0001", latex="c=d", confidence=0.5,
+                      refined_info={"basis": "measured"})
+    page = H.render_page([row], "equation", title="D", doc_dir=tmp_path)
+    assert "[refined: measured]" in page
+    row_html = [line for line in page.splitlines() if "D_EQ0001" in line][0]
+    assert row_html.index("D_EQ0001") < row_html.index("[refined")
+
+
+def test_an_unrefined_row_carries_no_mark(tmp_path):
+    row = EquationRow(identifier="D_EQ0002", latex="a=b", confidence=0.5)
+    page = H.render_page([row], "equation", title="D", doc_dir=tmp_path)
+    assert "refined" not in page

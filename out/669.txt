@@ -1,0 +1,286 @@
+669 — publish the refined reading where the raw is worse
+==========================================================
+
+"publish the refined reading where the raw is worse." Branch
+eqblobs-and-gzip-tex, base commit 503beea9.
+
+THE DEFECT, CONFIRMED AS STATED
+--------------------------------
+docs/layers/PROPS.md's `latex_refined` row: "a VERIFIED refinement in a
+twin prop; `latex` is never overwritten (232). Reading `latex` alone
+ignores every accepted repair (233)." The published surface
+(docs/HANDOVER.md:25-42: evidence-equation.pdf, evidence-formula.pdf,
+residuals.pdf, built from `src/pdfdrill/reports/`) did exactly that:
+`reports/from_document.py::build_rows()` read `p.get("latex")` and
+nothing else. Confirmed by reading the code before touching it, not
+assumed from the brief.
+
+THE MECHANISM, READ NOT REBUILT
+---------------------------------
+`refine.py` already carries everything this needed:
+  - `REFINED_FIELD` — the constant (`"latex_refined"`), used throughout,
+    never a string literal.
+  - `refinement_state(obj)` — five states (NONE / VERIFIED / CONTRADICTED
+    / UNVERIFIED / ORPHANED) with the reason; used, not re-implemented.
+  - `chosen_latex(obj)` — the existing read-time choice (233): prefers the
+    refined value whenever `refinement_state` says VERIFIED, else the raw,
+    with an evidence dict describing which. Reused VERBATIM.
+`report_tex.py` (the RETIRED reading path — `reporttex` is superseded for
+reading per HANDOVER.md, kept only as the ink chain's measure build) also
+already carries the surrounding apparatus for saying so on a page:
+`refined_flag(info)` (an identifier-column mark, out/064's own precedent
+for keeping the mark OFF the LaTeX-source/Rendered/Scan columns — HANDOVER-
+RULES rule 16's free control) and `refined_note(refined_map)` (a top-of-
+report summary). Both are REUSED as-is by the published path; neither was
+edited to change behaviour. What report_tex.py's OWN `rows_for`/
+`refined_map`/`--prefer-refined` do NOT have is a render-safety check —
+they substitute the refined value unconditionally whenever
+`title in refined_map`, which is the naive rule this task explicitly
+rejects (see the DECISION TABLE below). That retired-path gap was left
+alone, per the brief's own warning that a sibling task (661) fixed the
+retired path by mistake once already and measured a result nobody reads.
+The one addition to a shared, retired-path FILE is a legend line
+(`LEGEND_REFINED`, appended to `report_tex.legend()`) explaining the mark
+— infrastructure both paths already share (LEGEND_CONF/LEGEND_SRC/
+LEGEND_INK), not a behaviour change to either.
+
+THE SEAM ACTUALLY CHANGED: `src/pdfdrill/reports/from_document.py`
+---------------------------------------------------------------------
+`_chosen_reading(obj)` (new, ~30 lines): calls `refine.chosen_latex(obj)`,
+then adds the ONE check that function does not make — whether the
+VERIFIED value it prefers survives `report_tex.display_safe`. `ev` (the
+evidence dict) is truthy and lacks a `"refinement_state"` key exactly when
+`chosen_latex` chose VERIFIED (the non-VERIFIED branch always sets that
+key); that is the discriminator used, not a second reimplementation of
+`refinement_state`. `build_rows()` calls this for every Equation AND
+Formula object (refine.MATH_TYPES is both, even though today's 31-object
+population happens to be all-Equation) and stamps the row's new
+`refined_info` field with the evidence dict, or None.
+
+One trap, avoided the way it needed to be avoided: the Formula loop keeps
+the HOST-LINE lookup keyed on the RAW `p.get("latex")` (renamed `raw_lx`),
+never on the possibly-refined `.latex` the row carries — the text a
+`first_occurrences` span was recorded against in `.lines.json` never
+changes, so re-keying it against a refined reading would silently break
+every inline formula's host-line join.
+
+A `"refined"` map was tried as a FIFTH key on `build_rows()`'s return dict
+and reverted in the same session: `ensure_crops`/`crops.records` both do
+`for kind, lst in rows.items(): ... for r in lst: dataclasses.replace(r,
+...)`, and a fifth value shaped as `{identifier: dict}` handed `dataclasses
+.replace` a dict key STRING instead of a row object. `refined_map(rows_by
+_kind)` is a separate function that reads `.refined_info` back off the rows
+`build_rows` already stamped, so the return shape stays exactly what every
+other consumer already assumes.
+
+THE DECISION TABLE, EACH CELL DEFENDED
+-----------------------------------------
+Measured 2026-09-11 across the 20 published documents (documents.json
+minus penev_A, per HANDOVER.md's "20 of 21 published"):
+
+    31 Equation objects carry `latex_refined`. ALL 31 are `refinement_
+    state` == VERIFIED — none unverified, contradicted or orphaned in the
+    live corpus (a good thing to know, not something the rule may assume:
+    the CONTRADICTED/UNVERIFIED/ORPHANED cells are still real code paths,
+    exercised by tests, just not by anything currently on disk).
+    Split by whether each reading survives `display_safe`:
+        2   raw REFUSED, refined renders   <- 0902.0431_EQ1032, EQ1187
+        1   raw renders, refined REFUSED   <- lyche-numerical-linear-
+                                               algebra_EQ0579
+       28   both render, content differs
+
+  Rule:                                              | published reading
+  ----------------------------------------------------|-------------------
+  NONE (no twin prop)                                 | raw (unchanged)
+  VERIFIED, both render, content differs               | REFINED  <- the
+                                                          defect: reading
+                                                          latex alone
+                                                          ignored 28 of 31
+                                                          accepted repairs
+  VERIFIED, raw refused, refined renders               | REFINED  <- the
+                                                          clear win, 2 rows
+  VERIFIED, raw renders, refined refused               | RAW      <- the
+                                                          trap; "prefer
+                                                          refined whenever
+                                                          VERIFIED" breaks
+                                                          this exact row
+  CONTRADICTED / UNVERIFIED / ORPHANED, any render state | RAW, always <-
+                                                          `refinement_
+                                                          state`, never a
+                                                          truthiness test
+                                                          on the prop
+
+Verified directly on the actual corpus object (lyche-numerical-linear-
+algebra, obj_2697f43fe888): its `latex_refined` is a misattributed span —
+prose defining "lower/upper triangular", "Hessenberg", "banded" matrices
+from a DIFFERENT part of the document, not a repair of this equation at
+all — and `display_safe` on it returns "" (no wrapping `\begin{...}`, a
+bare `\\` sequence, refused outright). The raw (a genuine `\begin{aligned}`
+system) renders fine. Reading `latex_refined` blindly here would have
+replaced a correct render with a blank cell; the fix keeps the raw.
+
+"Only when the raw is refused" was considered and rejected too: that rule
+publishes 2 of 31 and leaves the other 28 accepted repairs unread, which
+is the exact defect PROPS.md names — not a smaller version of the fix, a
+different failure of the same kind.
+
+THE COLUMN QUESTION — DECIDED DIFFERENTLY FROM 661, AND WHY
+----------------------------------------------------------------
+out/661.txt's ruling: the "LaTeX source" column keeps `latex` UNCHANGED
+(MathPix's own reading) while "Rendered" shows the SAME reading with
+`to_inline_env()`'s environment-name map applied — because that map only
+ever changes an environment's NAME, so the two columns describe the same
+content and disagreeing is safe to leave unexplained beyond a legend line.
+
+That precedent does not transfer here. A refinement can change the
+CONTENT outright — 28 of 31 do. Showing MathPix's raw reading in the
+source column beside a Rendered cell drawn from unrelated content would
+not read as "a legitimate divergence, explained in the legend" the way
+661's population does; it would read as a bug, because the two cells
+would describe two different equations with nothing on the page saying
+why. So the decision is the OPPOSITE of 661's for this case: `report_tex.
+row()`'s own pre-661 mechanism (233, `refined_flag`/`refined_note`) already
+substitutes the SAME chosen value into both the source and rendered
+content and marks the identifier instead of leaving the columns to
+disagree silently — that mechanism was reused as the model, not 661's.
+
+WHAT A READER NOW SEES, per row and per document, is:
+  - An unmarked row: identical to before this task. LaTeX-source and
+    Rendered both show MathPix's own reading, exactly as they did before
+    669. The 20-document corpus carries 8,602 Equation and 36,936 Formula
+    objects (measured directly, `doc.objects_of_type`); 31 carry
+    `latex_refined` and every CONTRADICTED/UNVERIFIED/ORPHANED/refused-
+    refinement row (none exist today, but the rule covers them) would also
+    land here unmarked.
+  - A row marked `[refined: <basis>]` beside its identifier (e.g.
+    `[refined: ink]`, `[refined: source]`): BOTH the LaTeX-source and
+    Rendered cells now show the VERIFIED refinement, not MathPix's raw
+    reading — the two cells agree with EACH OTHER, and disagree with what
+    the OCR originally said. `report_tex.legend()` gained one more
+    ALWAYS-printed line (`LEGEND_REFINED`, same "always" argument 181/661
+    already established for LEGEND_CONF/LEGEND_SRC/LEGEND_INK: the
+    mechanism is present on every table this legend serves whether or not
+    THIS document has a row it fires on) stating exactly this. On
+    evidence-equation.pdf/evidence-formula.pdf specifically (the "lookup"
+    surface, unlike residuals.pdf which has its own separate, pre-existing
+    "Corrected" convention — see below), a top-of-report note
+    (`refined_note`/its HTML twin `_refined_summary`) additionally counts
+    the marked rows, names what verified them, and lists their
+    identifiers, with the reminder that `latex` in the model is unchanged.
+  - residuals.pdf needed NO code change for this to reach it: `RS.findings
+    ()` already reads `row.latex` directly (never `refined_info`), so once
+    `build_rows` publishes the corrected reading a row simply stops being
+    classified "does not render" — no new mechanism, no duplicated
+    machinery alongside `corrections.py`'s own pre-existing "was/now" pair
+    convention for the Corrected section (which already reads every
+    VERIFIED (and, distinctly, every merely-has-a-`verified_by`)
+    `provenance="change"` realization independently of this task and was
+    NOT touched).
+
+MEASURED EFFECT (in memory; no published artefact rebuilt)
+---------------------------------------------------------------
+Script + JSON: ~/pdfdrill-library/0902.0431/out/669/669_measure_script.py
+/ 669_measure.json (population + corpus-wide before/after); ~/pdfdrill-
+library/"Numerical Linear Algebra..."/out/669/669_trap_row.py / .json
+(the one protected row, in isolation).
+
+  Population (re-derived, matches the brief's own count exactly):
+    31 with latex_refined, all VERIFIED; cells 2 / 1 / 28 / 0 as above.
+
+  Corpus-wide render-refusal count over every Equation+Formula OBJECT in
+  the 20-document corpus (the population evidence-equation.pdf/evidence-
+  formula.pdf actually show, NOT filtered by residuals.pdf's Corrected-
+  pair exclusion):
+    BEFORE (raw reading alone):      31 refused
+    AFTER  (this task's rule):       29 refused
+    delta: exactly -2, both from 0902.0431 (EQ1032, EQ1187) — the "clear
+    win" cells. The trap row (lyche EQ0579) stays refused-on-raw-would-
+    have-been-fine, i.e. it stays RENDERING both before and after, because
+    the fix keeps its raw. No other document's refusal count moved.
+
+  DISCREPANCY WORTH FLAGGING, not resolved further (HANDOVER-RULES rule
+  12: an unexplained delta is a finding): the brief's own text states this
+  count "should fall by 2, from 21 to 19." The DIRECTION and the DELTA
+  (-2) both match exactly what was measured, by two independent
+  methodologies (the corpus-wide count above, and a `residuals.RS.findings
+  ()`-based count which returned 19 -> 19 unchanged, because 0902.0431's
+  two "clear win" objects are ALSO already excluded from residuals.pdf's
+  Unresolved section by `corrections.py`'s own pre-existing "Corrected"
+  pairing — they are shown there today, before this task, via the was/now
+  mechanism, independent of this fix). Neither of these reproduces the
+  brief's absolute baseline of 21. The most likely explanation is that "21"
+  was read off a specific already-built, on-disk residuals.pdf/evidence.pdf
+  (this task did not rebuild any, per the rules, and did not attempt to
+  reconstruct that exact prior measurement's selection logic); it was not
+  chased further given the fall-by-2 claim is independently confirmed.
+
+TESTS
+------
+20 new tests, 0 removed, 0 modified in a way that changes what they assert
+about existing behaviour:
+  tests/test_reports_from_document.py (+10): every decision-table cell
+    (NONE/VERIFIED-both-render/VERIFIED-raw-refused/VERIFIED-refined-
+    refused/CONTRADICTED/UNVERIFIED/ORPHANED), the Formula-type path with
+    its host-line-key preservation, `refined_map`'s selection, and a rule-
+    17 negative control (identical-content VERIFIED refinement — cannot
+    discriminate the fix, documented as such rather than silently omitted).
+  tests/test_reports_rows.py (+1): `refined_info` defaults to None on
+    every row kind.
+  tests/test_reports_tex.py (+2): the identifier-column mark and its
+    absence; asserts the mark is NOT in the source cell (cell-by-index).
+  tests/test_reports_html.py (+2): the HTML twin of the same two.
+  tests/test_reports_evidence.py (+3): the HTML meta-line summary, the PDF
+    quote-block note (ordered before the table), and "no refined rows ->
+    no note."
+  tests/test_reports_residuals.py (+1): a refined, rendering row is absent
+    from Unresolved via the EXISTING `findings()` — no residuals.py change
+    needed, and this test is the proof.
+  tests/test_report_filters.py (+1): `legend()` always carries the new
+    line, in both `form` states.
+
+Full suite: 3567 passed at base commit 503beea9 (measured fresh, not
+assumed) -> 3587 passed with this change, 0 failed, 0 skipped-that-
+weren't-already. +20 matches the count above exactly.
+
+A CONCURRENT SESSION SHARES THIS WORKING TREE
+------------------------------------------------
+Uncommitted, unrelated changes for a DIFFERENT task (670: `report_tex.
+geometry_signature`, `inkreport.fresh_ink`'s sixth content question,
+CLI/skill-manifest edits, a new `tests/test_geometry_signature.py`) were
+present in this same git working directory throughout this task, made by
+another process. None were written, read for logic, or relied upon here.
+The commit for 669 was staged by EXPLICIT PATH, and — because one shared
+file (report_tex.py) carried both sessions' edits — by a hand-built patch
+applied to the INDEX ONLY (`git apply --cached`) covering exactly this
+task's two hunks (`LEGEND_REFINED` + its one-line addition to `legend()`),
+leaving the other session's hunks in the SAME file unstaged and untouched
+on disk for it to commit separately. Verified before committing:
+`git diff --cached -- src/pdfdrill/report_tex.py` shows exactly those two
+hunks and nothing else.
+
+WHAT A PERSON CAN OPEN
+-------------------------
+  /home/wkolbe/MX/PDFDRILL/src/pdfdrill/reports/from_document.py
+  /home/wkolbe/MX/PDFDRILL/src/pdfdrill/reports/rows.py
+  /home/wkolbe/MX/PDFDRILL/src/pdfdrill/reports/tex.py
+  /home/wkolbe/MX/PDFDRILL/src/pdfdrill/reports/html.py
+  /home/wkolbe/MX/PDFDRILL/src/pdfdrill/reports/evidence.py
+  /home/wkolbe/MX/PDFDRILL/src/pdfdrill/report_tex.py (LEGEND_REFINED +
+    legend() only — see the concurrent-session note above for why this
+    file's working-tree diff shows more than the commit does)
+  /home/wkolbe/MX/PDFDRILL/src/pdfdrill/refine.py (read, not modified)
+  ~/pdfdrill-library/0902.0431/out/669/{669_measure_script.py,
+    669_measure.json,INSPECT.txt}
+  ~/pdfdrill-library/"Numerical Linear Algebra and Matrix Factorizations
+    (Tom Lyche) (Z-Library)"/out/669/{669_trap_row.py,669_trap_row.json,
+    INSPECT.txt}
+
+NOT REBUILT — no evidence-*.pdf, residuals.pdf, report.pdf, model.docmodel
+.json or report.ink.json for any document was rebuilt, recompiled or
+modified by this task; 0902.0431, gilmore-lie-groups and kohlhase-omdoc
+were read-only throughout (measurement scripts load their models via
+`model_io.load_model` and call `build_rows`/`display_safe` in memory; the
+two out/669/ evidence subdirectories created are new, sitting beside the
+out/659/out/662/out/665/out/668 directories the same three-plus documents
+already carry from earlier tasks, and — like those — do not appear in
+`~/pdfdrill-library`'s own git status).
