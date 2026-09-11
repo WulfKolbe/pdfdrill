@@ -2324,14 +2324,51 @@ def standalone_math(latex: str, ident: str, out_dir, col_mm: float = 100.0,
                "standalone-math/" + png.name))
 
 
+def _cellrect_row(title: str, cells: "list[str]") -> str:
+    r"""670 review, finding 2 (607C) — the ONE place a table row's own
+    cellrect marks are emitted, so a caller cannot reimplement the
+    sequence and quietly skip a step.
+
+    Extracted from `row()`, which had exactly this sequence — open mark,
+    per-cell column marks, the closing/right-edge mark, the rule below
+    the row, and the `rule_below_key` bookkeeping that makes all of it
+    resolvable against the compiled `.aux` later — written inline.
+    `build_report`'s hand-built Image-regions (DIA) table had an
+    INDEPENDENT SECOND copy of the identical sequence, outside `row()`,
+    found by the 670 review because it sits outside `GEOMETRY_FUNCS` and
+    outside the naming-pattern guard (it was never a named function) —
+    the same defect class 607C's own in-code comment at that call site
+    already names once ("this table is hand-built and never passes
+    through `row()`, which is why its rows carried no marks"). `row()`
+    and the DIA loop both call THIS now, so a future third table wanting
+    marks has one obvious thing to call rather than a third inline copy
+    to write — the 669 sibling task's lesson (make the shared judgement
+    TOTAL; patching call sites one at a time only finds the next one)
+    applied here to marks instead of to "does this row render".
+
+    `cells` is the row's own content, in column order, with NO cellrect
+    marks embedded — the open mark is prefixed to `cells[0]` here, not by
+    the caller, so there is exactly one place that decides where it goes.
+    """
+    open_mark, close_mark = _cellrect_marks(title)
+    cells = [open_mark + cells[0], *cells[1:]]
+    col_marks = _cellrect_col_marks(len(cells))
+    body = " & ".join(m + c for m, c in zip(col_marks, cells))
+    # the rule BELOW this row, and the key recorded against it
+    below = _rule_mark()
+    if _CELLRECT["on"] and _CELLRECT["map"] and _CELLRECT["rules"]:
+        _CELLRECT["map"][-1]["rule_below_key"] = _CELLRECT["rules"][-1]["key"]
+    pending_right = _CELLRECT.pop("pending_right", "") if _CELLRECT["on"] else ""
+    return "%s%s%s \\\\ \\hline%s\n" % (body, pending_right, close_mark, below)
+
+
 def row(title, latex, page, extra="", image=None, punct="", conf="",
         form=False, residual="inkUnmeasured", code="", refined=None,
         standalone="") -> str:
     # identifier and equation number are machine keys, not reading
     # matter: at \tiny they stop crowding the 20mm column (and stop
     # overprinting the Page column, inkdrill P16's fourth pass).
-    _open, _close = _cellrect_marks(title)
-    ident = "%s\\ident{%s}%s%s%s" % (_open, breakable_ident(title),
+    ident = "\\ident{%s}%s%s%s" % (breakable_ident(title),
                                    ("~\\eqnum{%s}" % esc_text(extra))
                                    if extra else "",
                                    conf_flag(conf),
@@ -2368,20 +2405,9 @@ def row(title, latex, page, extra="", image=None, punct="", conf="",
         # confidence square.
         txt = ("\\,\\texttt{\\tiny %s}" % esc_text(code)) if code else ""
         cell = "%s\\hspace{0.6em}\\inkbullet{%s}%s" % (cell, residual, txt)
-    _above = ""
-    _cells = [ident, esc_text(str(page)), cell, src, math] + \
+    cells = [ident, esc_text(str(page)), cell, src, math] + \
         ([image] if image is not None else [])
-    _cm = _cellrect_col_marks(len(_cells))
-    _body = " & ".join(m + c for m, c in zip(_cm, _cells))
-    _body = _above + _body
-    _cells[-1] = _cells[-1]          # (the right-edge mark rides on _close)
-    # the rule BELOW this row, and the key recorded against it
-    _below = _rule_mark()
-    if _CELLRECT["on"] and _CELLRECT["map"] and _CELLRECT["rules"]:
-        _CELLRECT["map"][-1]["rule_below_key"] = _CELLRECT["rules"][-1]["key"]
-    return "%s%s%s \\\\ \\hline%s\n" % (
-        _body, _CELLRECT.pop("pending_right", "") if _CELLRECT["on"] else "",
-        _close, _below)
+    return _cellrect_row(title, cells)
 
 
 #: sp per bp. 1 bp = 1/72 in, 1 TeX pt = 1/72.27 in, 1 pt = 65536 sp.
@@ -3371,6 +3397,10 @@ def model_state(doc_dir: Path) -> dict:
 #: savepos marks are emitted, in what order, at what size, or how the
 #: compiled `.aux` is turned back into rectangles — the machinery a residual
 #: measurement reads, not the report's prose or content transforms.
+#: `geometry_signature()` also folds in `CELLRECT_PREAMBLE` directly (it is
+#: not a function, so it cannot sit in this tuple) — the zref/savepos LaTeX
+#: macros that make every mark below possible at all; a change to ITS
+#: source is exactly as geometry-relevant as a change to one of these.
 #:
 #: Built by walking the 625 incident backwards: that fix touched exactly
 #: `crop_cell` (the `\\` that put a Scan image on a second line) and
@@ -3386,6 +3416,21 @@ def model_state(doc_dir: Path) -> dict:
 #: rectangles a measurement compares, so a change to how a mark is
 #: INTERPRETED is exactly as invalidating as a change to how it is EMITTED.
 #:
+#: `_cellrect_row` (670 REVIEW, finding 2) is the actual mark-EMISSION
+#: sequence `row()` used to carry inline — open mark, per-cell column
+#: marks, the closing/right-edge mark, the rule below the row, and the
+#: `rule_below_key` bookkeeping — pulled out because a SECOND, independent
+#: copy of that exact sequence was found inline in `build_report`'s
+#: hand-built Image-regions (DIA) table (607C's own in-code comment had
+#: already named this defect class once, at that call site, and it was
+#: not connected to this task's methodology the first time: walking 625
+#: backwards did not also walk 607C backwards, though it sits in the same
+#: file and subsystem). Both `row()` and the DIA table call `_cellrect_row`
+#: now — one sequence, not two — and it is IN this tuple, not only in
+#: `row`, so a third caller inventing a third copy is caught the same way
+#: the first two now are, and the naming-pattern guard reaches it directly
+#: (its name matches the `cellrect` pattern, unlike `row`'s).
+#:
 #: `legend_foot` is DELIBERATELY ABSENT despite `table_open` calling it and
 #: `_table_record`'s own docstring naming the extra row it can cost: 585
 #: fixed the measurement to run against the phase=measure build, and every
@@ -3400,7 +3445,7 @@ def model_state(doc_dir: Path) -> dict:
 #:
 #: TEST_GEOMETRY_FUNCS_NAMING in tests/test_geometry_signature.py is the
 #: guard: every function in this module whose NAME matches the naming
-#: patterns fourteen of these fifteen already use (`cellrect`, `crop_cell`,
+#: patterns fifteen of these sixteen already use (`cellrect`, `crop_cell`,
 #: `_img_cell`, `col_widths`, `table_open`, `_rule_`, `page_height_bp`,
 #: `auto_px2mm`) must be IN this tuple, or the test fails. `row` is the
 #: exception the test accepts by name — a generic word no naming pattern
@@ -3408,14 +3453,55 @@ def model_state(doc_dir: Path) -> dict:
 #: with geometry — which is exactly the limit of a MECHANICAL check: a new
 #: function shaped like `row` (calls every mark emitter, decides the cell
 #: list) but named something else ships outside the pattern and outside
-#: this tuple, silently, unless a reviewer recognises it. Naming that limit
-#: here is the honest alternative to pretending the guard is complete.
+#: this tuple, silently, unless a reviewer recognises it — which is exactly
+#: how the DIA table's own copy escaped notice the first time. `row` stays
+#: the one named, accepted exception; a repeat of that exact miss is what
+#: pulling `_cellrect_row` out and naming it here is FOR.
 GEOMETRY_FUNCS = (
     "cellrect_reset", "_rule_mark", "_rule_above", "_cellrect_header_mark",
     "_cellrect_table_open", "_cellrect_marks", "_cellrect_col_marks",
-    "_img_cell", "crop_cell", "col_widths", "table_open",
+    "_cellrect_row", "_img_cell", "crop_cell", "col_widths", "table_open",
     "row", "cellrect_from_aux", "page_height_bp", "auto_px2mm",
 )
+
+#: 670 review, finding 3 — the exact lines inside `PREAMBLE` that task 665
+#: (`abf0a996`, landed before this task's own base) demonstrably moved:
+#: `\setmainfont`/`\setmonofont`/the two `\newfontfamily` declarations,
+#: guarded by `\usepackage[no-math]{fontspec}` (665's own fix — see its
+#: comment a few lines above these in `PREAMBLE`). 665 changed EVERY math
+#: glyph's metrics without touching any `GEOMETRY_FUNCS` function — exactly
+#: the class of change that can push a cell onto an extra line the way 625
+#: did, and `geometry_signature`'s own docstring named this gap without
+#: closing it. Extracted by pattern from the LIVE `PREAMBLE` string (never
+#: duplicated as a second literal) so this cannot drift out of sync with
+#: what actually ships; `PREAMBLE` itself is untouched, so no build-time
+#: behaviour changes.
+#:
+#: DELIBERATELY NOT the rest of `PREAMBLE` (`bm`, `mathtools`, the
+#: `\IfFileExists` package guards, the Unicode-fallback table, the margin):
+#: those churn for reasons that have nothing to do with glyph metrics
+#: (a package gap, a dropped code point) far more often than not, and
+#: hashing all of it would cost a remeasurement for every one of those, not
+#: just a repeat of 665 — the same over-triggering `GEOMETRY_FUNCS` itself
+#: was built to avoid, applied to `PREAMBLE` instead of to the whole file.
+#: The guarded Bengali fallback (`\IfFontExistsTF{Noto Sans
+#: Bengali}{\newfontfamily...}`) is NOT matched by this pattern (it does
+#: not start the line with `\newfontfamily`) and is a named limit, not a
+#: silent one: it is lower-risk (one script, already conditional on the
+#: font being present) than the four lines that started 665, and pulling it
+#: in would need a pattern that also matches unrelated `\IfFontExistsTF`/
+#: `\IfFileExists` guards elsewhere in `PREAMBLE`.
+_FONT_METRICS_PATTERN = re.compile(
+    r"^\\usepackage\[no-math\]\{fontspec\}$"
+    r"|^\\(?:setmainfont|setmonofont|newfontfamily)\b.*$", re.M)
+
+
+def font_metrics_preamble() -> str:
+    """The `PREAMBLE` lines `geometry_signature` hashes for 665's class of
+    defect — see `_FONT_METRICS_PATTERN`'s comment for exactly which and
+    why. Public (no leading underscore) so a test can pin its content
+    directly against `PREAMBLE` without re-deriving the pattern."""
+    return "\n".join(_FONT_METRICS_PATTERN.findall(PREAMBLE))
 
 
 def geometry_signature() -> "str | None":
@@ -3451,27 +3537,36 @@ def geometry_signature() -> "str | None":
       changes on every re-rendered cell of MATH CONTENT, which is not
       geometry at all — hashing it would be as trigger-happy as the raw
       commit, for a different reason.
-    * A hash over the SOURCE of the NAMED functions in `GEOMETRY_FUNCS`
-      (this) — CHOSEN. Every one of them either emits a mark, decides a
-      mark's position or size, or turns a compiled mark back into a
-      rectangle; nothing outside that list can move a rule, a column or an
-      image, and nothing inside a marked function's own source can be
-      touched without recompiling this hash. The AST of each function is
-      hashed, not its text, specifically so a comment or docstring edit —
-      the exact kind of change 625's own fix carried, three sentences of
-      "why" beside two lines of "what" — changes nothing here. `ast.dump`
-      does not carry comments (the tokenizer already dropped them) or
-      whitespace; it does still carry a changed docstring, which is an
-      accepted over-invalidation given the asymmetry below.
+    * A hash over the SOURCE of the NAMED functions in `GEOMETRY_FUNCS`,
+      plus `CELLRECT_PREAMBLE` (the zref/savepos macros that make every
+      mark below possible at all — folded in directly, since it is not a
+      function and cannot sit in that tuple) and `font_metrics_preamble()`
+      (the five `PREAMBLE` lines task 665 demonstrated can move where text
+      falls for every math glyph — see its own docstring) — CHOSEN. Every
+      one of them either emits or positions a mark, decides a mark's size,
+      turns a compiled mark back into a rectangle, or sets the glyph
+      metrics those marks are measured against; nothing outside this set
+      can move a rule, a column or an image on the page, and nothing
+      inside a marked function's own source can be touched without
+      recompiling this hash. The AST of each function is hashed, not its
+      text, specifically so a comment or docstring edit — the exact kind
+      of change 625's own fix carried, three sentences of "why" beside two
+      lines of "what" — changes nothing here. `ast.dump` does not carry
+      comments (the tokenizer already dropped them) or whitespace; it does
+      still carry a changed docstring, which is an accepted
+      over-invalidation given the asymmetry below.
 
     WHAT THIS DOES NOT COVER, NAMED RATHER THAN HIDDEN: the page margin and
-    the rest of `PREAMBLE` (font substitutions, package list) can also move
-    where text falls, and are not in `GEOMETRY_FUNCS` — that string changes
-    for reasons (a font fallback, a package guard) that have nothing to do
-    with table geometry far more often than not, and folding all of
-    `PREAMBLE` in would approach the whole-file rejection above. A margin
+    the rest of `PREAMBLE` (the non-font package list, the Unicode fallback
+    table) can also move where text falls, and are not hashed — that text
+    changes for reasons (a package gap, a dropped code point) that have
+    nothing to do with table geometry far more often than not, and folding
+    all of it in would approach the whole-file rejection above. A margin
     change is therefore NOT caught by this check; it is caught, as before,
-    by a human re-running `--measure` deliberately.
+    by a human re-running `--measure` deliberately. `font_metrics_preamble`
+    narrows this gap to the one class (665) with a demonstrated incident,
+    the same technique `GEOMETRY_FUNCS` itself uses, rather than leaving
+    the whole file uncovered.
 
     THE COST IS ASYMMETRIC ON PURPOSE. A function on this list picking up an
     unrelated comment, or a docstring rewrite, costs one needless 55-minute
@@ -3495,6 +3590,9 @@ def geometry_signature() -> "str | None":
     h = hashlib.sha256()
     try:
         h.update(CELLRECT_PREAMBLE.encode("utf-8"))
+        h.update(b"\x00")
+        h.update(font_metrics_preamble().encode("utf-8"))
+        h.update(b"\x00")
         for name in GEOMETRY_FUNCS:
             fn = getattr(mod, name)
             src = textwrap.dedent(inspect.getsource(fn))
@@ -4799,25 +4897,21 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                                   "this crop}}" % crop_claims[zip_name])
                 else:
                     acell = "{\\tiny\\emph{(no tex.zip crop for this row)}}"
-                # 607C — this table is hand-built and never passes through
-                # `row()`, which is why its rows carried no marks and the
-                # manifest read 28 rows in 2 tables where the document has
-                # 34 in 3.
-                _da = ""
-                _o, _c = _cellrect_marks(title)
-                _rb = _rule_mark()
-                if _CELLRECT["on"] and _CELLRECT["map"] and _CELLRECT["rules"]:
-                    _CELLRECT["map"][-1]["rule_below_key"] = \
-                        _CELLRECT["rules"][-1]["key"]
-                _dcells = [_o + "\\ident{%s}" % esc_text(title),
-                           esc_text(str(page)), ccell, srcnote, acell,
-                           rcell, cell]
-                _dcm = _cellrect_col_marks(len(_dcells))
-                out_parts.append(
-                    "%s%s%s%s \\\\ \\hline%s\n"
-                    % (_da, " & ".join(m + c for m, c in zip(_dcm, _dcells)),
-                       _CELLRECT.pop("pending_right", "")
-                       if _CELLRECT["on"] else "", _c, _rb))
+                # 607C — this table is hand-built and used to never pass
+                # through `row()`, which is why its rows carried no marks
+                # and the manifest read 28 rows in 2 tables where the
+                # document has 34 in 3. 670 review found that fix had
+                # itself become a second, independent reimplementation of
+                # `row()`'s own marking sequence rather than a call to it
+                # (`_cellrect_marks`/`_rule_mark`/`_cellrect_col_marks`,
+                # inline, in the same order, doing the same bookkeeping) —
+                # exactly the shape the comment above already names once.
+                # Goes through the shared `_cellrect_row` emitter now, the
+                # same one `row()` calls, so there is one sequence instead
+                # of two.
+                _dcells = ["\\ident{%s}" % esc_text(title), esc_text(str(page)),
+                          ccell, srcnote, acell, rcell, cell]
+                out_parts.append(_cellrect_row(title, _dcells))
             out_parts.append("\\end{longtable}\n")
             # NO \endhead on this one (284) — its header prints once.
             tables_manifest.append(_table_record(

@@ -12,6 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
+from pdfdrill import report_tex as rt
 from pdfdrill.report_tex import (build_report, renderable, texzip_images,
                                  col_widths, table_open)
 
@@ -108,6 +109,32 @@ def test_build_report_writes_all_sections(tmp_path):
     # every region "unrecovered" was no longer what it shows.
     assert "Image regions" in tex
     assert "pdfdrill vision" in tex and "inkdrill" in tex
+
+
+def test_dia_row_carries_cellrect_marks_end_to_end(tmp_path):
+    """670 review, finding 2, end to end (not just the unit-level check in
+    tests/test_geometry_signature.py): 607C's own fix made the DIA table's
+    rows carry marks, but by reimplementing the mark sequence inline rather
+    than by calling row()/the shared emitter — a second, independent copy
+    of the judgement, found by review. Through the REAL pipeline
+    (`build_report(cellrect=True)`, the same fixture
+    test_build_report_writes_all_sections already uses), the DIA row's own
+    identifier must carry a mark exactly like an EQ row's, and both must
+    show up in `_CELLRECT["map"]` -- proving the DIA table and `row()` are
+    now driven by the one shared function, not two independent ones."""
+    tiddlers = [
+        {"title": "k_EQ0001", "latex": "a=b", "page": "003"},
+        {"title": "k_DIA_0001", "page": "009", "width": "80", "height": "60"},
+    ]
+    tp = tmp_path / "k.tiddlers.json"
+    tp.write_text(json.dumps(tiddlers))
+    build_report(tp, paper="a3", landscape=True, formulas="all",
+                 cellrect=True)
+    tex = (tmp_path / "report.tex").read_text()
+    assert "\\pdrowpos{" in tex, "no cellrect marks were emitted at all"
+    idents = {m["identifier"] for m in rt._CELLRECT["map"]}
+    assert "k_DIA_0001" in idents, "the DIA row carries no mark (607C)"
+    assert "k_EQ0001" in idents
 
 
 def test_reporttex_autochain_sees_the_tiddlers_it_just_built(monkeypatch):

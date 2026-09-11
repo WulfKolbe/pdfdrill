@@ -2,8 +2,18 @@
 ====================================================================
 
 Branch eqblobs-and-gzip-tex, base commit 503beea9 (this task's own commits
-land on top; HEAD moved to 3cf3dc8d while this was in progress — a
-concurrent session's task 669, unrelated, see CONCURRENT SESSION below).
+land on top; HEAD moved to 3cf3dc8d, then 04728a1b, while this was in
+progress and in this fix round — a concurrent session's task 669,
+unrelated, see CONCURRENT SESSION below).
+
+Reviewed: CONDITIONAL PASS on spec (one blocking gap), GOOD on quality
+(one blocking evidence-integrity defect). FIX ROUND 1 below addresses both
+blocking findings (2: the second, undocumented mark-emission call site;
+1: the fabricated/mislabeled git-history numbers) and all three minor
+findings (3: the 665/PREAMBLE follow-up; 4: the corpus-rebuild scheduling
+question; 9: the undocumented CELLRECT_PREAMBLE hash input) — marked
+inline where they change something this file already said, per this
+project's own convention (out/668.txt).
 
 THE DEFECT, AS GIVEN
 ----------------------
@@ -25,11 +35,11 @@ THE THREE CANDIDATES, WEIGHED
 --------------------------------
 1. Raw `commit` (build_stamp already records it, e.g. "503beea946aa").
    REJECTED. This branch takes many commits a day and almost none touch
-   report geometry (of 106 commits between 503beea9 and the current HEAD,
-   exactly 2 touched a function later put in GEOMETRY_FUNCS — see REAL-
-   WORLD VALIDATION below). Comparing raw commits turns the resume into
-   the mtime check 463 already replaced: it would fire on day one of every
-   session regardless of what changed.
+   report geometry (see REAL-WORLD VALIDATION below for the verified
+   count — FIX ROUND 1, BLOCKING FINDING 1 corrected an earlier wrong
+   number here, given as "2 of 106 since 503beea9"). Comparing raw commits
+   turns the resume into the mtime check 463 already replaced: it would
+   fire on day one of every session regardless of what changed.
 2. A hash of the whole file (report_tex.py) or of the generated .tex.
    REJECTED. The file mixes the layout engine with escaping, CJK/glyph
    handling, ink joining, image download and ~90 other functions; touching
@@ -41,7 +51,8 @@ THE THREE CANDIDATES, WEIGHED
    cell of MATH CONTENT, which is not geometry — as trigger-happy as the
    commit, again for a different reason.
 3. A hash over the SOURCE of a NAMED set of functions (CHOSEN).
-   `report_tex.GEOMETRY_FUNCS` — 15 functions, found by walking the 625
+   `report_tex.GEOMETRY_FUNCS` — 16 functions (15 in the first pass; FIX
+   ROUND 1, finding 2 added `_cellrect_row`, below), found by walking the 625
    incident backwards (it touched `crop_cell` and `_cellrect_table_open`
    exactly) and generalising the naming convention the rest of that
    subsystem already uses. Each one either emits a zref/savepos mark,
@@ -65,12 +76,60 @@ THE THREE CANDIDATES, WEIGHED
    affect anything a measurement reads. Named in a comment on
    `GEOMETRY_FUNCS` rather than left for the next reader to rediscover.
 
+   FIX ROUND 1, BLOCKING FINDING 2 — A SECOND FUNCTION FOUND, NOT LEFT
+   OUT, PULLED OUT AND NAMED: `build_report`'s hand-built Image-regions
+   (DIA) table called `_cellrect_marks`/`_rule_mark`/`_cellrect_col_marks`
+   directly, inline, in the same order and with the same `rule_below_key`
+   bookkeeping `row()` used to carry inline — an independent SECOND copy
+   of the identical sequence, outside GEOMETRY_FUNCS and outside the
+   naming-pattern guard (it was never a named function at all). Its own
+   in-code comment already named this defect class once (607C: "this
+   table is hand-built and never passes through row(), which is why its
+   rows carried no marks and the manifest read 28 rows in 2 tables where
+   the document has 34 in 3") — the methodology of this task (walk 625
+   backwards) covered 625 and 463 but not 607C, though it sits in the same
+   file and the same subsystem.
+
+   FIXED, not just disclosed, per the 669 sibling task's own lesson
+   (three independent copies of "does this row render" were found one
+   call site at a time; the fix was to make the shared judgement TOTAL,
+   not to patch the third site and stop): the whole sequence is now ONE
+   function, `_cellrect_row(title, cells)`, extracted from `row()`. `row()`
+   and the DIA table both call it; neither reimplements it. `_cellrect_row`
+   is IN GEOMETRY_FUNCS (16 names now) and its name matches the existing
+   `cellrect` naming pattern, so the guard reaches it directly — unlike
+   `row`, which still cannot be reached by any naming pattern and remains
+   the one named exception.
+
+   SEARCHED ONCE MORE FOR A THIRD SITE, as asked: grepped the whole module
+   for every direct caller of `_cellrect_marks(`/`_rule_mark(`/
+   `_cellrect_col_marks(`. After the fix, each has exactly one call site
+   — inside `_cellrect_row` itself (pinned by
+   test_no_third_call_site_for_the_row_marking_sequence). There is a
+   THIRD and FOURTH direct caller of two OTHER primitives,
+   `_cellrect_table_open`/`_cellrect_header_mark` (the DIA table's own
+   header, separately from `table_open()`'s) — named explicitly as NOT the
+   same defect class: that is direct reuse of an already-hashed primitive
+   with no additional judgement or bookkeeping duplicated around it, the
+   same way any other single call to a GEOMETRY_FUNCS function is, not a
+   second implementation of a sequence. `build_report` itself stays OUT of
+   GEOMETRY_FUNCS (including it would reintroduce the whole-file
+   over-triggering candidate 2 rejects) — the fix is that its own
+   mark-emission judgement no longer exists independently inside it.
+
+   End-to-end coverage, not only the unit-level extraction test:
+   test_dia_row_carries_cellrect_marks_end_to_end (tests/test_report_tex.py)
+   builds a real report through `build_report(cellrect=True)` with one EQ
+   row and one DIA row and confirms both carry a mark in `_CELLRECT["map"]`
+   — proving the fix through the real pipeline, not only against
+   `_cellrect_row` called directly.
+
 THE GUARD
 -----------
 Two tests, not one, because a hash needs both directions pinned:
   - test_every_function_matching_the_known_geometry_naming_patterns_is_named
     — scans report_tex.py for every function matching the SAME naming
-    patterns the 15 already use (cellrect/crop_cell/_img_cell/col_widths/
+    patterns the 16 already use (cellrect/crop_cell/_img_cell/col_widths/
     table_open/_rule_/page_height_bp/auto_px2mm) and fails if one is not in
     GEOMETRY_FUNCS. This is the "future file that should be in the set does
     not silently sit outside it" guard the brief asked for, run as CODE
@@ -82,9 +141,53 @@ Named limit, not a silent one: `row` is in GEOMETRY_FUNCS (it calls every
 mark emitter in a fixed order and decides whether an image column exists)
 but matches no naming pattern — a generic word no pattern could single out
 without also matching unrelated functions. A same-shaped function shipped
-under an unrelated name would ship outside both the pattern and the guard;
-GEOMETRY_FUNCS's own comment says so by name rather than pretending the
-guard is complete.
+under an unrelated name would ship outside both the pattern and the guard —
+which is exactly how the DIA table's own inline copy escaped notice the
+first time (FIX ROUND 1, finding 2). Extracting it into `_cellrect_row`
+and naming that IN both the tuple and the pattern's reach removes that
+specific instance from the blind spot; `row` remains the one standing
+example the guard is honest about not being able to catch on its own.
+
+TWO NON-FUNCTION INPUTS, NAMED (FIX ROUND 1, MINOR FINDING 9 — one of
+these was already hashed but undocumented; the other is new this round):
+`CELLRECT_PREAMBLE` (the zref/savepos LaTeX macros that make every mark
+possible at all) and `font_metrics_preamble()` (FIX ROUND 1, MINOR
+FINDING 3's fix — see below) are folded into the hash directly, since
+neither is a function and neither can sit in GEOMETRY_FUNCS. Both are now
+named in `geometry_signature`'s own docstring, closing the "hash it but
+don't say so" gap the review found in the first pass.
+
+FIX ROUND 1, MINOR FINDING 3 — A REPEAT OF 665 NOW HAS SOMETHING TO CATCH
+IT. The first pass disclosed that `PREAMBLE` (fonts, packages, the margin)
+sits outside GEOMETRY_FUNCS but did not answer the review's specific
+follow-up: "if excluding it is defensible, say what would catch a repeat
+of 665." Task 665 (`abf0a996`, before this task's own base) changed
+`\usepackage{fontspec}` to `\usepackage[no-math]{fontspec}` — one line,
+inside `PREAMBLE`, that repointed every math glyph's font and could push
+a cell onto an extra line exactly the way 625 did, without touching any
+GEOMETRY_FUNCS function.
+
+Applied the SAME technique GEOMETRY_FUNCS itself uses — a named, reviewed
+subset, not the whole file — to `PREAMBLE`: `report_tex.
+font_metrics_preamble()` extracts exactly the five lines 665 touched
+(`\usepackage[no-math]{fontspec}`, `\setmainfont`, `\setmonofont`, the two
+`\newfontfamily` declarations) from the LIVE `PREAMBLE` string by pattern,
+rather than duplicating them as a second literal that could drift out of
+sync. `PREAMBLE` itself and every one of its call sites are UNTOUCHED —
+no build-time behaviour changes; only `geometry_signature()` reads more.
+test_a_665_style_preamble_edit_moves_the_signature reproduces 665's actual
+one-line edit against this extraction and confirms the signature moves.
+
+Still deliberately NOT the rest of `PREAMBLE` (package guards, the
+Unicode-fallback table, the margin) — those churn for reasons unrelated to
+glyph metrics far more often than not, and hashing all of it would cost a
+remeasurement for every one of those, not just a repeat of 665, which is
+the same over-triggering GEOMETRY_FUNCS itself exists to avoid. The
+guarded Bengali fallback (`\IfFontExistsTF{Noto Sans
+Bengali}{\newfontfamily...}`) is named as a residual gap rather than
+silently included or excluded: lower risk (one script, already
+conditional on font availability) than the four lines that started 665,
+and out of `font_metrics_preamble`'s current pattern.
 
 WHAT HAPPENS WHEN THE SIXTH QUESTION SAYS NO
 -----------------------------------------------
@@ -124,14 +227,26 @@ pitfall catalog names. Renumbered to six and pages_bound given its own
 item while touching this function for an adjacent reason, rather than
 leaving a docstring that undercounts its own checks for the next reader.
 
-TESTS (tests/test_geometry_signature.py, 16 new; both directions per rule
-11, rule 17 fixtures isolate the sixth question)
+TESTS (tests/test_geometry_signature.py, 23 tests; tests/test_report_tex.py,
+1 more; both directions per rule 11, rule 17 fixtures isolate the sixth
+question)
 ------------------------------------------------------------------------
   - mechanism: deterministic; moves when a function ON the list changes
     (crop_cell, monkeypatched); does NOT move when a function OFF the list
     changes (esc_text, monkeypatched); AST-vs-comment claim checked
     directly on synthetic source.
-  - guard: naming-pattern completeness; pinned tuple content.
+  - guard: naming-pattern completeness; pinned tuple content (16 names now).
+  - FIX ROUND 1, finding 2: row() and the DIA table both call the shared
+    `_cellrect_row` (source-level, and by spying on the real function);
+    no third call site for the sequence; a mechanism-level test of
+    `_cellrect_row` itself; an END-TO-END test
+    (test_dia_row_carries_cellrect_marks_end_to_end, test_report_tex.py)
+    building a real report with an EQ row and a DIA row through
+    `build_report(cellrect=True)`.
+  - FIX ROUND 1, finding 3: `font_metrics_preamble()` extracts exactly
+    665's five lines; a test reproduces 665's actual one-line edit and
+    confirms the signature moves; a test pins that both non-function
+    inputs are named in `geometry_signature`'s own docstring (finding 9).
   - fresh_ink, both directions: resumes when the recorded signature matches
     the CURRENT code; refuses when it names different code (625, modelled
     directly); refuses when no signature was ever recorded (the transition
@@ -153,37 +268,78 @@ question that did not exist when they were written.
 FULL SUITE
 ------------
 Base (clean checkout of 503beea9, stashed and measured before restoring
-this task's changes): 3587 passed. After (this task's changes plus the
-concurrent session's own, unrelated 669 commits, restored from the same
-stash): 3603 passed — +16, exactly this task's new test count. No
-regressions either direction.
+this task's changes): 3587 passed. After the first pass (this task's
+changes plus the concurrent session's own, unrelated 669 commits, restored
+from the same stash): 3603 passed (+16). After this fix round (findings 2
+and 3's new tests): 3611 passed, 0 failed — +8 over the first pass (7 new
+in test_geometry_signature.py, 1 new in test_report_tex.py), +24 over the
+original base, exactly the running new-test count. No regressions in
+either direction.
 
 REAL-WORLD VALIDATION, NOT ASSUMED
 -------------------------------------
-Between 503beea9 (0902.0431's and gilmore's own measure-build commit) and
-the current HEAD, 106 commits touched src/pdfdrill/report_tex.py.
-Checked each of GEOMETRY_FUNCS's 15 names against that range: `table_open`
-and `crop_cell` were touched (2 of 106 commits carried a geometry-relevant
-edit); `table_open`'s own diff (f59a06c9) adds a `heads=None` parameter and
-a branch — a real signature/structure change, not a comment. This is
-independent confirmation the chosen scope is neither too wide (104 of 106
-commits in the range did NOT touch a marked function) nor too narrow (the
-one real regression class this task exists for is exactly the class this
-diff would have caught).
+FIX ROUND 1, BLOCKING FINDING 1 — THE ORIGINAL NUMBERS HERE WERE WRONG,
+STATED PLAINLY. The first pass claimed "106 commits between 503beea9 and
+the current HEAD... 2 of 106 carried a geometry-relevant edit." Recomputed
+directly from git rather than trusted from memory (script:
+670_git_history_check.sh, evidence below): `git log --oneline
+503beea9..3cf3dc8d -- src/pdfdrill/report_tex.py` (3cf3dc8d being HEAD at
+the moment the first pass was written, before this task's own commit)
+returns EXACTLY 1 commit (78f5f55a, which adds `LEGEND_REFINED` only and
+touches no GEOMETRY_FUNCS body) — not 106. The cited 106/107 was the
+FILE'S ENTIRE UNBOUNDED HISTORY (`git log --oneline --
+src/pdfdrill/report_tex.py`), run without the `503beea9..HEAD` bound the
+prose claimed, and the "2 of 106" figure built on top of that wrong range
+was ALSO wrong even taken on its own terms: `git log -L :<fn>:
+src/pdfdrill/report_tex.py` for each of the 15 (pre-review)
+GEOMETRY_FUNCS names, deduplicated by commit hash, shows EXACTLY 15
+distinct commits touching a named function's body across the file's
+whole history (039dc789/611, 208a5492/625, 3c11458b/264, 6727e638/539,
+8c0622f0/607, 9e26d4ef/284, a35edfeb/135, a90ec354/098-100, acca4099/545,
+bc806bc9/"audit A2/A4/A5", bdbd5a26/"three real P16 mechanisms",
+ef0a397e/613, f1bf65d8/612, f7dc3031/605, fac7c9e6/621) — not 2.
+
+The corrected, verified numbers, over the range that is actually
+meaningful (the file's full history, not the ~3-hour window between the
+base and the first pass, which is too short to say anything about "many
+commits a day"): as of this fix round's own base (HEAD 04728a1b, a
+concurrent session's own unrelated commit — see CONCURRENT SESSION), 108
+commits have ever touched src/pdfdrill/report_tex.py; exactly 15 of them
+(14%) touched one of the 15 pre-review GEOMETRY_FUNCS names' bodies. 93 of
+108 (86%) did NOT — real, verified support for "raw commit is too
+aggressive," where the first pass's number was not. Two of those 15 are
+spot-checkable directly: 208a5492 is 625 itself (the incident this task
+is named for); acca4099 (545) fixes an unrelated but genuinely
+geometry-relevant defect ("the Image cell does not overflow — the rule
+under it was being erased"). `table_open`'s own later diff (f59a06c9,
+which adds a `heads=None` parameter and a branch) is a real
+signature/structure change and would be caught too, though it is outside
+this specific 15-commit historical count because it postdates the
+`git log -L` window checked here — named so the two pieces of evidence
+are not conflated.
+
+The QUALITATIVE conclusion (raw commit is too trigger-happy; a named
+subset is not) survives this correction; the SPECIFIC NUMBERS presented
+as "not assumed" independent proof in the first pass were themselves
+assumed, and that is the failure this correction exists to fix, not the
+scope decision itself.
 
 A LIVE SECOND DATA POINT, UNPLANNED: a concurrent session ran a REAL
 `--measure` on kohlhase-omdoc at 11:06 today, on a working tree that
 already carried this task's THEN-CURRENT uncommitted report_tex.py (this
 task and that session share a filesystem, not a worktree) — so its stamp
 now carries a real `geometry_sha256` ("9cf97cabb157..."). Probing it now
-(after this task later removed `legend_foot` from GEOMETRY_FUNCS, per THE
-THREE CANDIDATES above) reports "built by different code" — true of the
-SIGNATURE FUNCTION's own inputs (one fewer function hashed) though not of
-the actually-emitted geometry (legend_foot never ran for that build
-either way). This is the accepted over-invalidation cost, observed for
-real rather than only argued: developing this check WHILE it is live
-costs itself one extra remeasurement, the same cost any future geometry
-fix costs every other stamp.
+(after this task both removed `legend_foot` from GEOMETRY_FUNCS and, in
+this fix round, added `_cellrect_row` and the two non-function inputs)
+still reports "built by different code" — true of the SIGNATURE
+FUNCTION's own inputs (the hashed set itself changed twice under active
+development) though not necessarily of the actually-emitted geometry for
+every one of those changes (`legend_foot`'s removal, specifically, changed
+nothing that build ever emitted, since it never ran for that build either
+way). This is the accepted over-invalidation cost, observed for real
+rather than only argued: developing this check WHILE it is live costs
+itself an extra remeasurement each time its own inputs change, the same
+cost any future geometry fix costs every other stamp.
 
 ITEM 4 — DOES EACH DOCUMENT RESUME OR RE-MEASURE, READ-ONLY
 ----------------------------------------------------------------
@@ -228,22 +384,27 @@ CONCURRENT SESSION
 ---------------------
 A second session was actively working the same shared filesystem (not an
 isolated worktree) throughout, on task 669 (report_tex.py: LEGEND_REFINED
-+ one line in `legend()`) and its own `out/669.txt`. `git stash` (used
-here once, to measure the base commit's test count without reverting to
-a destructive checkout) stashed BOTH sessions' uncommitted work together;
-`git stash pop` restored both correctly, confirmed by re-running the full
-suite afterward (3603, unchanged). HEAD advanced by two of that session's
-own commits (78f5f55a, 3cf3dc8d) while this task was in progress; neither
-touches anything this task reads or writes. See kohlhase-omdoc above for
-the one place the two sessions' work actually interacted (a real measure
-run picking up this task's then-current, uncommitted code).
++ one line in `legend()`, then a fix round of its own) and its own
+`out/669.txt`. `git stash` (used here once, to measure the base commit's
+test count without reverting to a destructive checkout) stashed BOTH
+sessions' uncommitted work together; `git stash pop` restored both
+correctly, confirmed by re-running the full suite afterward (unchanged
+each time). HEAD advanced by three of that session's own commits
+(78f5f55a, 3cf3dc8d, 04728a1b) while this task was in progress and in this
+fix round; none touches anything this task reads or writes (verified
+directly for this fix round's own git-history recomputation — the
+15-commit GEOMETRY_FUNCS list did not change when 04728a1b landed). See
+kohlhase-omdoc above for the one place the two sessions' work actually
+interacted (a real measure run picking up this task's then-current,
+uncommitted code).
 
 WHAT A PERSON CAN OPEN
 -------------------------
   /home/wkolbe/MX/PDFDRILL/src/pdfdrill/inkreport.py (fresh_ink, sixth
     question, accept_stale_geometry, renumbered docstring)
   /home/wkolbe/MX/PDFDRILL/src/pdfdrill/report_tex.py (GEOMETRY_FUNCS,
-    geometry_signature, write_build_stamp's geometry_sha256 field)
+    geometry_signature, write_build_stamp's geometry_sha256 field,
+    _cellrect_row, font_metrics_preamble)
   /home/wkolbe/MX/PDFDRILL/src/pdfdrill/commands.py (accept_stale_geometry
     threaded through _inkreport_chain/cmd_residuals/cmd_inkreport)
   /home/wkolbe/MX/PDFDRILL/src/pdfdrill/cli.py (--accept-stale-geometry on
@@ -251,12 +412,14 @@ WHAT A PERSON CAN OPEN
   /home/wkolbe/MX/PDFDRILL/.claude/skills/pdfdrill/commands.yaml (SSOT
     entries; SKILL.md/_help_generated.txt/skill/* regenerated via
     tools/skillsync.py all .)
-  /home/wkolbe/MX/PDFDRILL/tests/test_geometry_signature.py (new, 16 tests)
+  /home/wkolbe/MX/PDFDRILL/tests/test_geometry_signature.py (23 tests)
+  /home/wkolbe/MX/PDFDRILL/tests/test_report_tex.py (1 new, end-to-end)
   /home/wkolbe/MX/PDFDRILL/tests/test_inkreport.py,
     tests/test_inkreport_pages_bound.py (fixtures updated to carry a real
     geometry_sha256)
   ~/pdfdrill-library/0902.0431/out/670/{670_fresh_ink_probe.py,
-    670_fresh_ink_result.json,INSPECT.txt}
+    670_fresh_ink_result.json,670_git_history_check.sh,
+    670_git_history_check.txt,INSPECT.txt}
 
 CONCERNS
 ----------
@@ -264,12 +427,23 @@ CONCERNS
     anywhere in the corpus needs one more remeasurement pass after 670
     lands, purely to backfill geometry_sha256 — a real, one-time,
     corpus-wide cost, not only the three documents named in the brief.
-  - `PREAMBLE`'s margin/font/package text is explicitly NOT covered (named
-    in geometry_signature's own docstring): a page-margin change would
-    still slip past this check silently, the same as before 670. Chose not
-    to fold all of PREAMBLE in because most of its churn (font fallbacks,
-    package guards) has nothing to do with table geometry and would
-    reintroduce the whole-file over-triggering this task rejects.
+    FIX ROUND 1, MINOR FINDING 4: whether this backfill can ride along
+    with the already-pending corpus rebuild was asked and is answered
+    plainly here rather than left implicit — it CAN, and should: both are
+    a full `--measure` pass over every published document, the rebuild is
+    already on hold for unrelated reasons (per this task's own operating
+    rule not to run one), and running the backfill as a SEPARATE pass
+    first would mean measuring every document twice for no reason. No
+    code change was needed for this; it is a scheduling answer, not a
+    mechanism.
+  - `PREAMBLE`'s remaining margin/package/Unicode-fallback text is still
+    NOT covered (named in geometry_signature's own docstring; FIX ROUND 1,
+    MINOR FINDING 3 closed the font-metrics slice of this gap, not all of
+    it) — a page-margin change would still slip past this check silently,
+    the same as before 670. Chose not to fold the REST of PREAMBLE in
+    because most of its churn (a package gap, a dropped code point) has
+    nothing to do with table geometry and would reintroduce the whole-file
+    over-triggering this task rejects.
   - The naming-pattern guard is mechanical but not complete by
     construction — `row` is the standing, named example of a function it
     cannot catch. A reviewer, not a test, is still the backstop for a

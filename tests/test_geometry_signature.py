@@ -127,13 +127,138 @@ def test_geometry_funcs_is_exactly_the_reviewed_set():
     assert set(rt.GEOMETRY_FUNCS) == {
         "cellrect_reset", "_rule_mark", "_rule_above", "_cellrect_header_mark",
         "_cellrect_table_open", "_cellrect_marks", "_cellrect_col_marks",
-        "_img_cell", "crop_cell", "col_widths", "table_open",
+        "_cellrect_row", "_img_cell", "crop_cell", "col_widths", "table_open",
         "row", "cellrect_from_aux", "page_height_bp", "auto_px2mm",
     }
     assert len(rt.GEOMETRY_FUNCS) == len(set(rt.GEOMETRY_FUNCS)), \
         "no name should be listed twice"
     for name in rt.GEOMETRY_FUNCS:
         assert hasattr(rt, name), "%s is in GEOMETRY_FUNCS but not defined" % name
+
+
+# ---------------------------------------------------------------------------
+# 670 review, finding 2 — the second, independent mark-emission copy
+# (607C) found inline in build_report's Image-regions (DIA) table
+# ---------------------------------------------------------------------------
+
+def test_row_and_the_dia_table_both_go_through_the_shared_emitter():
+    """A second, independent reimplementation of row()'s own mark sequence
+    was found inline in build_report, outside GEOMETRY_FUNCS and outside
+    the naming-pattern guard. Both must now call the ONE shared emitter,
+    `_cellrect_row`, rather than either calling the low-level primitives
+    directly."""
+    row_src = inspect.getsource(rt.row)
+    build_report_src = inspect.getsource(rt.build_report)
+    assert "_cellrect_row(" in row_src, "row() no longer calls the emitter"
+    assert "_cellrect_row(" in build_report_src, (
+        "build_report's DIA table no longer calls the shared emitter")
+    # and NOT reimplemented inline in build_report any more -- these three
+    # primitives should appear only inside _cellrect_row itself now
+    for prim in ("_cellrect_marks(", "_rule_mark(", "_cellrect_col_marks("):
+        assert prim not in build_report_src, (
+            "build_report still calls %s directly -- a third copy of the "
+            "sequence, not a call to _cellrect_row" % prim)
+
+
+def test_row_delegates_to_cellrect_row_functionally_not_just_textually(
+        monkeypatch):
+    """The source-text check above can't tell a real call from a decoy
+    string. Spy on the real function and confirm row() actually invokes it
+    with this row's own title."""
+    calls = []
+    real = rt._cellrect_row
+
+    def _spy(title, cells):
+        calls.append((title, list(cells)))
+        return real(title, cells)
+
+    monkeypatch.setattr(rt, "_cellrect_row", _spy)
+    rt.cellrect_reset(True)
+    rt.row("EQ0007", "x+1", 3)
+    assert len(calls) == 1
+    assert calls[0][0] == "EQ0007"
+
+
+def test_cellrect_row_wraps_marks_around_an_arbitrary_cell_list():
+    """Direct mechanism test of the extracted emitter (the same style
+    tests/test_column_rules_ordered.py already uses for _CELLRECT state):
+    the open mark is glued onto the FIRST cell, the first row of a table
+    gets one column mark per cell, and the second row's `rule_above_key`
+    is the first row's `rule_below_key` -- the bookkeeping `row()` and the
+    DIA table both relied on before this was one function."""
+    rt.cellrect_reset(True)
+    rt._cellrect_table_open()
+    out1 = rt._cellrect_row("EQ0001", ["A", "B", "C"])
+    out2 = rt._cellrect_row("EQ0002", ["D", "E", "F"])
+    assert "A" in out1 and "\\pdrowpos{pdr00001a}" in out1
+    assert out1.rstrip("\n").endswith("\\hline\\noalign{\\pdrulepos{rul00002}}")
+    row1, row2 = rt._CELLRECT["map"]
+    assert row1["identifier"] == "EQ0001" and row2["identifier"] == "EQ0002"
+    assert row1["rule_below_key"] is not None
+    assert row2["rule_above_key"] == row1["rule_below_key"]
+    # only the first row of the table gets column marks (4 = 3 cells + 1
+    # right-edge mark, per _cellrect_col_marks's own docstring)
+    assert len(rt._CELLRECT["cols"][rt._CELLRECT["table"]]) == 4
+    assert "col" not in out2  # the second row gets none
+
+
+def test_no_third_call_site_for_the_row_marking_sequence():
+    """670 review: 'search once more for a third site.' Grepped across the
+    whole module for every direct caller of the three low-level primitives
+    row()/the DIA table used to duplicate between them. Exactly one now:
+    `_cellrect_row` itself. `table_open`/the DIA header separately call
+    `_cellrect_table_open`/`_cellrect_header_mark` directly (a third and
+    fourth caller of THOSE two primitives) -- named here explicitly as NOT
+    the same defect: those are direct reuse of an already-hashed primitive
+    with no extra judgement or bookkeeping duplicated around them, unlike
+    the sequence-plus-bookkeeping row() and the DIA table used to
+    reimplement independently.
+    """
+    import pathlib
+    src = pathlib.Path(rt.__file__).read_text(encoding="utf-8")
+    for prim in ("_cellrect_marks(", "_rule_mark(", "_cellrect_col_marks("):
+        sites = [i for i in range(len(src)) if src.startswith(prim, i)]
+        # one definition site (`def _cellrect_marks(` etc.) plus exactly one
+        # call site, inside _cellrect_row's own body
+        calls = [i for i in sites if not src[:i].rstrip().endswith("def")]
+        assert len(calls) == 1, (
+            "%s is called from %d places, expected exactly 1 (inside "
+            "_cellrect_row)" % (prim, len(calls)))
+
+
+# ---------------------------------------------------------------------------
+# 670 review, finding 3 — a repeat of 665 (PREAMBLE font metrics)
+# ---------------------------------------------------------------------------
+
+def test_font_metrics_preamble_extracts_the_five_665_lines():
+    extracted = rt.font_metrics_preamble()
+    assert r"\usepackage[no-math]{fontspec}" in extracted
+    assert r"\setmainfont{DejaVu Serif}" in extracted
+    assert r"\setmonofont{DejaVu Sans Mono}[Scale=MatchLowercase]" in extracted
+    assert r"\newfontfamily\fbmath{Noto Sans Math}" in extracted
+    assert r"\newfontfamily\fbcjk{Noto Sans CJK JP}" in extracted
+    assert len(extracted.splitlines()) == 5
+
+
+def test_a_665_style_preamble_edit_moves_the_signature(monkeypatch):
+    """The actual regression: task 665 changed `\\usepackage{fontspec}` to
+    `\\usepackage[no-math]{fontspec}`. Reproduced directly against the
+    extraction function (not the whole PREAMBLE, which this task does not
+    touch) to prove it would have been caught."""
+    before = rt.geometry_signature()
+    pre_665 = rt.PREAMBLE.replace(
+        r"\usepackage[no-math]{fontspec}", r"\usepackage{fontspec}")
+    monkeypatch.setattr(rt, "PREAMBLE", pre_665)
+    after = rt.geometry_signature()
+    assert before != after
+
+
+def test_geometry_signature_documents_all_four_kinds_of_input():
+    """670 review finding 9 -- CELLRECT_PREAMBLE was hashed but never named
+    in the docstring. Both non-function inputs must be named now."""
+    doc = rt.geometry_signature.__doc__
+    assert "CELLRECT_PREAMBLE" in doc
+    assert "font_metrics_preamble" in doc
 
 
 # ---------------------------------------------------------------------------
