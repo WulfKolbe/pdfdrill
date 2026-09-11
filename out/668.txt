@@ -474,6 +474,19 @@ OPEN
 - The ninth row's `\[`/`\]` false-positive on `\\[1ex]` is characterised
   but not fixed — a different, narrower defect than either class this
   task's population was scoped around.
+- THE TEN EMPTY-LATEX OBJECTS ARE AN UPSTREAM ANOMALY OF THEIR OWN, found
+  while correcting this task's row count and confirmed by the review. They
+  are not merely un-refined: `latex`, `latex_refined` AND `latex_raw` are
+  all empty and `confidence` is None — no partial content and no score at
+  all, which is not what a normally-OCR'd equation that simply failed to
+  read looks like. They were excluded from the denominator here because the
+  gate never judged them either way (both the old and the new script gate
+  them out of `refused` with `if lx and ...`), so the exclusion fixes the
+  denominator to match what the gate actually judges; matching 661's 45,528
+  is corroboration, not the reason it is right. But an Equation object with
+  no content, no reading and no confidence should not exist, and nothing in
+  this task explains how one comes to. The ten are named above. Worth a
+  task; not this one.
 - (FIX ROUND 1: the item this bullet used to name — a "45,538 vs 45,528"
   discrepancy attributed to measurements taken days apart on a moving
   corpus — was itself a defect, not an open question: see blocking
