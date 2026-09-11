@@ -409,19 +409,47 @@ def test_row_source_column_keeps_the_original_render_uses_the_mapped_form():
     assert r"\begin{aligned}" in fitmath_arg
 
 
-def test_unresolved_formulas_agrees_with_the_actual_rendered_cell():
-    r"""661 — the documented invariant in `unresolved_formulas()`'s own
-    docstring ("qualifies... exactly the row whose Rendered cell says
-    (not rendered)") must hold for a display-environment row too: since
-    `row()` now renders `align` via the map, this row must NOT be reported
-    as unresolved."""
-    from pdfdrill.report_tex import unresolved_formulas, row
+def test_unresolved_formulas_uses_display_safe_verified_by_reverting_it(monkeypatch):
+    r"""661 fix round 2 — the PREVIOUS version of this test used an `align`
+    fixture and asserted `unresolved_formulas()` does not flag it (and that
+    `row()` does not print "(not rendered)" for it). Both assertions are
+    TRUE but neither DISCRIMINATES: round 0's own measurement already
+    showed the bare gate never refuses align/gather/eqnarray/alignat/
+    flalign/multline/split either way, so `unresolved_formulas()`'s
+    `if latex and not display_safe(latex):` line (which reads only the
+    BOOLEAN, never the returned string) gives the identical answer whether
+    it calls `display_safe` or bare `renderable` for that population — the
+    same structural gap the review found on `reports/residuals.py`'s
+    identical call shape, caught here proactively rather than left as a
+    second, unflagged instance of the same pattern.
 
-    raw = r"\begin{align} a &= b \\ c &= d \end{align}"
-    fo = [("FO0001", raw, "3", "")]
+    Kept below as a documented FACT, not a guard (no revert-check attached
+    to it, on purpose):
+    """
+    from pdfdrill.report_tex import unresolved_formulas, row
+    import pdfdrill.report_tex as rt
+
+    align_like = r"\begin{align} a &= b \\ c &= d \end{align}"
+    assert unresolved_formulas([("FO0001", align_like, "3", "")]) == []
+    assert "(not rendered)" not in row("FO0001", align_like, "3")
+
+    # A GENUINELY discriminating case, from `to_inline_env`'s `equation`/
+    # `equation*` STRIP — a different mechanism from the seven-pair MAP:
+    # `\begin{equation} a & b \end{equation}` passes the bare gate (the
+    # generic env-strip in `_strip_innermost_envs` shields ANY
+    # environment's own bare markers, `equation` included) but is refused
+    # once the map STRIPS that wrapper and exposes the bare `&` to
+    # `has_bare_align_marker`. This is where the regression guard belongs.
+    raw = r"\begin{equation} a & b \end{equation}"
+    fo = [("FO0002", raw, "3", "")]
+    assert unresolved_formulas(fo) == [("FO0002", raw, "3", "")]
+
+    # verified the way the reviewer verified the tex.py finding: revert
+    # `display_safe` to bare `renderable` and watch it fail to
+    # discriminate — i.e. the row is NO LONGER unresolved
+    monkeypatch.setattr(rt, "display_safe",
+                        lambda lx: (rt.renderable(lx) if lx else ""))
     assert unresolved_formulas(fo) == []
-    built = row("FO0001", raw, "3")
-    assert "(not rendered)" not in built
 
 
 def test_split_alone_no_longer_won_t_work_here(tmp_path):

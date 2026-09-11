@@ -75,19 +75,50 @@ def test_findings_classifies_from_row_objects(tmp_path):
     assert [r["identifier"] for r in found["doubted"]] == ["D_EQ0001"]
 
 
-def test_findings_does_not_flag_a_display_environment_as_unresolved(tmp_path):
-    r"""661 finding 2 — `findings()` is a SECOND, independent
-    classification of "does this row render" (this module's own docstring:
-    ported over row objects, not delegating to report_tex.findings_rows),
-    so fixing the latter alone leaves residuals.pdf disagreeing with it on
-    the exact population this task targets. RULE 17: a genuine display
-    environment, never already `aligned`."""
-    raw = r"\begin{split} a &= b \\ c &= d \end{split}"
-    rows = {"equation": [EquationRow(identifier="D_EQ0100", latex=raw,
+def test_findings_uses_display_safe_verified_by_reverting_it(tmp_path, monkeypatch):
+    r"""661 fix round 2 — the PREVIOUS version of this test used a `split`
+    fixture and asserted `findings()` does not flag it as unresolved. That
+    assertion is TRUE but does not DISCRIMINATE: round 0's own measurement
+    already showed the bare gate never refuses align/gather/eqnarray/
+    alignat/flalign/multline/split either way, so `findings()`'s
+    `if not rt.display_safe(latex):` line (which reads only the BOOLEAN,
+    never the returned string) gives the identical answer whether it calls
+    `display_safe` or bare `renderable` for that population — the test
+    passed before this fix existed too, and calling it a regression guard
+    overstated what it showed (review re-review, finding: it "passes
+    identically ... reverting ... same result").
+
+    Kept below as a documented FACT, not a guard (no revert-check attached
+    to it, on purpose):
+    """
+    split_like = r"\begin{split} a &= b \\ c &= d \end{split}"
+    rows_split = {"equation": [EquationRow(identifier="D_EQ0100",
+                                           latex=split_like, confidence=0.9)],
+                 "formula": [], "table": [], "image": []}
+    assert R.findings(rows_split, tmp_path)["unresolved"] == []
+
+    # A GENUINELY discriminating case, from `to_inline_env`'s `equation`/
+    # `equation*` STRIP — a different mechanism from the seven-pair MAP:
+    # `\begin{equation} a & b \end{equation}` passes the bare gate (the
+    # generic env-strip in `_strip_innermost_envs` shields ANY
+    # environment's own bare markers, `equation` included) but is refused
+    # once the map STRIPS that wrapper and exposes the bare `&` to
+    # `has_bare_align_marker`. So the boolean this call site branches on
+    # DOES differ here, and this is where the regression guard belongs.
+    raw = r"\begin{equation} a & b \end{equation}"
+    rows = {"equation": [EquationRow(identifier="D_EQ0200", latex=raw,
                                      confidence=0.9)],
            "formula": [], "table": [], "image": []}
-    found = R.findings(rows, tmp_path)
-    assert found["unresolved"] == []
+    assert [r["identifier"] for r in R.findings(rows, tmp_path)["unresolved"]] \
+        == ["D_EQ0200"]
+
+    # verified the way the reviewer verified the tex.py finding: revert
+    # `rt.display_safe` to bare `rt.renderable` and watch it fail to
+    # discriminate — i.e. the row is NO LONGER unresolved
+    import pdfdrill.report_tex as rt
+    monkeypatch.setattr(rt, "display_safe",
+                        lambda lx: (rt.renderable(lx) if lx else ""))
+    assert R.findings(rows, tmp_path)["unresolved"] == []
 
 
 import json

@@ -411,13 +411,87 @@ residuals.pdf / `findings()`:
   independent classification site that could disagree with `report_tex.
   findings_rows` on some OTHER malformed input, and the review named it
   as its own defect regardless of measured impact here — but the honest
-  report is: 0 measured delta on residuals.pdf for THIS document, verified
-  by the unit test (`test_findings_does_not_flag_a_display_environment_
-  as_unresolved`) rather than a corpus number. A document WITH ink
-  measurement and a split-carrying flagged/doubted/low-confidence row
-  would be needed to show a residuals.pdf-level delta; none was found in
-  the corpus search above (the 9 hit-documents were not cross-checked
-  against `report.ink.json` presence — left open below).
+  report is: 0 measured delta on residuals.pdf for THIS document.
+
+CORRECTION (fix round 2). The sentence above originally said this was
+"verified by the unit test (`test_findings_does_not_flag_a_display_
+environment_as_unresolved`)" — false in the way that matters: that test
+used a `split` fixture, and `findings()`'s call
+(`if not rt.display_safe(latex):`) reads only the BOOLEAN, never the
+returned string. Round 0's own measurement already showed the bare gate
+never refuses split (or any of the other six MAP names) either way, so
+the boolean this line branches on is IDENTICAL whether `display_safe` or
+bare `renderable` is called, for that population — the test passed
+before this fix existed too. Proven directly (not asserted): reverting
+`rt.display_safe` to bare `rt.renderable` and re-running the exact same
+`findings()` call with the exact same fixture gives the exact same
+result, `unresolved == []`, either way.
+
+So: does the `residuals.py:63` switch do anything at all? Checked what
+`findings()` actually uses (per the instruction that decides this) — the
+BOOLEAN only, never the returned string — so a discriminating input
+needs the BOOLEAN itself to differ, not the mapped value. One exists, and
+it is not from the seven-pair MAP: `to_inline_env`'s `equation`/
+`equation*` STRIP is a different mechanism (deletion, not renaming), and
+it can EXPOSE a bare marker the wrapper was shielding.
+`renderable(r"\begin{equation} a & b \end{equation}")` is truthy (the
+generic env-strip in `_strip_innermost_envs` shields ANY environment's
+own markers, `equation` included, so the wrapped `&` never reaches
+`has_bare_align_marker`); `display_safe()` on the same value is falsy
+(the map deletes the wrapper FIRST, so the same `&` is now bare at depth
+0 when the gate runs). Verified in `findings()` itself, not just in
+isolation: with `rt.display_safe` unmodified this row IS added to
+`unresolved`; with `rt.display_safe` reverted to bare `rt.renderable` it
+is NOT — a genuine, reproducible discriminating case for this exact call
+site's boolean.
+
+The misleading test was renamed and rewritten, not just re-argued in
+prose: `test_findings_does_not_flag_a_display_environment_as_unresolved`
+-> `test_findings_uses_display_safe_verified_by_reverting_it`
+(tests/test_reports_residuals.py). It keeps the `split` assertion as a
+documented FACT (still true, just explicitly labelled non-discriminating,
+with no revert-check attached to it) and adds the `equation`-strip case
+as the actual regression guard, verified inside the test by reverting
+`rt.display_safe` via `monkeypatch` and confirming the assertion THEN
+fails to hold (the row is no longer unresolved) — the same method the
+reviewer used.
+
+THE SAME GAP, FOUND A SECOND TIME, PROACTIVELY. Checked whether fix
+round 0's own analogous test had the identical structural problem, since
+`unresolved_formulas()` uses the identical shape
+(`if latex and not display_safe(latex):`, boolean only): it did.
+`test_unresolved_formulas_agrees_with_the_actual_rendered_cell`
+(tests/test_report_tex.py) used the same `align` fixture and passed
+identically under the same revert, for the same reason, undetected by
+the first review because it targeted the `reports/` sites specifically.
+Renamed and rewritten the same way, without being asked, because leaving
+a second known instance of the exact defect just flagged is the same
+evidence-discipline failure in smaller form: `test_unresolved_formulas_
+agrees_with_the_actual_rendered_cell` -> `test_unresolved_formulas_
+uses_display_safe_verified_by_reverting_it`. Same shape: the `align`
+assertion kept as a documented non-discriminating fact, the `equation`-
+strip case added as the real guard, verified by reverting.
+
+Both renamed tests were independently confirmed to discriminate by
+reverting `report_tex.display_safe` to bare `renderable` at the MODULE
+level (not just inside their own `monkeypatch`) and re-running the full
+targeted set: both, and only the tests that were already known to
+discriminate (`test_display_safe_maps_before_gating_for_every_pair`,
+`test_row_source_column_keeps_the_original_render_uses_the_mapped_form`,
+`test_rendered_maps_a_display_environment_but_source_keeps_it_raw`),
+FAIL; every other test in the targeted set still passes.
+
+A document WITH an ink measurement and a split-carrying flagged/doubted/
+low-confidence row would be needed to show a residuals.pdf-LEVEL (not
+unit-level) before/after delta for the `equation`-strip case or any
+other; none was found in the corpus search above (the 9 split-hit
+documents were not cross-checked against `report.ink.json` presence —
+left open below). This remains a real, disclosed gap: the boolean-level
+fix is now genuinely tested, but no PUBLISHED-artefact-level number
+demonstrates it, because the discriminating input (`equation`+bare
+marker) was not found to occur in this corpus's Equation.latex the way
+`split` was — it was constructed to prove the switch is not inert, not
+measured from a real document.
 
 NOT REBUILT (fix round 1): no published artefact was rebuilt here either
 — `~/pdfdrill-library` git status stays clean and 1911.08029/report.pdf's
@@ -440,8 +514,9 @@ tests/test_report_tex.py, 10 new tests (73 in the file, was 63):
     directly against the gate)
   - test_row_source_column_keeps_the_original_render_uses_the_mapped_form
     (the published-form decision, checked against real `row()` output)
-  - test_unresolved_formulas_agrees_with_the_actual_rendered_cell (the
-    invariant `display_safe()`'s docstring names, checked)
+  - test_unresolved_formulas_uses_display_safe_verified_by_reverting_it
+    (RENAMED, fix round 2 — see below; was
+    test_unresolved_formulas_agrees_with_the_actual_rendered_cell)
   - test_split_alone_no_longer_won_t_work_here (real xelatex compile,
     gated on `shutil.which("xelatex")`; reproduces the exact named error
     before, and its absence after)
@@ -453,9 +528,34 @@ tests/test_reports_tex.py, 1 new test (7 in the file, was 6):
     report.pdf; Rule 17 fixture; checks the Rendered cell is mapped AND
     the LaTeX-source cell stays raw, in one real `render_row()` call)
 tests/test_reports_residuals.py, 1 new test (20 in the file, was 19):
-  - test_findings_does_not_flag_a_display_environment_as_unresolved
-    (`findings()` — the second, independent classification site; Rule 17
-    fixture)
+  - test_findings_uses_display_safe_verified_by_reverting_it (RENAMED,
+    fix round 2 — see below; was
+    test_findings_does_not_flag_a_display_environment_as_unresolved)
+
+FIX ROUND 2 — two RENAMED, not added (counts above already reflect this;
+no test file count changes, only test bodies/names): the review found
+`test_findings_does_not_flag_a_display_environment_as_unresolved` passes
+identically whether `reports/residuals.py:63` calls `display_safe` or the
+bare gate — proven by reverting and re-running. Checked what `findings()`
+uses (only the boolean, never the returned value): a genuinely
+discriminating input still exists for the boolean, from `to_inline_env`'s
+`equation`/`equation*` STRIP rather than the seven-pair MAP
+(`\begin{equation} a & b \end{equation}` passes the bare gate, is refused
+after the map). Rewrote the test in place — same slot, honest new name —
+to keep the ORIGINAL `split` assertion as a documented non-discriminating
+FACT and add the `equation`-strip case as the actual regression guard,
+verified inside the test by reverting `display_safe` via `monkeypatch`
+and confirming the assertion then fails to hold. Checked report_tex.py's
+own analogous test (`unresolved_formulas()` has the identical
+boolean-only shape) proactively and found the SAME defect there,
+undiscovered by the first review because it targeted `reports/`
+specifically — renamed and rewritten the same way, unasked, rather than
+left as a second known instance of the same gap. See the "CORRECTION
+(fix round 2)" note in the MEASURED/residuals section above for the full
+argument and the direct verification (reverting `display_safe` at module
+level and confirming exactly these two tests, plus the three already-
+known-discriminating ones, are the only ones in the targeted set that
+fail).
 
 tests/test_alphabet_safe.py: one PRE-EXISTING test
 (`test_the_source_column_is_not_what_this_touches`) asserted `row()`'s
@@ -470,7 +570,9 @@ Full suite: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
 tests/ -q -p no:cacheprovider`
   base commit f25ca1cc:      3549 passed
   after fix round 0:         3559 passed (10 new tests; 0 regressions)
-  after fix round 1 (this):  3561 passed (2 more new tests; 0 regressions)
+  after fix round 1:         3561 passed (2 more new tests; 0 regressions)
+  after fix round 2 (this):  3561 passed (2 tests RENAMED/rewritten in
+                             place, 0 added/removed, 0 regressions)
 
 EVIDENCE
 --------
@@ -505,15 +607,24 @@ WHAT IS OPEN
   - No published artefact was rebuilt (report.pdf/residuals.pdf/etc. for
     1911.08029, or anything for 0902.0431), per the brief. The corpus
     rebuild is on hold until inkdrill's in-line formula marking lands.
-  - FIX ROUND 1: `residuals.py::findings()`'s fix has 0 measured delta on
+  - FIX ROUND 1/2: `residuals.py::findings()`'s fix has 0 measured delta on
     1911.08029 specifically (no ink measurement exists for it, so no
     equation ever enters a flagged/doubted/lowconf band there regardless
-    of this fix) — verified correct by code review and a direct unit test,
-    not by a corpus-measured residuals.pdf number. Finding a document that
-    both HAS an ink measurement (`report.ink.json`) AND carries one of the
-    9 split-hit identifiers from the corpus search, to show an actual
-    residuals.pdf-level before/after delta, was not done — the 9
-    hit-documents were not cross-checked against ink-measurement presence.
+    of this fix) AND 0 measured delta from the `split` population
+    corpus-wide (fix round 2: the boolean this call site branches on is
+    structurally identical to the bare gate for all seven MAP names,
+    proven by reverting). The only DISCRIMINATING case found for this call
+    site's boolean (the `equation`/`equation*` STRIP) is unit-tested, not
+    corpus-measured — no document in the 9-hit corpus search was checked
+    for an `equation`-wrapped bare-marker equation, and none was expected
+    to have one (it is a constructed, plausibly-rare malformed-OCR shape,
+    not something observed in this library). Finding a document that both
+    HAS an ink measurement (`report.ink.json`) AND carries either a
+    split-hit or an equation-strip-discriminating identifier, to show an
+    actual residuals.pdf-level before/after delta for either mechanism,
+    was not done — the 9 split-hit documents were not cross-checked
+    against ink-measurement presence, and no corpus search was run for the
+    equation-strip case at all.
   - `tools/census509.py`, `tools/midstring486.py`, `tools/bed492.py`,
     `tools/refine444.py`, `tools/beddiag492.py`, `tools/rightdelim517.py`,
     `tools/prompt448.py` (review finding 6, informational, not blocking)
