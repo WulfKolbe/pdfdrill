@@ -233,6 +233,7 @@ def _report_pages(doc_dir: Path) -> int:
 
 def fresh_ink(doc_dir: Path, *, formula_rule: str = "",
               pages_bound: "int | None" = None,
+              accept_stale_geometry: bool = False,
               why: "list | None" = None) -> bool:
     """True when the stored measurement describes the report ABOUT TO BE BUILT.
 
@@ -249,7 +250,7 @@ def fresh_ink(doc_dir: Path, *, formula_rule: str = "",
     residual measured on a document that no longer exists. It reported READY.
     Eleven of twelve documents did this before it was caught.
 
-    So the test is now four content questions, each of which can be answered
+    So the test is now six content questions, each of which can be answered
     from what is on disk:
 
       1. the ink post-dates the measure stamp        (the original mtime test,
@@ -259,10 +260,35 @@ def fresh_ink(doc_dir: Path, *, formula_rule: str = "",
          in the right order are not evidence about each other.
       3. the same formula rule                       — a different rule is a
          different set of sections and therefore a different page geometry
-      4. the same model                              — `model_state` (435); a
+      4. the same page bound                          (578) — `--pages 10`
+         builds a different report from an unbounded one; a measurement taken
+         against one does not describe the other.
+      5. the same model                              — `model_state` (435); a
          rebuilt model renumbers every object id, so a measurement joined by
          identifier describes objects that no longer exist (430: 1 id in
          common out of 2,196)
+      6. the same measured GEOMETRY                   (670) — `geometry_sha256`
+         (`report_tex.geometry_signature`), a hash over exactly the functions
+         that place a rule, a column or an image on the page. Questions 1-5
+         all passed on THREE documents whose report.tex had changed underneath
+         them: `--profile published` (463) and, separately, a line break
+         inside a table cell that put every Scan crop on a second line and
+         made every residual measure an empty cell (625, out/625.txt).
+         Neither the ink nor the stamp lied about what THEY say; nothing
+         asked whether the CODE that built them was the code about to run.
+         See `geometry_signature`'s docstring for why this is a hash over a
+         named function set and not a raw commit (too aggressive — this
+         branch takes many commits a day, almost none touching layout) or a
+         whole-file/`.tex` hash (also too aggressive, for a different
+         reason). A stamp with no recorded `geometry_sha256` at all (every
+         stamp written before 670) is treated as a MISMATCH, not skipped —
+         the leniency `model_state`'s check above extends to an absent field
+         is exactly the loophole 625 exploited when generalised to a field
+         invented for a live incident, so this question does not repeat it.
+         `accept_stale_geometry=True` overrides ONLY this question, for an
+         operator who has independently confirmed (by reading `git log`, not
+         by hoping) that the code has not moved; it is never the default and
+         nothing in this codebase sets it automatically.
 
     `why` collects the reason it said no, so the caller can print it rather
     than silently doing the slow thing.
@@ -318,4 +344,31 @@ def fresh_ink(doc_dir: Path, *, formula_rule: str = "",
         say.append("the model changed since the measurement (%s -> %s)"
                    % (str(was)[:12], str(cur)[:12]))
         return False
+    # 670 — the sixth content question: which CODE measured this build's
+    # GEOMETRY. Deliberately NOT the leniency the model check above gives an
+    # absent field (`cur and was and ...`) — that leniency is correct there
+    # because a stamp predating 435 predates model-tracking entirely, and
+    # nothing was known to be wrong with it. Here the absence is the exact
+    # shape of the defect: every stamp on disk today predates this check by
+    # construction, and treating "not recorded" as "assume unchanged" would
+    # wave every one of them through, including the three 625 left stale.
+    # `accept_stale_geometry` is the deliberate escape valve for an operator
+    # who has actually checked, rather than a default anyone can lean on.
+    if not accept_stale_geometry:
+        from .report_tex import geometry_signature
+        cur_g = geometry_signature()
+        was_g = st_d.get("geometry_sha256")
+        if not was_g:
+            say.append("the measured report does not record which code built "
+                       "its geometry (stamp predates 670); pass "
+                       "accept_stale_geometry=True to resume anyway")
+            return False
+        if not cur_g:
+            say.append("the current code's geometry signature could not be "
+                       "computed")
+            return False
+        if cur_g != was_g:
+            say.append("the report's measured geometry was built by different "
+                       "code (%s -> %s)" % (was_g[:12], cur_g[:12]))
+            return False
     return True

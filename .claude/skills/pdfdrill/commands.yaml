@@ -645,6 +645,13 @@ commands:
       documents carrying an ink measured against a 276-page full build beside a
       19-page findings report; the formula rule matched because it was passed to
       both builds, and the shape did not because it was passed to neither'
+  - name: accept_stale_geometry
+    flag: --accept-stale-geometry
+    type: flag
+    help: 'resume even though the stored measurement does not record which code
+      built its geometry, or was built by different code (670). Off by
+      default: a stamp with no recorded geometry signature is refused, not
+      skipped — confirm the code has not moved before passing this.'
   typed: true
 - name: publishready
   section: Reporting
@@ -1848,6 +1855,14 @@ commands:
     flag: --budget-mb
     type: str
     help: size budget per built PDF in MB (655; default 20 — over budget re-encodes down a floored ladder)
+  - name: accept_stale_geometry
+    flag: --accept-stale-geometry
+    type: flag
+    help: 'with --measure, resume even though the stored measurement does not
+      record which code built its geometry, or was built by different code
+      (670). Off by default: a stamp with no recorded geometry signature is
+      refused, not skipped — confirm the code has not moved before passing
+      this.'
   typed: true
 - name: reporttex
   section: Introspection (fast, no extraction)

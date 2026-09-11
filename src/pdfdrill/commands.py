@@ -2378,7 +2378,8 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
                      findings: "bool | None" = None,
                      profile: str = INKREPORT_PROFILE_DEFAULT,
                      timeout: int = 900,
-                     pages: "int | None" = None) -> str:
+                     pages: "int | None" = None,
+                     accept_stale_geometry: bool = False) -> str:
     """404 — the whole ink chain, and the only supported way to run it.
 
     spec 2026-09-06 (task 10) — renamed from `cmd_inkreport`. `cmd_residuals`
@@ -2473,7 +2474,8 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
     # and filter the PUBLISHED report; they do not change which rows the ink
     # measured, so they can no longer invalidate it.
     resumed = ir.fresh_ink(doc, formula_rule=MEASURE_FORMULA_RULE,
-                           pages_bound=MEASURE_PAGES_BOUND, why=why)
+                           pages_bound=MEASURE_PAGES_BOUND,
+                           accept_stale_geometry=accept_stale_geometry, why=why)
     if resumed:
         out.append("")
         out.append("RESUME: the stored measurement describes the report this "
@@ -2714,7 +2716,8 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
                   findings: "bool | None" = None,
                   profile: str = INKREPORT_PROFILE_DEFAULT,
                   timeout: int = 900,
-                  pages: "int | None" = None) -> str:
+                  pages: "int | None" = None,
+                  accept_stale_geometry: bool = False) -> str:
     """ALIAS of `residuals --measure --pdf` (spec 2026-09-06) for a plain
     call. `cmd_residuals` cannot carry `preflight_only`, `findings`, a
     non-default `profile`, or a page bound — its own `pages` bounds the
@@ -2729,8 +2732,10 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
             or profile != INKREPORT_PROFILE_DEFAULT or pages is not None):
         return _inkreport_chain(pdf, preflight_only=preflight_only,
                                 findings=findings, profile=profile,
-                                timeout=timeout, pages=pages)
-    out = cmd_residuals(pdf, pdf_out=True, measure=True, timeout=timeout)
+                                timeout=timeout, pages=pages,
+                                accept_stale_geometry=accept_stale_geometry)
+    out = cmd_residuals(pdf, pdf_out=True, measure=True, timeout=timeout,
+                        accept_stale_geometry=accept_stale_geometry)
     return out + "\n" + alias_note("inkreport")
 
 
@@ -5549,10 +5554,16 @@ def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
                   images: bool = True, paper: str = "a3",
                   landscape: bool = True, compile_pdf: bool = True,
                   timeout: int = 900,
-                  budget_mb: "float | None" = None) -> str:
+                  budget_mb: "float | None" = None,
+                  accept_stale_geometry: bool = False) -> str:
     """The action list: only rows with something open, worst first.
     --measure runs the ink chain first (the existing inkreport chain,
     unchanged; the measure build is still report.pdf).
+
+    `accept_stale_geometry` (670) reaches `fresh_ink`'s resume check only
+    when `measure` is set; it overrides ONLY the question of which code
+    measured the report's geometry, never the other five, and defaults to
+    off. See `inkreport.fresh_ink` and `report_tex.geometry_signature`.
 
     655 — `residuals.pdf` draws its rows from the same equation/formula
     population `evidence` budgets, always a small subset, so it needs no
@@ -5571,7 +5582,8 @@ def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
     out = []
     if measure:
         out.append(_inkreport_chain(pdf, timeout=timeout, profile="internal",
-                                    findings=False))
+                                    findings=False,
+                                    accept_stale_geometry=accept_stale_geometry))
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
     if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):

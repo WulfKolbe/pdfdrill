@@ -1120,21 +1120,26 @@ def _do_inkconvert(args):
 def _do_inkreport(args):
     """pdfdrill inkreport <pdf> [--preflight-only] [--timeout N]
     [--profile internal|published] [--full] [--pages N]
+    [--accept-stale-geometry]
 
     561 — the PROFILE decides the shape: published builds the findings
     shape, internal the full listing, and BOTH phases build the same one.
-    `--full` forces the full listing whatever the profile says."""
+    `--full` forces the full listing whatever the profile says. 670:
+    `--accept-stale-geometry` resumes even though the stamp does not prove
+    which code measured the report's geometry — off by default."""
     from .commands import cmd_inkreport, INKREPORT_PROFILE_DEFAULT
     to, args = _opt(args, "--timeout")
     profile, args = _opt(args, "--profile")
     npages, args = _opt(args, "--pages")
-    pdf_args = [a for a in args if a not in ("--preflight-only", "--full")]
+    pdf_args = [a for a in args if a not in ("--preflight-only", "--full",
+                                             "--accept-stale-geometry")]
     return cmd_inkreport(_pdf(pdf_args),
                          preflight_only="--preflight-only" in args,
                          findings=(False if "--full" in args else None),
                          profile=profile or INKREPORT_PROFILE_DEFAULT,
                          timeout=int(to) if to else 900,
-                         pages=(int(npages) if npages is not None else None))
+                         pages=(int(npages) if npages is not None else None),
+                         accept_stale_geometry="--accept-stale-geometry" in args)
 
 
 def _do_publishready(args):
@@ -1253,7 +1258,10 @@ def _do_evidence(args):
 def _do_residuals(args):
     """pdfdrill residuals <pdf> [--pdf] [--measure] [--conf F] [--pages N]
     [--no-images] [--paper a4|a3] [--portrait] [--no-compile] [--timeout S]
-    [--budget-mb F]  — 655: crop size budget per built PDF, default 20"""
+    [--budget-mb F] [--accept-stale-geometry]
+    — 655: crop size budget per built PDF, default 20; 670: with --measure,
+    resume even though the stamp does not prove which code measured the
+    report's geometry"""
     from .commands import cmd_residuals
     conf, args = _opt(args, "--conf")
     npages, args = _opt(args, "--pages")
@@ -1261,7 +1269,8 @@ def _do_residuals(args):
     timeout, args = _opt(args, "--timeout")
     budget, args = _opt(args, "--budget-mb")
     pdf_args = [a for a in args if a not in ("--pdf", "--measure", "--no-images",
-                                             "--portrait", "--no-compile")]
+                                             "--portrait", "--no-compile",
+                                             "--accept-stale-geometry")]
     return cmd_residuals(_pdf(pdf_args), pdf_out="--pdf" in args,
                          measure="--measure" in args,
                          conf=float(conf) if conf is not None else None,
@@ -1271,7 +1280,8 @@ def _do_residuals(args):
                          landscape="--portrait" not in args,
                          compile_pdf="--no-compile" not in args,
                          timeout=int(timeout) if timeout is not None else 900,
-                         budget_mb=float(budget) if budget is not None else None)
+                         budget_mb=float(budget) if budget is not None else None,
+                         accept_stale_geometry="--accept-stale-geometry" in args)
 
 
 def _do_report(args):

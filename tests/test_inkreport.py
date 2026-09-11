@@ -88,10 +88,19 @@ def test_one_probe_decides_the_scan_column_and_a_pyramid_rescues_a_dead_cdn(
 
 
 def _resumable(d, *, sha="abc123", rule=""):
-    """An ink + measure stamp that agree, dated in the resumable order."""
+    """An ink + measure stamp that agree, dated in the resumable order.
+
+    670 — carries the REAL current geometry_sha256 so these fixtures (which
+    predate the sixth content question) still isolate the question each was
+    written to test, rather than tripping over a new one. See
+    tests/test_geometry_signature.py for that question's own tests, both
+    directions.
+    """
     import json, os
+    from pdfdrill import report_tex as rt
     (d / "report.build.measure.json").write_text(json.dumps(
-        {"sha256": sha, "pages": 20, "phase": "measure", "formula_rule": rule}))
+        {"sha256": sha, "pages": 20, "phase": "measure", "formula_rule": rule,
+         "geometry_sha256": rt.geometry_signature()}))
     ink = d / "report.ink.json"
     ink.write_text(json.dumps(
         {"rows": [{"id": "x_EQ0001"}], "measured_against": {"sha256": sha}}))

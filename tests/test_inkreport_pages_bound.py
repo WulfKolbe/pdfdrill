@@ -65,8 +65,10 @@ def test_fresh_ink_refuses_when_the_bound_differs(tmp_path):
 
 
 def test_fresh_ink_resumes_when_the_bound_matches(tmp_path):
+    # 670 — geometry_sha256 must be RECORDED (not merely absent) for this
+    # fixture to isolate the pages_bound question rather than the sixth.
     stamp = {"sha256": "abc", "formula_rule": "none", "pages_bound": 10,
-             "model_sha256": None}
+             "model_sha256": None, "geometry_sha256": rt.geometry_signature()}
     (tmp_path / "report.build.measure.json").write_text(json.dumps(stamp))
     (tmp_path / "report.ink.json").write_text(json.dumps(
         {"rows": [], "measured_against": {"sha256": "abc"}}))

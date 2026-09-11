@@ -3351,6 +3351,147 @@ def model_state(doc_dir: Path) -> dict:
             "model_mtime": int(st.st_mtime)}
 
 
+#: 670 — the NAMED SET. Every function whose source decides which zref/
+#: savepos marks are emitted, in what order, at what size, or how the
+#: compiled `.aux` is turned back into rectangles — the machinery a residual
+#: measurement reads, not the report's prose or content transforms.
+#:
+#: Built by walking the 625 incident backwards: that fix touched exactly
+#: `crop_cell` (the `\\` that put a Scan image on a second line) and
+#: `_cellrect_table_open` (the per-page label collision), and the same
+#: subsystem's remaining emitters (`_rule_mark`, `_rule_above`,
+#: `_cellrect_header_mark`, `_cellrect_marks`, `_cellrect_col_marks`,
+#: `cellrect_reset`) sit beside them. `_img_cell`, `col_widths` and
+#: `auto_px2mm` decide the size an image or column is GIVEN; `table_open`
+#: decides the table's own structure; `row` is the one function that calls
+#: every mark emitter in a fixed order and decides whether an image column
+#: exists at all. `cellrect_from_aux` and `page_height_bp` are the READING
+#: half — turning the marks a build left in the `.aux` back into the
+#: rectangles a measurement compares, so a change to how a mark is
+#: INTERPRETED is exactly as invalidating as a change to how it is EMITTED.
+#:
+#: `legend_foot` is DELIBERATELY ABSENT despite `table_open` calling it and
+#: `_table_record`'s own docstring naming the extra row it can cost: 585
+#: fixed the measurement to run against the phase=measure build, and every
+#: caller threads the SAME `legend` flag into both `write_build_stamp` and
+#: `build_report`'s `legend_on` (commands.py: `cmd_reporttex(..., legend=
+#: False, ...)` for the measure build) — a measure build always calls
+#: `table_open` with `legend_on=False`, so `legend_foot` never runs and its
+#: source cannot affect anything a measurement reads. Naming it here rather
+#: than leaving it out silently is the same discipline this set exists to
+#: enforce on everything else: a reader should not have to rediscover this
+#: by tracing three call sites, the way this docstring's author had to.
+#:
+#: TEST_GEOMETRY_FUNCS_NAMING in tests/test_geometry_signature.py is the
+#: guard: every function in this module whose NAME matches the naming
+#: patterns fourteen of these fifteen already use (`cellrect`, `crop_cell`,
+#: `_img_cell`, `col_widths`, `table_open`, `_rule_`, `page_height_bp`,
+#: `auto_px2mm`) must be IN this tuple, or the test fails. `row` is the
+#: exception the test accepts by name — a generic word no naming pattern
+#: could single out without also matching functions that have nothing to do
+#: with geometry — which is exactly the limit of a MECHANICAL check: a new
+#: function shaped like `row` (calls every mark emitter, decides the cell
+#: list) but named something else ships outside the pattern and outside
+#: this tuple, silently, unless a reviewer recognises it. Naming that limit
+#: here is the honest alternative to pretending the guard is complete.
+GEOMETRY_FUNCS = (
+    "cellrect_reset", "_rule_mark", "_rule_above", "_cellrect_header_mark",
+    "_cellrect_table_open", "_cellrect_marks", "_cellrect_col_marks",
+    "_img_cell", "crop_cell", "col_widths", "table_open",
+    "row", "cellrect_from_aux", "page_height_bp", "auto_px2mm",
+)
+
+
+def geometry_signature() -> "str | None":
+    r"""670 — WHICH CODE measured the report's GEOMETRY: the physical
+    placement of rules, columns, cells and images that a residual
+    measurement reads off the compiled PDF via zref/savepos marks.
+
+    463/625 is the incident this answers. `fresh_ink` asked four content
+    questions and all four passed while the report's GEOMETRY had changed
+    underneath them: `--profile published` dropping the formulas section
+    (463), and later a `\\` inside a `p{}` cell that put every Scan image on
+    a second line and made every residual measure an empty cell (625).
+    Neither the ink nor the measure stamp lies about what it measured; ask
+    the ink and the stamp anything they carry and they agree with each
+    other. The question neither of them can answer is whether the REPORT
+    BUILDER that produced them is the one that would run now.
+
+    THREE IDENTITIES WERE WEIGHED, NOT JUST TAKEN:
+
+    * `build_stamp`'s own `commit` field (git HEAD) — REJECTED. This branch
+      takes many commits a day and almost none of them touch report layout;
+      comparing raw commits means the 55-minute measurement this function
+      exists to skip is repeated on every single day's first run, which is
+      not a resume, it is the mtime check the docstring above already
+      explains was replaced.
+    * A hash of the whole file (`report_tex.py`) or of the generated `.tex`
+      — REJECTED. The file mixes the layout engine with escaping,
+      CJK/glyph handling, ink joining, image download and 90 other
+      concerns; a fix to any of them would invalidate a measurement whose
+      GEOMETRY never moved. The generated `.tex` is closer to the truth
+      (identical bytes -> identical geometry, provably) but the measure
+      build's `.tex` is not kept past the compile, and the file also
+      changes on every re-rendered cell of MATH CONTENT, which is not
+      geometry at all — hashing it would be as trigger-happy as the raw
+      commit, for a different reason.
+    * A hash over the SOURCE of the NAMED functions in `GEOMETRY_FUNCS`
+      (this) — CHOSEN. Every one of them either emits a mark, decides a
+      mark's position or size, or turns a compiled mark back into a
+      rectangle; nothing outside that list can move a rule, a column or an
+      image, and nothing inside a marked function's own source can be
+      touched without recompiling this hash. The AST of each function is
+      hashed, not its text, specifically so a comment or docstring edit —
+      the exact kind of change 625's own fix carried, three sentences of
+      "why" beside two lines of "what" — changes nothing here. `ast.dump`
+      does not carry comments (the tokenizer already dropped them) or
+      whitespace; it does still carry a changed docstring, which is an
+      accepted over-invalidation given the asymmetry below.
+
+    WHAT THIS DOES NOT COVER, NAMED RATHER THAN HIDDEN: the page margin and
+    the rest of `PREAMBLE` (font substitutions, package list) can also move
+    where text falls, and are not in `GEOMETRY_FUNCS` — that string changes
+    for reasons (a font fallback, a package guard) that have nothing to do
+    with table geometry far more often than not, and folding all of
+    `PREAMBLE` in would approach the whole-file rejection above. A margin
+    change is therefore NOT caught by this check; it is caught, as before,
+    by a human re-running `--measure` deliberately.
+
+    THE COST IS ASYMMETRIC ON PURPOSE. A function on this list picking up an
+    unrelated comment, or a docstring rewrite, costs one needless 55-minute
+    remeasurement. A geometry change that this signature MISSED would cost
+    what 463 and 625 already cost: a residual reported READY against a
+    report that no longer exists, discovered by a human noticing the number
+    is wrong. Between "sometimes measures when it did not have to" and
+    "sometimes trusts a number it should not," this function is built to
+    fail toward the first.
+
+    Returns None (never raises) when the source cannot be read — a frozen
+    or zipped install, say. `fresh_ink` treats None the same as a mismatch:
+    a signature it cannot compute is not evidence the geometry is unchanged.
+    """
+    import ast
+    import hashlib
+    import inspect
+    import sys
+    import textwrap
+    mod = sys.modules[__name__]
+    h = hashlib.sha256()
+    try:
+        h.update(CELLRECT_PREAMBLE.encode("utf-8"))
+        for name in GEOMETRY_FUNCS:
+            fn = getattr(mod, name)
+            src = textwrap.dedent(inspect.getsource(fn))
+            tree = ast.parse(src)
+            h.update(name.encode("utf-8"))
+            h.update(b"\x00")
+            h.update(ast.dump(tree).encode("utf-8"))
+            h.update(b"\x00")
+    except (OSError, TypeError, SyntaxError, AttributeError):
+        return None
+    return h.hexdigest()
+
+
 def write_build_stamp(pdf_out: Path, *, legend: bool, ink_adopted: bool,
                       prefer_refined: bool, filters: dict,
                       glyphs_dropped_count: int = 0,
@@ -3393,6 +3534,10 @@ def write_build_stamp(pdf_out: Path, *, legend: bool, ink_adopted: bool,
         # is the only form of the question a resume can compare against.
         "pages_bound": (int(pages_bound) if pages_bound else None),
         **model_state(pdf_out.parent),
+        # 670 — which CODE measured this build's geometry (see
+        # geometry_signature's docstring). None when it could not be
+        # computed; `fresh_ink` treats that the same as a mismatch.
+        "geometry_sha256": geometry_signature(),
     })
     body = _json.dumps(stamp, indent=1)
     # the latest build, whatever it was

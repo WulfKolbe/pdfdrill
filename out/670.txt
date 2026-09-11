@@ -1,0 +1,281 @@
+670 — fresh_ink cannot see a code change; give it a fifth question
+====================================================================
+
+Branch eqblobs-and-gzip-tex, base commit 503beea9 (this task's own commits
+land on top; HEAD moved to 3cf3dc8d while this was in progress — a
+concurrent session's task 669, unrelated, see CONCURRENT SESSION below).
+
+THE DEFECT, AS GIVEN
+----------------------
+`fresh_ink()` (src/pdfdrill/inkreport.py:234) asks content questions about
+a stored measurement before resuming instead of re-measuring. Before this
+task it asked five (the docstring named four; `pages_bound`, 578, was a
+fifth already in the code but not in the docstring's numbered list — fixed
+as part of this task, see DOCSTRING below). NONE of them asked whether the
+report BUILDER that produced the ink and the stamp is the one that would
+run now. 463 (a profile change dropping a section) and 625 (a `\\` inside a
+`p{}` cell that put every Scan image on a second line and made every
+residual measure an empty cell, out/625.txt) both changed the report's
+measured GEOMETRY while ink and stamp stayed mutually consistent and every
+existing check passed. Three of the twenty-one documents 625 affected were
+never manually re-measured and are the ones the published site still warns
+about.
+
+THE THREE CANDIDATES, WEIGHED
+--------------------------------
+1. Raw `commit` (build_stamp already records it, e.g. "503beea946aa").
+   REJECTED. This branch takes many commits a day and almost none touch
+   report geometry (of 106 commits between 503beea9 and the current HEAD,
+   exactly 2 touched a function later put in GEOMETRY_FUNCS — see REAL-
+   WORLD VALIDATION below). Comparing raw commits turns the resume into
+   the mtime check 463 already replaced: it would fire on day one of every
+   session regardless of what changed.
+2. A hash of the whole file (report_tex.py) or of the generated .tex.
+   REJECTED. The file mixes the layout engine with escaping, CJK/glyph
+   handling, ink joining, image download and ~90 other functions; touching
+   any of them invalidates a measurement whose geometry never moved — a
+   whole-file hash is nearly as trigger-happy as the raw commit, for a
+   different reason. The generated .tex is closer to the truth (identical
+   bytes -> identical geometry, provably) but the measure build's .tex is
+   not kept past the compile, and it ALSO changes on every re-rendered
+   cell of MATH CONTENT, which is not geometry — as trigger-happy as the
+   commit, again for a different reason.
+3. A hash over the SOURCE of a NAMED set of functions (CHOSEN).
+   `report_tex.GEOMETRY_FUNCS` — 15 functions, found by walking the 625
+   incident backwards (it touched `crop_cell` and `_cellrect_table_open`
+   exactly) and generalising the naming convention the rest of that
+   subsystem already uses. Each one either emits a zref/savepos mark,
+   decides a mark's position or size, or turns a compiled mark back into
+   a rectangle (the READING half — `cellrect_from_aux`, `page_height_bp`
+   — is included for the same reason: a change to how a mark is
+   INTERPRETED is exactly as invalidating as a change to how it is
+   EMITTED). `geometry_signature()` hashes the AST of each function's
+   source, not its text, specifically so a comment or docstring edit (the
+   exact shape of 625's own fix) changes nothing — proved directly in
+   tests/test_geometry_signature.py::
+   test_ast_dump_ignores_comments_and_whitespace_the_way_the_signature_relies_on.
+
+   ONE FUNCTION FOUND AND DELIBERATELY LEFT OUT: `legend_foot`, despite
+   `table_open` calling it and despite `_table_record`'s own docstring
+   naming a row it can cost a lattice. Traced three call sites
+   (commands.py: the measure build always calls `cmd_reporttex(...,
+   legend=False, ...)`, and the SAME `legend` value reaches both
+   `write_build_stamp` and `build_report`'s `legend_on`) to confirm a
+   measure build never calls `legend_foot` at all — its source cannot
+   affect anything a measurement reads. Named in a comment on
+   `GEOMETRY_FUNCS` rather than left for the next reader to rediscover.
+
+THE GUARD
+-----------
+Two tests, not one, because a hash needs both directions pinned:
+  - test_every_function_matching_the_known_geometry_naming_patterns_is_named
+    — scans report_tex.py for every function matching the SAME naming
+    patterns the 15 already use (cellrect/crop_cell/_img_cell/col_widths/
+    table_open/_rule_/page_height_bp/auto_px2mm) and fails if one is not in
+    GEOMETRY_FUNCS. This is the "future file that should be in the set does
+    not silently sit outside it" guard the brief asked for, run as CODE
+    against the real module rather than trusted to a person's memory.
+  - test_geometry_funcs_is_exactly_the_reviewed_set — pins the tuple's
+    CONTENT (order-independent), so a change to it is a diff to THIS test,
+    not a silent edit three files away.
+Named limit, not a silent one: `row` is in GEOMETRY_FUNCS (it calls every
+mark emitter in a fixed order and decides whether an image column exists)
+but matches no naming pattern — a generic word no pattern could single out
+without also matching unrelated functions. A same-shaped function shipped
+under an unrelated name would ship outside both the pattern and the guard;
+GEOMETRY_FUNCS's own comment says so by name rather than pretending the
+guard is complete.
+
+WHAT HAPPENS WHEN THE SIXTH QUESTION SAYS NO
+-----------------------------------------------
+Refuses, and says why, through the existing `why` list — the same
+mechanism the other five questions use, so a caller printing `why[0]`
+(commands.py's `_inkreport_chain` already does, at the "NO RESUME" line)
+gets a sentence naming the mismatch rather than a bare False.
+
+MISSING is NOT skipped, unlike the model check beside it. `model_state`'s
+check (`if cur and was and cur != was`) treats an absent `model_sha256` as
+unknown-therefore-pass, which is correct THERE — a stamp older than 435
+predates model-tracking entirely and nothing was known to be wrong with
+it. Doing the same here would reopen exactly the loophole 625 exploited,
+generalised from "no known defect at the time" to "the field a live
+incident was named for": every stamp on disk today predates this check by
+construction, so "not recorded, therefore assume unchanged" would wave all
+of them through on the very first run, undoing the whole point. This is
+the one place this task deliberately diverges from the sibling check's own
+convention, and says why rather than copying it silently.
+
+A DELIBERATE OVERRIDE EXISTS: `accept_stale_geometry=False` (default),
+threaded through `fresh_ink` -> `_inkreport_chain`/`cmd_residuals`/
+`cmd_inkreport` -> `--accept-stale-geometry` on `residuals`/`inkreport`.
+It overrides ONLY the sixth question — proved by
+test_accept_stale_geometry_does_not_paper_over_a_DIFFERENT_defect, which
+sets accept_stale_geometry=True beside a formula-rule mismatch (463's own
+incident) and confirms it still refuses. Not automated anywhere; an
+operator who sets it is asserting they checked, not asking the tool to
+guess.
+
+DOCSTRING
+-----------
+`fresh_ink`'s docstring said "four content questions" while the code
+already ran five (`pages_bound`, 578, was inline-commented but not in the
+numbered list) — the exact "a stale docstring" failure CLAUDE.md's own
+pitfall catalog names. Renumbered to six and pages_bound given its own
+item while touching this function for an adjacent reason, rather than
+leaving a docstring that undercounts its own checks for the next reader.
+
+TESTS (tests/test_geometry_signature.py, 16 new; both directions per rule
+11, rule 17 fixtures isolate the sixth question)
+------------------------------------------------------------------------
+  - mechanism: deterministic; moves when a function ON the list changes
+    (crop_cell, monkeypatched); does NOT move when a function OFF the list
+    changes (esc_text, monkeypatched); AST-vs-comment claim checked
+    directly on synthetic source.
+  - guard: naming-pattern completeness; pinned tuple content.
+  - fresh_ink, both directions: resumes when the recorded signature matches
+    the CURRENT code; refuses when it names different code (625, modelled
+    directly); refuses when no signature was ever recorded (the transition
+    case); accept_stale_geometry overrides only that refusal, and does not
+    override a different question; a rule-17 control fixture where the
+    other five questions all pass shows the sixth alone deciding both ways.
+  - write_build_stamp records geometry_sha256; the CLI/cmd_* surface
+    carries the parameter end to end.
+
+Three PRE-EXISTING fixtures in tests/test_inkreport.py and
+tests/test_inkreport_pages_bound.py asserted `fresh_ink(...) is True`
+without a recorded geometry_sha256 and started failing under the new
+question, exactly as intended (they now describe a stamp that predates
+670). Updated them to record the REAL current `geometry_signature()` so
+each keeps isolating the ONE question it was written to test (rule 17,
+applied to fixtures that already existed) rather than tripping over a
+question that did not exist when they were written.
+
+FULL SUITE
+------------
+Base (clean checkout of 503beea9, stashed and measured before restoring
+this task's changes): 3587 passed. After (this task's changes plus the
+concurrent session's own, unrelated 669 commits, restored from the same
+stash): 3603 passed — +16, exactly this task's new test count. No
+regressions either direction.
+
+REAL-WORLD VALIDATION, NOT ASSUMED
+-------------------------------------
+Between 503beea9 (0902.0431's and gilmore's own measure-build commit) and
+the current HEAD, 106 commits touched src/pdfdrill/report_tex.py.
+Checked each of GEOMETRY_FUNCS's 15 names against that range: `table_open`
+and `crop_cell` were touched (2 of 106 commits carried a geometry-relevant
+edit); `table_open`'s own diff (f59a06c9) adds a `heads=None` parameter and
+a branch — a real signature/structure change, not a comment. This is
+independent confirmation the chosen scope is neither too wide (104 of 106
+commits in the range did NOT touch a marked function) nor too narrow (the
+one real regression class this task exists for is exactly the class this
+diff would have caught).
+
+A LIVE SECOND DATA POINT, UNPLANNED: a concurrent session ran a REAL
+`--measure` on kohlhase-omdoc at 11:06 today, on a working tree that
+already carried this task's THEN-CURRENT uncommitted report_tex.py (this
+task and that session share a filesystem, not a worktree) — so its stamp
+now carries a real `geometry_sha256` ("9cf97cabb157..."). Probing it now
+(after this task later removed `legend_foot` from GEOMETRY_FUNCS, per THE
+THREE CANDIDATES above) reports "built by different code" — true of the
+SIGNATURE FUNCTION's own inputs (one fewer function hashed) though not of
+the actually-emitted geometry (legend_foot never ran for that build
+either way). This is the accepted over-invalidation cost, observed for
+real rather than only argued: developing this check WHILE it is live
+costs itself one extra remeasurement, the same cost any future geometry
+fix costs every other stamp.
+
+ITEM 4 — DOES EACH DOCUMENT RESUME OR RE-MEASURE, READ-ONLY
+----------------------------------------------------------------
+Probed via out/670/670_fresh_ink_probe.py under
+~/pdfdrill-library/0902.0431/out/670/ (read-only: `inkreport.fresh_ink`
+only reads JSON off disk and calls `report_tex.geometry_signature()`,
+which reads its own running source — no write, no build, no measurement).
+Full JSON: 670_fresh_ink_result.json beside it.
+
+  0902.0431          -> RE-MEASURE. "does not record which code built its
+    geometry (stamp predates 670)". Measured today (09:58) at commit
+    503beea9, before geometry_sha256 existed in any form. RIGHT ANSWER
+    under the chosen policy (missing = refuse, never skip): this stamp
+    cannot prove what it claims, whatever the truth happens to be. Cost:
+    one avoidable remeasurement on a report whose geometry, by separate
+    commit-range evidence above, had not actually moved — the accepted
+    price of closing the exact loophole 625 exploited, paid once per
+    document already measured before this task landed.
+
+  gilmore-lie-groups -> RE-MEASURE, same reason ("stamp predates 670").
+    Its own measure stamp is from today 10:43, also before geometry_sha256
+    existed. A remeasurement was independently already in flight at
+    inspection time (report.pdf.lock held, out/gilmore/inkwork/*.pgm
+    growing) — untouched by this task; its own stamp will ALSO lack
+    geometry_sha256 once it finishes, needing one further pass after 670
+    lands to record one.
+
+  kohlhase-omdoc     -> RE-MEASURE. "built by different code" — this one
+    DOES carry a geometry_sha256 (the concurrent-session data point
+    above), and it differs from the current signature for the reason
+    given there (a function this task later removed from the hashed set,
+    not a real geometry change). Still the conservative, correct-shaped
+    answer: this session cannot assert from a stamp alone that "different
+    hash" means "cosmetic", and the whole point of this task is not to
+    make that judgment call silently.
+
+None of the three was rebuilt, measured or otherwise modified by this
+task. `pdfdrill preflight`/`residuals --measure`/`inkreport` were not run
+on any of them.
+
+CONCURRENT SESSION
+---------------------
+A second session was actively working the same shared filesystem (not an
+isolated worktree) throughout, on task 669 (report_tex.py: LEGEND_REFINED
++ one line in `legend()`) and its own `out/669.txt`. `git stash` (used
+here once, to measure the base commit's test count without reverting to
+a destructive checkout) stashed BOTH sessions' uncommitted work together;
+`git stash pop` restored both correctly, confirmed by re-running the full
+suite afterward (3603, unchanged). HEAD advanced by two of that session's
+own commits (78f5f55a, 3cf3dc8d) while this task was in progress; neither
+touches anything this task reads or writes. See kohlhase-omdoc above for
+the one place the two sessions' work actually interacted (a real measure
+run picking up this task's then-current, uncommitted code).
+
+WHAT A PERSON CAN OPEN
+-------------------------
+  /home/wkolbe/MX/PDFDRILL/src/pdfdrill/inkreport.py (fresh_ink, sixth
+    question, accept_stale_geometry, renumbered docstring)
+  /home/wkolbe/MX/PDFDRILL/src/pdfdrill/report_tex.py (GEOMETRY_FUNCS,
+    geometry_signature, write_build_stamp's geometry_sha256 field)
+  /home/wkolbe/MX/PDFDRILL/src/pdfdrill/commands.py (accept_stale_geometry
+    threaded through _inkreport_chain/cmd_residuals/cmd_inkreport)
+  /home/wkolbe/MX/PDFDRILL/src/pdfdrill/cli.py (--accept-stale-geometry on
+    residuals and inkreport)
+  /home/wkolbe/MX/PDFDRILL/.claude/skills/pdfdrill/commands.yaml (SSOT
+    entries; SKILL.md/_help_generated.txt/skill/* regenerated via
+    tools/skillsync.py all .)
+  /home/wkolbe/MX/PDFDRILL/tests/test_geometry_signature.py (new, 16 tests)
+  /home/wkolbe/MX/PDFDRILL/tests/test_inkreport.py,
+    tests/test_inkreport_pages_bound.py (fixtures updated to carry a real
+    geometry_sha256)
+  ~/pdfdrill-library/0902.0431/out/670/{670_fresh_ink_probe.py,
+    670_fresh_ink_result.json,INSPECT.txt}
+
+CONCERNS
+----------
+  - Missing-field strictness means EVERY document currently measured
+    anywhere in the corpus needs one more remeasurement pass after 670
+    lands, purely to backfill geometry_sha256 — a real, one-time,
+    corpus-wide cost, not only the three documents named in the brief.
+  - `PREAMBLE`'s margin/font/package text is explicitly NOT covered (named
+    in geometry_signature's own docstring): a page-margin change would
+    still slip past this check silently, the same as before 670. Chose not
+    to fold all of PREAMBLE in because most of its churn (font fallbacks,
+    package guards) has nothing to do with table geometry and would
+    reintroduce the whole-file over-triggering this task rejects.
+  - The naming-pattern guard is mechanical but not complete by
+    construction — `row` is the standing, named example of a function it
+    cannot catch. A reviewer, not a test, is still the backstop for a
+    same-shaped function under an unrelated name.
+  - Working on a live, shared filesystem with a concurrent session cost
+    one real illustration of the over-invalidation tradeoff (kohlhase-
+    omdoc, above) rather than only an argued one — worth knowing about,
+    not something this task caused or could have prevented from inside a
+    single session.
