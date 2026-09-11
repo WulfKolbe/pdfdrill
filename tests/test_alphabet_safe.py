@@ -59,12 +59,21 @@ def test_it_runs_inside_renderable():
 def test_the_source_column_is_not_what_this_touches():
     """alphabet_safe feeds the RENDERED cell only. The Source column shows
     MathPix's characters verbatim, so the page still says what MathPix
-    produced — the rewrite is a rendering decision, not a transcription edit."""
+    produced — the rewrite is a rendering decision, not a transcription edit.
+
+    661 — the rendered cell now reads `display_safe(latex)`, not
+    `renderable(latex)` directly: `display_safe()` maps a display
+    environment to its in-math form (`to_inline_env`) and THEN calls
+    `renderable()` (which still runs `alphabet_safe` internally, so this
+    test's own claim still holds) — see `display_safe`'s docstring for why
+    the map lives outside the gate rather than inside it. The source cell
+    is unaffected either way: `esc_text(latex)` never changed."""
     import inspect
     from pdfdrill import report_tex
     src = inspect.getsource(report_tex.row)
     assert "esc_text(latex)" in src          # source cell: raw
-    assert "renderable(latex)" in src        # rendered cell: rewritten
+    assert "display_safe(latex)" in src      # rendered cell: mapped, then gated
+    assert "alphabet_safe" in inspect.getsource(report_tex.renderable)
 
 
 def test_the_advice_no_longer_claims_eufm10_lacks_lowercase():

@@ -1529,12 +1529,93 @@ def split_glued_delimiter(lx: str) -> str:
 _BOLD_OPERATORNAME = re.compile(r"\\boldsymbol\{\\operatorname\s*\{([^{}]*)\}\}")
 
 
+#: 661 — a display environment cannot appear inside a longtable cell's own
+#: `$...$` at all. Measured directly against THIS module's own preamble()
+#: in a longtable cell: `$\displaystyle \begin{align}...\end{align}$` ->
+#: "Package amsmath Error: \begin{align} allowed only in paragraph mode."
+#: (0 pages skipped, xelatex recovers and keeps going, but the cell is
+#: garbled — this is not caught by `renderable()`'s own structural checks,
+#: since `_strip_innermost_envs`/`has_bare_align_marker` treat ANY
+#: environment name generically and see nothing wrong with `align`'s own
+#: internal `&`/`\\`). `split` fails even harder: amsmath requires a host
+#: equation environment around it, so
+#: `$\displaystyle \begin{split}...\end{split}$` alone raises "Package
+#: amsmath Error: \begin{split} won't work here" — the auditor's own named
+#: symptom, reproduced verbatim in this repo's own probe.
+#:
+#: Their IN-MATH counterparts have no such restriction and are measured
+#: cell-safe here the same way `aligned`/`gathered` already are in
+#: `_MATH_ENVS` above: `$\displaystyle \begin{aligned}...\end{aligned}$`
+#: and the `gathered` equivalent both compile with 0 errors in this
+#: module's own longtable preamble. MAP, do not unwrap: unwrapping a
+#: display environment to its bare body would leave that body's own
+#: `&`/`\\` loose at brace depth 0 — exactly the tab-mark condition 659
+#: fixed from the opposite direction (an unbalanced strip leaving markers
+#: exposed). `aligned`/`gathered` keep the same internal `&`/`\\` meaning
+#: as their display parents, so the row's actual line structure is
+#: preserved, not merely deleted.
+#:
+#: `split` maps to `aligned`, not to its own name: `split` has no in-math
+#: form of itself (amsmath defines none), and `aligned` is its documented
+#: equivalent (same two-column row/alignment shape) that needs no host.
+#: `equation`/`equation*` are stripped outright rather than mapped: they
+#: carry no internal alignment markers to preserve and amsmath has no
+#: "inline" counterpart to map onto — the body alone, once unwrapped, is
+#: already ordinary math with nothing to shield.
+#:
+#: PORT, not a fresh derivation. `scratchpad/full_report.salvaged.py`
+#: (a recovered prior session) carries this exact `_ENV_MAP` / `to_inline_env`
+#: pair, with its own version of the same reasoning in its own comments; per
+#: 659's precedent (Rule 3: reuse a measured artefact over re-deriving a
+#: look-alike) this is taken VERBATIM, unchanged in shape — the only edits
+#: below are this docstring's citations and a `-> str` type hint to match
+#: this module's style.
+_ENV_MAP = (("align", "aligned"), ("alignat", "aligned"),
+            ("flalign", "aligned"), ("eqnarray", "aligned"),
+            ("gather", "gathered"), ("multline", "gathered"),
+            # `split` is NOT standalone: amsmath requires a host equation
+            # env ("\begin{split} won't work here"). `aligned` is its
+            # in-math equivalent and needs no host.
+            ("split", "aligned"))
+
+
+def to_inline_env(latex: str) -> str:
+    r"""Rewrite display environments to their in-math counterparts.
+
+    Not a gate: this never refuses, it only rewrites. Callers that want the
+    mapped form CHECKED for safety still call `renderable()` on the result
+    — see `renderable()`'s own note on why the map lives here, outside it,
+    rather than as a pre-pass inside it.
+    """
+    out = latex or ""
+    for src, dst in _ENV_MAP:
+        out = re.sub(r"\\begin\{%s\*?\}" % src, r"\\begin{%s}" % dst, out)
+        out = re.sub(r"\\end\{%s\*?\}" % src, r"\\end{%s}" % dst, out)
+    out = re.sub(r"\\(?:begin|end)\{equation\*?\}", "", out)
+    return out.strip()
+
+
 def renderable(latex: str) -> str:
     """Return latex safe to put inside $...$, or "" when it is not.
 
     One malformed snippet (bh2_EQ0147 carried a stray \\end{itemize}) hung
     xelatex for 10 minutes inside a longtable cell — every snippet is
     validated here and demoted to source-only when it cannot render.
+
+    661 — this function does NOT call `to_inline_env()`. `renderable()` is
+    a GATE: every rewrite it already performs (whitespace, the 634
+    boldsymbol/operatorname swap, furniture-drop, delimiter-glue repair) is
+    a SAFETY normalization — it never changes which environment a reader's
+    eye would say the value is. Mapping `align` to `aligned` is a bigger
+    move: it changes the value's own identity, not just its safety, so it
+    does not belong bolted inside a function whose contract is "judge this
+    value," alongside checks that do exactly that and nothing more.
+    `to_inline_env()` is a caller-side transform for exactly this reason —
+    see its own docstring. A caller that wants a display environment to
+    reach this gate in its cell-safe form calls
+    `renderable(to_inline_env(latex))` itself, at the point it is about to
+    typeset the value; `renderable()` then judges whatever it is given,
+    mapped or not, the same way it always has.
     """
     lx = re.sub(r"\s+", " ", latex).strip()
     lx = alphabet_safe(lx)
@@ -1654,6 +1735,35 @@ def renderable(latex: str) -> str:
     if has_bare_align_marker(stripped_env):
         return ""
     return lx
+
+
+def display_safe(latex: str) -> str:
+    r"""661 — the value a CELL should typeset: `to_inline_env()`'s map
+    applied, then judged by `renderable()`.
+
+    This is the one place the map and the gate are composed, so every
+    caller that decides "does this row render" or "what goes in the
+    Rendered cell" reaches the SAME verdict on the SAME input. Every such
+    caller in this module was switched to this function instead of calling
+    `renderable()` directly, so `unresolved_formulas()`'s own documented
+    invariant ("qualifies... exactly the row whose Rendered cell says
+    (not rendered)") stays true by construction rather than by the two call
+    sites happening to agree today.
+
+    NEVER call this to decide what the LaTeX-SOURCE column shows — that
+    column keeps the untransformed `latex` unchanged (see `to_inline_env`'s
+    docstring for why the two columns are allowed to disagree). This
+    function exists for the RENDER side of a row only.
+
+    Deliberately NOT used by `region_render()` (a different function's
+    concern, routing image-region LaTeX through its own `_MATH_ENVS`
+    allowlist — mapping there would let `align`/`gather`/etc. through that
+    allowlist as a side effect, which is a scope decision for that
+    function, not this task) or by `listing_cell()`'s `\(...\)` spans
+    (formulas inside a code listing, a narrower and much rarer shape than
+    a display equation; left unchanged, not measured to carry one).
+    """
+    return renderable(to_inline_env(latex)) if latex else ""
 
 
 def breakable_ident(title: str) -> str:
@@ -1824,6 +1934,21 @@ LEGEND_INK = (r"\textbf{Residual} render vs scan (inkdrill): "
               r"\textcolor{inkClean}{$\bullet$}\,K clean \quad "
               r"\textcolor{inkUnmeasured}{$\bullet$}\,not measured")
 
+#: 661 — said, not left for a reader to find by diffing two columns. Once
+#: `to_inline_env()` maps a display environment for the Rendered column
+#: (`display_safe()`, used by `row()`, `findings_tex`, and the Tables
+#: section), the LaTeX-source column and the Rendered column are no longer
+#: the same string for that row — on purpose, and only for that population
+#: (align/alignat/flalign/eqnarray/gather/multline/split; `equation` is
+#: stripped, not mapped). Unexplained, a reader who notices the mismatch
+#: has no way to tell "the report disagrees with itself" from "this is the
+#: one population where it is allowed to."
+LEGEND_SRC = (r"\textbf{LaTeX source} MathPix's reading, unchanged; "
+              r"\textbf{Rendered} the same reading, with a display "
+              r"environment (align/alignat/flalign/eqnarray/gather/"
+              r"multline/split) mapped to its in-math form so it can "
+              r"typeset in this cell --- the two may legitimately differ")
+
 
 #: 180 — the reader-facing note at the top of an unmeasured report. Reader
 #: facing means it says what the reader has and has not got, in words that do
@@ -1883,6 +2008,12 @@ def legend(form: bool) -> str:
     table ROW and split the legend across two rows.
     """
     out = "{\\scriptsize " + LEGEND_CONF
+    # 661 — ALWAYS printed too, same reasoning as 181 below: every table
+    # this legend serves (row(), findings_tex, the Tables section — see
+    # table_open's heads) carries a LaTeX-source column and a Rendered
+    # column, so the key that says they may differ applies unconditionally,
+    # not only on documents where the map happens to fire.
+    out += r" \newline " + LEGEND_SRC
     # 181: the confidence bands ALWAYS apply, so the legend is always printed.
     # When the residual half is absent it is named as absent rather than left
     # out — the difference between "this report has one column" and "this
@@ -1993,7 +2124,7 @@ def unresolved_formulas(fo):
     out = []
     for r in fo:
         latex = r[1]
-        if latex and not renderable(latex):
+        if latex and not display_safe(latex):
             out.append(r)
     return out
 
@@ -2012,7 +2143,7 @@ def refused_for_align_only(latex: str) -> bool:
     # "---". Four rows of johnston did exactly that before this guard.
     if not (latex or "").strip():
         return False
-    if renderable(latex):
+    if display_safe(latex):
         return False
     import re as _re
     lx = _re.sub(r"\s+", " ", latex).strip()
@@ -2102,8 +2233,16 @@ def row(title, latex, page, extra="", image=None, punct="", conf="",
                                    if extra else "",
                                    conf_flag(conf),
                                    refined_flag(refined))
+    # 661 — `src` keeps `latex` UNTRANSFORMED: this cell's whole reason to
+    # exist is showing what MathPix returned, and `to_inline_env()`'s map
+    # (applied below, for `safe`/`math` only) changes an environment's own
+    # name — a display environment is mapped to its in-math counterpart so
+    # it can typeset at all inside `$...$`, not because that is a more
+    # faithful transcription. Published on purpose: the two columns
+    # disagree, by construction, on the small population where the map
+    # fires — see `to_inline_env`'s docstring for the argument.
     src = "{\\ttfamily\\footnotesize %s}" % esc_text(latex) if latex else "---"
-    safe = renderable(latex) if latex else ""
+    safe = display_safe(latex) if latex else ""
     # 025: the mark is set BESIDE the math, never inside it — the same
     # separation the TiddlyWiki text field makes, so the rendered cell still
     # looks like the scan while `latex` holds mathematics only.
@@ -3570,7 +3709,7 @@ def findings_rows(tiddlers, bibkey, doc_dir, ink=None, refined=None) -> dict:
                                       + [(t_, l_, p_) for t_, l_, p_, *_ in eq]):
         if not latex or title in done:
             continue
-        if not renderable(latex):
+        if not display_safe(latex):
             unresolved.append({"identifier": title, "page": page,
                                "latex": latex,
                                "why": "does not render"})
@@ -3664,10 +3803,11 @@ def findings_tex(found: dict, widths, crops=None, out_dir=None,
     parts = []
 
     def cell(lx):
+        # 661 — untransformed: see `row()`'s identical note on `src`.
         return ("{\\ttfamily\\footnotesize %s}" % esc_text(lx)) if lx else "---"
 
     def rendered(lx):
-        safe = renderable(lx) if lx else ""
+        safe = display_safe(lx) if lx else ""
         return ("\\FitMath{$\\displaystyle %s$}" % safe) if safe else (
             "\\emph{(not rendered)}" if lx else "---")
 
@@ -3867,7 +4007,19 @@ def b_rows(tiddlers, bibkey, doc_dir, lines_path=None, ink=None,
 
 def b_tex(rows, crops=None, out_dir=None, px2mm=None, bibkey="",
           history=None, px_widths=None) -> str:
-    r"""The three columns: LaTeX source, its rendering, the image."""
+    r"""The three columns: LaTeX source, its rendering, the image.
+
+    661 — "LaTeX source" is `r_["latex"]` exactly as read, never
+    `to_inline_env()`-mapped: this document has no legend (see B_WIDTHS'
+    own docstring on why B carries only three columns and nothing else), so
+    a mismatch here has nowhere to explain itself. "its rendering" IS the
+    mapped form, judged by `display_safe()` — a display environment
+    (align/gather/eqnarray/alignat/flalign/multline/split) cannot typeset
+    inside this column's `$...$` at all otherwise (measured directly:
+    `\begin{align}` -> "allowed only in paragraph mode",
+    `\begin{split}` -> "won't work here"), so the two columns are allowed to
+    disagree on that population by the same argument `row()` makes.
+    """
     parts = []
     widths = B_WIDTHS
     cols = "|" + "|".join("p{%smm}" % w for w in widths) + "|"
@@ -3895,7 +4047,9 @@ def b_tex(rows, crops=None, out_dir=None, px2mm=None, bibkey="",
                      " \\\\\n\\hline\\endhead\n")
         for r_ in sel:
             lx = r_.get("latex") or ""
-            safe = renderable(lx) if lx else ""
+            # 661 — mapped for the render only; `src` below stays `lx`
+            # unchanged. See `row()`'s identical note.
+            safe = display_safe(lx) if lx else ""
             label = [breakable_ident(r_["identifier"])]
             if r_.get("page") not in (None, ""):
                 label.append("p.~%s" % esc_text(str(r_["page"])))
@@ -4212,7 +4366,9 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                                 px_width=dims[0], px2mm=px2mm,
                                 col_mm=tab_widths[-1],
                                 bibkey=bibkey, history=bibkey_history)
-                safe = renderable(latex) if latex else ""
+                # 661 — mapped for the render only; src_cell above keeps
+                # `latex` unchanged. See `row()`'s identical note.
+                safe = display_safe(latex) if latex else ""
                 rendered = ("\\FitMath{$\\displaystyle %s$}" % safe) if safe else (
                     "\\emph{(not rendered)}" if latex else "---")
                 out_parts.append(

@@ -258,6 +258,205 @@ def test_env_strip_cap_is_conservative_past_its_depth():
     assert renderable(past_cap) == ""          # refused, never silently passed
 
 
+# --- 661: the display -> in-math environment map ----------------------------
+
+def test_to_inline_env_maps_each_of_the_seven_pairs():
+    r"""RULE 17: every fixture here is a genuine DISPLAY environment with a
+    bare `&`/`\\` inside it — never an already-in-math form. A fixture that
+    started as `aligned`/`gathered` would pass against the unported code
+    (nothing refuses `aligned` today) and would prove nothing about this
+    map."""
+    from pdfdrill.report_tex import to_inline_env
+
+    pairs = (("align", "aligned"), ("alignat", "aligned"),
+             ("flalign", "aligned"), ("eqnarray", "aligned"),
+             ("gather", "gathered"), ("multline", "gathered"),
+             ("split", "aligned"))
+    for src, dst in pairs:
+        raw = r"\begin{%s} a &= b \\ c &= d \end{%s}" % (src, src)
+        out = to_inline_env(raw)
+        assert out == r"\begin{%s} a &= b \\ c &= d \end{%s}" % (dst, dst), \
+            (src, dst, out)
+        # the source name must not survive anywhere in the output
+        assert ("{%s}" % src) not in out and ("{%s*}" % src) not in out
+
+
+def test_to_inline_env_maps_starred_forms_too():
+    r"""`align*`/`gather*`/etc. map to the SAME unstarred in-math name —
+    `aligned`/`gathered` have no starred variant of their own."""
+    from pdfdrill.report_tex import to_inline_env
+
+    raw = r"\begin{align*} a &= b \\ c &= d \end{align*}"
+    assert (to_inline_env(raw) ==
+           r"\begin{aligned} a &= b \\ c &= d \end{aligned}")
+    raw2 = r"\begin{gather*} a = b \\ c = d \end{gather*}"
+    assert (to_inline_env(raw2) ==
+           r"\begin{gathered} a = b \\ c = d \end{gathered}")
+
+
+def test_to_inline_env_strips_equation_wholesale():
+    r"""`equation`/`equation*` carry no internal alignment marker to shield —
+    amsmath has no in-math counterpart for them, so they are dropped
+    outright rather than mapped to a name."""
+    from pdfdrill.report_tex import to_inline_env
+
+    assert to_inline_env(r"\begin{equation} a = b \end{equation}") == "a = b"
+    assert to_inline_env(r"\begin{equation*} a = b \end{equation*}") == "a = b"
+
+
+def test_to_inline_env_maps_not_unwraps():
+    r"""The map must leave the `&`/`\\` SHIELDED inside a (renamed)
+    environment, never loose at brace depth 0 — that is exactly the
+    condition 659 spent a task removing from the opposite direction
+    (an outer environment stripped while its own bare `&`/`\\` were left
+    exposed).
+
+    `has_bare_align_marker` alone cannot tell a shielded environment body
+    from a bare one — it only walks LITERAL `{`/`}` depth, and
+    `\begin{aligned}` closes its own brace before the body even starts, so
+    it reads TRUE on `\begin{aligned} a &= b \end{aligned}` in isolation
+    exactly as it does on `\begin{align} a &= b \end{align}`. The actual
+    shielding mechanism is `_strip_innermost_envs`, which DELETES the whole
+    `\begin{X}...\end{X}` span before `has_bare_align_marker` ever sees the
+    interior — that pairing (strip, then check) is what `renderable()`
+    itself does, and is what this test checks: the mapped form must strip
+    to NOTHING (no environment body survives outside any wrapper) and
+    `renderable()` must pass the mapped form through unchanged, exactly as
+    it already does for the pre-existing `aligned`/`gathered` cases."""
+    from pdfdrill.report_tex import (to_inline_env, _strip_innermost_envs,
+                                     has_bare_align_marker, renderable)
+
+    raw = r"\begin{align} a &= b \\ c &= d \end{align}"
+    out = to_inline_env(raw)
+    assert re.match(r"^\\begin\{aligned\}.*\\end\{aligned\}$", out)
+    assert _strip_innermost_envs(out).strip() == ""
+    assert not has_bare_align_marker(_strip_innermost_envs(out))
+    assert renderable(out) == out
+
+    # an UNWRAP (bare body, no environment at all) would fail this exact
+    # check — reproduced here to show the map is not doing that
+    unwrapped = re.sub(r"\\(?:begin|end)\{align\}", "", raw).strip()
+    assert has_bare_align_marker(_strip_innermost_envs(unwrapped))
+    assert renderable(unwrapped) == ""
+
+
+def test_split_alone_reaches_renderable_but_is_not_yet_typesettable():
+    r"""Confirms the auditor's OWN framing before testing the fix: raw
+    `split` is not refused by `renderable()` at all (it structurally passes
+    the gate — `_strip_innermost_envs` treats ANY environment name
+    generically) — the defect this task fixes is not an over-refusal, it is
+    that the passed value still cannot typeset (see the live-compile test
+    below for the literal "won't work here" error)."""
+    from pdfdrill.report_tex import renderable
+
+    raw = r"\begin{split} a &= b \\ c &= d \end{split}"
+    assert renderable(raw) == raw          # passes the gate, unrefused
+
+
+def test_display_safe_maps_before_gating_for_every_pair():
+    """`display_safe()` is where the map and the gate compose (661's design
+    decision — see its own docstring). For each display environment, its
+    output must carry the MAPPED name, not the original."""
+    from pdfdrill.report_tex import display_safe
+
+    for src, dst in (("align", "aligned"), ("alignat", "aligned"),
+                     ("flalign", "aligned"), ("eqnarray", "aligned"),
+                     ("gather", "gathered"), ("multline", "gathered"),
+                     ("split", "aligned")):
+        raw = r"\begin{%s} a &= b \\ c &= d \end{%s}" % (src, src)
+        out = display_safe(raw)
+        assert out, (src, "display_safe refused a mappable pair")
+        assert ("\\begin{%s}" % dst) in out
+        assert ("\\begin{%s}" % src) not in out
+    assert display_safe("") == ""
+    assert display_safe(None) == ""
+
+
+def test_renderable_itself_does_not_map():
+    r"""661's design decision, checked directly: `renderable()` is the GATE
+    and must judge whatever it is given unchanged — it must NOT call
+    `to_inline_env()` itself. A caller that wants the mapped form checked
+    calls `renderable(to_inline_env(x))` (or `display_safe(x)`) explicitly."""
+    from pdfdrill.report_tex import renderable
+
+    raw = r"\begin{align} a &= b \\ c &= d \end{align}"
+    assert renderable(raw) == raw          # unchanged: no mapping happened
+
+
+def test_row_source_column_keeps_the_original_render_uses_the_mapped_form():
+    r"""661's published-form decision: the LaTeX-source cell shows MathPix's
+    reading UNCHANGED; the Rendered cell shows the SAME reading with its
+    display environment mapped to an in-math form. The two must legitimately
+    disagree on this population — that is the decision, not a bug."""
+    from pdfdrill.report_tex import row, esc_text
+
+    raw = r"\begin{align} a &= b \\ c &= d \end{align}"
+    out = row("EQ0001", raw, "3")
+
+    # the source column: esc_text(raw) verbatim — the environment name is
+    # still "align", never remapped to "aligned"
+    assert esc_text(raw) in out
+
+    # the rendered cell: the MAPPED environment name, inside \FitMath, and
+    # the source cell precedes it (columns appear in the order src, math)
+    assert r"\FitMath{$\displaystyle \begin{aligned}" in out
+    assert out.index(esc_text(raw)) < out.index(r"\FitMath{$\displaystyle ")
+
+    # the raw name must NOT appear inside \FitMath's own argument
+    fitmath_start = out.index(r"\FitMath{$\displaystyle ")
+    fitmath_arg = out[fitmath_start:out.index("$}", fitmath_start)]
+    assert r"\begin{align}" not in fitmath_arg
+    assert r"\begin{aligned}" in fitmath_arg
+
+
+def test_unresolved_formulas_agrees_with_the_actual_rendered_cell():
+    r"""661 — the documented invariant in `unresolved_formulas()`'s own
+    docstring ("qualifies... exactly the row whose Rendered cell says
+    (not rendered)") must hold for a display-environment row too: since
+    `row()` now renders `align` via the map, this row must NOT be reported
+    as unresolved."""
+    from pdfdrill.report_tex import unresolved_formulas, row
+
+    raw = r"\begin{align} a &= b \\ c &= d \end{align}"
+    fo = [("FO0001", raw, "3", "")]
+    assert unresolved_formulas(fo) == []
+    built = row("FO0001", raw, "3")
+    assert "(not rendered)" not in built
+
+
+def test_split_alone_no_longer_won_t_work_here(tmp_path):
+    r"""The auditor's own named symptom, reproduced and then fixed, compiled
+    for real. `$\displaystyle \begin{split}...\end{split}$` (this module's
+    own cell wrapping, `row()`'s `\FitMath{$\displaystyle %s$}`) raises
+    amsmath's "\begin{split} won't work here" — split needs a host equation
+    environment amsmath, `aligned` does not. After the map it compiles."""
+    import shutil
+    if shutil.which("xelatex") is None:
+        import pytest
+        pytest.skip("xelatex not installed")
+    from pdfdrill.report_tex import preamble, to_inline_env
+
+    def compiled(cell_latex, name):
+        tex = tmp_path / name
+        tex.write_text(preamble() +
+                       "$\\displaystyle %s$\n\\end{document}\n" % cell_latex)
+        import subprocess
+        subprocess.run(["xelatex", "-interaction=nonstopmode", tex.name],
+                       cwd=tmp_path, capture_output=True, timeout=120)
+        log = tex.with_suffix(".log")
+        txt = log.read_text(errors="replace") if log.exists() else ""
+        return txt
+
+    raw = r"\begin{split} a &= b \\ c &= d \end{split}"
+    before = compiled(raw, "before.tex")
+    assert "won't work here" in before
+
+    mapped = to_inline_env(raw)
+    after = compiled(mapped, "after.tex")
+    assert "won't work here" not in after
+    assert not re.search(r"^!", after, re.M), after
+
+
 def test_source_column_never_breaks_after_a_backslash():
     r"""The break opportunity goes BEFORE the backslash. After it, a wrapped
     line ended with a naked `\` and the next started `mathrm{e}...`; copied

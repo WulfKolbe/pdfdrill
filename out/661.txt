@@ -1,0 +1,343 @@
+661 — port the display->in-math environment map
+==================================================
+
+"start 661 and port the env map." Branch eqblobs-and-gzip-tex, base commit
+f25ca1cc, clean.
+
+THE PORT — taken as-is, not changed
+------------------------------------
+scratchpad/full_report.salvaged.py's `_ENV_MAP` / `to_inline_env()`
+(recovered from the lost session, own reasoning in its own comments) are
+ported VERBATIM into `src/pdfdrill/report_tex.py`, right before `renderable()`
+(same neighbourhood as `_MATH_ENVS`, per out/657 item 2's ownership call):
+
+    _ENV_MAP = (("align", "aligned"), ("alignat", "aligned"),
+                ("flalign", "aligned"), ("eqnarray", "aligned"),
+                ("gather", "gathered"), ("multline", "gathered"),
+                ("split", "aligned"))
+
+    def to_inline_env(latex: str) -> str:
+        out = latex or ""
+        for src, dst in _ENV_MAP:
+            out = re.sub(r"\begin\{%s\*?\}" % src, r"\begin{%s}" % dst, out)
+            out = re.sub(r"\end\{%s\*?\}" % src, r"\end{%s}" % dst, out)
+        out = re.sub(r"\(?:begin|end)\{equation\*?\}", "", out)
+        return out.strip()
+
+No change to the regex, the pairs, or the order. Only the docstring's
+citations and a `-> str` type hint were added, matching this module's
+style — 659's precedent (Rule 3: reuse a measured artefact over
+re-deriving a look-alike) argues for this directly, and out/657 confirms
+no equivalent exists anywhere on this path to conflict with it.
+
+THE INVENTORY'S OTHER FINDING, checked directly
+-------------------------------------------------
+out/657 item 2 named two "kin" and asked me to say why neither is the
+right home:
+  - `latex_source.py:920` `_ALIGNED_ENVS`/`_clean_eq` — wraps a body in
+    `aligned` uniformly (never `gathered`, never covers `split`), and only
+    for the LaTeX/KaTeX source-projector's own already-tagged display
+    items. Not this gate's population, not this gate's map.
+  - `docops/projectors/latex_pipeline.py:111-127` `_DISPLAY_ENV`/
+    `_inline_safe` STRIPS wholesale for the `\Expr{i}` speech path
+    (la2speech) — deliberately destructive, the opposite operation from
+    what this task asks for (map, not strip).
+Neither is adopted; report_tex.py remains the right home, confirmed by
+reading both in full.
+
+THE DESIGN QUESTION — where the transform belongs
+----------------------------------------------------
+`renderable()` is measured, tested (60+ existing tests depend on its exact
+behaviour), and its whole contract is "judge this value." Every rewrite it
+already performs (whitespace collapse, the 634 boldsymbol/operatorname
+swap, furniture-drop, delimiter-glue repair) is a SAFETY normalization —
+none of them changes which environment a reader would say the value is.
+Mapping `align` to `aligned` is a different kind of move: it changes the
+value's own identity, not just its safety. Bolting it into `renderable()`
+would blur that line for every future reader of the function's docstring,
+which currently earns its claim ("safe to put inside $...$, or refuse")
+honestly.
+
+So the map lives OUTSIDE the gate, as `to_inline_env()`, and a new function
+composes the two:
+
+    def display_safe(latex: str) -> str:
+        return renderable(to_inline_env(latex)) if latex else ""
+
+`renderable()` itself gained one paragraph saying explicitly that it does
+NOT call `to_inline_env()`, and why — so the boundary is stated where a
+reader of the gate would look for it, not only where the map is defined.
+
+Every call site in report_tex.py that previously called `renderable(latex)`
+to decide "does this row render" or "what goes in the Rendered cell" was
+switched to `display_safe(latex)` — seven sites: `row()` (the main
+Display-equations/Inline-formulas builder), `unresolved_formulas()`,
+`refused_for_align_only()`, `findings_rows()`, `findings_tex()`'s local
+`rendered()` closure, `b_tex()`'s per-row loop, and the Tables section's
+per-row loop. This matters beyond tidiness: `unresolved_formulas()`'s own
+docstring states an invariant — "qualifies... exactly the row whose
+Rendered cell says (not rendered)" — that breaks the moment the actual
+Rendered cell (in `row()`) and this classifier disagree on what "renders"
+means. Routing every one of the seven through the same `display_safe()`
+keeps that invariant true BY CONSTRUCTION rather than by the two
+implementations happening to agree today.
+
+Two call sites were deliberately NOT switched, and are named as such in
+`display_safe()`'s own docstring:
+  - `region_render()` (image-region LaTeX, DIA/PIC) — a different
+    function's concern, gated by its own `_MATH_ENVS` allowlist. Mapping
+    there BEFORE that allowlist check would let `align`/`gather`/etc.
+    through it as a side effect — a scope decision for that function, not
+    this task.
+  - `listing_cell()`'s `\(...\)` spans inside an `lstlisting` body — a much
+    narrower, rarer shape (formulas inside a code listing); not measured
+    to carry a display environment anywhere in the corpus, left unchanged.
+
+THE CONSEQUENCE — which form is published
+--------------------------------------------
+DECISION: the "LaTeX source" column shows `latex` UNTRANSFORMED — MathPix's
+(or the e-print source's) own reading, exactly as read. The "Rendered"
+column shows the SAME reading with `to_inline_env()`'s map applied, via
+`display_safe()`. The two columns are allowed to disagree, by construction,
+on the population where the map fires.
+
+ARGUMENT. The "LaTeX source" column's entire reason to exist — stated
+throughout this file's own history (233's whole point: "what did the OCR
+read" vs "what does this document say" are two different questions this
+report exists to keep apart) — is fidelity to the reading. A silent
+substitution of one environment name for another, however rendering-
+equivalent, is exactly the kind of edit that column exists to NOT show.
+The alternative (map the source column too) would mean the report no
+longer has ANY column that states what MathPix returned for these rows —
+weakening the report's core claim for the sake of two matching columns.
+
+This is not a new posture for this file: `renderable()`'s OWN existing
+rewrites (634's boldsymbol/operatorname swap, furniture-drop, delimiter-
+glue repair) already make the Rendered cell diverge from the LaTeX-source
+cell for other rows, and no prior task treated that as a defect requiring
+a matching source-column edit — the source column's job has always been
+"the reading," the render column's job has always been "what can safely
+be typeset from it." This fix keeps the same division; it does not
+invent one.
+
+`row()`, `findings_tex()`'s `rendered()`, `b_tex()`'s loop, and the Tables
+loop were each given a short comment stating the source cell is built from
+the UNCHANGED `latex`. `b_tex()`'s docstring ("The three columns: LaTeX
+source, its rendering, the image") was extended to say so explicitly,
+because B.pdf carries no legend at all (B_WIDTHS' own docstring: "Three
+columns, and nothing else") and has nowhere else to say it.
+
+For every OTHER table (row()/findings_tex/the Tables section, which share
+`table_open()`/`legend_foot()`), a new legend line was added and is now
+ALWAYS printed (matching 181's own precedent for LEGEND_CONF: "the
+confidence bands ALWAYS apply, so the legend is always printed" — the
+LaTeX-source/Rendered columns are present on every table this legend
+serves, so the key that says they may differ applies unconditionally):
+
+    LaTeX source: MathPix's reading, unchanged; Rendered: the same
+    reading, with a display environment (align/alignat/flalign/eqnarray/
+    gather/multline/split) mapped to its in-math form so it can typeset
+    in this cell — the two may legitimately differ
+
+TWO TRAPS, both checked directly
+------------------------------------
+1. MAP, NOT UNWRAP. `to_inline_env()` renames the environment; it never
+   deletes the `\begin{X}...\end{X}` wrapper. Verified two ways in
+   `test_to_inline_env_maps_not_unwraps`: the mapped output still strips to
+   NOTHING under `_strip_innermost_envs` (no residue at all — the wrapper
+   is still there to be stripped) and `renderable()` accepts it unchanged;
+   an UNWRAP built by the same test (deleting only the `\begin`/`\end`
+   tokens, leaving the body bare) is shown to fail `has_bare_align_marker`
+   after the same strip — the exact condition 659 spent a task removing
+   from the opposite direction (an outer environment stripped while ITS OWN
+   bare `\\`/`&` were exposed). This task does not reintroduce that shape
+   from the inside.
+
+2. RULE 17. Every fixture in the new tests starts from a genuine DISPLAY
+   environment (`\begin{align}`, `\begin{split}`, etc.) with a bare `&`/`\\`
+   inside it — never `aligned`/`gathered` already. A fixture starting
+   in-math would pass against the UNPORTED code (nothing refuses `aligned`
+   today) and would prove nothing about this map. Checked explicitly for
+   `split`: `test_split_alone_reaches_renderable_but_is_not_yet_
+   typesettable` confirms the RAW value passes `renderable()` unrefused
+   (the auditor's own framing: this is not an over-refusal bug), and the
+   live-compile test below shows what actually breaks it.
+
+MEASURED — the auditor's named symptom, reproduced and fixed, live
+-----------------------------------------------------------------------
+Directly against THIS repo's own `report_tex.preamble()`, in a real
+longtable cell, `$\displaystyle \begin{align}...\end{align}$` (row()'s
+own wrapping) raises:
+
+    ! Package amsmath Error: \begin{align} allowed only in paragraph mode.
+
+and `$\displaystyle \begin{split}...\end{split}$` — the auditor's named
+symptom — raises:
+
+    ! Package amsmath Error: \begin{split} won't work here.
+
+Both are LIVE COMPILE ERRORS, not gate refusals: `renderable()` on the RAW
+value returns it UNCHANGED for every one of the seven names (verified
+directly for all seven in a REPL before writing any fix) — the map's job
+is not to stop an over-refusal, it is to stop xelatex from being handed
+something that cannot typeset where it is placed. After the map,
+`$\displaystyle \begin{aligned}...\end{aligned}$` and the `gathered`
+equivalent both compile with 0 errors in the same cell
+(`test_split_alone_no_longer_won_t_work_here`, a real xelatex compile,
+gated on `shutil.which("xelatex")`).
+
+CORPUS SEARCH — why 1911.08029, not 0902.0431
+--------------------------------------------------
+0902.0431 (this task's default example document, and the population 657/
+659 already measured) was checked FIRST, as the brief anticipated it might
+need to be replaced. `grep -rl` over ~/pdfdrill-library's model.docmodel.json
+files for the seven env names found 0902.0431 among 49 candidates — but a
+TEXT hit is not a REAL hit: the `\begin{eqnarray*}` in that file sits inside
+an alternate "latex_candidate" realization (a cross-reference text blob
+from a different stream), never in the Equation's OWN `latex` prop that
+`report_tex.rows_for`/`row()` actually reads. Checked directly via DocGraph:
+0902.0431 has 1,219 Equation objects and 0 of them carry any of the seven
+names in `props["latex"]"` — those three occurrences resolve to
+`\begin{aligned}` in the actual reading. So 0902.0431 is confirmed to carry
+NO display environment in any cell, exactly the brief's contingency, and a
+different document was chosen.
+
+Re-checking all 49 grep candidates through DocGraph (script and full output
+saved at ~/pdfdrill-library/out/661/, corpus-level per 525's convention —
+no single document): 9 of 49 carry a genuine `Equation.latex` hit, and
+EVERY ONE of the nine is `split` — zero real occurrences of align/alignat/
+flalign/eqnarray/gather/multline were found anywhere in this library's
+Equation.latex props. This is a real, reportable finding, not an artefact
+of the search: MathPix's own extraction (and whatever normalization runs
+between it and `props["latex"]`) already appears to fold align/gather/
+eqnarray/alignat/flalign/multline into their in-math forms upstream of
+this gate for every document sampled — but `split` slips through
+unnormalized. The fix stays correct and general for all seven regardless
+(and is defensive for any future source that does emit them raw — an
+e-print's own LaTeX, `injectlatex`'s path, is exactly such a source), but
+the CURRENT corpus's measured population is `split` alone.
+
+CHOSEN: 1911.08029 ("A mixed finite element method with piecewise linear
+elements for the biharmonic equation on surfaces", built via `model` from
+its own arXiv e-print LaTeX source — `injectlatex`'s path, not MathPix OCR).
+94 Equation objects, 48 of them (51%) carry `\begin{split}...\end{split}`
+directly in `props["latex"]` — by far the largest population of the nine
+hit-documents (next largest: 2304.14263 at 59 of 372, a smaller fraction).
+
+MEASURED, 1911.08029, all 94 Equation objects
+--------------------------------------------------
+Script: ~/pdfdrill-library/1911.08029/out/661/661_measure_script.py.
+
+Gate state (renderable/display_safe refused vs not) — UNCHANGED, as
+predicted above: 94 Equation objects; gate-refused BEFORE: 0; AFTER: 0.
+This population was never gate-refused; the defect this task fixes is not
+in that count.
+
+Compile state — the population that actually matters here, measured by
+compiling each of the 48 `split` cells TWICE (raw and mapped) in its own
+private longtable, real preamble:
+  - BEFORE (raw `split`): 48 of 48 raise EXACTLY 1 compile error each,
+    "Package amsmath Error: \begin{split} won't work here" (identical
+    message on every one — same defect, same population).
+  - AFTER (`to_inline_env`-mapped): 0 of 48 raise any error.
+
+Then verified through the REAL PRODUCTION CODE PATH, not the measurement
+script's own cell wrapper — `report_tex.row()` itself, compiled via
+`report_tex.compile_fixpoint()` (the same fixpoint `reporttex` runs), first
+for a 10-row sample then for all 48:
+  - 10-row sample, POST-fix (~/pdfdrill-library/1911.08029/out/661/
+    probe661.tex/.log/.pdf): compile_fixpoint -> (3 pages, 0 errors,
+    0 demoted). All 10 render.
+  - 10-row sample, PRE-fix (`display_safe` monkeypatched back to
+    `renderable` only — everything else, including `renderable()` and
+    `to_inline_env()` itself, untouched — probe661_before.*): (3 pages,
+    0 RESIDUAL errors, 10 demoted). The 0 is not "0 errors" in the sense
+    of "nothing wrong" — it is 0 errors ONLY because `compile_fixpoint`
+    demoted every one of the 10 to "(not rendered)" before the count was
+    taken. This is the actual, concrete effect of the pre-fix state on a
+    real report build: a `split` row was never garbled or left to crash
+    the document, it was silently downgraded to source-only.
+  - ALL 48, POST-fix (probe661_full_after.*): (14 pages, 0 errors,
+    0 demoted). Every split row renders.
+  - ALL 48, PRE-fix (probe661_full_before.*): (13 pages, 0 residual
+    errors, 48 demoted). Every split row was demoted to "(not rendered)"
+    before this fix, on this document, in a real compile — not a
+    hypothetical.
+
+So the measured effect on this document, stated the way 659 states it:
+48 of 48 `split`-carrying equations move from silently demoted
+("(not rendered)", mathematically correct content the reader never sees)
+to correctly rendered, with 0 gate-refusal change and 0 residual compile
+errors either side of the fix (the pre-fix "0 errors" was a demotion count
+in disguise, not evidence of correctness).
+
+NOT REBUILT: report.pdf/residuals.pdf/etc. for 1911.08029 were not rebuilt
+— the corpus rebuild is on hold per the brief; every number above was
+measured in memory / in throwaway probe cells under out/661/, never by
+touching a published artefact.
+
+TESTS
+-----
+tests/test_report_tex.py, 10 new tests (73 in the file, was 63):
+  - test_to_inline_env_maps_each_of_the_seven_pairs (Rule 17: every fixture
+    is a genuine display environment)
+  - test_to_inline_env_maps_starred_forms_too
+  - test_to_inline_env_strips_equation_wholesale
+  - test_to_inline_env_maps_not_unwraps (trap 1, both checks)
+  - test_split_alone_reaches_renderable_but_is_not_yet_typesettable (states
+    the auditor's own framing as a fact, before testing the fix)
+  - test_display_safe_maps_before_gating_for_every_pair
+  - test_renderable_itself_does_not_map (the design decision, checked
+    directly against the gate)
+  - test_row_source_column_keeps_the_original_render_uses_the_mapped_form
+    (the published-form decision, checked against real `row()` output)
+  - test_unresolved_formulas_agrees_with_the_actual_rendered_cell (the
+    invariant `display_safe()`'s docstring names, checked)
+  - test_split_alone_no_longer_won_t_work_here (real xelatex compile,
+    gated on `shutil.which("xelatex")`; reproduces the exact named error
+    before, and its absence after)
+
+tests/test_alphabet_safe.py: one PRE-EXISTING test
+(`test_the_source_column_is_not_what_this_touches`) asserted `row()`'s
+source verbatim, via `inspect.getsource`, for the literal string
+`"renderable(latex)"` — broken by this task's intentional change (the
+Rendered cell now reads `display_safe(latex)`). Updated to check for
+`"display_safe(latex)"` and, separately, that `renderable()`'s own source
+still runs `alphabet_safe` (the property that test actually cares about),
+rather than silently accepting the stale assertion.
+
+Full suite: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+tests/ -q -p no:cacheprovider`
+  base commit f25ca1cc: 3549 passed
+  after this fix:        3559 passed (10 new tests; 0 regressions)
+
+EVIDENCE
+--------
+Both required, both produced:
+  ~/pdfdrill-library/out/661/INSPECT.txt (corpus-level, no single document —
+    525's convention) — 3 paths, the grep-candidate list, the DocGraph
+    re-check script, and its output naming 1911.08029.
+  ~/pdfdrill-library/1911.08029/out/661/INSPECT.txt — 23 paths: the
+    measurement script and its JSON, one representative before/after
+    single-cell compile (tex/log/pdf, showing the literal "won't work here"
+    and its absence), the 10-row and 48-row production-`row()` probes
+    (before and after, tex/log/pdf each). All 23 checked to exist and be
+    non-empty by `pdfdrill.taskout.inspect_list` itself (0 failed).
+
+WHAT IS OPEN
+------------
+  - align/alignat/flalign/eqnarray/gather/multline have zero measured
+    occurrences in any sampled document's Equation.latex today — the fix
+    is untested against a REAL corpus row for six of the seven pairs
+    (unit-tested directly, but not corpus-measured, per the search above).
+    If a future document's OCR/extraction path ever emits one of these six
+    raw, this fix already covers it; nothing further is needed, but it has
+    not yet been PROVEN necessary beyond `split`.
+  - `region_render()` and `listing_cell()` were deliberately left unmapped
+    (see the design-question section) — if a corpus document is ever found
+    with a display environment inside an image-region LaTeX value or an
+    lstlisting's inline math span, that is a new, separate finding, not a
+    regression of this task.
+  - No published artefact was rebuilt (report.pdf/residuals.pdf/etc. for
+    1911.08029, or anything for 0902.0431), per the brief. The corpus
+    rebuild is on hold until inkdrill's in-line formula marking lands.
