@@ -1,0 +1,259 @@
+671 — render_crops cached by title; a crop, once cut, was served forever
+==========================================================================
+
+Branch eqblobs-and-gzip-tex, HEAD cd3011d4 (base, clean, pushed). Read
+CLAUDE.md, HANDOVER-RULES.md §1 rules 2, 5, 11, 12, 14, 17, 19, 20, 21,
+out/654.txt (654 fixed the crop GEOMETRY — the coordinate math; this is a
+different defect on the same files, the CACHE that decides whether to
+recompute it at all), ~/inkdrill-marks/README.md, and
+~/inkdrill-marks/stale-crops.json (the peer measurement this task was
+opened against).
+
+VERIFIED MYSELF BEFORE TRUSTING THE BRIEF: read
+report-crops/0902.0431_FO0068.jpg as an image before touching anything.
+It showed "H_{\alpha_8} = (\Phi(0,0,0,\frac{}{40}), 0, 0, -\frac{}{120},
+0, 0)" — the brief's claim, confirmed by eye, not by the brief's word for
+it. The row's own latex is `\widetilde{\lambda} \gamma`.
+
+THE DEFECT
+----------
+`report_tex.render_crops` (src/pdfdrill/report_tex.py:2643, pre-fix) cached
+a crop by TITLE alone:
+
+    f = dest / f"{title}.jpg"
+    if f.is_file() and f.stat().st_size > 500:
+        cached += 1
+        continue
+
+Nothing compared the file against the row's CURRENT (page, region). A
+2026-09-03 change to how host lines are joined moved what 159 formula
+rows across six arXiv documents point at; the cache kept serving the
+crop cut under the OLD region. `~/inkdrill-marks/stale-crops.json` (peer
+tool `tools/cropcheck.py`, correlation < 0.35 against the host line cut
+losslessly from `inspect/pages`) named all 159: 0902.0431 (60),
+1510.06699 (85), 2010.14265 (7), 2501.06662 (3), 2106.07890 (2),
+bradley_spring22 (2). The 15 published books were clean.
+
+THE FIX — WHAT KEY, AND WHY
+----------------------------
+`CROP_GEOMETRY_FILE` = `crops.geometry.json`, a sidecar inside
+`report-crops/` recording, per title, the `[page, top_left_x,
+top_left_y, width, height]` the crop was ACTUALLY CUT FROM. On every
+call, `render_crops` now compares that recorded key against the row's
+CURRENT region from the tiddler:
+
+  * file present + recorded key == current key -> cached (unchanged case).
+  * file present + NO recorded key (every crop rendered before this
+    sidecar existed) -> trusted ONCE, entry BACKFILLED from the row's
+    current region, so the NEXT change on this title is caught rather
+    than the first this code has ever seen.
+  * file absent, or recorded key != current key -> re-rendered, and the
+    sidecar entry is updated to the new key.
+  * row carries no parseable page/region at all -> unchanged pre-671
+    behaviour (trust an existing file, skip a missing one); there is
+    nothing to compare against, so this is not guessed at.
+
+WOULD IT HAVE CAUGHT THE 2026-09-03 JOIN? Yes, for every title whose crop
+was rendered — and therefore had its geometry recorded — before the join
+changed what its row points at: the next `render_crops` call after such
+a change compares the row's new (page, region) against the recorded one,
+finds a mismatch, and re-renders. That is the ordinary lifecycle (a crop
+exists before a later code change touches its row), which continuous
+operation of this sidecar provides from here on. PROVED, not just
+argued: with the real bradley_spring22 PDF and a real (unmutated)
+cached crop copied into a scratch directory, an unchanged row stayed
+cached (0 rendered); the SAME row with its page/region edited to a
+different host line (simulating the 2026-09-03 class of change) was
+re-rendered on the next call (1 rendered), and the sidecar recorded the
+new geometry. This is NOT a retroactive fix for the 159 crops rendered
+before the sidecar existed — those were handled explicitly (below) by
+removing them so this code sees them as absent, not as an
+untracked-but-correct cache hit that would otherwise backfill their own
+wrong geometry as if it were right.
+
+IS THIS THE SAME IDEA AS 670's geometry_signature? Same failure SHAPE
+(HANDOVER-RULES rule 19: a freshness check that does not ask the
+question that matters), NOT the same mechanism, and not shareable as one
+function. `report_tex.geometry_signature()` (670) hashes the SOURCE CODE
+of the functions that lay out `report.pdf` itself (`GEOMETRY_FUNCS`,
+`CELLRECT_PREAMBLE`, `font_metrics_preamble()`) — it answers "did the
+CODE that computes REPORT geometry change", a whole-document, CODE-
+identity question, used to decide whether a cached ink MEASUREMENT can
+still be trusted. This defect sits entirely upstream of that subsystem:
+the host-line join lives in the docmodel/refine pipeline, touches no
+function in `GEOMETRY_FUNCS`, and changes DATA (which page/region a
+tiddler carries) rather than CODE. Reusing `geometry_signature` here
+would not have caught this — none of the functions it hashes decides
+what page or region a formula's host line resolves to. What travels
+between the two is the PRINCIPLE, not code: a per-row DATA identity
+question needs a per-row data comparison; a per-build CODE identity
+question needs a source hash. Documented at both definitions
+(`CROP_GEOMETRY_FILE`'s comment in report_tex.py cross-references
+`geometry_signature`'s, and vice versa was already in place from 670).
+
+TESTS
+-----
+tests/test_render_crops.py — 5 new, 10 pre-existing (all still pass,
+unchanged behaviour for a row with no current geometry and for the
+common repeated-call case):
+
+  test_a_legacy_crop_with_no_recorded_geometry_is_trusted_once — the
+    TOFU/backfill rule; pins that a pre-671 crop is not needlessly
+    re-rendered on the first post-fix call.
+  test_a_crop_whose_row_now_points_at_a_different_region_is_rerendered —
+    671's actual defect, same page: box moves, forces re-render.
+  test_a_crop_whose_row_moved_to_a_different_page_is_rerendered — the
+    worked example's own shape (0902.0431_FO0068: page 4, not page 177).
+  test_an_unchanged_row_is_still_cached_after_a_render — the common case
+    must not regress into re-rendering on every call.
+  test_a_row_with_no_current_geometry_falls_back_to_trusting_the_file —
+    pre-671 skip/cache behaviour for a region-less row, unchanged.
+
+Full suite: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+tests/ -q -p no:cacheprovider` -> base commit cd3011d4: 3611 passed; this
+task: 3616 passed, 0 failed (5 new, nothing else moved).
+
+STEP 2 — THE 159, BEFORE AND AFTER (library, out/671/ per document)
+---------------------------------------------------------------------
+Script (`~/pdfdrill-library/<doc>/out/671/script.py`, identical logic per
+document, PDF derived from the folder name — never a `*.pdf` glob): copy
+every stale title's current crop (both `report-crops/` and
+`report-crops-b/`) to `out/671/before/`; delete exactly the named stale
+titles from both directories; call the FIXED `report_tex.render_crops`
+with the document's own `<bibkey>.tiddlers.json` (file absent -> renders
+fresh, capturing the row's CURRENT page/region — already correct, since
+the join fix that moved these rows had already landed elsewhere before
+this task started; every OTHER title in the document, file present, no
+sidecar entry yet, is trusted once and backfilled — see FIX above);
+verify every one of the 159 now exists with a sidecar entry matching its
+row exactly; regenerate `report-crops-b/` at the rung already published
+for that document's untouched sibling Formula crops (STEP 3 below, not a
+fresh budget recomputation).
+
+Per document (stale titles = rendered, 0 mismatches everywhere):
+
+  0902.0431        60 stale, 60 rendered, 3113 cached/backfilled, 0 mismatch
+  1510.06699       85 stale, 85 rendered,  984 cached/backfilled, 0 mismatch
+  2010.14265        7 stale,  7 rendered,  361 cached/backfilled, 0 mismatch
+  2501.06662        3 stale,  3 rendered,  382 cached/backfilled, 0 mismatch
+  2106.07890        2 stale,  2 rendered,  316 cached/backfilled, 0 mismatch
+  bradley_spring22   2 stale,  2 rendered,  179 cached/backfilled, 0 mismatch
+  TOTAL            159 stale, 159 rendered,   0 mismatches after fix
+
+WORKED EXAMPLE, READ AS IMAGES (not counted, opened):
+  0902.0431_FO0068 (page 4, row latex `\widetilde{\lambda} \gamma`):
+    before: "H_{\alpha_8} = (\Phi(0,0,0,\frac{}{40}), 0, 0,
+            -\frac{}{120}, 0, 0)." — a different equation, confirmed by
+            eye before this task touched anything.
+    after:  "5.8. Involution \widetilde{\lambda}\gamma and subgroup
+            Ss(16) of E_8" — the row's own latex, in its own section
+            heading. The report-crops-b/ scaled copy shows the same text.
+
+FIVE MORE, ONE PER REMAINING DOCUMENT, RANDOM SAMPLE (seed 42) READ AS
+IMAGES, before -> after:
+  0902.0431_FO0054   (z(E_7))      : "...z_0." -> "4.9. Center z(E_7) of E_7"
+  1510.06699_FO0083  (J^P=1^-)     : unrelated Kibble/Sciama prose ->
+                                     "...propagates (only) a massless
+                                     J^P=1^- tordion and"
+  2010.14265_FO0219  (\mathrm{MB}(T)): "in which case or" -> "output: MB(T)"
+  2106.07890_FO0002  (\widehat{\mathcal{L}}): unrelated LLM prose ->
+                                     "3.2. The semantic category \hat{L}"
+  2501.06662_FO0001  (t)           : an unrelated fraction/hash-mark line ->
+                                     "the t-logarithmic (Tsallis) entropies
+                                     of the next-token probability
+                                     distributions associ-"
+  bradley_spring22_FO0007 (x)      : "nothing special about the numbers 2
+                                     and 3..." -> "The logarithm of some
+                                     number x is another number that we
+                                     will denote by log(x) (taken to be
+                                     the natural logarithm"
+All seven read images match their row's latex. No image inspected
+disagreed.
+
+STEP 3 — report-crops-b/, VERIFIED REGENERATED, NOT ASSUMED
+-------------------------------------------------------------
+`report_tex.scale_crops` never overwrites unless told to (`force=True`);
+`reports/crops.py`'s production `_apply_budget` always passes
+`force=True` for exactly this reason, so a caller happy to reuse a
+same-rung rebuild does not silently repeat one for its own use, but this
+task called `scale_crops` directly rather than through `ensure_crops` (the
+production entry point also compiles `evidence-formula.pdf`, out of
+bounds here).
+
+The rung was NOT re-derived by calling `reports.budget.choose_rung`
+freshly on today's byte total. Measured first: for bradley_spring22, a
+fresh `choose_rung` call on the 181 current Formula-kind crops returns
+scale=1.0 (4.65 MB, under the 20 MB budget) — but every one of its 179
+untouched sibling crops is published at ratio 0.6993 (the `CROP_LADDER`
+entry (0.70, 75)), which only a build with a LARGER total could have
+chosen. This is a genuine, pre-existing drift in that document's budget
+math (the corpus has apparently shrunk under budget since that rung was
+last chosen) — unrelated to 671 and NOT corrected here, since scope is
+the 159 stale crops' CONTENT, not every document's rung currency. Acting
+on the fresh recomputation would have left these two titles' scaled
+copies at a DIFFERENT scale than their 179 siblings — a new
+inconsistency this task would have introduced. Instead, the actual rung
+in force for each document was DETECTED by measuring an untouched
+sibling Formula crop's real (report-crops, report-crops-b) width ratio
+and matching it to the nearest `CROP_LADDER` entry, then applying that
+exact (scale, quality) to only the named stale titles via the same
+production `report_tex.scale_crops` call:
+
+  0902.0431         rung 0.60/72 (measured ratio 0.5998)  — fresh recompute disagreed
+  1510.06699        rung 0.85/75 (measured ratio 0.8497)  — fresh recompute agreed
+  2010.14265        rung 0.70/75 (measured ratio 0.6972)  — fresh recompute disagreed
+  2501.06662        rung 0.70/75 (measured ratio 0.6998)  — fresh recompute disagreed
+  2106.07890        rung 0.70/75 (measured ratio 0.7000)  — fresh recompute disagreed
+  bradley_spring22  rung 0.70/75 (measured ratio 0.6993)  — fresh recompute disagreed
+
+VERIFIED, not assumed: all 159 `report-crops-b/<title>.jpg` files exist
+after this run (`b_copies_missing_after_regen: []` in every document's
+`out/671/result.json`); the worked example's scaled copy was read as an
+image (above) and shows the same corrected text as the full-size original.
+
+STEP 4 — THE WHOLE PUBLISHED SET, AFTERWARDS
+-----------------------------------------------
+Not re-measured with the peer's own correlation rule: that instrument
+reads `inspect/pages` (a lossless page cut) and computes a pixel
+correlation against each published crop — the same kind of comparison
+this project calls INK measurement, which this task's own rules
+(inherited from the brief) put out of bounds ("do not re-measure ink").
+Relying on the peer's `stale-crops.json` for corpus-wide coverage is
+therefore deliberate, not a shortcut taken because reproducing it was
+hard.
+
+What this task verified INSTEAD, itself, on every one of the 159: an
+EXACT (not correlational) match between the sidecar's recorded (page,
+region) and the row's current one — `mismatches_after_fix: []` in all
+six `result.json` files — plus reading seven crops (the worked example
+and one random pick per remaining document) as images and confirming
+each shows its row's own latex. That is a stronger per-row guarantee
+than a correlation threshold (it is a data-identity check, not a
+statistical one) but it does not re-verify the 15 already-clean books or
+the untouched majority of these six documents' own crops; those are
+taken on the peer's word, which is the acceptable half of the trade
+named above.
+
+WHAT THIS TASK DID NOT TOUCH
+-------------------------------
+- No `.lines.json`, no `model.docmodel.json`/`model.docpack.json`, no
+  `.tiddlers.json` — confirmed by mtime: none of these six documents' own
+  model/lines/tiddler files carry a timestamp newer than this task's own
+  start.
+- No evidence PDF rebuilt, no `xelatex` run, no `residuals`/`evidence`
+  command invoked — only `report_tex.render_crops` and
+  `report_tex.scale_crops` were called directly, the two functions this
+  defect and its remediation actually live in.
+- No ink re-measurement, no `report.ink.json` touched.
+- No site build, no `pdfdrill preflight`/publish step run.
+- `mathpix` never invoked; every PDF was derived from its folder's own
+  name (`<bibkey>/<bibkey>.pdf`), never a glob.
+
+COMMIT
+------
+Source fix + tests: src/pdfdrill/report_tex.py, tests/test_render_crops.py.
+Library changes (report-crops/, report-crops-b/, crops.geometry.json,
+out/671/ under each of the six documents) are NOT part of this git
+commit — the library is a separate, deny-by-default-git tree per
+HANDOVER-RULES §2 (see taskout.py's own docstring); this out/671.txt is
+the record that travels with the repo.

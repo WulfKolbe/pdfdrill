@@ -2640,6 +2640,83 @@ def crop_sha256(crops_dir: "Path | None", title: str,
     return h.hexdigest()
 
 
+#: 671 — `render_crops` used to cache by TITLE alone: once `<title>.jpg`
+#: existed and was over 500 bytes, it was served forever, whatever page or
+#: region the row now points at. A 2026-09-03 change to how host lines are
+#: joined moved what 159 rows across six documents point at, and the cache
+#: kept serving the crop cut under the OLD region — showing a different
+#: line than the row it illustrates (peer measurement,
+#: `~/inkdrill-marks/stale-crops.json`, correlation < 0.35 against the host
+#: line cut losslessly from `inspect/pages`).
+#:
+#: This sidecar records the (page, top_left_x, top_left_y, width, height)
+#: each title's crop was actually CUT FROM, so the next call can compare
+#: that against what the row NOW carries and tell "still the same line"
+#: from "the join moved out from under it".
+#:
+#: NOT `report_tex.geometry_signature` (670), and not sharable as the same
+#: mechanism despite the same failure SHAPE (rule 19: a freshness check
+#: that does not ask the question that matters). `geometry_signature`
+#: hashes the SOURCE CODE of the functions that lay out `report.pdf`
+#: itself — it answers "did the code that computes REPORT geometry
+#: change", a whole-document, code-identity question used to decide
+#: whether a cached MEASUREMENT can still be trusted. This defect sits
+#: upstream of that subsystem entirely: the host-line join lives in the
+#: docmodel/refine pipeline, touches no function in `GEOMETRY_FUNCS`, and
+#: changes DATA (which page/region a tiddler carries) rather than CODE.
+#: Reusing `geometry_signature` here would not have caught this — none of
+#: the functions it hashes decides what page or region a formula's host
+#: line resolves to. What IS shared is the principle, not the code: a
+#: per-row DATA identity question needs a per-row data comparison, and a
+#: per-build CODE identity question needs a source hash; forcing one
+#: mechanism to answer the other's question is exactly the gap both
+#: defects exploited.
+#:
+#: A file present with NO recorded entry — every crop rendered before this
+#: sidecar existed — is trusted once and its entry BACKFILLED from the
+#: row's CURRENT (page, region): re-verifying the whole corpus on the
+#: first run after this lands would cost hours of rendering against a
+#: defect almost none of it has, and 159 known-bad titles predating the
+#: sidecar would silently backfill their OWN wrong geometry as if it were
+#: correct — masking exactly the defect this exists to catch. Those 159
+#: are therefore handled explicitly (task 671, by removing the stale files
+#: so this code sees them as absent, not as an untracked-but-correct
+#: cache hit) rather than left to backfill.
+#:
+#: This answers "would it have caught the 2026-09-03 join?": yes, for any
+#: title whose crop was rendered — and therefore had its geometry recorded
+#: — before the join changed what its row points at; the next render_crops
+#: call after such a change compares the row's new (page, region) against
+#: the recorded one, finds a mismatch, and re-renders. That is the ordinary
+#: lifecycle (a crop exists before any later code change touches its row),
+#: which is what continuous operation of this sidecar provides from here
+#: on. It is not, and does not claim to be, a retroactive fix for the 159
+#: crops rendered before it existed — that is task 671's explicit second
+#: step, not an emergent property of this cache key.
+CROP_GEOMETRY_FILE = "crops.geometry.json"
+
+
+def _load_crop_geometry(path: Path) -> dict:
+    """{title: [page, top_left_x, top_left_y, width, height]}, or {} if the
+    sidecar is absent, unreadable, or not valid JSON — an unreadable
+    sidecar must never be treated as "everything is stale" (a corrupt file
+    would then re-render the whole document) nor as "everything matches"
+    (silent success would be worse); {} makes every title go through the
+    ordinary have-but-unrecorded backfill path instead of either extreme.
+    """
+    import json as _json
+    try:
+        data = _json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _save_crop_geometry(path: Path, geom: dict) -> None:
+    import json as _json
+    path.write_text(_json.dumps(geom, sort_keys=True), encoding="utf-8")
+
+
 def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,
                  kinds=("_TAB",), dpi: int = 400, trim: bool = True):
     r"""Crop the scan for every region-bearing tiddler WITHOUT a CDN uri (461).
@@ -2684,6 +2761,16 @@ def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,
       here they merely have to be close (measured 1.5089 vs 1.5092 on
       gilmore-lie-groups p15, not identical).
 
+    * A cached file is cached because it still shows what its row NOW
+      says, not merely because a file of that title exists (671). Each
+      title's cache key is `(page, top_left_x, top_left_y, width, height)`
+      recorded in `CROP_GEOMETRY_FILE` beside the crops at render time; a
+      title whose row's region has moved since — a re-join, a re-drilled
+      model, a renumbered page — is re-rendered even though `<title>.jpg`
+      is already on disk. See `CROP_GEOMETRY_FILE`'s own comment for why
+      this is a different mechanism from `geometry_signature` (670) and
+      for the backfill rule a title with no recorded entry gets.
+
     Returns (rendered, cached, skipped).
     """
     from . import pdf_reading
@@ -2695,6 +2782,9 @@ def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,
     pdf = Path(pdf)
     dest = Path(dest)
     dims = mathpix_page_dims(pdf.parent)
+    geom_path = dest / CROP_GEOMETRY_FILE
+    geom = _load_crop_geometry(geom_path)
+    geom_dirty = False
     want: dict = {}
     rendered = cached = skipped = 0
     for t in tiddlers:
@@ -2704,21 +2794,44 @@ def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,
         if str(t.get("canonical_uri", "")).startswith("http"):
             continue          # the CDN has it; download_crops owns that row
         f = dest / f"{title}.jpg"
-        if f.is_file() and f.stat().st_size > 500:
-            cached += 1
-            continue
+        have = f.is_file() and f.stat().st_size > 500
         try:
             page = int(t.get("page"))
             box = (int(t["top_left_x"]), int(t["top_left_y"]),
                    int(t["width"]), int(t["height"]))
         except (TypeError, ValueError, KeyError):
-            skipped += 1
+            # 671 — no CURRENT geometry to compare a cached file against;
+            # unchanged pre-671 behaviour (trust what is on disk, skip what
+            # is not) rather than guessing at a row this thin.
+            if have:
+                cached += 1
+            else:
+                skipped += 1
             continue
+        key = [page, box[0], box[1], box[2], box[3]]
+        recorded = geom.get(title)
+        if have and recorded is None:
+            # 671 — rendered before this sidecar existed. Trust it once
+            # and backfill its provenance, so the NEXT geometry change on
+            # this title is caught rather than the first this code has
+            # ever seen (CROP_GEOMETRY_FILE's own comment).
+            geom[title] = key
+            geom_dirty = True
+            cached += 1
+            continue
+        if have and recorded == key:
+            cached += 1
+            continue
+        # either no file, or the recorded source no longer matches what
+        # this row now says (671) — render fresh either way.
         if box[2] <= 0 or box[3] <= 0 or page not in dims:
             skipped += 1
             continue
-        want.setdefault(page, []).append((f, box))
+        want.setdefault(page, []).append((f, box, title, key))
     if not want:
+        if geom_dirty:
+            dest.mkdir(parents=True, exist_ok=True)
+            _save_crop_geometry(geom_path, geom)
         return rendered, cached, skipped
     dest.mkdir(parents=True, exist_ok=True)
     # ONE rasterize call for the pages actually needed. kohlhase-omdoc has 103
@@ -2744,7 +2857,7 @@ def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,
             skipped += len(jobs)
             continue
         im = Image.open(src).convert("RGB")
-        for f, (x, y, w, h) in jobs:
+        for f, (x, y, w, h), title, key in jobs:
             box = pdf_reading.mathpix_to_raster(
                 x, y, w, h, raster_size=im.size, mathpix_size=dims[page])
             if box is None:
@@ -2753,10 +2866,14 @@ def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,
             im.crop(box).resize((w, h), Image.LANCZOS).save(f, quality=92)
             if trim:
                 _pad_top(f)
+            geom[title] = key
+            geom_dirty = True
             rendered += 1
     # the rasterized pages are the largest thing this writes and nothing reads
     # them afterwards
     _sh.rmtree(dest / "_pages", ignore_errors=True)
+    if geom_dirty:
+        _save_crop_geometry(geom_path, geom)
     return rendered, cached, skipped
 
 

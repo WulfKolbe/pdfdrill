@@ -180,3 +180,89 @@ def test_the_rasterized_pages_are_not_left_behind(patched, tmp_path):
     rt.render_crops([_tid("d_TAB_001")], tmp_path / "crops",
                     tmp_path / "d.pdf")
     assert not (tmp_path / "crops" / "_pages").exists()
+
+
+# 671 — render_crops used to cache by TITLE alone: once a file existed it
+# was served forever regardless of whether it was cut from the region the
+# row now points at. These pin the fix: the cache key is (page, region).
+
+
+def test_a_legacy_crop_with_no_recorded_geometry_is_trusted_once(patched,
+                                                                  tmp_path):
+    """A crop rendered before CROP_GEOMETRY_FILE existed has nothing to
+    compare against — trust it (unchanged pre-671 behaviour) rather than
+    guess, but backfill its provenance for the NEXT call."""
+    (tmp_path / "crops").mkdir()
+    (tmp_path / "crops" / "d_TAB_001.jpg").write_bytes(b"x" * 900)
+    ok, cached, skipped = rt.render_crops(
+        [_tid("d_TAB_001", page=3, x=100, y=200, w=300, h=120)],
+        tmp_path / "crops", tmp_path / "d.pdf")
+    assert (ok, cached, skipped) == (0, 1, 0)
+    assert not _FakeImage.calls
+    geom = json.loads((tmp_path / "crops" / rt.CROP_GEOMETRY_FILE).read_text())
+    assert geom["d_TAB_001"] == [3, 100, 200, 300, 120]
+
+
+def test_a_crop_whose_row_now_points_at_a_different_region_is_rerendered(
+        patched, tmp_path):
+    """671's actual defect: a title's row region moved (e.g. a host-line
+    join) after the crop was cut. First call records the ORIGINAL region;
+    a second call with a DIFFERENT region for the SAME title must not be
+    served the stale file — it must be re-rendered."""
+    crops = tmp_path / "crops"
+    rt.render_crops([_tid("d_TAB_001", page=3, x=100, y=200, w=300, h=120)],
+                    crops, tmp_path / "d.pdf")
+    assert len(_FakeImage.calls) == 1
+    first_box = _FakeImage.calls[0]["box"]
+
+    # the row now points somewhere else on the SAME page
+    ok, cached, skipped = rt.render_crops(
+        [_tid("d_TAB_001", page=3, x=500, y=900, w=300, h=120)],
+        crops, tmp_path / "d.pdf")
+    assert (ok, cached, skipped) == (1, 0, 0)
+    assert len(_FakeImage.calls) == 2
+    assert _FakeImage.calls[1]["box"] != first_box
+    geom = json.loads((crops / rt.CROP_GEOMETRY_FILE).read_text())
+    assert geom["d_TAB_001"] == [3, 500, 900, 300, 120]
+
+
+def test_a_crop_whose_row_moved_to_a_different_page_is_rerendered(patched,
+                                                                   tmp_path):
+    """The join can move a row to a different HOST PAGE entirely, not just
+    a different rectangle on the same page — the worked example in the
+    671 brief (0902.0431_FO0068: page 4, not page 177)."""
+    crops = tmp_path / "crops"
+    rt.render_crops([_tid("d_TAB_001", page=3)], crops, tmp_path / "d.pdf")
+    ok, cached, skipped = rt.render_crops(
+        [_tid("d_TAB_001", page=4)], crops, tmp_path / "d.pdf")
+    assert (ok, cached, skipped) == (1, 0, 0)
+    geom = json.loads((crops / rt.CROP_GEOMETRY_FILE).read_text())
+    assert geom["d_TAB_001"][0] == 4
+
+
+def test_an_unchanged_row_is_still_cached_after_a_render(patched, tmp_path):
+    """The common case: render once, then ask again with the SAME region —
+    must stay cached, not re-render on every call."""
+    crops = tmp_path / "crops"
+    rt.render_crops([_tid("d_TAB_001", page=3, x=100, y=200, w=300, h=120)],
+                    crops, tmp_path / "d.pdf")
+    assert len(_FakeImage.calls) == 1
+    ok, cached, skipped = rt.render_crops(
+        [_tid("d_TAB_001", page=3, x=100, y=200, w=300, h=120)],
+        crops, tmp_path / "d.pdf")
+    assert (ok, cached, skipped) == (0, 1, 0)
+    assert len(_FakeImage.calls) == 1
+
+
+def test_a_row_with_no_current_geometry_falls_back_to_trusting_the_file(
+        patched, tmp_path):
+    """671 must not regress the pre-existing skip/cache behaviour for a row
+    that carries no page at all — there is nothing to compare, so an
+    existing file is trusted and a missing one is skipped, exactly as
+    before."""
+    crops = tmp_path / "crops"
+    crops.mkdir()
+    (crops / "d_TAB_002.jpg").write_bytes(b"x" * 900)
+    t = {"title": "d_TAB_002", "page": None}
+    ok, cached, skipped = rt.render_crops([t], crops, tmp_path / "d.pdf")
+    assert (ok, cached, skipped) == (0, 1, 0)
