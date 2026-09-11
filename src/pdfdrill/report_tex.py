@@ -1595,6 +1595,34 @@ def to_inline_env(latex: str) -> str:
     return out.strip()
 
 
+def _bare_dollar_positions(lx: str) -> list:
+    r"""Indices of every `$` NOT escaped by an odd backslash — i.e. every
+    real dollar, currency's `\$` excluded.
+
+    668 fix round 1 (minor finding 4) — the first version of this walk used
+    `re.sub(r"\\\$", r"\\X", lx)`, which looks only ONE character back and
+    so cannot tell a genuine `\$` (one backslash: escaped, currency) from
+    the SECOND half of an escaped backslash pair `\\` immediately
+    followed by a real, bare `$` (`a \\$ b`: the `\\` is one literal
+    backslash character, and the `$` after it is unescaped). Fixed the
+    same way `has_bare_align_marker` (above) and `text_spans`
+    (text_escapes.py, 662) already solve the identical class of problem:
+    a backslash is consumed together with whatever follows it as a PAIR,
+    so a bare `$` is never re-examined against a backslash that was
+    already spent on the previous pair.
+    """
+    out, i, n = [], 0, len(lx)
+    while i < n:
+        c = lx[i]
+        if c == "\\" and i + 1 < n:
+            i += 2                 # an escaped char, or one \\ token
+            continue
+        if c == "$":
+            out.append(i)
+        i += 1
+    return out
+
+
 def renderable(latex: str) -> str:
     """Return latex safe to put inside $...$, or "" when it is not.
 
@@ -1700,21 +1728,37 @@ def renderable(latex: str) -> str:
     # hazard a bare `$` is. Bare in `lx` (math position), a `$` closes the
     # cell's own outer $...$ early — the corruption the escape-handling
     # above exists to avoid. But `\text{(add $3\mathbf{x}$, subtract
-    # $2\mathbf{v}$)}` (johnston-linear-matrix-algebra, two real rows) nests
-    # ORDINARY inline math inside a text argument — standard LaTeX: the `$`
-    # pair opens and closes math INSIDE the text group and never reaches the
-    # cell's own delimiters. So a `$` inside a `\text{}`/`\mbox{}`/etc
-    # argument is permitted; a `$` outside one still refuses, unchanged.
-    # `text_spans()` is 662's promoted primitive — the same span-finder
-    # `cjk_defect` already uses for the identical kind of question, reused
-    # rather than re-derived.
-    dollar_mask = re.sub(r"\\\$", r"\\X", lx)   # same escape rule as before,
-    dollar_pos = [m.start() for m in re.finditer(r"\$", dollar_mask)]
+    # $2\mathbf{v}$)}` (the shape `latex_refined` carries for two
+    # ink-verified corpus objects — see out/668.txt for the population this
+    # was measured against, and the caveat that the published reader does
+    # not read `latex_refined` today) nests ORDINARY inline math inside a
+    # text argument — standard LaTeX: the `$` pair opens and closes math
+    # INSIDE the text group and never reaches the cell's own delimiters.
+    # So a `$` inside a `\text{}`/`\mbox{}`/etc argument is permitted; a `$`
+    # outside one still refuses, unchanged. `text_spans()` is 662's
+    # promoted primitive — the same span-finder `cjk_defect` already uses
+    # for the identical kind of question, reused rather than re-derived.
+    dollar_pos = _bare_dollar_positions(lx)
     if dollar_pos:
         text_ranges = text_spans(lx)
         if any(not any(a <= p < b for a, b in text_ranges)
                for p in dollar_pos):
             return ""
+        # 668 fix round 1 (blocking finding 3) — MEMBERSHIP is not PARITY.
+        # Every `$` sitting inside SOME text span (the check just above)
+        # does not mean the dollars within any ONE span pair up: an ODD
+        # count inside a single `\text{}`/`\mbox{}` argument is an
+        # unclosed nested-math open, which xelatex does not refuse here —
+        # it cascades into "Extra }, or forgotten $." once the rest of the
+        # document is read. That is exactly the live-hang/cascade class
+        # this gate exists to catch (446's own `\$` fix, above), so a
+        # scoped `$` still has to prove it CLOSES, not merely that it sits
+        # in the right place. Zero occurrences in the corpus today (an
+        # unclosed `$` inside `\text{}` has not been observed) — this is a
+        # latent gap being closed, not a live regression.
+        for a, b in text_ranges:
+            if sum(1 for p in dollar_pos if a <= p < b) % 2:
+                return ""
     if re.sub(r"\\%", "", lx).count("%"):
         return ""
     # brace balance, with \\ and escaped \{ \} removed first

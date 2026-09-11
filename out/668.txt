@@ -1,7 +1,14 @@
 668 — scope the `$` half of report_tex.renderable's third gate to text_spans
 ==============================================================================
 
-Branch eqblobs-and-gzip-tex, base commit 8de4ff87, clean, pushed.
+Branch eqblobs-and-gzip-tex, base commit 8de4ff87, clean, pushed. Commit
+d44f50af landed the first pass; an independent review found three blocking
+and two minor findings (task-668-review.md), all addressed below in FIX
+ROUND 1 and marked inline where they change something this file already
+said. Confirmed correct by the review and NOT redone: `\[`/`\]` refuse
+unconditionally, `$`-scoping reuses the promoted `text_spans()` helper
+rather than a second implementation, scoping is per-occurrence rather than
+per-value, and Part Two changed nothing (verified by exact set-diff).
 
 THE FIX
 -------
@@ -11,17 +18,19 @@ line 1691) used to be one line:
     if r"\[" in lx or r"\]" in lx or re.sub(r"\\\$", "", lx).count("$"):
         return ""
 
-Split into two, per the brief:
+Now, after FIX ROUND 1 (findings 3 and 4 below):
 
     if r"\[" in lx or r"\]" in lx:
         return ""
-    dollar_mask = re.sub(r"\\\$", r"\\X", lx)   # same escape rule as before,
-    dollar_pos = [m.start() for m in re.finditer(r"\$", dollar_mask)]
+    dollar_pos = _bare_dollar_positions(lx)
     if dollar_pos:
         text_ranges = text_spans(lx)
         if any(not any(a <= p < b for a, b in text_ranges)
                for p in dollar_pos):
             return ""
+        for a, b in text_ranges:
+            if sum(1 for p in dollar_pos if a <= p < b) % 2:
+                return ""
 
 `\[`/`\]` refuse UNCONDITIONALLY, unchanged. `$` is now scoped to
 `text_spans()` — task 662's promoted primitive (`src/pdfdrill/
@@ -33,14 +42,44 @@ macro set (`\text`, `\textrm`, `\textnormal`, `\textit`, `\textbf`,
 `cjk_defect`'s narrower `CJK_TEXT_MACROS` (which excludes `\operatorname`
 for a content-specific reason that does not apply here).
 
-The escape handling for `$` is UNCHANGED in substance: the old code
-removed every `\$` (escaped dollar, i.e. currency) via `re.sub` before
-counting; the new code performs the identical substitution but into a
-same-length placeholder (`\$` -> `\X`) so the surviving `$` positions are
-preserved for the span check. Byte-for-byte the same set of `$` characters
-is now "real" vs "escaped" as before — only what happens to a REAL one
-changed (checked for text-span membership instead of refusing
-unconditionally).
+FIX ROUND 1, BLOCKING FINDING 3 — MEMBERSHIP IS NOT PARITY. The first pass
+checked only that every `$` sits INSIDE some text span; it never checked
+that the dollars WITHIN one span balance. `renderable(r"\text{a $ y b}")`
+returned the value unchanged (accepted) — a genuinely unclosed `$` inside
+a `\text{}` argument, which a real pdflatex compile turns into a
+cascading "Extra }, or forgotten $." once the rest of the document is
+read (reproduced live by the reviewer). That is exactly the class of
+live failure `renderable()` exists to prevent, and it is the exact kind of
+robustness gap HANDOVER-RULES rule 3 warns a guarantee-shaped docstring is
+not itself proof against. Fixed by counting each text span's own dollars
+and requiring an even count in EVERY span that contains any, in addition
+to the existing membership check. 0 occurrences in the current 45,528-row
+corpus (re-checked after the fix — see CORPUS COUNT below), so nothing
+shipped was ever at risk; this closes a latent gap, not a live one.
+
+FIX ROUND 1, MINOR FINDING 4 — THE ESCAPE MASK HAD THE SAME AMBIGUITY
+`text_escapes.py` FIXED FOR BRACES ONE TASK EARLIER. The first pass's
+escape handling (`re.sub(r"\\\$", r"\\X", lx)`, "same escape rule as
+before") looks only ONE character back, so it cannot distinguish a
+genuine `\$` (one backslash: escaped, currency) from the SECOND half of
+an escaped-backslash pair `\\` immediately followed by a real, bare `$`.
+`renderable("a {x \\$ y} b")` (an unshielded, unclosed bare `$` glued to a
+`\\` token, inside plain braces so `has_bare_align_marker` never sees it)
+returned the value unchanged — the real, dangerous `$` was silently
+misread as escaped currency and never reached the scoping check at all.
+This bug pre-dated 668 (the old one-line gate had the identical regex)
+and was correctly disclosed the first time as "unchanged" — but 668
+imports the sibling module that fixed this exact bug class for braces
+(662's `text_spans`, whose own docstring names the fix) and did not ask
+the same question of its own regex. Fixed with a new helper,
+`_bare_dollar_positions()`, written in the same style
+`has_bare_align_marker` (report_tex.py) and `text_spans`
+(text_escapes.py, 662) already use for the identical problem: a backslash
+is consumed together with whatever follows it as a PAIR, so a bare `$` is
+never re-examined against a backslash already spent on the previous
+pair. The escape SEMANTICS are unchanged (a genuine `\$` for currency
+still passes; a bare `$` still refuses outside a text span) — only the
+ambiguous one-char-lookback implementation was replaced.
 
 THE `\[`/`\]` DECISION, ARGUED (not left to fall out of the code)
 ------------------------------------------------------------------
@@ -77,6 +116,26 @@ constructed EquationRow carrying EQ0006's real latex returns
 
 THE TWO ROWS — BEFORE/AFTER, VERIFIED BY COMPILING THE PUBLISHED PATH
 --------------------------------------------------------------------------
+FIX ROUND 1, BLOCKING FINDING 1 — stated up front, since the first pass's
+commit message and an in-source comment both overclaimed this in
+present tense: this fix does NOT change anything on the two rows'
+CURRENTLY SHIPPED evidence-equation.pdf. `reports.from_document.
+build_rows()` never reads `latex_refined`, and today's shipped
+`props["latex"]` for both objects carries no `$` at all — see DISCLOSED
+PREREQUISITE immediately below, which said this correctly the first time.
+What follows demonstrates the fix against the value these two objects'
+ink-verified `latex_refined` carries — the population this task's 22/20
+corpus count is measured against, and the value a future "promote a
+verified refinement" step would hand this exact path — through the real,
+unmodified published render functions, not a hypothetical harness. The
+commit message for this fix round, and the source comment at
+`report_tex.py`'s `$`-scoping block, were both corrected to carry this
+caveat rather than reading as a present-tense claim about the shipped
+artefact (the ORIGINAL commit's wording is left as history; git commits
+are not amended per project convention — the correction is in this
+revision of the report, the corrected source comment, and this round's
+own commit message).
+
 Document: "Introduction to Linear and Matrix Algebra" (Nathaniel Johnston),
 bibkey johnston-linear-matrix-algebra. Objects obj_c291fcecac5b (EQ0006,
 page 22) and obj_6dace6681c2e (EQ0063, page 45). Both carry
@@ -141,14 +200,38 @@ count).
 
 CORPUS COUNT AFTER THE CHANGE
 ------------------------------
+FIX ROUND 1, BLOCKING FINDING 2 — the first pass's script counted every
+Equation/Formula object toward `total` unconditionally, including 10
+objects (4 in 0902.0431, 2 in fong-spivak-invitation, 4 in
+johnston-linear-matrix-algebra) whose `latex_refined`/`latex` is EMPTY —
+there is nothing for this gate to judge on those, and counting them
+inflated the total against any other measurement of the same population
+that excludes them. 45,538 (the first pass's number) minus those 10 is
+45,528 exactly — the number this task was originally handed (out/661.txt)
+for "the same population." The first pass's OPEN section attributed the
+mismatch to the two measurements being taken "~5 days apart" on a corpus
+that "keeps getting refined" — both halves of that were wrong and
+checkably so: the two commits are 51 minutes apart in the same session
+(661: 2026-09-11 10:02:23; 668: 2026-09-11 10:53:43), and no
+`model.docmodel.json` in the corpus changed in that window (the most
+recently rebuilt document, 0902.0431, was rebuilt 2026-09-10 11:32 — a
+full day before either measurement). The script (`668_corpus_scan.py`,
+~/pdfdrill-library/out/668/) now excludes empty-latex objects from
+`total` and records the count separately (`empty_latex_rows_excluded`),
+re-run below with the corrected total. 661's original 45,528 was RIGHT;
+this task's first-pass 45,538 was the wrong number, not a second correct
+measurement of a moving corpus.
+
 Corpus-wide scan (script `668_corpus_scan.py`,
 ~/pdfdrill-library/out/668/, corpus-level per rule 19's convention — no
 single document), same population definition
-(`props.get("latex_refined") or props.get("latex")`), across the 20
-published documents (~/pdfdrill-library/out/documents.json minus the null
-placeholder and penev_A, per docs/HANDOVER.md's "20 of 21 published"):
+(`props.get("latex_refined") or props.get("latex")`, empty values
+excluded), across the 20 published documents
+(~/pdfdrill-library/out/documents.json minus the null placeholder and
+penev_A, per docs/HANDOVER.md's "20 of 21 published"):
 
-  total Equation+Formula rows scanned: 45,538
+  total Equation+Formula rows scanned: 45,528  (45,538 objects total, 10
+                                                excluded for empty latex)
   refused BEFORE (base commit 8de4ff87's gate): 22
   refused AFTER  (this fix):                    20
 
@@ -230,10 +313,25 @@ LaTeX float:
                   N_{LU}:=...\n\]"                                (wrapped)
 
 (lyche-numerical-linear-algebra obj_904ab7b5e410, verbatim, the richest
-example: the caption text is independently present, correctly typed as
-its OWN `figure_label` line immediately before the math line in the same
-`lines.json` — `text_display` duplicates it into the math line's own
-reconstruction rather than the docmodel ever cross-referencing the two.)
+example. FIX ROUND 1, MINOR FINDING 5, corrected against a re-read of the
+document's own `.lines.json`, page 82, by line INDEX rather than assumed:
+the caption text ("Listing 3.3 cforwardsolve") is independently present,
+correctly typed as its OWN `figure_label` line at index 20 — but that
+line is the caption of the PRECEDING CODE LISTING (a Matlab function,
+indices 11-19), not of this equation. The math line `text_display`
+actually glues it onto sits at index 27, across a `section_header`
+("3.3.2 Counting Operations", index 21) and five lines of prose (22-26)
+in between — a different section, captioning a different figure
+entirely, not "immediately before." `text_display` did not duplicate a
+nearby caption onto its own equation; it glued an unrelated caption from
+a different listing, several lines and a section boundary away, onto
+this equation. The root cause itself — `equation.py:212` preferring
+`text_display` over `text` — is unaffected by this correction; only the
+description of how disconnected the erroneous caption is changes, and it
+is MORE disconnected than the first pass stated, not less. See
+668_figure_capture_finding.py/.json under this document's own out/668/,
+which now measures and records the line index and everything between,
+rather than asserting adjacency.)
 All eight rows across all three documents show the identical pattern,
 confirmed individually, not sampled: `text` is always bare display math
 with no wrapper; `text_display` always adds the full
@@ -299,7 +397,15 @@ before the bracket, paired with a genuine partner) from `\\[<length>]`
 
 TESTS
 -----
-tests/test_report_tex.py, 5 new (77 in the file, was 72):
+FIX ROUND 1, MINOR FINDING 6 — the first pass's counts were internally
+wrong on both sides of an arithmetic identity that happened to land on
+the right total: base commit 8de4ff87's `test_report_tex.py` has 73 test
+functions (the first pass said 72), and exactly 4 new ones were added in
+the first pass (it said "5 new"), landing at the correctly-stated 77.
+Corrected below, plus the 2 more added this round.
+
+tests/test_report_tex.py, 6 new across both rounds (79 in the file, was 73):
+  round 0 (4):
   - test_dollar_inside_a_text_span_is_permitted_but_bare_still_refuses
   - test_dollar_pair_across_a_text_span_boundary_still_refuses (one `$`
     inside a text span and its "partner" outside are independent
@@ -307,13 +413,29 @@ tests/test_report_tex.py, 5 new (77 in the file, was 72):
   - test_backslash_bracket_still_refuses_unconditionally_even_in_text
   - test_johnston_linear_matrix_algebra_EQ0006_and_EQ0063_render (the two
     real corpus rows, verbatim, as a regression pin)
+  round 1 (2), both proving a reviewer-constructed input, not restated
+  from prose:
+  - test_an_odd_dollar_count_inside_one_text_span_still_refuses (finding 3)
+  - test_escaped_backslash_before_a_bare_dollar_is_not_mistaken_for_escaped_currency
+    (finding 4; also pins `_bare_dollar_positions()` directly)
 
 Full suite: `PYTHONDONTWRITEBYTECODE=1 python3 -m pytest tests/ -q -p no:cacheprovider`
   base commit 8de4ff87:  3561 passed, 0 failed
-  after this fix:        3565 passed, 0 failed (5 new, 0 regressions)
+  after round 0:         3565 passed, 0 failed (4 new, 0 regressions)
+  after round 1 (this):  3567 passed, 0 failed (2 more new, 0 regressions)
 
 EVIDENCE
 --------
+FIX ROUND 1 — `668_corpus_scan.py` and both JSON files were regenerated in
+place (same paths, corrected content per blocking finding 2: total now
+45,528, empty-latex objects excluded and counted separately); the two
+figure-capture-finding scripts under johnston's and lyche's own `out/668/`
+were extended (johnston's gained no content change; lyche's now measures
+line-index distance and everything between, per minor finding 5) and
+re-run. `668_verify_compile.py` and its three throwaway builds were
+re-run unchanged in method against the corrected gate, confirming the
+same result (see THE TWO ROWS above).
+
 Corpus-level (no single document, per rule 19's convention):
   ~/pdfdrill-library/out/668/668_corpus_scan.py
   ~/pdfdrill-library/out/668/668_scan_before.json
@@ -352,11 +474,11 @@ OPEN
 - The ninth row's `\[`/`\]` false-positive on `\\[1ex]` is characterised
   but not fixed — a different, narrower defect than either class this
   task's population was scoped around.
-- The 45,538-row/22-refused count (this task's own corpus scan) differs
-  slightly from the number this task's brief was handed (45,528/22) —
-  both are real measurements, taken ~5 days apart on a corpus that keeps
-  getting refined/re-ink-verified; the category breakdown (8/9[8+1]/3)
-  matches exactly, and the discrepancy is in the total row count, not in
-  which rows are refused or why. Not chased further, per rule 14: this
-  task re-measured against the CURRENT artifact rather than trusting the
-  handed-down total, and reports what it found.
+- (FIX ROUND 1: the item this bullet used to name — a "45,538 vs 45,528"
+  discrepancy attributed to measurements taken days apart on a moving
+  corpus — was itself a defect, not an open question: see blocking
+  finding 2 above. The real cause (10 empty-latex objects wrongly counted
+  into the total by this task's own script) was findable in minutes and
+  has been fixed;
+  the corrected script now reproduces 661's 45,528 exactly. Nothing is
+  open here any more.)

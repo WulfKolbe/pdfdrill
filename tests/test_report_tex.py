@@ -938,6 +938,32 @@ def test_dollar_pair_across_a_text_span_boundary_still_refuses():
     assert not renderable(r"\text{a $x} b$ c")
 
 
+def test_an_odd_dollar_count_inside_one_text_span_still_refuses():
+    r"""668 fix round 1 (blocking finding 3) — MEMBERSHIP is not PARITY.
+    Every `$` here sits inside the SAME `\text{}` argument (so the
+    membership check alone would pass it), but there are three of them —
+    an unclosed nested-math open, which a real compile turns into a
+    cascading "Extra }, or forgotten $." This must still refuse."""
+    from pdfdrill.report_tex import renderable
+    assert not renderable(r"\text{a $ y b}")             # one, unclosed
+    assert not renderable(r"\text{$a$ $b}")               # 3 total, one span
+    assert renderable(r"\text{$a$ $b$}")                  # 4, balanced -> ok
+
+
+def test_escaped_backslash_before_a_bare_dollar_is_not_mistaken_for_escaped_currency():
+    r"""668 fix round 1 (minor finding 4) — the escape walk must consume a
+    backslash together with whatever follows it as a PAIR (the same fix
+    `text_escapes.text_spans` made for braces, 662), not look one
+    character back. `a \\$ b`: the `\\` is ONE literal backslash
+    character; the `$` immediately after it is a REAL, unescaped, bare
+    dollar in math position and must still refuse -- a one-char-lookback
+    walk mistakes it for `\$` (escaped currency) and lets it through."""
+    from pdfdrill.report_tex import renderable, _bare_dollar_positions
+    lx = r"a \\$ b"
+    assert _bare_dollar_positions(lx) == [lx.index("$")]
+    assert not renderable(r"a {x \\$ y} b")
+
+
 def test_backslash_bracket_still_refuses_unconditionally_even_in_text():
     r"""668 — `\[`/`\]` are DISPLAY-math delimiters; unlike `$`, they are
     NOT scoped to `text_spans()`. Display mode cannot open inside inline
