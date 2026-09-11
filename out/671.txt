@@ -9,6 +9,19 @@ recompute it at all), ~/inkdrill-marks/README.md, and
 ~/inkdrill-marks/stale-crops.json (the peer measurement this task was
 opened against).
 
+Reviewed: PASS on both spec compliance and code quality (no blocking
+findings). FIX ROUND 1 below addresses all three minor findings: (1) the
+corpus-wide backfill blind spot was disclosed in the condensed status
+copy but not here — moved into this file (see THE BACKFILL'S OWN BLIND
+SPOT, under STEP 4); (2) `_save_crop_geometry`'s write is now atomic,
+via the project's own `model_io._atomic_write` convention; (3) the
+`HANDOVER-RULES rule 19` citation (here and in `report_tex.py`'s
+`CROP_GEOMETRY_FILE` comment) was wrong — rule 19 is "write the number
+down before you write the sentence", not the freshness-check pattern
+this task meant, which had no rule number. Corrected to cite the new
+rule 22 (`docs/HANDOVER-RULES.md` §1), added by this fix round and
+naming five live instances of the pattern, including this task's own.
+
 VERIFIED MYSELF BEFORE TRUSTING THE BRIEF: read
 report-crops/0902.0431_FO0068.jpg as an image before touching anything.
 It showed "H_{\alpha_8} = (\Phi(0,0,0,\frac{}{40}), 0, 0, -\frac{}{120},
@@ -72,9 +85,14 @@ untracked-but-correct cache hit that would otherwise backfill their own
 wrong geometry as if it were right.
 
 IS THIS THE SAME IDEA AS 670's geometry_signature? Same failure SHAPE
-(HANDOVER-RULES rule 19: a freshness check that does not ask the
-question that matters), NOT the same mechanism, and not shareable as one
-function. `report_tex.geometry_signature()` (670) hashes the SOURCE CODE
+(HANDOVER-RULES rule 22 — "a check that names what it looks at is not a
+check that asks whether it is looking at the right things"; this task's
+own first pass cited rule 19 here, which is wrong — rule 19 is "write
+the number down before you write the sentence", a different rule about
+measuring before asserting, and review round 1 caught the mis-citation.
+Rule 22 was added by this fix round specifically because the pattern
+these two tasks share had no rule number yet), NOT the same mechanism,
+and not shareable as one function. `report_tex.geometry_signature()` (670) hashes the SOURCE CODE
 of the functions that lay out `report.pdf` itself (`GEOMETRY_FUNCS`,
 `CELLRECT_PREAMBLE`, `font_metrics_preamble()`) — it answers "did the
 CODE that computes REPORT geometry change", a whole-document, CODE-
@@ -233,6 +251,45 @@ statistical one) but it does not re-verify the 15 already-clean books or
 the untouched majority of these six documents' own crops; those are
 taken on the peer's word, which is the acceptable half of the trade
 named above.
+
+THE BACKFILL'S OWN BLIND SPOT (review round 1, finding 1) — STATED HERE,
+NOT ONLY IN THE CONDENSED STATUS COPY
+-----------------------------------------------------------------------
+The FIX's backfill rule (STEP 1 above) is not scoped to the 159 named
+titles. It runs over EVERY title `render_crops` is asked about, in every
+document it touches: a file present with no sidecar entry is trusted
+once and its CURRENT region is recorded as ground truth, permanently,
+whether or not that title was ever named as stale. Across the six
+documents this task ran against, that backfilled 3113 + 984 + 361 + 382
++ 316 + 179 = 5,335 titles' regions as correct on first contact — not
+just the 159 this task verified by reading images.
+
+This is a real, permanent limitation, not a one-time cost this task pays
+off. If any of those 5,335 crops is "mildly stale" in a way the peer's
+0.35 correlation threshold did not catch — or belongs to a document the
+peer's tool never ran against at all — this task's own fix LOCKS IN that
+wrong picture as the sidecar's recorded truth, and nothing built into
+`render_crops` will ever flag it, because the check this fix adds
+compares a crop against its OWN prior recording, not against the model
+independently. It is exactly rule 22's shape turned on itself: the check
+correctly answers "does this crop match what I last recorded for it" —
+and having no prior recording for a pre-671 crop is answered, correctly
+and by design, as "trust it" rather than "unknown, so refuse."
+
+WHAT WOULD DETECT A CROP WRONGLY BLESSED THIS WAY: only something that
+compares the crop against a source that is NOT this sidecar — the peer's
+own `tools/cropcheck.py` correlation rule (`inspect/pages`, out of this
+task's bounds), a human spot-check on read images (as this task and its
+review both did, on 7 and 6 crops respectively — far short of 5,335), or
+a FUTURE geometry change on that same title (a second join, a
+re-drilled model, a renumbered page), which the sidecar's ordinary
+mismatch check WOULD catch from that point forward, per the "would it
+have caught it" proof above. Nothing in this task, and nothing the fix
+itself adds, re-verifies the 5,335 backfilled entries' CURRENT content
+against the scan independently of their own prior state. That
+re-verification, if wanted, is the peer's own instrument's job, run
+against documents it has not yet covered — not a property this fix
+claims to provide.
 
 WHAT THIS TASK DID NOT TOUCH
 -------------------------------

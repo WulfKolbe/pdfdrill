@@ -2655,8 +2655,11 @@ def crop_sha256(crops_dir: "Path | None", title: str,
 #: from "the join moved out from under it".
 #:
 #: NOT `report_tex.geometry_signature` (670), and not sharable as the same
-#: mechanism despite the same failure SHAPE (rule 19: a freshness check
-#: that does not ask the question that matters). `geometry_signature`
+#: mechanism despite the same failure SHAPE (HANDOVER-RULES rule 22: a
+#: freshness/completeness check that does not ask the question that
+#: matters — rule 19, wrongly cited here in this task's first pass, is
+#: "write the number down before you write the sentence", a different
+#: rule entirely). `geometry_signature`
 #: hashes the SOURCE CODE of the functions that lay out `report.pdf`
 #: itself — it answers "did the code that computes REPORT geometry
 #: change", a whole-document, code-identity question used to decide
@@ -2713,8 +2716,18 @@ def _load_crop_geometry(path: Path) -> dict:
 
 
 def _save_crop_geometry(path: Path, geom: dict) -> None:
+    """671 review, finding 2 — ATOMIC, per the project's own convention
+    (`model_io._atomic_write`, already reused across module boundaries by
+    `commands.py`'s two `.lines.json` writers): a plain `write_text` left a
+    process killed mid-write with a truncated `crops.geometry.json`.
+    `_load_crop_geometry`'s `{}`-on-corrupt fallback meant that degraded
+    safely (every title re-enters the backfill path) rather than silently
+    lying, but "degrades safely" is not the same claim as "follows the
+    convention", and a new sidecar file was the natural place to have used
+    it the first time."""
     import json as _json
-    path.write_text(_json.dumps(geom, sort_keys=True), encoding="utf-8")
+    from .model_io import _atomic_write
+    _atomic_write(path, _json.dumps(geom, sort_keys=True))
 
 
 def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,

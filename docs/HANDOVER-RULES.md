@@ -171,6 +171,75 @@ Each of these cost real time or real data in this project.
     own hunks of a shared file. Nothing was lost, and only because both
     agents noticed. Read-only reviewers may overlap freely; writers may not.
 
+22. **A check that names what it looks at is not a check that asks whether
+    it is looking at the right things.** Every instance below was, on its
+    own terms, a CORRECT answer to the question it posed — the defect was
+    always in the question never asked, not in the arithmetic once it was.
+    This is the most repeated defect shape in this codebase's recent
+    history, and a rule number was overdue:
+
+    - `inkreport.fresh_ink` (670, before its fix) asked four — later five
+      — content questions about a stored ink measurement (model hash,
+      formula rule, page bound, `why`) and correctly answered every one.
+      None asked whether the CODE that built the report is the code that
+      would build it now: 463 (a profile change dropping a section) and
+      625 (a stray `\\` that put every Scan image on a second line) both
+      passed all four/five questions while the report's GEOMETRY had
+      changed underneath them. Fixed by `report_tex.geometry_signature`,
+      a sixth question over the AST of the functions that actually decide
+      report layout.
+    - `report_tex.render_crops` (671, before its fix) asked "does a file
+      named `<title>.jpg`, over 500 bytes, exist" and answered correctly —
+      such a file did exist. It never asked whether that file was cut from
+      the region the row NOW points at. A 2026-09-03 change to how host
+      lines are joined moved 159 rows' regions out from under their
+      already-rendered crops across six documents, and the cache kept
+      serving the old picture, correctly, by its own question. Fixed by
+      keying the cache on `(page, region)` instead of on the filename
+      (`CROP_GEOMETRY_FILE`).
+    - `docops.projectors.tiddlywiki.tiddler_integrity`'s `UNREFERENCED_KINDS`
+      asks, correctly, "does any transclusion reference this tiddler" for
+      the eight kinds it names (Formula, Equation, Footnote, Sidenote,
+      Table, Diagram, Picture, Reference). It never asks whether the
+      title scheme has grown since that list was written: the checked-in
+      conservation ratchet (`docops/conserve.py`, `conserve_baseline.json`)
+      currently carries eight further VIOLATION-class kinds —  Algorithm,
+      AlgorithmStep, Citation, CodeListing, Link, List, Proof, Theorem —
+      that `UNREFERENCED_KINDS` cannot see AT ALL, not a false negative
+      but a blind spot. `out/656.txt` caught it directly: two documents
+      `tiddler_integrity` reported as "80 unreferenced" / "40
+      unreferenced" — clean-looking, correctly computed summaries — sit
+      beside a `conserve --gate` count of 84 and 81 VIOLATION-class
+      unreachable objects on the SAME two documents, most of which
+      `tiddler_integrity` never mentions because its allow-list of kinds
+      never grew to match what the model can now contain.
+    - `reports.gate.crop_gate` (667, before its fix) asked "does the
+      displayed crop match the one measured" and, correctly, found no
+      mismatch on a row nothing had measured yet — there was nothing to
+      compare. It answered `ok=True`, INDISTINGUISHABLE from a row that
+      was checked and passed, because it never asked "is there anything
+      here for me to look at". Fixed by `gate.GateStatus.verified`: armed
+      (asked and passed/refused) is now a fact a caller can read, not a
+      claim buried in `ok` alone.
+    - `reports.gate.PUBLISHED_FILES` — the fixed tuple of five filenames
+      `tools/publishcheck.py`'s site-diff and `commands._status_budget_notes`'s
+      over-budget audit both iterate — asks, for each name IN the tuple,
+      "does this match / fit its budget". Neither ever asks "is this the
+      complete list of files this document actually publishes now": a
+      new evidence kind added to the pipeline without a matching entry
+      here is invisible to both checks, not flagged as unpublished or
+      over budget but simply never looked at. Not yet fixed; named here
+      so the next person who adds a sixth published file does not
+      discover this the way the other four instances were discovered.
+
+    The general form: a check that is provably correct about the
+    population it inspects can still be silently wrong about the
+    program, because nobody re-asked whether that population is still
+    the whole one. Writing the check's own population down beside it
+    (rule 2) does not fix this by itself — every instance above HAD a
+    named population; the missing step is periodically asking whether
+    something now exists outside it.
+
 ---
 
 ## 2. Environment facts that are not obvious
