@@ -256,7 +256,15 @@ task's two hunks (`LEGEND_REFINED` + its one-line addition to `legend()`),
 leaving the other session's hunks in the SAME file unstaged and untouched
 on disk for it to commit separately. Verified before committing:
 `git diff --cached -- src/pdfdrill/report_tex.py` shows exactly those two
-hunks and nothing else.
+hunks and nothing else, and `git commit` (no `-a`) reads the index only —
+it cannot alter or discard working-tree content itself. AFTER the commit,
+`git status --short` came back empty: the other session's unstaged 670
+work (report_tex.geometry_signature, inkreport.py, the CLI/skill files,
+tests/test_geometry_signature.py) was no longer on disk. That change came
+from something the other session did on its own between the pre-commit
+check and this observation, not from any command run here — `git add`,
+`git apply --cached` and `git commit` cannot remove content from a
+working-tree file, and none of this task's commands did.
 
 WHAT A PERSON CAN OPEN
 -------------------------
