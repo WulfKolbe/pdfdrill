@@ -157,3 +157,89 @@ NOT DONE
   built ahead of demand would be inventory, not evidence.
 
 Suite 3,760 -> 3,774. 14 tests.
+
+===========================================================================
+679 PART 2 — the three follow-ups, and what they are shaped for
+===========================================================================
+
+1. EQ0378 WITHDRAWN — and the withdrawal keeps the sample
+---------------------------------------------------------
+`refine.withdraw_one(doc, obj_id, *, reason)` is `record_one`'s inverse: it
+removes BOTH halves (the `latex_refined` twin prop and every
+`provenance="change"` realization carrying it) so the object falls back to
+its original `latex`, which was never overwritten.
+
+    mielke-geometrodynamics_EQ0378   state verified -> none
+    falls back to: D D \vartheta^{\alpha}=R_{\beta}{}^{\alpha} \wedge ...
+
+IT RETURNS THE REMOVED VALUE RATHER THAN DELETING IT QUIETLY, and `reason` is
+REQUIRED. A wrong acceptance is the most valuable sample this pipeline
+produces — a labelled example of a gate being fooled, which cannot be
+generated deliberately — so the value, its `verified_by`, its ink deltas and
+the reason are written to `<doc>/withdrawn.json`. A refinement removed without
+a reason is indistinguishable from one never recorded, which is the state the
+function exists to be able to tell apart.
+
+This is the first entry in what next week's GOLDEN SAMPLES work wants.
+
+2. THE CENSUS IS NOW A VALIDATOR, and it caught its own false positive first
+----------------------------------------------------------------------------
+`validate_one(..., glyphs=, glyphs_own_region=)` runs `contradicts()` after
+the CJK check and BEFORE the xelatex subprocess. Reason code `R_CENSUS`.
+
+Every other check in that function is about the proposal's FORM — balanced,
+compiles, uniform widths. None asks whether it is a reading of THIS REGION OF
+THIS PAGE, and a well-formed English sentence passes all of them. One did,
+for seventeen days.
+
+Measured on EQ0378's real 72-glyph census:
+
+    the prose that was published   REFUSED, "9 of 16 literal glyph(s) ...
+                                   absent from the reading (026R)"
+    MathPix's own reading          PASSES
+
+THE FIRST VERSION REFUSED BOTH. Over the same real census it called 26 of 33
+glyphs missing from the prose (right) and also rejected MathPix's correct
+reading (wrong), because α β ϑ Π Σ ∼ ± were counted as literals the reading
+lacked — LaTeX spells Greek as COMMANDS, not characters. A check that refuses
+the right answer is worse than no check. The rule is now ASCII alphanumerics
+only: the population LaTeX does spell literally. Pinned by
+`test_greek_and_symbols_are_never_required_to_appear_literally`, which would
+have failed before the fix.
+
+Passing no census skips the check — the honest behaviour for a scanned page,
+which has no text layer to census.
+
+3. THE CENSUS IS IN THE PROMPT, with two rules aimed at what MiniMax did
+------------------------------------------------------------------------
+The propose prompt now explains what a census is (evidence, not a
+transcription: no structure, may clip neighbours), gives the decisive glyph
+names, and adds two rules, each written against a MEASURED failure from this
+session:
+
+  - "Change ONLY what is damaged" — MiniMax's EQ0472 proposal fixed 十 -> +
+    correctly and silently DELETED `^{\{ \}}`. The census shows three `{ }`
+    pairs on that page, so those braces are real notation.
+  - "Return ONE reading of ONE expression" — its EQ0857 proposal fixed
+    匕 -> \pounds correctly and appended `= \mathrm{Tr}\,\Omega \quad (=0)`
+    from a neighbouring equation. Both failures are content BLEED, which the
+    older batch shows repeatedly.
+
+Hash updated in the same commit, per that dict's contract: 94e9ce2aefbdd8b7.
+
+SHAPED FOR WHAT COMES NEXT
+--------------------------
+* GOLDEN SAMPLES (pdfminer): `withdrawn.json` is the format — the wrong
+  value, the evidence that accepted it, and why it was wrong. EQ0857, EQ0472
+  and FO0431 are the positive cases, each with a census that names the true
+  symbol. Both kinds are needed to evaluate a prompt.
+* INKDRILL FEATURE WORK (angles of crossing lines): the census says WHICH
+  symbols are present and cannot say how they are arranged. `\stackrel{+}
+  {\Omega}` versus `+\Omega` is the same census and different mathematics —
+  that is a geometry question, and it is inkdrill's.
+* PROMPT EVALUATION AT SCALE: `contradicts()` is a cheap automatic verdict on
+  a proposal that needs no human, so a prompt variant can be scored over many
+  rows before anything is recorded.
+* Then listings / code-base, and graphic conversion after classification.
+
+Suite 3,774 -> 3,776.

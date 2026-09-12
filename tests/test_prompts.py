@@ -17,7 +17,7 @@ MOVED = {
     # 679 — CJK guidance added (glyph decomposition is not text; name the
     # symbol the strokes were drawing). Hash updated in the same commit as
     # the file, per this dict's own contract.
-    "refine-propose-system":  "fc144e8b2106e450",
+    "refine-propose-system":  "94e9ce2aefbdd8b7",
     "refine-propose":         "fc906638ab673cbc",
     "refine-propose-crop":    "93339a4107573ff5",
     "vision-selector":        "5243b1fa790d09fc",

@@ -734,13 +734,42 @@ R_EMPTY = "empty proposal"
 R_NOCHANGE = "identical to the original"
 
 
+#: 679 — the reason code for a proposal the PDF's own glyphs contradict.
+R_CENSUS = "glyph census"
+
+
 def validate_one(proposed: str, *, original: str = "",
-                 work: Optional[Path] = None, dpi: int = DPI) -> tuple[bool, str, str]:
-    """(ok, reason, detail). The four checks, cheapest first.
+                 work: Optional[Path] = None, dpi: int = DPI,
+                 glyphs=None, glyphs_own_region: bool = False
+                 ) -> tuple[bool, str, str]:
+    """(ok, reason, detail). The checks, cheapest first.
 
     Compile is last on purpose: it is the only one that costs a subprocess, and
     a value that fails a structural check should never reach xelatex — a
     malformed table compiles perfectly well and looks like a table.
+
+    679 — THE GLYPH CENSUS CHECK, and why a structural pass was not enough.
+    Every check above is about the proposal's FORM: is it balanced, does it
+    compile, are its table widths uniform. None of them asks whether the
+    proposal is a reading of THIS REGION OF THIS PAGE, and a well-formed
+    sentence of English prose passes all of them.
+
+    It did. `mielke-geometrodynamics_EQ0378` published "preserve the term
+    Pontryagin index for the classification of real associated vector
+    bundles…" in place of its equation for seventeen days: structurally
+    valid, compiles, no CJK, and ACCEPTED because the ink distance fell
+    106 -> 10. Ink distance measures how much ink a rendering makes, not
+    whether it is the same ink, so a short wrong line beats a long damaged
+    one — and the bigger the claimed improvement, the more suspicious it
+    should have been (the two sound acceptances that day moved by -2).
+
+    `glyphs` is the PDF's own census of the region (`glyphcensus.census`),
+    and `glyphs_own_region` must say whether that census came from the
+    OBJECT's region or from a host LINE's — see `glyphcensus.contradicts`,
+    which declines rather than guesses for a host line, because a line of
+    prose around an inline formula makes a correct reading look 49-of-84
+    incomplete. Passing no census skips the check; that is the honest
+    behaviour for a scanned page, which has no text layer to census.
     """
     from . import env_balance as _eb
     from . import changereq as _cr
@@ -779,6 +808,13 @@ def validate_one(proposed: str, *, original: str = "",
     cjk = _rt.cjk_defect(proposed)
     if cjk:
         return False, R_CJK, cjk
+
+    # 679 — before the subprocess: is this a reading of this region at all?
+    if glyphs:
+        from . import glyphcensus as _gc
+        why = _gc.contradicts(proposed, glyphs, own_region=glyphs_own_region)
+        if why:
+            return False, R_CENSUS, why
 
     if work is not None:
         png, err = render_latex(proposed, Path(work) / "validate.png", dpi=dpi)
@@ -1005,6 +1041,65 @@ VERIFIED = "verified"         # prop and realization agree, and it was checked
 CONTRADICTED = "contradicted"  # BOTH exist and say DIFFERENT things — a defect
 UNVERIFIED = "unverified"     # a change realization with no verified_by
 ORPHANED = "orphaned"         # a twin prop with no change realization at all
+
+
+def withdraw_one(doc, obj_id: str, *, reason: str) -> "dict | None":
+    """Remove a recorded refinement, and say what was removed.
+
+    The inverse of `record_one`: it takes away BOTH halves — the twin prop
+    and every `provenance="change"` realization carrying it — so the object
+    falls back to its original `latex`, which was never overwritten. Returns
+    the removed value and its evidence, or None when there was nothing to
+    withdraw.
+
+    679 — WHY THIS EXISTS, AND WHY IT RETURNS THE VALUE RATHER THAN DELETING
+    IT QUIETLY. `mielke-geometrodynamics_EQ0378` published a sentence of
+    English prose in place of its equation for seventeen days. A MiniMax
+    proposal was accepted on 2026-08-26 because the ink distance FELL
+    106 -> 10, and recorded with `verified_by: "ink"` — a correct answer to
+    the question the gate asked, which was "did the ink get closer", not "is
+    this the same mathematics". A short wrong line beats a long damaged one
+    on that measure.
+
+    A wrong acceptance is the most valuable sample this pipeline produces:
+    it is a labelled example of a gate being fooled, and there is no way to
+    generate one deliberately. So the withdrawal returns the removed value,
+    its `verified_by`, its ink deltas and the reason — for the caller to put
+    in the ledger beside the proposal it came from. Deleting it silently
+    would destroy the only evidence that the gate needs a second check
+    (`glyphcensus.contradicts`, added in the same task).
+
+    The reason is REQUIRED. A refinement removed without one is
+    indistinguishable from a refinement that was never recorded, which is
+    the state this function exists to be able to tell apart.
+    """
+    if not str(reason or "").strip():
+        raise ValueError("withdraw_one needs a reason: a refinement removed "
+                         "without one cannot be told from one never recorded")
+    obj = doc.objects.get(obj_id)
+    if obj is None:
+        return None
+    props = getattr(obj, "props", None) or {}
+    had = props.get(REFINED_FIELD)
+    changes = [r for r in (getattr(obj, "realizations", None) or [])
+               if getattr(r, "provenance", None) == "change"
+               and (getattr(r, "props", None) or {}).get(REFINED_FIELD) is not None]
+    if had is None and not changes:
+        return None
+
+    evidence = []
+    for r in changes:
+        rp = dict(getattr(r, "props", None) or {})
+        evidence.append({k: rp.get(k) for k in
+                         ("latex_refined", "verified_by", "ink_before",
+                          "ink_after", "ink_delta", "basis", "author", "at")})
+    obj.realizations = [r for r in (obj.realizations or []) if r not in changes]
+    props.pop(REFINED_FIELD, None)
+    for extra in ("refined_verified_by", "refined_at", "refined_author"):
+        props.pop(extra, None)
+    return {"id": obj_id, "withdrawn": had, "evidence": evidence,
+            "reason": str(reason).strip(),
+            "original": props.get("latex")}
 
 
 def refinement_state(obj) -> dict:

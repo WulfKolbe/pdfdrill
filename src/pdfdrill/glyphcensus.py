@@ -229,8 +229,25 @@ def contradicts(latex: str, glyphs, *, own_region: bool,
     """
     if not own_region:
         return None
+    # ASCII alphanumerics ONLY, and this restriction is load-bearing. LaTeX
+    # spells Greek and most symbols as COMMANDS, not characters: a page whose
+    # glyphs are α β ϑ Π Σ is faithfully read as `\alpha \beta \vartheta
+    # \Pi \Sigma`, in which not one of those characters appears. Requiring
+    # the character rejects the correct reading.
+    #
+    # Measured on mielke EQ0378, which is why this is not a guess: over its
+    # real 72-glyph census the first version called 26 of 33 "literal" glyphs
+    # missing from the PROSE that had been wrongly accepted — correct — and
+    # also rejected MathPix's own legitimate reading, because α β ϑ Π Σ ∼ ±
+    # were counted as literals it lacked. A check that refuses the right
+    # answer is worse than no check.
+    #
+    # ASCII letters and digits are the population LaTeX does spell literally,
+    # so they are the only ones a reading is required to contain. Everything
+    # else is evidence for a reader, not a test.
     literal = [g.char for g in glyphs
-               if not g.unmapped and len(g.char) == 1 and g.char.isalnum()]
+               if not g.unmapped and len(g.char) == 1
+               and g.char.isascii() and g.char.isalnum()]
     if len(literal) < minimum:
         return None
     missing = [ch for ch in literal if ch not in latex]

@@ -140,3 +140,30 @@ def test_an_unmapped_glyph_is_never_required_to_appear():
 def test_own_region_has_no_default_so_declining_is_deliberate():
     with pytest.raises(TypeError):
         gc.contradicts("x", _census(ALNUM))
+
+
+# =====================================================================
+# 679 — measured against the real page, not against a fixture
+# =====================================================================
+
+def test_greek_and_symbols_are_never_required_to_appear_literally():
+    r"""THE regression this check nearly shipped with.
+
+    LaTeX spells Greek as commands: a page whose glyphs are α β ϑ Π Σ is
+    faithfully read as `\alpha \beta \vartheta \Pi \Sigma`, in which not one
+    of those characters appears. The first version counted them as literals
+    and rejected MathPix's own correct reading of mielke EQ0378 — while
+    correctly rejecting the prose. A check that refuses the right answer is
+    worse than no check.
+    """
+    greek = [_g(c, x=i * 5.0) for i, c in enumerate("αβϑΠΣ∼±")]
+    ascii_ = [_g(c, x=100.0 + i * 5.0) for i, c in enumerate("DR02")]
+    reading = r"\alpha \beta \vartheta \Pi \Sigma \sim \pm D R 0 2"
+    assert gc.contradicts(reading, greek + ascii_, own_region=True) is None
+
+
+def test_only_ascii_alphanumerics_count_as_required_literals():
+    """The population LaTeX does spell literally, and only that."""
+    glyphs = [_g(c, x=i * 5.0) for i, c in enumerate("ΠΣαβϑ∧∼±()")]
+    # nothing ASCII-alphanumeric at all -> no evidence to judge on
+    assert gc.contradicts("anything whatsoever", glyphs, own_region=True) is None
