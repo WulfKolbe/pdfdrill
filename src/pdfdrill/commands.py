@@ -8598,8 +8598,9 @@ def cmd_regionink(pdf: Path, force: bool = False) -> str:
     rep, man = d / "report.pdf", d / REGIONS_MANIFEST
     out = d / REGIONS_INK
     if not ri.inkdrill_available():
-        return ("regionink: inkdrill not found at $INKDRILL_HOME "
-                "(default ~/inkdrill). pdfdrill consumes inkdrill, it does not "
+        return ("regionink: inkdrill not found at $INKDRILL_ROOT "
+                "(default ~/inkdrill; $INKDRILL_HOME is a deprecated alias, "
+                "still honoured). pdfdrill consumes inkdrill, it does not "
                 "ship it.")
     if not rep.is_file():
         return f"regionink: no report.pdf — run `pdfdrill reporttex {pdf.name} --compile --render-regions` first."
@@ -8667,17 +8668,28 @@ def cmd_marks(pdf: Path, bibkey: str | None = None, key: str | None = None,
     `evidence-formula.tex` — that is `pdfdrill evidence`, declared as this
     command's own `requires:` in commands.yaml because inkdrill's own
     staleness check (`formulamarks.py`'s `_inputs()`) depends on that file
-    being current, even though this command never calls it — and it does
-    not draw the rectangles onto the evidence PDF either
+    (and the document's `<key>.lines.json`) being current, even though this
+    command never calls `cmd_evidence` in that path. `requires:` alone is
+    presence-only and does not itself run anything, so `inkmarks.run` also
+    checks both files exist BEFORE the subprocess starts
+    (`inkmarks._prereq_files`, 673 review fix round 1): inkdrill's own
+    `_inputs()` does not check for them and crashes with an uncaught
+    `FileNotFoundError` when either is missing, and a caller must see a
+    clean, typed refusal naming the missing file and its fix, never a
+    truncated stderr fragment of someone else's traceback. `cmd_marks` also
+    does not draw the rectangles onto the evidence PDF
     (`pdfdrill evidence --marks <path>`, unchanged since 672). `--build`
     closes the loop in one call for the common case: after writing
-    `marks.json` it calls `cmd_evidence(..., marks_path=...)` in-process
+    `marks.json` it calls `cmd_evidence(pdf, kind="formula", ...)` in-process
     (the per-document lock is re-entrant by the same process, `doclock.py`'s
     own rule, so this nests safely under one `pdfdrill marks --build`
-    invocation). The default leaves that decision, and its cost — a full
-    evidence PDF re-render and re-encode — to the caller: a caller who only
-    wants `reading_changed`/`suppressed` counts before deciding whether a
-    rebuild is worth it should not be made to pay for one.
+    invocation) — FORMULA ONLY, because marks only ever apply to Formula
+    rows (`reports.marks.apply` walks `rows["formula"]`); rebuilding
+    equation/table/image too would pay for three xelatex compiles that gain
+    nothing from `--marks`. The default leaves the decision to rebuild even
+    that one kind, and its cost, to the caller: a caller who only wants
+    `reading_changed`/`suppressed` counts before deciding whether a rebuild
+    is worth it should not be made to pay for one.
 
     A REFUSAL — inkdrill's own `refused` field on the document, or a key
     that cannot be resolved without guessing — RAISES (a typed exception,
@@ -8703,7 +8715,7 @@ def cmd_marks(pdf: Path, bibkey: str | None = None, key: str | None = None,
                 f"{mroot / resolved_key / 'work' / 'meta.json'}")
     else:
         resolved_key, matched_by = IM.resolve_key(pdf, site_key, marks_root=mroot)
-    doc = IM.run(pdf, resolved_key, marks_root=mroot, library=lib)
+    doc = IM.run(resolved_key, marks_root=mroot, library=lib)
     refused = doc.get("refused")
     if refused:
         note = doc_dir / "marks.json.REFUSED"
@@ -8743,8 +8755,13 @@ def cmd_marks(pdf: Path, bibkey: str | None = None, key: str | None = None,
             f"{v} {k}" for k, v in sorted(not_measured.items())))
     lines.append(f"  wrote {out_path.name}")
     if build:
+        # 673 review, finding 3 — marks only ever apply to Formula rows
+        # (`reports.marks.apply` walks `rows["formula"]`), so rebuilding
+        # all four evidence kinds here paid for three xelatex compiles
+        # that gain nothing from `--build`, undercutting the documented
+        # reason for defaulting it off. Formula only.
         lines.append("--build:")
-        lines.append(cmd_evidence(pdf, all_kinds=True, pdf_out=True,
+        lines.append(cmd_evidence(pdf, kind="formula", pdf_out=True,
                                   marks_path=out_path))
     return "\n".join(lines)
 

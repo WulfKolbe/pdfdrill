@@ -50,6 +50,7 @@ import os
 import re
 import struct
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -116,6 +117,15 @@ class InkUnavailable(RuntimeError):
     """inkdrill is not reachable — named, so a caller can say so plainly."""
 
 
+#: 673 fix round 1 — a source-comment deprecation is invisible to a user who
+#: never reads this file. One warning line per PROCESS (not per call — this
+#: can run inside a loop over the whole corpus) the first time INKDRILL_HOME
+#: is the ONLY variable set, so the deprecation is visible on stderr at the
+#: moment it actually applies, not just documented for whoever reads the
+#: source. Tests reset it via `monkeypatch.setattr(refine, "_WARNED_INKDRILL_HOME", False)`.
+_WARNED_INKDRILL_HOME = False
+
+
 def _env_inkdrill_home() -> "Path | None":
     """The checkout location as NAMED by the environment, unvalidated.
 
@@ -128,11 +138,20 @@ def _env_inkdrill_home() -> "Path | None":
     a third name — every reader of "where is inkdrill" goes through this
     one function.
     """
+    global _WARNED_INKDRILL_HOME
     root = os.environ.get("INKDRILL_ROOT", "").strip()
     if root:
         return Path(root)
     home = os.environ.get("INKDRILL_HOME", "").strip()
-    return Path(home) if home else None
+    if home:
+        if not _WARNED_INKDRILL_HOME:
+            print("pdfdrill: INKDRILL_HOME is a deprecated alias for "
+                  "INKDRILL_ROOT — set INKDRILL_ROOT instead (INKDRILL_HOME "
+                  "is still honoured, but will not be added to a third time).",
+                  file=sys.stderr)
+            _WARNED_INKDRILL_HOME = True
+        return Path(home)
+    return None
 
 
 def inkdrill_root() -> Path:

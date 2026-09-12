@@ -110,20 +110,53 @@ def resolve_key(pdf: Path, site_key: str, *,
     return key, label
 
 
-def run(pdf: Path, key: str, *, marks_root: Path = MARKS_ROOT,
+#: 673 review, finding 1 — the two files inkdrill's own `_inputs()` reads
+#: BEFORE doing anything else (`tools.formulafind.rows(doc/"evidence-
+#: formula.tex")`, then `hashlib.sha256((doc/f"{bib}.lines.json").read_bytes())`),
+#: mapped to the pdfdrill command that produces each. A document can have a
+#: finished `formulamarks.py run` (`has_run()` true) and still be missing
+#: either — the run measured against a build that has since had its
+#: evidence/model artifacts cleaned, say — and formulamarks.py does not
+#: check for them itself: it crashes with an uncaught FileNotFoundError,
+#: stdout empty, stderr a raw Python traceback. Checked here so that
+#: reachable failure is a clean, typed refusal naming the missing file and
+#: its fix, not a truncated stderr fragment.
+def _prereq_files(key: str) -> dict[str, str]:
+    return {
+        "evidence-formula.tex":
+            "pdfdrill evidence <pdf> --kind formula (or --all-kinds) --pdf",
+        f"{key}.lines.json": "pdfdrill model <pdf>",
+    }
+
+
+def run(key: str, *, marks_root: Path = MARKS_ROOT,
        library: Path = LIBRARY, timeout: float = 120.0) -> dict:
     """Run inkdrill's `tools/formulamarks.py marks <key>` and return the
     parsed JSON — stdout only, parsed before anything is written to disk.
 
     Raises InkUnavailable when inkdrill (or its formulamarks.py tool) is
-    not there at all; MarksRefused when the subprocess produced no
-    parseable JSON on stdout. Neither is a traceback and neither is a
-    silent skip — both are typed and name what was tried.
+    not there at all; MarksRefused when either of the two files inkdrill's
+    own `_inputs()` reads before doing anything else is missing from
+    `library/key` (see `_prereq_files` — checked here, BEFORE the
+    subprocess even starts, because inkdrill does not check for them
+    itself and crashes with an uncaught FileNotFoundError instead), or
+    when the subprocess produced no parseable JSON on stdout. None of
+    these is a traceback and none is a silent skip — all three are typed
+    and name what was tried or what is missing.
     """
     root = inkdrill_root()
     tool = root / TOOL
     if not tool.is_file():
         raise InkUnavailable(f"inkdrill's {TOOL} not found at {tool}")
+    doc = library / key
+    missing = [(name, fix) for name, fix in _prereq_files(key).items()
+              if not (doc / name).is_file()]
+    if missing:
+        detail = "; ".join(f"{name!r} (run `{fix}`)" for name, fix in missing)
+        raise MarksRefused(
+            f"{doc} is missing what inkdrill's formulamarks.py marks reads "
+            f"before doing anything else — it would crash with an uncaught "
+            f"FileNotFoundError rather than a clean refusal: {detail}")
     work = marks_root / key / "work"
     cmd = ["python3", str(tool), "marks", key,
           "--library", str(library), "--work", str(work)]

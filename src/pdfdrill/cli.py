@@ -2117,7 +2117,8 @@ def _do_marks(args):
     marks.json beside the document. --key bypasses the folder-name/
     bibkey resolution (use it when both match and disagree — this
     refuses rather than guess); --build also draws the marks onto the
-    evidence PDF (`pdfdrill evidence --marks`) in the same call."""
+    evidence PDF's formula kind only (`pdfdrill evidence --kind formula
+    --marks`) in the same call."""
     from .commands import cmd_marks
     bibkey, args = _opt(args, "--bibkey")
     key, args = _opt(args, "--key")

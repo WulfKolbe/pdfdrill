@@ -3131,7 +3131,8 @@ commands:
     The key inkdrill actually uses is the LIBRARY FOLDER NAME, tried before pdfdrill''s own bibkey/site
     slug (they differ for every Z-Library book) — the report always says which one matched, and refuses
     rather than guessing when both resolve and disagree. Stops at the marks file by default; --build
-    also draws the marks onto the evidence PDF in the same call.'
+    also draws the marks onto the evidence PDF''s FORMULA kind only (marks never apply to the other
+    three) in the same call.'
   offline_ok: true
   requires:
   - evidence
@@ -3155,8 +3156,8 @@ commands:
   - name: build
     flag: --build
     type: flag
-    help: after writing marks.json, also run `pdfdrill evidence --all-kinds --pdf --marks marks.json`
-      in the same call
+    help: after writing marks.json, also run `pdfdrill evidence --kind formula --pdf --marks
+      marks.json` in the same call (formula kind only — marks never apply to the other three)
   - name: marks_root
     flag: --marks-root
     type: str

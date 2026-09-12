@@ -244,3 +244,125 @@ CONCERNS
    usage message rather than building anything, a pre-existing property
    of `cmd_evidence`'s own argument handling that this task did not
    change.
+
+===============================================================================
+FIX ROUND 1 (review) — two blocking findings, both confirmed on the real
+tools/real subprocess before fixing, both fixed; three minor findings,
+all fixed
+===============================================================================
+
+Reviewed: task-673-review.md, against commit `3e600e37`. Both 2026-09-11
+defect fixes and the key/refusal/reading_changed/--build-locking behaviour
+were independently reproduced by the reviewer and confirmed correct —
+untouched this round. Two BLOCKING findings and three MINOR findings, all
+five addressed.
+
+FINDING 1 (blocking) — a document with a finished run but no
+evidence-formula.tex crashed the real peer tool with a raw traceback
+-------------------------------------------------------------------------
+Reproduced independently before fixing (HANDOVER-RULES rule 19): ran
+`IM.run("k", ...)` against a scratch `library/k/` holding only
+`k.lines.json`, no `evidence-formula.tex`, pointed at the REAL
+`~/inkdrill/tools/formulamarks.py` — stdout empty, rc 1, stderr a full
+Python traceback ending `FileNotFoundError: ... evidence-formula.tex`.
+`inkmarks.run()`'s "no stdout" branch then embedded the last 500 raw
+characters of that traceback in a `MarksRefused` message — exactly what
+the review reported, and exactly HANDOVER-RULES rule 22's shape
+(`requires: [evidence]` NAMES the dependency in commands.yaml; nothing on
+the code path actually CHECKED it).
+
+FIX: `inkmarks._prereq_files(key)` — the two files inkdrill's own
+`_inputs()` reads before doing anything else
+(`tools.formulafind.rows(doc/"evidence-formula.tex")`, then
+`hashlib.sha256((doc/f"{key}.lines.json").read_bytes())`) — checked by
+`inkmarks.run()` BEFORE the subprocess starts. Missing either now raises
+`MarksRefused` naming the missing file and the exact pdfdrill command
+that produces it (`pdfdrill evidence <pdf> --kind formula ... --pdf` /
+`pdfdrill model <pdf>`), never a stderr fragment. `cmd_marks`'s own
+docstring corrected — it previously said this command "never calls"
+`evidence` as if that meant the dependency was unchecked; it is now
+explicit that `requires:` alone is presence-only and the check that makes
+it real lives in `inkmarks.run`.
+
+Verified against the REAL tool again after the fix (same scratch setup):
+`inkmarks.run` now refuses BEFORE the subprocess starts (a spy on
+`subprocess.run` that raises if called never fires) with a clean message
+naming `evidence-formula.tex` and the fix command, no "Traceback"/`File
+"..."` substring anywhere in it
+(`tests/test_inkmarks.py::test_run_refuses_cleanly_against_the_real_inkdrill_tool_when_available`,
+skipped only on a machine with no real inkdrill checkout — it ran, and
+passed, on this one). A second test covers the `k.lines.json`-missing
+case the same way, mocked (no real-tool dependency needed for that half).
+
+FINDING 2 (blocking) — the INKDRILL_HOME deprecation was invisible, and
+the OTHER inkdrill-not-found message still named the deprecated variable
+-------------------------------------------------------------------------
+Reproduced: running with only INKDRILL_HOME set printed nothing to
+stderr before this fix — the "deprecated alias" framing existed only in
+source comments. Separately, `cmd_regionink`'s own inkdrill-not-found
+message (`commands.py:8601`, untouched by round 0) told a user to set
+`$INKDRILL_HOME` — the very name this task deprecated — with no
+indication it was an alias.
+
+FIX: `refine._env_inkdrill_home()` now prints one line to stderr, ONCE
+PER PROCESS (`_WARNED_INKDRILL_HOME`, so a corpus-wide loop over many
+documents does not spam it once per document), the first time
+INKDRILL_HOME is the only variable set: "INKDRILL_HOME is a deprecated
+alias for INKDRILL_ROOT — set INKDRILL_ROOT instead...". `cmd_regionink`'s
+message now says `$INKDRILL_ROOT` (default ~/inkdrill; $INKDRILL_HOME
+noted as a deprecated alias, still honoured).
+
+Verified live, real subprocess, real stderr, no monkeypatched
+os.environ: INKDRILL_HOME alone -> the warning, naming both variables;
+INKDRILL_ROOT set (with or without HOME) -> no warning; one-shot
+confirmed by capturing two consecutive calls into separate buffers, the
+second empty.
+
+FINDING 3 (minor) — `--build` rebuilt all four evidence kinds
+-------------------------------------------------------------------------
+Marks only ever apply to Formula rows (`reports.marks.apply` walks
+`rows["formula"]`); rebuilding equation/table/image too paid for three
+xelatex compiles that gain nothing from `--marks`, undercutting the
+documented reason for defaulting `--build` off. FIX: `cmd_evidence(pdf,
+kind="formula", pdf_out=True, marks_path=out_path)` — formula kind only.
+Test updated to assert `kind == "formula"` and `all_kinds is False`
+rather than the old (wrong) `all_kinds is True`.
+
+FINDING 4 (minor) — dead `pdf` parameter on `inkmarks.run()`
+-------------------------------------------------------------------------
+Removed. `run(key, *, marks_root, library, timeout)` — every call site
+(`cmd_marks`, tests) updated; nothing needed it, confirmed by grep over
+the function body before removing it.
+
+FINDING 5 (minor) — the locked-handler test only string-matched the
+decorator
+-------------------------------------------------------------------------
+Replaced `test_cmd_marks_is_a_locked_handler` (asserted
+`'@_writes("marks")\ndef cmd_marks'` appears in `inspect.getsource`) with
+`test_cmd_marks_refuses_when_another_process_holds_the_document`: writes
+a real O_EXCL-shaped lock file (our own pid — `doclock._alive()` checks
+liveness, not identity, so this genuinely exercises the busy path) before
+`cmd_marks` runs, and asserts `doclock.DocumentBusy` is raised BEFORE any
+of `cmd_marks`'s own body executes (`inkmarks.resolve_key`/`run` are
+monkeypatched to raise `AssertionError` if reached at all) and that no
+`marks.json` is written.
+
+FINDING 6 (self-disclosed, no code change) — noted in round 0's own
+CONCERNS §1; the review confirms it for completeness, not as a new
+defect.
+
+TESTS (this round)
+-------------------------------------------------------------------------
+7 new tests, 1 test rewritten (locked-handler → real lock behaviour), all
+`inkmarks.run` call sites/monkeypatches updated for the dropped `pdf`
+parameter. tests/test_inkmarks.py: 30 tests (was 23).
+
+Full suite, base commit `9e2dee1c`: 3641 passed. Round 0: 3664 passed.
+This round: 3671 passed, 0 failed — delta +30 over base, exactly the
+current test count in tests/test_inkmarks.py; nothing else moved.
+
+Re-verified for real, both documents, after all fixes (no corpus rebuild,
+no site touch, no MathPix): rph8-g15q and gilmore-lie-groups reproduce
+the IDENTICAL counts as round 0 (489/489/96 and 3473/3353/577) — the
+prerequisite check passes silently for a complete, already-published
+document, exactly as it should.

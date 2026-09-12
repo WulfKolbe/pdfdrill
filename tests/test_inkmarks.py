@@ -55,6 +55,18 @@ def _stamp_run(marks_root, key):
     (work / "meta.json").write_text("{}", encoding="utf-8")
 
 
+def _stamp_prereqs(library, key):
+    """The two files `inkmarks.run` requires to exist under `library/key`
+    before it will even start the subprocess (673 review, finding 1) —
+    the same two files inkdrill's own `_inputs()` reads first and crashes
+    on if either is missing."""
+    doc = library / key
+    doc.mkdir(parents=True, exist_ok=True)
+    (doc / "evidence-formula.tex").write_text("", encoding="utf-8")
+    (doc / f"{key}.lines.json").write_text("{}", encoding="utf-8")
+    return doc
+
+
 def test_resolve_key_uses_the_folder_name_when_only_it_has_a_run(tmp_path):
     """673's regression for the second defect: on 2026-09-11, resolving by
     the site slug ALONE found nothing for a book because the run lives
@@ -144,8 +156,9 @@ def test_stderr_progress_never_corrupts_the_parsed_json(monkeypatch, tmp_path):
     21 marks files."""
     root = _fake_inkdrill_root(tmp_path, key="mykey")
     monkeypatch.setattr(IM, "inkdrill_root", lambda: root)
-    doc = IM.run(tmp_path / "x.pdf", "mykey",
-                marks_root=tmp_path / "mr", library=tmp_path / "lib")
+    library = tmp_path / "lib"
+    _stamp_prereqs(library, "mykey")
+    doc = IM.run("mykey", marks_root=tmp_path / "mr", library=library)
     assert doc == {"bibkey": "mykey", "refused": None,
                    "counts": {"evidence_rows": 1, "measured": 1,
                               "marked": 1, "reading_changed": 0}}
@@ -156,6 +169,8 @@ def test_run_captures_stdout_and_stderr_separately(monkeypatch, tmp_path):
     buffers) and stderr must never be redirected onto stdout."""
     root = _fake_inkdrill_root(tmp_path, key="k")
     monkeypatch.setattr(IM, "inkdrill_root", lambda: root)
+    library = tmp_path / "lib"
+    _stamp_prereqs(library, "k")
     calls = {}
     real_run = subprocess.run
 
@@ -164,8 +179,7 @@ def test_run_captures_stdout_and_stderr_separately(monkeypatch, tmp_path):
         return real_run(cmd, **kw)
 
     monkeypatch.setattr(subprocess, "run", spy)
-    IM.run(tmp_path / "x.pdf", "k", marks_root=tmp_path / "mr",
-          library=tmp_path / "lib")
+    IM.run("k", marks_root=tmp_path / "mr", library=library)
     assert calls.get("capture_output") is True
     assert calls.get("stderr") != subprocess.STDOUT
     assert "stdout" not in calls           # capture_output, not stdout=PIPE by hand
@@ -178,9 +192,10 @@ def test_run_refuses_on_no_stdout(monkeypatch, tmp_path):
         "import sys\nprint('nothing useful', file=sys.stderr)\n",
         encoding="utf-8")
     monkeypatch.setattr(IM, "inkdrill_root", lambda: root)
+    library = tmp_path / "lib"
+    _stamp_prereqs(library, "k")
     with pytest.raises(IM.MarksRefused, match="no stdout"):
-        IM.run(tmp_path / "x.pdf", "k", marks_root=tmp_path / "mr",
-              library=tmp_path / "lib")
+        IM.run("k", marks_root=tmp_path / "mr", library=library)
 
 
 def test_run_refuses_on_unparseable_stdout(monkeypatch, tmp_path):
@@ -192,9 +207,10 @@ def test_run_refuses_on_unparseable_stdout(monkeypatch, tmp_path):
         "print('inkdrill: measuring...')\nprint('{\"bibkey\": \"k\"}')\n",
         encoding="utf-8")
     monkeypatch.setattr(IM, "inkdrill_root", lambda: root)
+    library = tmp_path / "lib"
+    _stamp_prereqs(library, "k")
     with pytest.raises(IM.MarksRefused, match="not one JSON document"):
-        IM.run(tmp_path / "x.pdf", "k", marks_root=tmp_path / "mr",
-              library=tmp_path / "lib")
+        IM.run("k", marks_root=tmp_path / "mr", library=library)
 
 
 def test_run_raises_ink_unavailable_when_tool_missing(monkeypatch, tmp_path):
@@ -202,8 +218,7 @@ def test_run_raises_ink_unavailable_when_tool_missing(monkeypatch, tmp_path):
     root.mkdir()
     monkeypatch.setattr(IM, "inkdrill_root", lambda: root)
     with pytest.raises(InkUnavailable, match="formulamarks.py"):
-        IM.run(tmp_path / "x.pdf", "k", marks_root=tmp_path / "mr",
-              library=tmp_path / "lib")
+        IM.run("k", marks_root=tmp_path / "mr", library=tmp_path / "lib")
 
 
 def test_run_propagates_ink_unavailable_when_inkdrill_absent(monkeypatch, tmp_path):
@@ -211,8 +226,89 @@ def test_run_propagates_ink_unavailable_when_inkdrill_absent(monkeypatch, tmp_pa
         raise InkUnavailable("inkdrill not found (tried: ~/inkdrill)")
     monkeypatch.setattr(IM, "inkdrill_root", boom)
     with pytest.raises(InkUnavailable, match="tried"):
-        IM.run(tmp_path / "x.pdf", "k", marks_root=tmp_path / "mr",
-              library=tmp_path / "lib")
+        IM.run("k", marks_root=tmp_path / "mr", library=tmp_path / "lib")
+
+
+# --------------------------------------------------------------------- #
+# run() prerequisite check — 673 review, finding 1: a document with a
+# finished run but no evidence-formula.tex/lines.json must refuse
+# cleanly, never crash the real peer tool with an uncaught traceback
+# --------------------------------------------------------------------- #
+
+def test_run_refuses_cleanly_when_evidence_formula_tex_is_missing(
+        monkeypatch, tmp_path):
+    """Reproduces finding 1's exact shape: `has_run()` true, but the
+    document has no evidence-formula.tex. Without the fix, this reaches
+    the real `formulamarks.py`, which crashes with an uncaught
+    FileNotFoundError inside its own `_inputs()`/`rows()` — stdout empty,
+    stderr a raw traceback. The fix must catch this BEFORE the subprocess
+    starts and never let a stack-trace fragment become the error."""
+    root = _fake_inkdrill_root(tmp_path, key="k")
+    monkeypatch.setattr(IM, "inkdrill_root", lambda: root)
+    library = tmp_path / "lib"
+    doc = library / "k"
+    doc.mkdir(parents=True)
+    (doc / "k.lines.json").write_text("{}", encoding="utf-8")
+    # evidence-formula.tex deliberately absent.
+
+    def boom(*a, **kw):
+        raise AssertionError("the real/fake tool must never be invoked "
+                             "when a prerequisite is missing")
+    monkeypatch.setattr(subprocess, "run", boom)
+
+    with pytest.raises(IM.MarksRefused) as e:
+        IM.run("k", marks_root=tmp_path / "mr", library=library)
+    msg = str(e.value)
+    assert "evidence-formula.tex" in msg
+    assert "pdfdrill evidence" in msg
+    assert "Traceback" not in msg and "File \"" not in msg
+
+
+def test_run_refuses_cleanly_when_lines_json_is_missing(monkeypatch, tmp_path):
+    root = _fake_inkdrill_root(tmp_path, key="k")
+    monkeypatch.setattr(IM, "inkdrill_root", lambda: root)
+    library = tmp_path / "lib"
+    doc = library / "k"
+    doc.mkdir(parents=True)
+    (doc / "evidence-formula.tex").write_text("", encoding="utf-8")
+    # k.lines.json deliberately absent.
+
+    def boom(*a, **kw):
+        raise AssertionError("the real/fake tool must never be invoked "
+                             "when a prerequisite is missing")
+    monkeypatch.setattr(subprocess, "run", boom)
+
+    with pytest.raises(IM.MarksRefused) as e:
+        IM.run("k", marks_root=tmp_path / "mr", library=library)
+    msg = str(e.value)
+    assert "k.lines.json" in msg
+    assert "pdfdrill model" in msg
+
+
+def test_run_refuses_cleanly_against_the_real_inkdrill_tool_when_available(
+        tmp_path):
+    """673 review's own reproduction, re-run here against the REAL
+    `~/inkdrill/tools/formulamarks.py` when it is actually installed on
+    this machine (skipped otherwise — this is a machine-dependent extra
+    check, not the primary regression test above, which needs no real
+    inkdrill checkout)."""
+    try:
+        root = RF.inkdrill_root()
+    except InkUnavailable:
+        pytest.skip("no real inkdrill checkout on this machine")
+    tool = root / IM.TOOL
+    if not tool.is_file():
+        pytest.skip("real inkdrill checkout has no tools/formulamarks.py")
+    library = tmp_path / "lib"
+    doc = library / "k"
+    doc.mkdir(parents=True)
+    (doc / "k.lines.json").write_text("{}", encoding="utf-8")
+    # evidence-formula.tex deliberately absent — the real tool would crash.
+    with pytest.raises(IM.MarksRefused) as e:
+        IM.run("k", marks_root=tmp_path / "mr", library=library)
+    msg = str(e.value)
+    assert "evidence-formula.tex" in msg
+    assert "Traceback" not in msg
 
 
 # --------------------------------------------------------------------- #
@@ -263,6 +359,69 @@ def test_regionink_and_refine_agree_on_env_precedence(tmp_path):
     assert lines == [str(root), str(root)], (lines, r.stderr)
 
 
+def test_inkdrill_home_alone_prints_a_visible_deprecation_warning(tmp_path):
+    """673 review, finding 2 — the brief required the deprecation be
+    VISIBLE to a user still setting INKDRILL_HOME alone; a source comment
+    is not visible at runtime. Verified via a real subprocess and real
+    stderr (matching how the reviewer verified its absence), not a
+    monkeypatched os.environ that could hide a real import-time issue."""
+    home = _checkout(tmp_path / "home_checkout")
+    code = "from pdfdrill import refine\nrefine.inkdrill_root()\n"
+    env = dict(os.environ, INKDRILL_HOME=str(home))
+    env.pop("INKDRILL_ROOT", None)
+    env["PYTHONPATH"] = str(ROOT / "src")
+    r = subprocess.run([sys.executable, "-c", code], capture_output=True,
+                       text=True, timeout=30, env=env)
+    assert r.returncode == 0, r.stderr
+    assert "INKDRILL_HOME" in r.stderr
+    assert "deprecated" in r.stderr.lower()
+    assert "INKDRILL_ROOT" in r.stderr, (
+        "the message must name the CANONICAL variable, not just flag the "
+        "old one")
+
+
+def test_inkdrill_root_set_prints_no_deprecation_warning(tmp_path):
+    """No warning when the canonical variable is set — HOME being also
+    set (or not) does not matter once ROOT wins."""
+    root = _checkout(tmp_path / "root_checkout")
+    home = _checkout(tmp_path / "home_checkout")
+    code = "from pdfdrill import refine\nrefine.inkdrill_root()\n"
+    env = dict(os.environ, INKDRILL_ROOT=str(root), INKDRILL_HOME=str(home))
+    env["PYTHONPATH"] = str(ROOT / "src")
+    r = subprocess.run([sys.executable, "-c", code], capture_output=True,
+                       text=True, timeout=30, env=env)
+    assert r.returncode == 0, r.stderr
+    assert "deprecated" not in r.stderr.lower()
+
+
+def test_deprecation_warning_is_one_shot_per_process(monkeypatch, tmp_path):
+    """Warns once, not on every call — this can run inside a loop over
+    the whole corpus and must not spam stderr per document."""
+    import io
+    home = _checkout(tmp_path / "home_checkout")
+    monkeypatch.delenv("INKDRILL_ROOT", raising=False)
+    monkeypatch.setenv("INKDRILL_HOME", str(home))
+    monkeypatch.setattr(RF, "_WARNED_INKDRILL_HOME", False)
+    buf1, buf2 = io.StringIO(), io.StringIO()
+    monkeypatch.setattr(sys, "stderr", buf1)
+    RF._env_inkdrill_home()
+    monkeypatch.setattr(sys, "stderr", buf2)
+    RF._env_inkdrill_home()
+    assert "deprecated" in buf1.getvalue().lower()
+    assert buf2.getvalue() == ""
+
+
+def test_regionink_not_found_message_names_the_canonical_var(monkeypatch, tmp_path):
+    """673 review, finding 2 — `cmd_regionink`'s inkdrill-not-found message
+    used to tell a confused user to set $INKDRILL_HOME, the variable this
+    task just deprecated. It must point at $INKDRILL_ROOT instead."""
+    pdf = _fake_doc(tmp_path)
+    monkeypatch.setattr(RI, "inkdrill_available", lambda: False)
+    msg = C.cmd_regionink(pdf)
+    assert "$INKDRILL_ROOT" in msg
+    assert "deprecated" in msg
+
+
 # --------------------------------------------------------------------- #
 # cmd_marks — writes beside the document, surfaces reading_changed,
 # never reports a refusal as success
@@ -284,7 +443,7 @@ def test_cmd_marks_writes_marks_json_beside_the_document(monkeypatch, tmp_path):
     monkeypatch.setattr(IM, "resolve_key",
                         lambda pdf, site_key, marks_root: ("somedoc",
                                                            "library folder name"))
-    monkeypatch.setattr(IM, "run", lambda pdf, key, marks_root, library: payload)
+    monkeypatch.setattr(IM, "run", lambda key, marks_root, library: payload)
     out = C.cmd_marks(pdf)
     assert "somedoc" in out
     assert "library folder name" in out
@@ -300,7 +459,7 @@ def test_cmd_marks_surfaces_reading_changed_prominently(monkeypatch, tmp_path):
                           "reading_changed": 3}}
     monkeypatch.setattr(IM, "resolve_key",
                         lambda pdf, site_key, marks_root: ("somedoc", "x"))
-    monkeypatch.setattr(IM, "run", lambda pdf, key, marks_root, library: payload)
+    monkeypatch.setattr(IM, "run", lambda key, marks_root, library: payload)
     out = C.cmd_marks(pdf)
     assert "reading_changed: 3" in out
 
@@ -312,7 +471,7 @@ def test_cmd_marks_refusal_is_never_reported_as_success(monkeypatch, tmp_path):
                "counts": {}}
     monkeypatch.setattr(IM, "resolve_key",
                         lambda pdf, site_key, marks_root: ("somedoc", "x"))
-    monkeypatch.setattr(IM, "run", lambda pdf, key, marks_root, library: payload)
+    monkeypatch.setattr(IM, "run", lambda key, marks_root, library: payload)
     with pytest.raises(IM.MarksRefused, match="stale"):
         C.cmd_marks(pdf)
     assert not (pdf.parent / "marks.json").exists()
@@ -336,35 +495,63 @@ def test_cmd_marks_explicit_key_used_when_a_run_exists(monkeypatch, tmp_path):
     payload = {"bibkey": "explicit-key", "refused": None,
                "counts": {"evidence_rows": 1, "measured": 1, "marked": 0,
                          "reading_changed": 0}}
-    monkeypatch.setattr(IM, "run", lambda pdf, key, marks_root, library: payload)
+    monkeypatch.setattr(IM, "run", lambda key, marks_root, library: payload)
     out = C.cmd_marks(pdf, key="explicit-key", marks_root=mroot)
     assert "explicit-key" in out
     assert "--key (explicit)" in out
 
 
-def test_cmd_marks_is_a_locked_handler():
-    """297 — one writer per document. A second concurrent `pdfdrill marks`
-    on the same PDF must refuse, not interleave its write of marks.json
-    with another process's."""
-    import inspect
-    mod_src = inspect.getsource(C)
-    assert '@_writes("marks")\ndef cmd_marks' in mod_src
+def test_cmd_marks_refuses_when_another_process_holds_the_document(
+        monkeypatch, tmp_path):
+    """297 — one writer per document, exercised BEHAVIORALLY (673 review,
+    finding 5: a source-text match on the decorator proves nothing about
+    locking actually working). A real O_EXCL lock file, written exactly
+    the way `doclock._acquire` writes one, with a pid that is genuinely
+    alive on this host (our own — `_alive()` only checks liveness, not
+    identity), must make `cmd_marks` refuse rather than interleave its
+    write of marks.json with the "other" writer's — no mocking of
+    `inkmarks` needed, because `@_writes("marks")` must refuse before any
+    of `cmd_marks`'s own body (key resolution, `inkmarks.run`) ever runs."""
+    import socket
+    from pdfdrill import doclock as L
+    pdf = _fake_doc(tmp_path)
+
+    def boom(*a, **kw):
+        raise AssertionError("cmd_marks's body ran despite another writer "
+                             "holding the document — the lock did not hold")
+    monkeypatch.setattr(IM, "resolve_key", boom)
+    monkeypatch.setattr(IM, "run", boom)
+
+    lock = L.lock_path(pdf)
+    lock.write_text(json.dumps({
+        "pid": os.getpid(), "host": socket.gethostname(), "op": "evidence",
+        "started": "2026-01-01T00:00:00Z", "argv": "pdfdrill evidence x",
+    }), encoding="utf-8")
+    try:
+        with pytest.raises(L.DocumentBusy, match="evidence"):
+            C.cmd_marks(pdf)
+    finally:
+        lock.unlink(missing_ok=True)
+    assert not (pdf.parent / "marks.json").exists()
 
 
 def test_cmd_marks_build_flag_calls_evidence_with_the_written_marks_path(
         monkeypatch, tmp_path):
+    """673 review, finding 3 — marks only ever apply to Formula rows, so
+    `--build` must rebuild the formula kind ONLY, not all four."""
     pdf = _fake_doc(tmp_path)
     payload = {"bibkey": "somedoc", "refused": None,
                "counts": {"evidence_rows": 1, "measured": 1, "marked": 1,
                          "reading_changed": 0}}
     monkeypatch.setattr(IM, "resolve_key",
                         lambda pdf, site_key, marks_root: ("somedoc", "x"))
-    monkeypatch.setattr(IM, "run", lambda pdf, key, marks_root, library: payload)
+    monkeypatch.setattr(IM, "run", lambda key, marks_root, library: payload)
     seen = {}
 
-    def fake_evidence(pdf, all_kinds=False, pdf_out=False, marks_path=None,
-                      **kw):
+    def fake_evidence(pdf, kind=None, all_kinds=False, pdf_out=False,
+                      marks_path=None, **kw):
         seen["marks_path"] = marks_path
+        seen["kind"] = kind
         seen["all_kinds"] = all_kinds
         seen["pdf_out"] = pdf_out
         return "evidence: ok"
@@ -372,7 +559,11 @@ def test_cmd_marks_build_flag_calls_evidence_with_the_written_marks_path(
     monkeypatch.setattr(C, "cmd_evidence", fake_evidence)
     out = C.cmd_marks(pdf, build=True)
     assert seen["marks_path"] == pdf.parent / "marks.json"
-    assert seen["all_kinds"] is True and seen["pdf_out"] is True
+    assert seen["kind"] == "formula"
+    assert seen["all_kinds"] is False, (
+        "--build rebuilt ALL evidence kinds; marks only ever apply to "
+        "Formula rows, so only the formula kind should be rebuilt")
+    assert seen["pdf_out"] is True
     assert "evidence: ok" in out
 
 
@@ -384,7 +575,7 @@ def test_cmd_marks_default_does_not_touch_evidence(monkeypatch, tmp_path):
                          "reading_changed": 0}}
     monkeypatch.setattr(IM, "resolve_key",
                         lambda pdf, site_key, marks_root: ("somedoc", "x"))
-    monkeypatch.setattr(IM, "run", lambda pdf, key, marks_root, library: payload)
+    monkeypatch.setattr(IM, "run", lambda key, marks_root, library: payload)
 
     def boom(*a, **kw):
         raise AssertionError("cmd_evidence must not run without --build")
