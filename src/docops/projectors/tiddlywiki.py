@@ -28,6 +28,7 @@ from datetime import datetime, timezone
 from typing import NamedTuple, Optional
 
 from docmodel.core import Document, DocObject
+from docmodel import line_types
 from ..base import BaseProjector
 from .. import citation_spans as _cspans
 from .common import embed_image, is_derived
@@ -1320,16 +1321,31 @@ class TiddlyWikiProjector(BaseProjector):
         """
         subs_by_line: dict = defaultdict(list)
 
+        # A Formula occurring on a table cell, a section heading, a title, a
+        # TOC entry or a figure label is NOT a transclusion site --- see
+        # docmodel/line_types.py. `FormulaProcessor` stopped creating those
+        # objects, but a model built before that change still carries them,
+        # and this projection is what a reader sees; refusing the
+        # SUBSTITUTION here keeps an old model's prose correct without a
+        # corpus-wide rebuild. Per OCCURRENCE, not per object: the same
+        # LaTeX de-duplicates to one Formula, so a reading that appears in
+        # both a cell and a sentence keeps its sentence.
         for f in inv["formulas"]:
             replacement = "{{" + title[f.id] + "||FO}}"
             for r in f.realizations:
-                if (r.stream == "mathpix_lines" and r.role == "surface"
-                        and r.start is not None):
-                    off = r.props.get("offset")
-                    ln = r.props.get("length")
-                    if isinstance(off, int) and isinstance(ln, int):
-                        subs_by_line[r.start].append((off, ln, replacement))
-                        self.bump("formula_inline_subs")
+                if (r.stream != "mathpix_lines" or r.role != "surface"
+                        or r.start is None):
+                    continue
+                forbidden = line_types.family(
+                    line_types.line_type_at(doc, r.start))
+                if forbidden:
+                    self.bump("formula_subs_refused_%s" % forbidden)
+                    continue
+                off = r.props.get("offset")
+                ln = r.props.get("length")
+                if isinstance(off, int) and isinstance(ln, int):
+                    subs_by_line[r.start].append((off, ln, replacement))
+                    self.bump("formula_inline_subs")
 
         # 645 — CITATIONS ARE SUBSTITUTED BY GROUP, not one at a time.
         # A citation group (`[a, b]`, `(Smith 1999; Jones 2001)`) is several
@@ -2015,8 +2031,20 @@ class TiddlyWikiProjector(BaseProjector):
         joined = self._substitute_inline_pictures(joined, inline_url_to_title)
         # Final catch-all: cross-line inline math that escaped the per-line
         # offset substitution above. These become synthetic FOX tiddlers.
-        joined = self._substitute_residual_inline_math(
-            joined, synthetic_formulas, bibkey)
+        #
+        # NOT on a paragraph built entirely from lines that may not host a
+        # formula (docmodel/line_types.py). `ParagraphProcessor` admits
+        # `title` as prose, so a title line carrying `\(x^2\)` becomes a
+        # Paragraph; refusing only the OFFSET substitution left this pass to
+        # find the same raw delimiters and mint a synthetic FOX for them,
+        # putting the forbidden transclusion back under a different name.
+        # A MIXED paragraph keeps the pass: its prose lines are prose.
+        if any(line_types.hosts_transclusion(
+                stream.payload[a].get("type")) for a in anchors):
+            joined = self._substitute_residual_inline_math(
+                joined, synthetic_formulas, bibkey)
+        else:
+            self.bump("residual_math_refused_non_prose")
         joined = self._substitute_eq_refs(joined)
         # Convert any leaked LaTeX sectioning command (\section*{...}) to a
         # native WikiText heading — done last so it doesn't disturb the

@@ -17,6 +17,7 @@ from typing import Any, Optional
 
 from ..base_module import BaseModule
 from ..core import Document, DocObject, Realization
+from ..line_types import NO_TRANSCLUDE, family
 
 
 # Longest patterns first so $$..$$ is not mistaken as $..$.
@@ -72,6 +73,17 @@ class FormulaProcessor(BaseModule):
             ltype = payload.get("type")
             # Skip display equations (handled by EquationProcessor).
             if ltype in ("equation", "math"):   # 249: visionocr emits "equation"
+                continue
+            # A table cell, a section heading, a title, a TOC entry and a
+            # figure label are not sentences, so math occurring on them is
+            # not an inline formula and has no transclusion site. The
+            # object that owns the line already carries that math whole (a
+            # Table's `mathpix_text`, a Section's `caption`), so a Formula
+            # built here is a duplicate no prose names --- 381,597 of the
+            # corpus's 1,315,050 non-equation inline-math occurrences, 29.0%.
+            # See docmodel/line_types.py for the set and the measurement.
+            if ltype in NO_TRANSCLUDE:
+                self.bump("formula_lines_skipped_%s" % family(ltype))
                 continue
             text = payload.get("text_display") or payload.get("text") or ""
             if not text:

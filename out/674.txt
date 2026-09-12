@@ -1,0 +1,149 @@
+674 — math on a table cell, a heading, a title, a TOC entry or a figure
+      label is never a transclusion
+
+THE REQUIREMENT, in the words it was given in
+---------------------------------------------
+"transclusion of math expression is not performed on any kind of table,
+section heading, titles, toc entries, figure and image labels" — and the
+reason: "this was the reason for the subtractive approach".
+
+WHAT WAS WRONG
+--------------
+`FormulaProcessor.find_items` skipped exactly two MathPix line types,
+`equation` and `math` (the display-equation handoff). Every other type was
+mined for inline `$...$` / `\( ... \)` — including the 17 types that make up
+the five forbidden families. Nothing downstream branched on the host line's
+type: `reports/from_document.py:98` read `line_type` into `HostLine` and
+never looked at it again.
+
+Measured over the 1,367-document library (inline-math occurrences on lines
+that are not `equation`/`math`, footnote markers excluded):
+
+    total occurrences                 1,315,050
+    on a forbidden line                 381,597   29.0%
+      table family                      376,418
+      figure_label                        2,382
+      toc                                 1,394
+      section_header                      1,384
+      title                                  19
+
+THE FIX — one set, five readers
+--------------------------------
+`src/docmodel/line_types.py` (new) is the single source of truth:
+`NON_PROSE_HOSTS` keeps the five families SEPARATE and named the way the
+requirement named them, so the set can be checked against the sentence that
+asked for it rather than against a flat list of 17 strings. `NO_TRANSCLUDE`
+is the flat union; `family()` returns the requirement's own word so a
+refusal says which rule it applied.
+
+  1. docmodel/modules/formula.py — the object is never created. This is THE
+     fix; the other four exist because every model on disk predates it.
+  2. docops/projectors/tiddlywiki.py, `_build_inline_subs` — an old model's
+     occurrence on a forbidden line records no `{{…||FO}}` substitution.
+  3. docops/projectors/tiddlywiki.py, `_transclude_paragraph` — the
+     residual-math catch-all is skipped for a paragraph built ENTIRELY from
+     forbidden lines. Without this, gating (2) alone put the transclusion
+     straight back: the catch-all re-scanned the same raw delimiters and
+     minted a synthetic FOX for them. Caught by the test, not by reading.
+  4. pdfdrill/inlinectx.py, `first_occurrences` — the host line a formula
+     inherits page/confidence/region/crop from is its first PROSE
+     occurrence, not its first occurrence.
+  5. pdfdrill/reports/from_document.py — a reading whose every occurrence is
+     on a forbidden line is not published.
+
+PER OCCURRENCE, NEVER PER READING
+----------------------------------
+The model holds one Formula per DISTINCT VALUE, so a per-object refusal
+would delete real inline formulas. kohlhase-omdoc FO0191 — the element the
+report was raised on — is exactly that case:
+
+    \overline{\mathcal{C}}:=\left\{...\right\}   page 150, four occurrences
+      table                 (the Fig. 15.12 tabular)   refused
+      table_spanning_cell                              refused
+      complex_cell                                     refused
+      text  "…let \(\overline{\mathcal{C}}:=…"         KEPT
+
+Before: host line = the tabular, so the row carried the table's confidence,
+the table's 1060×700 region, and a crop that was a picture of the table.
+After: host line = the sentence, confidence 0.99951, region 1060×41.
+
+MEASURED ON THE 20 PUBLISHED DOCUMENTS
+---------------------------------------
+    formula rows            36,936 -> 36,158   (-778)
+      dropped: table 731, toc 28, section_header 22, title 1, figure_label 1
+    rows rehosted onto their real prose line            229
+      off toc 125, table 83, figure_label 11, section_header 10
+    rows still hosted on a forbidden line type            0   (was 1,018)
+    rows with no host line at all                        44
+    substitution sites kept                          81,371
+    substitution sites refused                        4,565
+      table 4,003, toc 273, section_header 155, figure_label 133, title 1
+
+WHAT IS NOT TOUCHED
+-------------------
+Where LaTeX is STORED. `latex`/`latex_original`, `latex_code`/`mathpix_text`
+stay exactly where PROPS.md puts them, on the object that owns the line —
+a Table keeps its whole `\begin{tabular}`, a Section keeps its heading. No
+content is lost by refusing the duplicate: 85.9% of Table objects already
+carry the tabular, and the Table/Section/Toc tiddlers never rendered through
+FO transclusion in the first place (they read `raw_text` / `mathpix_text` /
+`caption` verbatim). Nothing was re-fetched from MathPix; the snapshot on
+disk stays pinned.
+
+`math_titles` is deliberately left alone, so every surviving row keeps the
+identifier it was published under — which is what `crop_sha256` and the ink
+measurements are keyed on (667).
+
+ONE VISIBLE CONSEQUENCE, STATED
+--------------------------------
+A `title` line is the one forbidden type `ParagraphProcessor` admits as
+prose (`_PROSE_TYPES` = text, title, quote), so it is the only family the
+projector gate can actually reach — 19 occurrences corpus-wide, 1 in the
+published set. Those now keep their raw `\(...\)` in the paragraph text
+instead of rendering through a transclusion. Rendering them inline with the
+`$latex` widget (rendering, not transclusion) would honour the rule too and
+is the obvious follow-up; it was not done here because it is a design
+choice, not a defect fix.
+
+TESTS
+-----
+tests/test_line_types_no_transclude.py — 46 tests. Suite 3,671 -> 3,717.
+
+Each of the five gates was reverted one at a time and the suite re-run; each
+revert makes exactly the intended test fail:
+
+    site 1 creation gate        -> test_no_formula_object_is_created_from_a_
+                                   forbidden_line[table-simple_cell]
+    site 2 offset subs          -> test_a_legacy_object_on_a_title_line_is_
+                                   not_substituted
+    site 3 residual catch-all   -> (same)
+    site 4 host-line pick       -> test_the_prose_occurrence_wins_over_an_
+                                   earlier_forbidden_one
+    site 5 published rows       -> test_a_table_only_reading_is_not_
+                                   published[table-simple_cell]
+
+`test_only_title_of_the_forbidden_families_can_reach_a_paragraph` is the
+coverage argument's own tripwire: it asserts
+`_PROSE_TYPES & NO_TRANSCLUDE == {"title"}`, so adding a forbidden type to
+`_PROSE_TYPES` fails the suite and says the argument moved. Rule 22 —
+a check that names what it looks at is not a check that asks whether it is
+looking at the right things.
+
+NEXT WEEK
+---------
+This set is an approximation of the subtractive pipeline: a line already
+claimed by TableProcessor / HeaderProcessor / TocProcessor / the caption
+layer would simply never be offered to FormulaProcessor, and no name-based
+exclusion would be needed. When each pass reads the previous pass's
+leftovers, delete `line_types.py` rather than growing it. The module says so
+in its own docstring.
+
+NOT DONE, and why
+-----------------
+No corpus rebuild. The 1,367 models on disk still carry the objects; gates
+2-5 are what keeps them from reaching a reader. A rebuild is deterministic
+(it reads the pinned lines.json, never MathPix) but it renumbers FO
+identifiers, which invalidates every crop and every ink measurement keyed on
+them. That is a separate, sequenced operation.
+
+No republish. The site still shows the 36,936-row reports.

@@ -74,10 +74,36 @@ def load_spans(lines_path: "Path | str") -> list:
 
 
 def first_occurrences(spans: list) -> dict:
-    """{latex: the FIRST span carrying it}. Document order decides."""
+    """{latex: the first span carrying it on a line that can HOST a formula}.
+
+    Document order decides, but not alone. A table cell, a section heading,
+    a title, a TOC entry and a figure label are not prose, so a formula
+    printed there is not an inline formula and its line is not a context an
+    inline formula may inherit (docmodel/line_types.py).
+
+    Order alone got this wrong wherever the same reading appears in both,
+    and the model holds ONE Formula per distinct value (see this module's
+    header), so the wrong pick is the only pick the row ever gets.
+    Measured on kohlhase-omdoc: the reading `\\overline{\\mathcal{C}}` occurs
+    four times on page 150 --- three inside the `Fig. 15.12` tabular, once in
+    the sentence that introduces it. Document order chose the tabular, so
+    the published FO row carried the table's confidence and the table's
+    region, and its crop was a picture of the table.
+
+    A reading that occurs ONLY on forbidden lines gets no entry at all,
+    and that is the point: there is no line it may inherit from, so every
+    caller reports the absence (`context_of(None)` is `{}`, an FO row shows
+    "---") instead of one of them showing a table's confidence. A fallback
+    to "the first span, forbidden or not" was written first and removed:
+    it left 27 published rows across the 20 documents still hosted on a
+    figure label or a TOC entry --- the same defect, now reachable only
+    where the model and this span scan disagree about a line's text.
+    """
+    from docmodel.line_types import hosts_transclusion
     first = {}
     for s in spans:
-        first.setdefault(s["latex"], s)
+        if hosts_transclusion(s.get("line_type")):
+            first.setdefault(s["latex"], s)
     return first
 
 
