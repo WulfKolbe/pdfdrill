@@ -1,0 +1,246 @@
+673 — inkdrill's formula marks as a first-class `pdfdrill marks` command
+=============================================================================
+
+Branch eqblobs-and-gzip-tex, HEAD 9e2dee1c (base, clean, suite 3641). Read
+CLAUDE.md, docs/HANDOVER-RULES.md §1 rules 2, 5, 11, 12, 19, 20, 21, 22,
+docs/inkdrill-integration.md, and out/672.txt before designing anything.
+
+THE USER'S WORDS
+-----------------------------------------------------------------------------
+"some integration of inkdrill as pdfdrill command without a code
+integration, but as an external tool that is called" — this ADDS a
+command inside the established subprocess-discipline architecture
+(`refine.inkdrill_root`, `regionink.inkdrill_available`,
+`inkmeasure.py`'s own "pdfdrill CONSUMES inkdrill: it is a subprocess,
+never an import"); it does not invent one.
+
+WHAT WAS BUILT
+-----------------------------------------------------------------------------
+`src/pdfdrill/inkmarks.py` (new) — the subprocess boundary and the key
+resolution, pure and independently testable:
+
+  `run(pdf, key, marks_root, library, timeout)` — runs inkdrill's
+  `tools/formulamarks.py marks <key> --library <library> --work
+  <marks_root>/<key>/work` via `subprocess.run(..., capture_output=True,
+  text=True)`, which keeps stdout and stderr in SEPARATE buffers by
+  construction. Only `r.stdout` is ever parsed, and it is parsed (json.loads)
+  before this module returns anything — a bad capture fails at the
+  subprocess boundary, never three steps downstream. Raises
+  `refine.InkUnavailable` (typed, names what it tried) when inkdrill or its
+  formulamarks.py tool is missing; raises `inkmarks.MarksRefused` (typed)
+  when stdout is empty or not one parseable JSON document.
+
+  `candidate_keys(pdf, site_key)` / `resolve_key(pdf, site_key,
+  marks_root)` — inkdrill's `--library ROOT KEY` opens `ROOT/KEY`
+  literally, so its key is ALWAYS the library folder name
+  (`pdf.parent.name`); for an arXiv id that equals pdfdrill's own bibkey
+  (`commands.resolve_bibkey`, the SITE SLUG published to the tiddler wiki)
+  because the folder IS named for the id, but for a Z-Library book it does
+  not. `resolve_key` tries the folder name FIRST (matching what inkdrill
+  actually uses) and the site slug only when it differs, by checking which
+  one(s) have a finished `<key>/work/meta.json` under `marks_root`
+  (default `~/inkdrill-marks`, documented since 672's own
+  `reports/marks.py` docstring). NEVER GUESSES: raises `MarksRefused`,
+  naming every key it tried, when NEITHER has a finished run, and — the
+  case that must never be settled silently — when BOTH do and they point
+  at different directories, telling the caller to pass `--key` explicitly.
+
+`cmd_marks` (`src/pdfdrill/commands.py`, `@_writes("marks")`) — the glue:
+resolves the key (or uses an explicit `--key`, still checked for a
+finished run), runs `inkmarks.run`, and:
+
+  * inkdrill's own `refused` field on the document → writes
+    `marks.json.REFUSED` (never `marks.json`) and RAISES `MarksRefused`
+    (propagates through `cli.main`'s generic handler as
+    "Error [MarksRefused]: ...", exit 1) — reported as a refusal, never as
+    success, per the brief's requirement.
+  * otherwise → writes `marks.json` beside the document (atomic
+    tmp+os.replace) and returns a report whose first lines ALWAYS name
+    which key matched and how, then rows/measured/marked, then
+    `reading_changed: N` explicitly (never left inside the JSON for a
+    reader to find), then `suppressed`/`not_measured` breakdowns.
+
+THE TWO 2026-09-11 DEFECTS, AS TESTS
+-----------------------------------------------------------------------------
+`tests/test_inkmarks.py` (23 tests):
+
+  Defect 1 (merged stdout/stderr → "Extra data: line 2 column 1"):
+  `test_stderr_progress_never_corrupts_the_parsed_json` runs a REAL
+  subprocess — a fake `tools/formulamarks.py` that writes two lines of
+  progress to stderr and the one JSON document to stdout — through
+  `inkmarks.run` and asserts the dict comes back clean.
+  `test_run_captures_stdout_and_stderr_separately` pins the call shape
+  directly: `capture_output=True`, `stderr != subprocess.STDOUT`, no
+  hand-rolled `stdout=`. `test_run_refuses_on_no_stdout` and
+  `test_run_refuses_on_unparseable_stdout` cover the two ways a merge (or
+  any other corruption) would present.
+
+  Defect 2 (resolved by site slug alone → 9 of 20 books found nothing):
+  `test_candidate_keys_tries_folder_name_first_when_they_differ` and
+  `test_resolve_key_uses_the_folder_name_when_only_it_has_a_run`
+  reproduce the exact shape — folder name "Lie Groups, ... R. Gilmore ("
+  vs bibkey `gilmore-lie-groups`, only the folder-name directory has a
+  finished run — and assert resolution still succeeds by finding it, the
+  behaviour that was missing on 2026-09-11.
+  `test_resolve_key_refuses_naming_both_when_neither_has_a_run` and
+  `test_resolve_key_never_guesses_when_both_have_a_run` cover the
+  never-guess-silently requirement in both directions.
+
+  The two-env-var defect (INKDRILL_ROOT / INKDRILL_HOME, see below):
+  `test_inkdrill_root_env_precedence_is_one_function`,
+  `test_inkdrill_home_alias_still_works_when_root_unset`, and
+  `test_regionink_and_refine_agree_on_env_precedence` (a real subprocess,
+  both env vars set to different real checkouts, asserting
+  `refine.inkdrill_root()` and `regionink._INKDRILL_HOME` return the
+  SAME path).
+
+  `cmd_marks` itself: writes `marks.json` and reports counts
+  (`test_cmd_marks_writes_marks_json_beside_the_document`);
+  `reading_changed` surfaced
+  (`test_cmd_marks_surfaces_reading_changed_prominently`); a refusal
+  raises and writes no `marks.json`
+  (`test_cmd_marks_refusal_is_never_reported_as_success`); `--key`
+  bypasses resolution but still requires a real run
+  (`test_cmd_marks_explicit_key_bypasses_resolution_but_still_checks_a_run_exists`,
+  `test_cmd_marks_explicit_key_used_when_a_run_exists`); the document
+  lock (`test_cmd_marks_is_a_locked_handler`); `--build` calls
+  `cmd_evidence` with the written path
+  (`test_cmd_marks_build_flag_calls_evidence_with_the_written_marks_path`)
+  and the default does NOT
+  (`test_cmd_marks_default_does_not_touch_evidence`).
+
+THE TWO-ENV-VAR DEFECT — FIXED, ONE FUNCTION NOW
+-----------------------------------------------------------------------------
+`refine.inkdrill_root()` read `INKDRILL_ROOT`; `regionink._INKDRILL_HOME`
+read `INKDRILL_HOME`, independently, at import time. Nothing made them
+agree — an environment that set one but not the other could point the two
+modules at two different checkouts with no error anywhere.
+
+FIX: `refine._env_inkdrill_home()` is now the ONE function that reads
+either variable — INKDRILL_ROOT wins when both are set (it is the older,
+typed-error path, and the name every doc that mentions this checkout
+already uses); INKDRILL_HOME is kept as a deprecated alias so an
+environment that only ever set it does not silently regress. There must
+never be a third name, per the brief. `regionink.py`'s own env read was
+deleted; `_INKDRILL_HOME` is now `_env_inkdrill_home() or
+(Path.home() / "inkdrill")` — the SAME function `refine.inkdrill_root()`
+calls, not a second copy of the same logic that could drift again.
+Verified with a real subprocess (both env vars set to different real
+checkouts) that the two modules agree — see tests above.
+
+THE TWO JUDGEMENT CALLS
+-----------------------------------------------------------------------------
+1. Does `marks` also build the evidence PDF?  NO, not by default.
+   `pdfdrill marks` stops at `marks.json`; `pdfdrill evidence <pdf>
+   --marks <path>` (unchanged since 672) is the caller's job, one command
+   already fully capable of it. Reasons: (a) the two write different
+   artifacts and the single-responsibility split matches every other
+   pairing in this codebase (`regionink` vs `reporttex`, `inktables` vs
+   `model`); (b) a caller who only wants to see `reading_changed`/
+   `suppressed` counts before deciding whether a rebuild is worth it
+   should not be made to pay for a full evidence PDF re-render and
+   re-encode; (c) `evidence-formula.tex` being current is a genuine
+   dependency this command's `requires: [evidence]` in commands.yaml
+   declares even though `cmd_marks` never calls `cmd_evidence` in that
+   path — CLAUDE.md's own rule ("a layer's requires names everything it
+   READS, not everything it calls") applies here exactly the way it does
+   for `reporttex`/`mathpix`. `--build` is the opt-in that closes the loop
+   in one call for the common case, by calling `cmd_evidence(...,
+   marks_path=...)` in-process after `marks.json` is written — safe
+   because the per-document lock is RE-ENTRANT within one process
+   (`doclock.py`'s own stated rule, the same one `--ensure`'s prerequisite
+   chain already relies on).
+
+2. How is the directory key resolved when the two naming schemes
+   disagree?  Try the LIBRARY FOLDER NAME first (what inkdrill actually
+   uses to open `--library ROOT KEY` as `ROOT/KEY`), try pdfdrill's own
+   bibkey/site-slug second only when it differs, and NEVER pick between
+   them silently: if neither resolves to a finished run, refuse naming
+   both; if BOTH do and they are different keys, refuse naming the
+   ambiguity and require `--key` explicitly. The report always states
+   which one matched and by which route. This is the direct fix for the
+   second 2026-09-11 defect (site slug tried alone, first, and silently
+   correct only for arXiv ids).
+
+MEASURED — TWO REAL DOCUMENTS, BOTH KEY SHAPES
+-----------------------------------------------------------------------------
+Run for real via `pdfdrill marks <pdf>` (PYTHONPATH=src,
+PDFDRILL_NO_PREFLIGHT=1), writing only a NEW `marks.json` beside each
+document — no rebuild of report/evidence/tiddlers, no site touch, no
+MathPix. Neither document had a `marks.json` before this run.
+
+  rph8-g15q (arXiv-shaped key; folder name == pdfdrill's own bibkey, so
+  only ONE candidate existed to try):
+    key 'rph8-g15q' matched by library folder name
+    489 rows, 489 measured, 96 marked, reading_changed 0
+    suppressed: 213 position not unique, 100 too short to carry a
+    position, 80 short expression cut by a rectangle edge
+
+  gilmore-lie-groups (book; library folder name = "Lie Groups, Physics
+  and Geometry - An Intro for Physicists, Engineers and Chemists -
+  R. Gilmore (", pdfdrill's own bibkey = "gilmore-lie-groups" — the exact
+  shape of the second 2026-09-11 defect):
+    key '<the messy folder name>' matched by library folder name
+    3473 rows, 3353 measured, 577 marked, reading_changed 0
+    suppressed: 1651 position not unique, 460 host region is not a line,
+    459 too short to carry a position, 206 short expression cut by a
+    rectangle edge
+    not measured: 116 not placed (refit band too wide / under 4px),
+    4 no line match
+
+Both row/marked counts match out/672.txt's own dry-run table exactly
+(rph8-g15q 489/96; gilmore 3473/577; gilmore's not-in-file/not-measured
+120 = 116 + 4 here) — the same population, read through the new command
+instead of a hand-rolled script, with the two 2026-09-11 defects fixed.
+
+Evidence: `<doc>/out/673/INSPECT.txt` + `report.txt` beside each
+document (library, not this repo); `<doc>/marks.json` (the command's own
+deliverable, left in place — it is the artifact this task exists to
+produce, and it overwrites nothing published).
+
+WHAT WAS NOT DONE
+-----------------------------------------------------------------------------
+* No corpus rebuild across the 21 documents, no `--build` run against any
+  real document (that would rebuild `evidence-formula.pdf` for a
+  published document — reserved for the controller, per the brief).
+  `--build`'s wiring is covered by a mocked test only.
+  `formulamarks.py run` was never invoked (minutes per book; this command
+  only ever calls the cheap `marks` re-emit, by design).
+* No touch to `.lines.json`, `model.docmodel.json`, `report.ink.json`,
+  `report.pdf`, `evidence-*.pdf`, `tiddlers`, or MathPix on either
+  document, or on any of the other 19. No `mathpix --force`, ever.
+* The site was not touched.
+
+TESTS
+-----------------------------------------------------------------------------
+tests/test_inkmarks.py — 23 new tests (see "THE TWO 2026-09-11 DEFECTS,
+AS TESTS" above for the mapping to each defect).
+
+Full suite, base commit `9e2dee1c`: 3641 passed (per the brief). This
+round: 3664 passed, 0 failed — delta +23, exactly the new tests; nothing
+else moved.
+
+CONCERNS
+-----------------------------------------------------------------------------
+1. `resolve_key`'s ambiguity check is presence-only (`work/meta.json`
+   exists), not content-aware — if a document were ever renamed such that
+   BOTH its old and new library folder names carry a finished run (an old
+   folder left behind after a rename, say), this correctly refuses rather
+   than picking the stale one, but it also does not know WHICH is stale;
+   a human has to look and pass `--key`. That is the intended behaviour
+   (never guess silently) but is worth noting as the shape a real
+   ambiguity would take.
+2. `--marks-root`/`--library` are new optional overrides with no env-var
+   equivalent, by design (the brief explicitly warned against a third
+   name for the inkdrill-checkout pair; these are a different concern —
+   document-data locations — and adding an env var for them was judged
+   unnecessary scope). If a caller needs them for automation, CLI flags
+   already work.
+3. `requires: [evidence]` in commands.yaml is presence-based
+   (`artifact:evidence` = at least one `evidence-<kind>.{html,pdf}`
+   exists), not formula-kind-specific, matching the existing looseness of
+   every other `done_when`/`requires` pair in this manifest — `--ensure`
+   auto-running `evidence` with no `--kind`/`--all-kinds` would return a
+   usage message rather than building anything, a pre-existing property
+   of `cmd_evidence`'s own argument handling that this task did not
+   change.

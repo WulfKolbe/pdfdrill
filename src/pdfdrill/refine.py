@@ -116,10 +116,30 @@ class InkUnavailable(RuntimeError):
     """inkdrill is not reachable — named, so a caller can say so plainly."""
 
 
+def _env_inkdrill_home() -> "Path | None":
+    """The checkout location as NAMED by the environment, unvalidated.
+
+    673 — this used to be two independent reads: this module read
+    INKDRILL_ROOT, `regionink.py` read INKDRILL_HOME, and nothing made
+    them agree. INKDRILL_ROOT WINS when both are set (it is the older,
+    typed-error path and the name every doc that mentions this checkout
+    uses); INKDRILL_HOME is kept as a deprecated alias so an environment
+    that only ever set it does not silently regress. There must never be
+    a third name — every reader of "where is inkdrill" goes through this
+    one function.
+    """
+    root = os.environ.get("INKDRILL_ROOT", "").strip()
+    if root:
+        return Path(root)
+    home = os.environ.get("INKDRILL_HOME", "").strip()
+    return Path(home) if home else None
+
+
 def inkdrill_root() -> Path:
-    """Where inkdrill lives. INKDRILL_ROOT overrides; ~/inkdrill is the default."""
-    env = os.environ.get("INKDRILL_ROOT", "").strip()
-    cands = [Path(env)] if env else []
+    """Where inkdrill lives. INKDRILL_ROOT overrides (INKDRILL_HOME is a
+    deprecated alias, see `_env_inkdrill_home`); ~/inkdrill is the default."""
+    env = _env_inkdrill_home()
+    cands = [env] if env else []
     cands.append(Path.home() / "inkdrill")
     for c in cands:
         if (c / "inkdrill" / "__main__.py").is_file():

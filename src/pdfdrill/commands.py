@@ -8633,6 +8633,122 @@ def cmd_regionink(pdf: Path, force: bool = False) -> str:
             + ", ".join(f"{k} {v}" for k, v in sorted(dist.items())) + ".")
 
 
+@_writes("marks")
+def cmd_marks(pdf: Path, bibkey: str | None = None, key: str | None = None,
+             build: bool = False, marks_root: "Path | str | None" = None,
+             library: "Path | str | None" = None) -> str:
+    """673 — inkdrill's formula marks (`tools/formulamarks.py marks`) as a
+    pdfdrill command: run it, validate what comes back, write `marks.json`
+    beside the document, and report.
+
+    inkdrill is consumed as a subprocess (`inkmarks.run`), never imported —
+    its stdout is the ONE JSON document it promises and its stderr is
+    progress text; the two are parsed apart and the JSON is parsed BEFORE
+    anything touches disk. On 2026-09-11 the controller ran this flow by
+    hand with a throwaway script that merged the two streams, and every
+    marks file it produced gained inkdrill's progress text and then failed
+    downstream with "Extra data: line 2 column 1" — a defect this command
+    and its tests (`tests/test_inkmarks.py`) exist so nobody repeats.
+
+    THE KEY. inkdrill's `--library ROOT KEY` opens `ROOT/KEY` literally, so
+    its key is always the LIBRARY FOLDER NAME — for an arXiv id that
+    happens to equal pdfdrill's own bibkey (the SITE SLUG, `resolve_bibkey`)
+    because the folder IS named for the id, but for a Z-Library book it does
+    not (`gilmore-lie-groups` vs the messy download title). The controller's
+    other 2026-09-11 defect was resolving every document by the site slug
+    ALONE, which silently found nothing for 9 of the 20 documents — books,
+    every one. Both are tried here (`inkmarks.resolve_key`), the folder name
+    first because that is what inkdrill actually uses, and the report
+    always says which one matched; an ambiguous match (both exist and
+    differ) refuses rather than guessing — pass `--key` explicitly to
+    settle it.
+
+    STOPS AT THE MARKS FILE BY DEFAULT. It does not rebuild
+    `evidence-formula.tex` — that is `pdfdrill evidence`, declared as this
+    command's own `requires:` in commands.yaml because inkdrill's own
+    staleness check (`formulamarks.py`'s `_inputs()`) depends on that file
+    being current, even though this command never calls it — and it does
+    not draw the rectangles onto the evidence PDF either
+    (`pdfdrill evidence --marks <path>`, unchanged since 672). `--build`
+    closes the loop in one call for the common case: after writing
+    `marks.json` it calls `cmd_evidence(..., marks_path=...)` in-process
+    (the per-document lock is re-entrant by the same process, `doclock.py`'s
+    own rule, so this nests safely under one `pdfdrill marks --build`
+    invocation). The default leaves that decision, and its cost — a full
+    evidence PDF re-render and re-encode — to the caller: a caller who only
+    wants `reading_changed`/`suppressed` counts before deciding whether a
+    rebuild is worth it should not be made to pay for one.
+
+    A REFUSAL — inkdrill's own `refused` field on the document, or a key
+    that cannot be resolved without guessing — RAISES (a typed exception,
+    not a traceback, exit non-zero) rather than returning a success string
+    with no `marks.json` written: reported as a refusal, never as success.
+    `reading_changed` rows (a row whose reading moved since inkdrill's run)
+    are not a refusal — the document still marks — but are always in the
+    first few lines of the report, never left for a reader to find by
+    opening the JSON.
+    """
+    import os
+    from . import inkmarks as IM
+    sc = Sidecar(pdf)
+    doc_dir = pdf.parent
+    site_key = resolve_bibkey(pdf, bibkey, sc)
+    mroot = Path(marks_root) if marks_root else IM.MARKS_ROOT
+    lib = Path(library) if library else IM.LIBRARY
+    if key:
+        resolved_key, matched_by = key, "--key (explicit)"
+        if not IM.has_run(mroot, resolved_key):
+            raise IM.MarksRefused(
+                f"--key {resolved_key!r}: no finished inkdrill run under "
+                f"{mroot / resolved_key / 'work' / 'meta.json'}")
+    else:
+        resolved_key, matched_by = IM.resolve_key(pdf, site_key, marks_root=mroot)
+    doc = IM.run(pdf, resolved_key, marks_root=mroot, library=lib)
+    refused = doc.get("refused")
+    if refused:
+        note = doc_dir / "marks.json.REFUSED"
+        note.write_text(
+            f"key: {resolved_key} (matched by {matched_by})\n"
+            f"refused: {refused}\n", encoding="utf-8")
+        raise IM.MarksRefused(
+            f"inkdrill refused {resolved_key!r} (matched by {matched_by}): "
+            f"{refused}")
+    counts = doc.get("counts") or {}
+    out_path = doc_dir / "marks.json"
+    tmp = out_path.with_suffix(out_path.suffix + ".tmp")
+    tmp.write_text(json.dumps(doc, indent=1, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, out_path)
+    lines = [
+        f"marks: key {resolved_key!r} matched by {matched_by} "
+        f"(library {lib}, work {mroot / resolved_key / 'work'})",
+        f"  {counts.get('evidence_rows', '?')} rows, "
+        f"{counts.get('measured', '?')} measured, "
+        f"{counts.get('marked', '?')} marked",
+    ]
+    changed = counts.get("reading_changed") or 0
+    if changed:
+        lines.append(
+            f"  reading_changed: {changed} row(s) changed reading since the "
+            f"run — moved to not_measured, NOT marked; re-run "
+            f"`formulamarks.py run` to remeasure them")
+    else:
+        lines.append("  reading_changed: 0")
+    suppressed = counts.get("suppressed") or {}
+    if suppressed:
+        lines.append("  suppressed: " + ", ".join(
+            f"{v} {k}" for k, v in sorted(suppressed.items())))
+    not_measured = counts.get("not_measured") or {}
+    if not_measured:
+        lines.append("  not measured: " + ", ".join(
+            f"{v} {k}" for k, v in sorted(not_measured.items())))
+    lines.append(f"  wrote {out_path.name}")
+    if build:
+        lines.append("--build:")
+        lines.append(cmd_evidence(pdf, all_kinds=True, pdf_out=True,
+                                  marks_path=out_path))
+    return "\n".join(lines)
+
+
 
 
 

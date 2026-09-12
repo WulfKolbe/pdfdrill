@@ -28,6 +28,7 @@ from pathlib import Path
 
 from .report_tex import REGIONS_INK, REGIONS_MANIFEST
 from .inkconvert import flag_of, FLAG_CODE, NOISE_DISTANCE, NOISE_COMP_DELTA
+from .refine import _env_inkdrill_home
 
 #: inkdrill's markdown row: | page | line | label | L×5 | R×5 | A=B | B stable |…
 #: 611 — inkdrill's compare gained `row h`, `row y0`, `row y1` (606), so the
@@ -36,7 +37,12 @@ from .inkconvert import flag_of, FLAG_CODE, NOISE_DISTANCE, NOISE_COMP_DELTA
 _ROW = re.compile(r"^\|\s*(\d+)\s*\|\s*(\d+)\s*\|([^|]*)\|"
                   + r"([^|]*)\|" * 14
                   + r"(?:([^|]*)\|([^|]*)\|([^|]*)\|)?")
-_INKDRILL_HOME = Path(os.environ.get("INKDRILL_HOME", Path.home() / "inkdrill"))
+#: 673 — this used to read its OWN env var, INKDRILL_HOME, independently
+#: of `refine.inkdrill_root`'s INKDRILL_ROOT — two names for one checkout
+#: that nothing made agree. Both now go through `refine._env_inkdrill_home`
+#: (INKDRILL_ROOT wins; INKDRILL_HOME is a deprecated alias), so this and
+#: `refine.inkdrill_root()` can never point at two different checkouts.
+_INKDRILL_HOME = _env_inkdrill_home() or (Path.home() / "inkdrill")
 
 
 class RegionInkRefused(Exception):

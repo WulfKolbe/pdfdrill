@@ -2109,6 +2109,26 @@ def _do_regionink(args):
     return cmd_regionink(_drilled(args[:1]), force=force)
 
 
+def _do_marks(args):
+    """pdfdrill marks <pdf> [--bibkey K] [--key K] [--build]
+    [--marks-root DIR] [--library DIR] — 673: run inkdrill's
+    tools/formulamarks.py marks for this document, validate what comes
+    back (refused / reading_changed surfaced, never buried), write
+    marks.json beside the document. --key bypasses the folder-name/
+    bibkey resolution (use it when both match and disagree — this
+    refuses rather than guess); --build also draws the marks onto the
+    evidence PDF (`pdfdrill evidence --marks`) in the same call."""
+    from .commands import cmd_marks
+    bibkey, args = _opt(args, "--bibkey")
+    key, args = _opt(args, "--key")
+    mroot, args = _opt(args, "--marks-root")
+    library, args = _opt(args, "--library")
+    build = "--build" in args
+    args = [a for a in args if a != "--build"]
+    return cmd_marks(_drilled(args[:1]), bibkey=bibkey, key=key, build=build,
+                     marks_root=mroot, library=library)
+
+
 def _do_rename(args):
     """pdfdrill rename <pdf> <newname> [--bibkey K] [--dry-run] — rename a
     drilled FOLDER (and optionally its bibkey namespace) without a rebuild."""
@@ -2365,6 +2385,7 @@ HANDLERS = {
         "okf": _do_okf,
         "rename": _do_rename,
         "regionink": _do_regionink,
+        "marks": _do_marks,
         "figpairs": _do_figpairs,
         "texfigures": _do_texfigures,
         "occurrences": _do_occurrences,

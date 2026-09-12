@@ -3122,6 +3122,50 @@ commands:
     type: flag
     help: replace an existing report.regions.ink.json
   typed: true
+- name: marks
+  section: Reporting
+  summary: 'inkdrill''s formula marks (`tools/formulamarks.py marks`) as a command (673): run it,
+    validate what comes back, write marks.json BESIDE the document, report. Stdout is the only thing
+    parsed (progress is on stderr and is discarded); inkdrill''s own `refused` field is reported as a
+    refusal and never as success; `reading_changed` rows are always in the first lines of the report.
+    The key inkdrill actually uses is the LIBRARY FOLDER NAME, tried before pdfdrill''s own bibkey/site
+    slug (they differ for every Z-Library book) — the report always says which one matched, and refuses
+    rather than guessing when both resolve and disagree. Stops at the marks file by default; --build
+    also draws the marks onto the evidence PDF in the same call.'
+  offline_ok: true
+  requires:
+  - evidence
+  done_when: file:marks.json
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: bibkey
+    flag: --bibkey
+    type: str
+    help: override pdfdrill's own resolved bibkey/site-slug candidate (does not override the library
+      folder name candidate, which is always tried first)
+  - name: key
+    flag: --key
+    type: str
+    help: bypass folder-name/bibkey resolution entirely and use this inkdrill key directly (required
+      when both candidates resolve and disagree — this command refuses rather than guess)
+  - name: build
+    flag: --build
+    type: flag
+    help: after writing marks.json, also run `pdfdrill evidence --all-kinds --pdf --marks marks.json`
+      in the same call
+  - name: marks_root
+    flag: --marks-root
+    type: str
+    help: 'root of inkdrill''s per-document marks/work directories (default: ~/inkdrill-marks)'
+  - name: library
+    flag: --library
+    type: str
+    help: 'the library root inkdrill''s --library expects (default: ~/pdfdrill-library)'
+  typed: true
 - name: rename
   section: Extraction
   summary: 'Rename a drilled FOLDER (and optionally its bibkey namespace) WITHOUT a rebuild. Moves the
