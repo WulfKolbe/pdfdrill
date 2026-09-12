@@ -259,6 +259,46 @@ def contradicts(latex: str, glyphs, *, own_region: bool,
     return None
 
 
+def missing_glyphs(latex: str, glyphs, *, own_region: bool) -> dict:
+    r"""{glyph name: how many times the page has it but the reading does not}.
+
+    682 — COUNTING, WHICH MEMBERSHIP COULD NEVER DO. `contradicts()` asks
+    "is this glyph in the reading"; a reading that contains one π where the
+    page has two passes it, and so does a reading that ignores an overprinted
+    slash entirely. Both are real, both were found by a reader and not by a
+    check:
+
+      EQ0974  the page has π twice, MathPix read it once. pix2tex read it
+              twice and is right.
+      EQ0472  the page has an `/arrownortheast` overprinted on an `R`
+              (the R's box sits entirely inside the glyph's); MathPix dropped
+              it and the reading renders perfectly without it.
+      EQ0293  the page has `/floorright` four times, the reading has
+              `\rfloor` zero times and `\downharpoonleft` four times.
+
+    Measured over mielke alone: 24 rows, 43 missing `\rfloor` — 30 of them
+    misread as `\downharpoonleft` and 13 dropped. Not one of those rows fails
+    any other gate, because every one of them TYPESETS.
+
+    Only NAMED glyphs are counted, and only those `NAME_TOKENS` can turn into
+    LaTeX. A delimiter-size name (`/bracketleftbigg` is `\bigg[`, which a
+    reading legitimately writes `\left[`) would otherwise swamp the signal:
+    a first, naive version of this reported 832 rows, whose top entries were
+    all correct readings.
+    """
+    if not own_region:
+        return {}
+    import collections
+    want = collections.Counter(g.name for g in glyphs
+                               if g.name and g.name in NAME_TOKENS)
+    out = {}
+    for name, n in want.items():
+        have = max(latex.count(tok) for tok in NAME_TOKENS[name])
+        if have < n:
+            out[name] = n - have
+    return out
+
+
 # ---------------------------------------------------------------------------
 # 681 — the census as an ACCEPTANCE route, not only a refusal
 # ---------------------------------------------------------------------------
@@ -339,11 +379,21 @@ def justifies(original: str, proposed: str, glyphs, *,
     added = collections.Counter(after) - collections.Counter(before)
     if not added and not removed:
         return False, "no change proposed"
-    if sum(added.values()) > max_new:
-        return False, ("%d token(s) introduced, at most %d may be — a census "
-                       "repair is a substitution, not a rewrite (%s)"
-                       % (sum(added.values()), max_new,
-                          " ".join(sorted(added))[:60]))
+    # 682 — DISTINCT tokens, not multiplicity, plus a balance test. mielke
+    # EQ0293 reads the SAME glyph wrong four times: `/floorright` x4 on the
+    # page, `\downharpoonleft` x4 in the reading. Repairing it introduces
+    # `\rfloor` four times — one distinct token — and counting multiplicity
+    # refused that legitimate substitution while a rewrite introducing three
+    # different tokens passed. What distinguishes a substitution is that it
+    # puts back what it takes away: n of X for n of Y.
+    if len(added) > max_new:
+        return False, ("%d distinct token(s) introduced, at most %d may be — "
+                       "a census repair is a substitution, not a rewrite (%s)"
+                       % (len(added), max_new, " ".join(sorted(added))[:60]))
+    if sum(added.values()) > sum(removed.values()) + max_new:
+        return False, ("introduces %d token(s) against %d removed — a "
+                       "substitution puts back what it takes away"
+                       % (sum(added.values()), sum(removed.values())))
 
     literals = {g.char for g in glyphs if not g.unmapped}
     named = {g.name for g in glyphs if g.name}

@@ -1,0 +1,97 @@
+682 — counting, not membership: 24 rows of one misread symbol in one book
+
+WHAT THE USER FOUND, IN THREE REPORTS
+--------------------------------------
+  EQ0472  a variable with a slash from lower left to upper right, dropped
+  EQ0974  "high conf MathPix but more than 2 character wrong"
+  EQ0293  "\rfloor instead of \downharpoonleft ... nearly no ink difference,
+           but the angle clearly wrong"
+
+Every one of them RENDERS. Not one fails `display_safe`, the env check, the
+CJK check, the compile, or `contradicts()`. They were found by a person
+reading the report, which is the only instrument that had been catching them.
+
+WHY contradicts() MISSED ALL THREE
+-----------------------------------
+It asks MEMBERSHIP — "is this glyph in the reading". A reading with one π
+where the page has two passes. A reading that ignores an overprinted slash
+passes, and passes doubly because `contradicts` deliberately exempts unmapped
+glyphs (`test_an_unmapped_glyph_is_never_required_to_appear`, written by me
+that morning).
+
+`missing_glyphs()` counts instead. Measured:
+
+    EQ0974   page has π x2, MathPix read x1; pix2tex read x2 and is RIGHT
+    EQ0472   page has /arrownortheast x1 overprinted on an R
+             (R's box 197.74-203.83 sits ENTIRELY inside the glyph's
+             195.42-205.23, same baseline) — reading has it x0
+    EQ0293   page has /floorright x4, reading has \rfloor x0 and
+             \downharpoonleft x4
+
+THE SCALE, IN ONE BOOK
+----------------------
+mielke rows where the page's `/floorright` count != the reading's `\rfloor`
+count: 24 rows, 43 missing. 30 misread as `\downharpoonleft`, 13 dropped.
+The interior product ⌋ is also read in this book as `\jmath`, `」`,
+`\downarrow` and (correctly) `\rfloor` — five readings of one glyph.
+
+A NAIVE VERSION OF THIS CHECK REPORTED 832 ROWS AND WAS WORTHLESS. Its top
+hits were `/bracketleftbigg`, `/parenrightbigg`, `/summationdisplay` — all
+CORRECT readings, since `\left[`, `\bigg)` and `\sum` are what a reading
+legitimately writes for those. `missing_glyphs` therefore counts only names
+`NAME_TOKENS` can turn into LaTeX, which keeps the signal and is why that
+table must grow by demand rather than by inventory.
+
+REPAIRED: 19 of 24, AND THE 5 REFUSALS ARE THE POINT
+-----------------------------------------------------
+`\downharpoonleft -> \rfloor` is a substitution and the census justifies it.
+In 5 rows MathPix DROPPED the glyph instead of misreading it, so there is no
+wrong token to replace: putting `\rfloor` back requires knowing WHERE, which
+is placement, not substitution. The route declines and names them
+(EQ0306, EQ0311, EQ0544, EQ0579, EQ0686). EQ0292 and EQ0294 are short by one
+after repair — both failure modes in one equation.
+
+TWO FIXES THE REPAIRS FORCED
+-----------------------------
+* `justifies()` counted token MULTIPLICITY, so EQ0293 — the same glyph
+  misread four times — was refused as a "rewrite" for introducing `\rfloor`
+  four times, while a genuine rewrite introducing three DIFFERENT tokens
+  passed. It now counts DISTINCT tokens and adds a balance test: a
+  substitution puts back what it takes away, n of X for n of Y.
+* `contradicts()` stays membership-only and is now the weaker of the two
+  checks; `missing_glyphs()` is the one that finds dropped symbols.
+
+FOR INKDRILL, NEXT WEEK: THE ANGLE PROPERTY
+--------------------------------------------
+The user's own diagnosis, and the numbers support it exactly. ⌋ and ⇃ are
+both "a vertical stroke plus a short second stroke". Their INK is nearly
+identical, which is why component counts, hole counts and the ink distance
+cannot separate them — and why 30 instances passed every measurement this
+repository has. What differs is the ANGLE AT THE JUNCTION: ⌋ meets at 90°,
+⇃ at an acute barb.
+
+This matters beyond one symbol, because the census route only works on
+born-digital pages. On a scan there is no text layer and no `/Encoding`, and
+the angle is the only evidence available. The same property separates:
+
+    ⌋ \rfloor        vs  ⇃ \downharpoonleft   90° vs acute barb
+    / negationslash  vs  ↗ arrownortheast     stroke vs stroke + head
+    + plus           vs  × times              0/90° vs 45°
+    ⊥ perp           vs  ⊢ vdash              junction position
+
+A SECOND GEOMETRIC PROPERTY, ALSO FROM THIS SESSION: BOUNDING-BOX
+CONTAINMENT. A glyph whose x-extent encloses another glyph's on the same
+baseline is an OVERPRINT, not a sequence — proved on EQ0472, and the same
+book composes `⇐`+`⇒` into `⟺` the same way (MathPix reads that one
+correctly). 13 rows corpus-wide carry an unaccounted slash-overlay glyph:
+mielke 9 (arrownortheast), gilmore 2 and fong-spivak-invitation 2
+(negationslash). That test needs no ink at all — the PDF gives exact boxes —
+so it belongs in the census, and only the SCAN version needs inkdrill.
+
+NOT DONE
+--------
+* The 5 dropped-glyph rows need placement, not substitution.
+* EQ0472's slashed R is still unrepaired: `\cancel{R}` needs the cancel
+  package in the preamble, which is a build change, not a reading change.
+* The 13-row overlay class is measured, not fixed.
+* mielke needs another rebuild + re-measure + republish to show these 19.
