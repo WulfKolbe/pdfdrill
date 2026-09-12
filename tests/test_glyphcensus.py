@@ -167,3 +167,82 @@ def test_only_ascii_alphanumerics_count_as_required_literals():
     glyphs = [_g(c, x=i * 5.0) for i, c in enumerate("ΠΣαβϑ∧∼±()")]
     # nothing ASCII-alphanumeric at all -> no evidence to judge on
     assert gc.contradicts("anything whatsoever", glyphs, own_region=True) is None
+
+
+# =====================================================================
+# 681 — the census as an ACCEPTANCE route
+# =====================================================================
+
+def _page(literals="", names=()):
+    g = [_g(c, x=i * 5.0) for i, c in enumerate(literals)]
+    g += [_g("(cid:%d)" % (8 + i), name=n, x=200.0 + i * 5.0)
+          for i, n in enumerate(names)]
+    return g
+
+
+def test_a_character_the_page_carries_justifies_the_repair():
+    r"""mielke EQ0472: `\stackrel{十}{\Omega}` where the census shows a
+    literal `+`."""
+    ok, why = gc.justifies(r"\stackrel{十}{\Omega}", r"\stackrel{+}{\Omega}",
+                           _page("+0R"))
+    assert ok and "+" in why
+
+
+def test_a_glyph_NAME_justifies_the_command_that_writes_it():
+    r"""mielke FO0431: `\jmath` and `」` are both `/floorright` = `\rfloor`."""
+    ok, why = gc.justifies(r"\xi \jmath D+D \xi 」", r"\xi \rfloor D+D \xi \rfloor",
+                           _page("DL", names=("floorright",)))
+    assert ok, why
+
+
+def test_a_token_the_page_cannot_be_shown_to_carry_is_refused():
+    r"""THE RULE THAT MAKES THIS SAFE, and it caught the author's own repair.
+
+    `\mathbf{匕}` -> `\mathrm{Ł}` introduces `\mathrm`, a font change the
+    census cannot justify and that MathPix never got wrong. The minimal repair
+    replaces the CHARACTER only: `\mathbf{Ł}`.
+    """
+    page = _page("Ł n D", names=("floorright",))
+    ok, why = gc.justifies(r"\mathbf{匕}_{n}", r"\mathrm{Ł}_{n}", page)
+    assert not ok and r"\mathrm" in why
+    ok2, _ = gc.justifies(r"\mathbf{匕}_{n}", r"\mathbf{Ł}_{n}", page)
+    assert ok2, "the minimal repair must pass"
+
+
+def test_a_rewrite_cannot_pass_however_well_justified_its_tokens():
+    r"""What keeps this from becoming the ink gate. MiniMax's own proposals
+    fixed the symbol correctly and then appended a neighbouring equation;
+    that tail is dozens of tokens, and a substitution is small by nature."""
+    page = _page("abcdefgh0123")
+    ok, why = gc.justifies("a+b", "a+b+c+d+e+f+g+h+0+1+2+3", page)
+    assert not ok and "rewrite" in why
+
+
+def test_no_change_is_not_an_acceptance():
+    assert gc.justifies("a+b", "a+b", _page("ab+"))[0] is False
+
+
+def test_an_empty_proposal_is_refused():
+    assert gc.justifies("a+b", "   ", _page("ab+"))[0] is False
+
+
+def test_an_unnamed_glyph_justifies_nothing():
+    r"""A `(cid:N)` the font does not name is evidence that something is
+    there, not evidence of WHAT. It cannot license a token."""
+    page = [_g("(cid:8)", name=None, x=10.0)]
+    assert gc.justifies(r"x", r"x\rfloor", page)[0] is False
+
+
+def test_the_name_table_only_holds_names_a_row_needed():
+    """679/681 — 267 names in this corpus are outside the AGL. A table built
+    ahead of demand would be inventory rather than evidence, so every entry
+    has to be justified by a row it unblocks."""
+    assert set(gc.NAME_TOKENS) == {
+        "floorright", "floorleft", "ceilingright", "ceilingleft",
+        "Lslash", "lscript", "similarequal"}
+    assert r"\rfloor" in gc.NAME_TOKENS["floorright"]
+
+
+def test_tokenisation_keeps_commands_whole():
+    assert gc._tokens(r"\rfloor x\, \mathbf{A}") == [
+        "\\rfloor", " ", "x", "\\,", " ", "\\mathbf", "{", "A", "}"]

@@ -257,3 +257,115 @@ def contradicts(latex: str, glyphs, *, own_region: bool,
                 % (len(missing), len(literal),
                    "".join(sorted(set(missing))[:12])))
     return None
+
+
+# ---------------------------------------------------------------------------
+# 681 — the census as an ACCEPTANCE route, not only a refusal
+# ---------------------------------------------------------------------------
+
+#: Census glyph name -> the LaTeX token(s) that legitimately write it. Seeded
+#: ONLY by what the rows in hand actually need: `/floorright` and `/Lslash`
+#: for mielke's three, plus the two obvious mirrors. 267 names in this corpus
+#: are outside the Adobe Glyph List; a table built ahead of demand would be
+#: inventory rather than evidence, and every entry here has to be justified by
+#: a row it unblocks.
+NAME_TOKENS: dict = {
+    "floorright":  (r"\rfloor",),
+    "floorleft":   (r"\lfloor",),
+    "ceilingright": (r"\rceil",),
+    "ceilingleft": (r"\lceil",),
+    "Lslash":      (r"\mathrm{Ł}", r"\L", "Ł"),
+    "lscript":     (r"\ell",),
+    "similarequal": (r"\cong",),
+}
+
+
+def _tokens(latex: str) -> list:
+    r"""`latex` split into LaTeX tokens: a command (`\rfloor`) or one char."""
+    out, i, n = [], 0, len(latex or "")
+    while i < n:
+        ch = latex[i]
+        if ch == "\\" and i + 1 < n:
+            j = i + 1
+            if latex[j].isalpha():
+                while j < n and latex[j].isalpha():
+                    j += 1
+            else:
+                j += 1
+            out.append(latex[i:j]); i = j
+        else:
+            out.append(ch); i += 1
+    return out
+
+
+def justifies(original: str, proposed: str, glyphs, *,
+              max_new: int = 3) -> "tuple[bool, str]":
+    r"""(ok, reason) — does the PDF's own census justify this exact repair?
+
+    681. A THIRD ACCEPTANCE ROUTE, beside the ink gate and the author's
+    e-print. It exists because the ink gate cannot be trusted to judge a
+    reading: it accepted a sentence of English prose over an equation on a
+    -96 ink delta, and 17 of 30 recorded refinements carry that same shape.
+    Sending a repair whose right answer is already KNOWN through a gate that
+    cannot tell right from wrong would stamp `verified_by: "ink"` on something
+    the ink never established.
+
+    For a glyph-decomposition defect the right answer IS known, and by a
+    stronger authority than ink: the typesetter's own `/Encoding`. mielke's
+    `匕` is `/Lslash`, its `」` and `\jmath` are both `/floorright`, its `十`
+    is a literal `+`. This route accepts exactly that kind of repair and
+    NOTHING WIDER, by two rules:
+
+      1. EVERY TOKEN THE REPAIR INTRODUCES MUST BE JUSTIFIED BY THE CENSUS —
+         either a literal character the census places in that region, or a
+         LaTeX command that `NAME_TOKENS` ties to a glyph name the census
+         reports. A token the page cannot be shown to contain is not a
+         transcription, it is an invention.
+      2. AT MOST `max_new` TOKENS MAY BE INTRODUCED AT ALL. This is what
+         makes the route unable to accept a rewrite: MiniMax's own proposals
+         for these rows fixed the symbol correctly and then appended a
+         neighbouring equation, and that tail is dozens of tokens. A
+         substitution is small by nature.
+
+    Deliberately NOT checked here: whether the result renders. That is
+    `validate_one`'s job and it runs first. This answers one question only —
+    is the change the page's own evidence for it.
+    """
+    if not (proposed or "").strip():
+        return False, "empty proposal"
+    before, after = _tokens(original), _tokens(proposed)
+    import collections
+    removed = collections.Counter(before) - collections.Counter(after)
+    added = collections.Counter(after) - collections.Counter(before)
+    if not added and not removed:
+        return False, "no change proposed"
+    if sum(added.values()) > max_new:
+        return False, ("%d token(s) introduced, at most %d may be — a census "
+                       "repair is a substitution, not a rewrite (%s)"
+                       % (sum(added.values()), max_new,
+                          " ".join(sorted(added))[:60]))
+
+    literals = {g.char for g in glyphs if not g.unmapped}
+    named = {g.name for g in glyphs if g.name}
+    allowed = set()
+    for nm in named:
+        allowed.update(NAME_TOKENS.get(nm, ()))
+
+    unjustified = []
+    for tok in added:
+        if tok in literals or tok in allowed:
+            continue
+        # a one-character token the census places, ignoring case-only noise
+        if len(tok) == 1 and tok in literals:
+            continue
+        unjustified.append(tok)
+    if unjustified:
+        return False, ("the census does not place %s on this page; it names "
+                       "%s and places %s"
+                       % (" ".join(sorted(unjustified))[:40],
+                          ", ".join("/" + n for n in sorted(named)) or "no "
+                          "unmapped glyph",
+                          "".join(sorted(c for c in literals
+                                         if len(c) == 1))[:40]))
+    return True, ("every introduced token is on the page: %s"
+                  % " ".join(sorted(added)))

@@ -1,0 +1,101 @@
+681 — the census as an ACCEPTANCE route: mielke's three decompositions repaired
+
+THE GAP THE USER SPOTTED
+------------------------
+680 withdrew EQ0378's prose but left EQ0472, EQ0857 and FO0431 exactly as they
+were: still "(not rendered)". MiniMax had proposed repairs for two of them and
+I recorded nothing, because both got the symbol right and then bled content
+from a neighbouring equation. So the rows stood — while the PDF's own encoding
+had already settled all three as facts.
+
+    EQ0472  \stackrel{十}{\Omega}  ->  \stackrel{+}{\Omega}
+            the census places a literal + on the page
+    EQ0857  \mathbf{匕}            ->  \mathbf{Ł}
+            Times-Roman /Lslash, code 173
+    FO0431  \jmath  AND  」        ->  \rfloor  (both)
+            MTSYN /floorright, code 8 — one glyph, two wrong guesses
+
+mielke now carries ZERO "(not rendered)" rows in either evidence kind.
+
+WHY NOT SEND THEM THROUGH THE INK GATE
+---------------------------------------
+Because the ink gate cannot tell right from wrong. It accepted a sentence of
+English prose over an equation on a -96 delta (679), and 17 of 30 recorded
+refinements carry that same shape. Passing a repair whose right answer is
+already KNOWN through a gate that cannot judge it would stamp
+`verified_by: "ink"` on something the ink never established.
+
+So these carry `verified_by: "census"`, and the realization records
+`census_names` and the justification string — auditable, not asserted.
+
+THE ROUTE IS NARROW BY CONSTRUCTION
+------------------------------------
+`glyphcensus.justifies(original, proposed, glyphs)` accepts only when:
+
+  1. every token the repair INTRODUCES is justified — a literal character the
+     census places in that region, or a LaTeX command `NAME_TOKENS` ties to a
+     glyph name the census reports; and
+  2. at most 3 tokens are introduced at all.
+
+(2) is what makes it unable to accept a rewrite. MiniMax's own proposals for
+these rows fixed the symbol and appended a neighbouring equation; that tail is
+dozens of tokens.
+
+IT REFUSED THE AUTHOR'S OWN FIRST REPAIR
+-----------------------------------------
+I proposed `\mathbf{匕}` -> `\mathrm{Ł}`. The census refused it: `\mathrm` is
+a font change the page cannot justify and that MathPix never got wrong. The
+minimal repair replaces the CHARACTER only, `\mathbf{Ł}` — which is the
+"change only what is damaged" rule I had written into the propose prompt that
+same morning, applied to me, by a check written an hour earlier. Pinned as
+`test_a_token_the_page_cannot_be_shown_to_carry_is_refused`.
+
+NAME_TOKENS HOLDS SEVEN ENTRIES, NOT 267
+-----------------------------------------
+267 glyph names in this corpus are outside the Adobe Glyph List. The table
+holds only what a row in hand needed (floorright, Lslash, lscript,
+similarequal) plus three obvious mirrors. A table built ahead of demand is
+inventory rather than evidence, and a test pins the set so growth has to be
+deliberate.
+
+THE VERDICT, AND A DISAGREEMENT BETWEEN TWO SURFACES
+-----------------------------------------------------
+    mielke-geometrodynamics: READY on all six gates
+    timestamp  measured 2026-09-12T17:00:03Z against the model on disk
+    crop       1056 rows checked, every displayed crop is the one measured
+    evidence   0 "(not rendered)" in equation or formula
+
+But the ink did NOT move: EQ0472 and EQ0857 still carry
+`L = [13, 6, 0, 0, 0]`, which is the DEMOTED constant the deploy guard names
+by that exact value, and the whole distribution is identical before and after
+(clean 158, component 56, noise 698, stable 21, unrendered 2, weak 121).
+
+The stamp says why: `prefer_refined: False`. The measure build reads raw
+`latex` and ignores the twin prop, so report.pdf — and therefore the ink, and
+therefore the residuals' ink-derived columns — still renders those two as
+"(not rendered)", while the evidence PDFs read `_chosen_reading` and show the
+repair.
+
+THAT IS NOT A DEFECT INTRODUCED HERE, and probably not a defect at all: the
+ink is a measurement of MATHPIX'S OUTPUT against the scan. Making it read our
+own corrections would improve the corpus's numbers without MathPix having
+improved, which is the one thing a quality measurement must not do. What is
+new is that it is now VISIBLE, because a document finally has census-verified
+repairs. `--prefer-refined` exists on the measure path if the policy is ever
+meant to be the other way; the two readings of "correct residuals" should be
+chosen between deliberately rather than by default.
+
+TWO WRONG GUESSES OF MINE, CORRECTED BY MEASUREMENT
+----------------------------------------------------
+* I predicted the 2 `unrendered` ink rows would be the repaired ones. They are
+  EQ0021 and EQ0560 — two unrelated rows, unchanged all along.
+* I then said the repaired rows now render in the measure build because they
+  are flagged `component` rather than `unrendered`. Their L vector is the
+  demoted constant: they do not render there at all. `component` is where a
+  demoted row lands, exactly as the guard's own comment explains.
+
+PUBLISHED
+---------
+Site 92eec90..826b912, verified on the remote. Bars regenerated (0 differ),
+sizes regenerated (1 changed), deploy guard run locally, publishcheck 20/20
+identical. Suite 3,776 -> 3,785 (9 new tests, 25 in test_glyphcensus.py).
