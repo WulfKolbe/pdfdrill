@@ -400,24 +400,52 @@ def scan_crop(pdf: Path, page: int, region: dict, out_png: Path,
 MATH_TYPES = ("Equation", "Formula")
 
 
-def candidates(doc, *, max_conf: float, limit: Optional[int] = None) -> list:
-    """Low-confidence maths objects, worst first.
+def candidates(doc, *, max_conf: float, limit: Optional[int] = None,
+               include_refused: bool = True) -> list:
+    """Maths objects worth re-transcribing, worst first.
 
-    A missing confidence is NOT a candidate: `None <= 0.5` is a TypeError in
-    Python 3 and an unscored row is not a doubted row — it is a row nobody
-    scored, which is out/160's problem and not this one.
+    TWO POPULATIONS, not one. Low confidence is a reason to doubt a reading;
+    it is not the only reason a reading needs replacing.
+
+    679 — a reading that CANNOT BE TYPESET is the one a reader actually sees
+    fail, and it was invisible here. `mielke-geometrodynamics_EQ0857` carries
+    confidence 0.925, so no `--max-conf` a person would choose selects it,
+    and its published Rendered cell says "(not rendered)". Measured over the
+    20 published documents: 19 of 44,633 equation/formula rows are refused by
+    `report_tex.display_safe`, and their confidences run to 0.925 — the
+    selector asked "is this doubted" and never asked "does this render",
+    which is HANDOVER-RULES rule 22 in this function.
+
+    So a row refused by `display_safe` is a candidate at ANY confidence.
+    `include_refused=False` restores the confidence-only population for a
+    caller that wants exactly it.
+
+    A missing confidence is NOT a low-confidence candidate: `None <= 0.5` is
+    a TypeError in Python 3 and an unscored row is not a doubted row — it is
+    a row nobody scored, which is out/160's problem and not this one. Such a
+    row IS still selected when it fails to render, because that failure is
+    observed rather than scored.
     """
-    out = []
+    from . import report_tex as _rt
+    out, seen = [], set()
     for o in doc.objects.values():
         if o.type not in MATH_TYPES:
             continue
-        c = (o.props or {}).get("confidence")
-        if not isinstance(c, (int, float)) or isinstance(c, bool):
+        props = o.props or {}
+        c = props.get("confidence")
+        scored = isinstance(c, (int, float)) and not isinstance(c, bool)
+        if scored and c <= max_conf:
+            out.append(o); seen.add(o.id); continue
+        if not include_refused:
             continue
-        if c > max_conf:
-            continue
-        out.append(o)
-    out.sort(key=lambda o: (o.props.get("confidence"), o.id))
+        latex = (props.get("latex") or "").strip()
+        if latex and not _rt.display_safe(latex) and o.id not in seen:
+            out.append(o); seen.add(o.id)
+    # worst first; an unscored or high-confidence refusal sorts after the
+    # doubted rows rather than jumping the queue on a confidence it lacks.
+    out.sort(key=lambda o: ((o.props or {}).get("confidence")
+                            if isinstance((o.props or {}).get("confidence"),
+                                          (int, float)) else 2.0, o.id))
     return out[:limit] if limit else out
 
 

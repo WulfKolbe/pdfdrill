@@ -1,0 +1,159 @@
+679 — the PDF's own glyph census: a second opinion MathPix cannot see
+
+THE QUESTION
+------------
+"Why is this simple formula not rendered?" — mielke-geometrodynamics_EQ0857,
+page 278, confidence 0.925, which a reader sees as "(not rendered)".
+
+THE ANSWER, AND IT IS ONE CHARACTER
+------------------------------------
+The LaTeX is structurally sound: brackets balanced, environments balanced, no
+alignment markers. `report_tex.display_safe` refuses it on exactly one gate,
+`cjk_defect`, whose own message is the diagnosis:
+
+    isolated CJK ideograph U+5315 (匕) — run length 1 (need >= 2 inside
+    \text{}/\mbox{}/etc, >= 3 bare in math), so this is a DECOMPOSITION and
+    not text
+
+MathPix met a symbol it could not name and emitted a CJK stroke radical in
+its place. Confirmed across the corpus: the other offenders are 一 十 二 丶
+亻 宀 口 工 — stroke primitives — and gilmore-lie-groups_EQ0584 contains
+⿰ ⿱ ⿺ ⿻, IDEOGRAPHIC DESCRIPTION CHARACTERS whose only purpose is to
+describe how a character is composed. The recogniser was describing glyph
+structure, not reading text.
+
+THE POPULATION: 19 ROWS, THREE CLASSES, ONLY ONE ABOUT CHARACTERS
+-----------------------------------------------------------------
+Of 44,633 published equation+formula rows with LaTeX, 19 are refused:
+
+  A  glyph decomposition into CJK                  8
+     mielke 3, fong-spivak-invitation 2, cardona 1,
+     fong-spivak-seven-sketches 1, gilmore 1
+  B  a `\begin{figure}` float captured as an equation   8
+     johnston 3, lyche 4, kohlhase 1 — structural, not characters
+  C  one formula split across lines, `\hbox{` never closed   3
+     kohlhase FO0317 / FO0319 / FO0323
+
+THE PDF ALREADY KNOWS, AND IT IS FREE
+--------------------------------------
+For a born-digital document the page carries a SECOND, INDEPENDENT reading of
+the same ink: its own text layer, plus the font `/Encoding` that names every
+glyph the text layer cannot map to Unicode.
+
+    Times-Roman /Encoding → /Lslash at code 173
+    MTSYN       /Encoding /Differences [ 2 /angbracketleft /angbracketright
+        /negationslash /asteriskmath /arrowright /logicaland /floorright
+        /similarequal /similar /infinity /radical /minusplus … ]
+
+Counting from code 2, code 8 is `/floorright`. So:
+
+    row      MathPix wrote            the PDF says
+    EQ0857   \mathbf{匕}               Ł            (Times-Roman /Lslash)
+    EQ0472   \stackrel{十}{\Omega}     a literal +
+    FO0431   \jmath  AND  」           /floorright BOTH TIMES — one symbol,
+                                      two different wrong guesses
+
+There is no `\pounds` in this book. The glyph is an L WITH A STROKE, exactly
+as the user described it, and the font says so by name. And FO0431's own
+surrounding prose, from the same text layer, reads "covariant Lie derivative
+... on M with respect to an arbitrary vector field": the document names its
+own symbol.
+
+`(cid:N)` IS THE SIGNAL, NOT THE FAILURE
+-----------------------------------------
+A glyph with a `/ToUnicode` entry arrives as a character. One without arrives
+as the literal `(cid:N)` — which marks EXACTLY the glyphs where the producer
+supplied no Unicode and an OCR therefore had to invent. Measured over the 20
+published documents: 604 distinct glyph names, 267 of them outside the Adobe
+Glyph List — 267 names that arrive as `(cid:N)` and are otherwise lost. They
+are the Computer Modern / MathTime / AMS conventions and are self-describing:
+
+    parenleftbigg  \bigg(        lscript     ℓ (\ell)
+    floorright     ⌋ (\rfloor)   similarequal ≅ (\cong)
+    negationslash  the \not overlay          bardbl  \|
+    integraldisplay \int         epsilon1    \varepsilon
+    angbracketleft \langle       tildewide   \widetilde
+
+WHAT WAS BUILT
+--------------
+`src/pdfdrill/glyphcensus.py` — evidence only, never a transcription:
+
+    font_differences(pdf)   {BaseFont: {code: glyph name}}, one xref walk
+    census(page, region, differences)  -> [Glyph] in reading order
+    as_line / unmapped_names           what a prompt or report shows
+    suspect_fonts(names)               fonts whose CHARACTERS cannot be trusted
+    contradicts(latex, glyphs, *, own_region)   see below
+
+pdfminer only — no mutool, no font parsing, no network. A scanned page yields
+an empty census and says so; that is where ink is the only evidence.
+
+THE CHECK THE INK GATE NEEDED
+------------------------------
+`contradicts()` exists because of a LIVE DEFECT this work uncovered:
+mielke-geometrodynamics_EQ0378 publishes a SENTENCE OF ENGLISH PROSE in place
+of its equation, on the site right now. A MiniMax refinement from 2026-08-26
+was accepted because the ink distance FELL 106 → 10, and recorded with
+`state: verified, verified_by: ink`. Ink distance measures how MUCH ink a
+rendering makes, not whether it is the same ink — a short wrong line beats a
+long damaged one, and the larger the claimed improvement the more suspicious
+it should be (the other two accepted that day had deltas of −2 and are fine).
+
+The census answers it: the letters and digits the PDF places in that region
+are not in that sentence. Measured, the check flags it at 9 of 13 and 6 of 8
+literal glyphs missing on EQ0472 and EQ0857 respectively, while passing every
+faithful MathPix reading.
+
+AND IT CAUGHT MY OWN DESIGN ERROR, ON ITS FIRST RUN
+----------------------------------------------------
+An inline Formula has no region, so a caller reaches for its HOST LINE's —
+which is a whole line of prose. FO0431's host-line census holds 92 glyphs, 84
+literal, so MathPix's correct 8-character reading appeared to be "missing" 49
+of them. A confident false refusal. `own_region` is therefore REQUIRED and has
+no default: declining is a decision a caller makes on purpose, and the wrong
+scope cannot be passed by accident. `test_a_host_line_region_is_refused_
+rather_than_misjudged` pins both directions.
+
+WHAT THIS REPLACES
+------------------
+A three-layer design was proposed — text layer, then Type 1 charstring
+outlines as PostScript for the LLM, then ink. Layer 2 IS NOT NEEDED for this
+document class: `/Encoding /Differences` gives the glyph NAME, and a name is a
+lookup, not an inference. A lookup cannot hallucinate, which is strictly
+better than asking a model. The outline route stays reserved for pages with
+no text layer, and for the 15-of-230 `Adv*` fonts that declare `WinAnsi` with
+no `/ToUnicode` over symbol glyphs — the one shape where a text-layer census
+yields plausible-but-wrong characters. `suspect_fonts()` names them.
+
+MINIMAX, MEASURED
+-----------------
+`refine.candidates()` selected on confidence <= 0.5 only, so none of the 19
+was ever a candidate — EQ0857 sits at 0.925. It now also selects any row
+`display_safe` refuses, at any confidence (`include_refused`). The propose
+prompt gained CJK guidance with the three measured examples; the hash in
+`tests/test_prompts.py` was updated in the same commit, per that dict's own
+contract.
+
+Run on mielke (select + propose only; nothing recorded):
+
+    EQ0472  \stackrel{十}{\Omega} -> \stackrel{+}{\Omega}   symbol CORRECT,
+            but it silently DROPPED `^{\{ \}}` — and the census proves those
+            braces are real: three `{ }` pairs on the page.
+    EQ0857  \mathbf{匕} -> \pounds                          symbol semantically
+            right, typographically wrong (the book's glyph is Ł), and it
+            appended `= \mathrm{Tr}\,\Omega \quad (=0)` from another equation.
+
+Zero CJK in any proposal, so the prompt guidance worked. But MiniMax BLEEDS
+CONTENT between neighbouring equations, visible across the older batch too.
+Neither proposal was recorded.
+
+NOT DONE
+--------
+* EQ0378's prose is still published. Withdrawing it edits the model and waits
+  on the user.
+* `contradicts()` is not yet wired into `refine`'s validate stage.
+* The census is not yet in the propose prompt.
+* No name -> LaTeX table was written. The 19 rows need 4 names
+  (`floorright`, `Lslash`, `prime`, `arrownortheast`); a 267-entry table
+  built ahead of demand would be inventory, not evidence.
+
+Suite 3,760 -> 3,774. 14 tests.
