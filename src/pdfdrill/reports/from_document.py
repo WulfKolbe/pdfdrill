@@ -124,15 +124,22 @@ def build_rows(doc, bibkey: str, *, ink: "dict | None" = None,
         sp = str((doc.meta or {}).get("source_path") or "")
         lines_path = sp if sp.endswith(".lines.json") else None
     # A formula whose EVERY occurrence sits on a table cell, a section
-    # heading, a title, a TOC entry or a figure label is not an inline
-    # formula --- docmodel/line_types.py. `FormulaProcessor` no longer
-    # creates those, but every model on disk predates that gate and this
-    # is the PUBLISHED surface, so the refusal is applied at read time too.
+    # heading, a title, a TOC entry, a figure label or inside a CAPTION is
+    # not an inline formula --- docmodel/line_types.py. `FormulaProcessor`
+    # no longer creates the type-based ones, but every model on disk
+    # predates that gate and this is the PUBLISHED surface, so the refusal
+    # is applied at read time too. The caption half has no creation-time
+    # gate at all and can only be applied here and in the projector: a
+    # caption's SPAN is a Paragraph property (`kind: "caption"`) and
+    # `FormulaProcessor` runs at procOrder 12, before ParagraphProcessor's
+    # 13 (676, review B1).
     # `math_titles` is left alone deliberately: the surviving rows keep the
     # identifiers they were published under, which is what `crop_sha256`
     # and the ink measurements are keyed on (667).
+    _captions = line_types.caption_anchors(doc)
     formulas = [f for f in _flow(doc.objects_of_type("Formula"))
-                if not line_types.only_non_prose(f, doc)]
+                if not line_types.no_transclusion_site(
+                    f, doc, captions=_captions)]
     hosts = _host_lines(formulas, lines_path)
 
     out = {"equation": [], "formula": [], "table": [], "image": []}

@@ -378,6 +378,49 @@ class LaTeXProjector(BaseProjector):
                 elif any(_touches(r) for r in obj.realizations if r is not flow_r):
                     self._toc_fragment_shared[obj.type] = \
                         self._toc_fragment_shared.get(obj.type, 0) + 1
+        # 676 (review B5) — THE SAME SUPPRESSION, GENERALISED BEYOND THE TOC.
+        # The block above is bespoke to a Toc, and its own docstring names
+        # the defect it fixes: penev_A's 23 orphan `$T=15$`-shaped Formulas
+        # carry only inline realizations on TOC lines, no Paragraph
+        # transcludes them, and they kept printing standalone. 674 built the
+        # general statement of that — a line whose type may not host a
+        # formula (`docmodel/line_types.py`), plus a caption's span — and
+        # gated the TiddlyWiki and report lanes with it. This lane was
+        # missed: measured on kohlhase-omdoc, all 17 of the formulas the
+        # report drops still printed here as standalone `$...$` blocks.
+        #
+        # Bound to the FLOW realization for the reason 635 fix round 1
+        # established (its review finding #3): `FormulaProcessor` dedupes
+        # identical LaTeX into ONE object with several realizations, and
+        # flow_index is one property naming one standalone slot. An object
+        # whose flow position is a real body occurrence keeps printing even
+        # if it also appears in a cell; one whose flow position is the cell
+        # has no other slot to print in.
+        #
+        # Runs whether or not a Toc exists --- the TOC block is gated on
+        # `tocs` and this is not the TOC's rule.
+        self._non_prose_suppressed: dict[str, int] = {}
+        _lines_stream = doc.streams.get("mathpix_lines")
+        if _lines_stream is not None:
+            from docmodel import line_types as _lt
+            _captions = _lt.caption_anchors(doc)
+            for obj in doc.objects.values():
+                if obj.id in self._skip_ids or obj.type in _CONTAINER_TYPES:
+                    continue
+                if obj.type not in ("Formula", "Equation"):
+                    continue
+                flow_r = next((r for r in obj.realizations
+                              if r.stream == "mathpix_lines"
+                              and r.start is not None), None)
+                if flow_r is None:
+                    continue
+                forbidden = not _lt.hosts_transclusion(
+                    _lt.line_type_at(doc, flow_r.start))
+                if forbidden or flow_r.start in _captions:
+                    self._skip_ids.add(obj.id)
+                    self._non_prose_suppressed[obj.type] = \
+                        self._non_prose_suppressed.get(obj.type, 0) + 1
+
         # STAGE 3: acronyms / glossary from the named-concept layer (lazy — the
         # `semantic` package; degrade to none if unavailable).
         self._acronyms: list = []

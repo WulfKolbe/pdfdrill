@@ -59,10 +59,15 @@ NON_PROSE_HOSTS: dict[str, frozenset[str]] = {
     # "any kind of table" --- every cell/row/column type MathPix emits,
     # including the whole-region `table` line that carries the tabular.
     "table": frozenset({
-        "table", "table_row", "table_column", "column",
+        "table", "table_row", "table_column",
         "simple_cell", "complex_cell", "table_spanning_cell",
         "table_split_cell",
     }),
+    # 676 (review B7): `column` was here and is NOT a table --- it is a
+    # page-layout column, which `paragraph.py:41` annotates "sidenotes".
+    # Zero measured impact (16,016 `column` lines corpus-wide carry no
+    # inline math at all), so this is about the set's claim to be
+    # checkable against the sentence that asked for it.
     # "section heading"
     "section_header": frozenset({"section_header"}),
     # "titles"
@@ -128,16 +133,78 @@ def prose_realizations(obj, doc, stream_name: str = "mathpix_lines") -> list:
     return out
 
 
-def only_non_prose(obj, doc, stream_name: str = "mathpix_lines") -> bool:
-    """True when EVERY surface occurrence of `obj` is on a forbidden line.
+def caption_anchors(doc, stream_name: str = "mathpix_lines") -> set:
+    r"""Every line anchor covered by a figure/table CAPTION.
+
+    676 (review B1). MathPix types most captions plain `text`, not
+    `figure_label` --- `paragraph.py:54-61` says so in its own comment
+    ("its figure_label lines are often EMPTY") and defines `_CAPTION_START`
+    to find them. Measured: 11,758 caption-start lines carrying 2,810
+    inline-math occurrences, against 2,382 on `figure_label` --- the half
+    that a type-based rule misses is larger than the half it catches.
+
+    A caption cannot be recognised line by line. Its FIRST line matches
+    `_CAPTION_START`; its continuations match nothing, and end at a
+    vertical gap `ParagraphProcessor` measures against the caption's own
+    line pitch. A line-level approximation of that (everything prose after
+    a caption start, until a non-prose line) over-reaches by an order of
+    magnitude: 110,526 lines where the real spans hold far fewer.
+
+    So the span is taken from the model, where it already exists:
+    `ParagraphProcessor` stamps `kind: "caption"` on the Paragraph and that
+    Paragraph's realization IS the caption's line range. One authority, no
+    second detector.
+    """
+    out = set()
+    stream = doc.streams.get(stream_name) if getattr(doc, "streams", None) else None
+    if stream is None:
+        return out
+    for p in doc.objects_of_type("Paragraph"):
+        if (getattr(p, "props", None) or {}).get("kind") != "caption":
+            continue
+        for r in p.realizations:
+            if (r.stream != stream_name or r.role != "surface"
+                    or r.start is None):
+                continue
+            out.update(stream.slice_anchors(r.start, r.end))
+    return out
+
+
+def no_transclusion_site(obj, doc, stream_name: str = "mathpix_lines",
+                         captions: "set | None" = None) -> bool:
+    """True when no surface occurrence of `obj` may host a transclusion.
+
+    An occurrence is disqualified two ways: its line TYPE is forbidden
+    (`NO_TRANSCLUDE`), or it lies inside a caption's span
+    (`caption_anchors`) --- a caption is a figure/image label whatever
+    MathPix typed its lines.
 
     False for an object with no surface realization at all (a synthetic
     formula built from paragraph text has none, and paragraph text is prose
     by construction) --- absence of evidence is not a refusal.
+
+    676 (review B4) --- ON THE QUESTION THIS ASKS. The review observed that
+    "no occurrence the rule permits" is not the same as "no occurrence that
+    can actually host a transclusion": a `diagram`, `chart` or `qed_symbol`
+    occurrence rescues an object here, and none of those types is in
+    `ParagraphProcessor._PROSE_TYPES`, so none can ever carry one (38 rows
+    of the published 36,158, 0.11%). That is correct, and asking the
+    stricter question was DELIBERATELY not done: `list_item` is not a prose
+    type either, and it carries 22,604 inline-math occurrences that are
+    real inline formulas in a list. The stricter question drops those too.
+    So this asks what the requirement named, and the gap is recorded rather
+    than closed by widening a set nobody asked to widen.
     """
     surfaces = [r for r in getattr(obj, "realizations", ()) or ()
                 if r.stream == stream_name and r.role == "surface"
                 and r.start is not None]
     if not surfaces:
         return False
-    return not prose_realizations(obj, doc, stream_name)
+    if captions is None:
+        captions = caption_anchors(doc, stream_name)
+    for r in surfaces:
+        if r.start in captions:
+            continue
+        if hosts_transclusion(line_type_at(doc, r.start, stream_name)):
+            return False
+    return True

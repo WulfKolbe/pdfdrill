@@ -29,6 +29,7 @@ from typing import NamedTuple, Optional
 
 from docmodel.core import Document, DocObject
 from docmodel import line_types
+from .. import mathdelims
 from ..base import BaseProjector
 from .. import citation_spans as _cspans
 from .common import embed_image, is_derived
@@ -86,8 +87,9 @@ def code_listing_tiddlers(listings, bibkey: str) -> list[dict]:
         # caption is what a reader sees in a listing index; fall back to the
         # label, then to the file:line that every object has (out/079: only
         # 13% of real listings carry a caption at all)
-        t["caption"] = (props.get("caption") or props.get("label")
-                        or f'{props.get("source_file","")}:{props.get("source_line","")}')
+        t["caption"] = mathdelims.to_tiddlywiki(
+            props.get("caption") or props.get("label")
+            or f'{props.get("source_file","")}:{props.get("source_line","")}')
         out.append(t)
     return out
 
@@ -1080,6 +1082,25 @@ _HEADING_LEVEL = {"chapter": "!", "section": "!", "subsection": "!!",
                   "subsubsection": "!!!"}
 
 
+#: A private, never-rendered marker inserted between the backslash and the
+#: bracket of a math delimiter, so `_substitute_residual_inline_math` cannot
+#: match it. U+0000 cannot occur in MathPix output (it is not valid in JSON
+#: text) and `_unmask_math` removes every one before the text is returned, so
+#: it never reaches a tiddler. Masking rather than offset-tracking is what
+#: makes the refusal survive the footnote and picture passes that rewrite the
+#: string in between (676, review B2).
+_MASK = "\x00"
+_MASK_DELIMS = re.compile(r"\\([()\[\]])")
+
+
+def _mask_math(text: str) -> str:
+    return _MASK_DELIMS.sub(lambda m: "\\" + _MASK + m.group(1), text or "")
+
+
+def _unmask_math(text: str) -> str:
+    return (text or "").replace(_MASK, "")
+
+
 def latex_sectioning_to_wikitext(text: str) -> str:
     """Convert leaked LaTeX sectioning commands in prose to WikiText headings.
 
@@ -1517,7 +1538,7 @@ class TiddlyWikiProjector(BaseProjector):
             )
             t["level"] = str(s.props.get("level", 1))
             t["section_number"] = s.props.get("section_number") or ""
-            t["caption"] = cap
+            t["caption"] = mathdelims.to_tiddlywiki(cap)
             if raw_cap != cap:                       # caption carried LaTeX (\ref/font)
                 t["caption_latex"] = raw_cap
             t["page"] = self._p3(s.props.get("page"))
@@ -1926,7 +1947,7 @@ class TiddlyWikiProjector(BaseProjector):
                 text += "\n\n{{" + title[pid] + "||PROOF}}"
             t = self._t(title[th.id], text,
                         f"theorem {th.props.get('kind', 'theorem')} {_bibtag(bibkey)}")
-            t["caption"] = head
+            t["caption"] = mathdelims.to_tiddlywiki(head)
             t["kind"] = th.props.get("kind", "theorem")
             if th.props.get("number") is not None:
                 t["refnum"] = str(th.props["number"])
@@ -2018,12 +2039,47 @@ class TiddlyWikiProjector(BaseProjector):
         stream = doc.stream("mathpix_lines")
         anchors = stream.slice_anchors(surface.start, surface.end)
 
+        # 676 (review B1) — A CAPTION IS A FIGURE LABEL WHATEVER MATHPIX
+        # TYPED ITS LINES. `ParagraphProcessor` stamps `kind: "caption"` and
+        # that stamp IS the caption's span (see
+        # `line_types.caption_anchors`): 11,758 caption-start lines carrying
+        # 2,810 inline-math occurrences, more than the 2,382 on
+        # `figure_label` that the type-based rule catches. So the whole
+        # paragraph refuses formula substitution — both the offset pass and
+        # the catch-all below.
+        caption = para.props.get("kind") == "caption"
+
+        # 676 (review B2) — PER LINE, NOT PER PARAGRAPH. The catch-all below
+        # runs on the JOINED text, and the previous gate refused it only when
+        # EVERY anchor was forbidden. `ParagraphProcessor` welds consecutive
+        # {text, title, quote} lines sharing a (block_num, par_num) group
+        # into one Paragraph, so a title welded to a text line kept the pass
+        # and the title's raw `\(...\)` came back as a synthetic FOX. A
+        # title's math was therefore transcluded or not depending on line
+        # grouping — nondeterminism worse than either outcome. Each line's
+        # own span in the joined string is recorded here and the catch-all
+        # skips any match inside a forbidden one.
+        # The line's math is hidden from the catch-all by MASKING its
+        # delimiters, not by recording offsets: `_substitute_footnotes` and
+        # `_substitute_inline_pictures` run in between and change the
+        # string's length, so any range recorded here would be applied at
+        # stale offsets. A literal mask survives every rewrite, and
+        # `_unmask` at the end restores the source text exactly.
         line_texts: list[str] = []
         for anchor in anchors:
             payload = stream.payload[anchor]
             raw = payload.get("text_display") or payload.get("text") or ""
-            substituted = self._apply_line_substitutions(
-                raw, subs_by_line.get(anchor, []))
+            subs = () if caption else subs_by_line.get(anchor, [])
+            if caption and subs_by_line.get(anchor):
+                self.bump("formula_subs_refused_caption")
+            substituted = self._apply_line_substitutions(raw, subs)
+            if caption or not line_types.hosts_transclusion(
+                    payload.get("type")):
+                masked = _mask_math(substituted)
+                if masked != substituted:
+                    self.bump("residual_math_refused_caption" if caption
+                              else "residual_math_refused_non_prose")
+                substituted = masked
             line_texts.append(substituted)
 
         joined = " ".join(t for t in line_texts if t)
@@ -2031,20 +2087,11 @@ class TiddlyWikiProjector(BaseProjector):
         joined = self._substitute_inline_pictures(joined, inline_url_to_title)
         # Final catch-all: cross-line inline math that escaped the per-line
         # offset substitution above. These become synthetic FOX tiddlers.
-        #
-        # NOT on a paragraph built entirely from lines that may not host a
-        # formula (docmodel/line_types.py). `ParagraphProcessor` admits
-        # `title` as prose, so a title line carrying `\(x^2\)` becomes a
-        # Paragraph; refusing only the OFFSET substitution left this pass to
-        # find the same raw delimiters and mint a synthetic FOX for them,
-        # putting the forbidden transclusion back under a different name.
-        # A MIXED paragraph keeps the pass: its prose lines are prose.
-        if any(line_types.hosts_transclusion(
-                stream.payload[a].get("type")) for a in anchors):
-            joined = self._substitute_residual_inline_math(
-                joined, synthetic_formulas, bibkey)
-        else:
-            self.bump("residual_math_refused_non_prose")
+        # Masked lines are invisible to it, so cross-line math is still
+        # caught between two hosting lines and never across a masked one.
+        joined = self._substitute_residual_inline_math(
+            joined, synthetic_formulas, bibkey)
+        joined = _unmask_math(joined)
         joined = self._substitute_eq_refs(joined)
         # Convert any leaked LaTeX sectioning command (\section*{...}) to a
         # native WikiText heading — done last so it doesn't disturb the
@@ -2279,7 +2326,18 @@ class TiddlyWikiProjector(BaseProjector):
         now = _tw_now()
         return {
             "title": _sanitize_title(title),
-            "text": _to_markdown(text),           # WikiText headings → Markdown
+            # 676 — `mathdelims.to_tiddlywiki` LAST, so the math widget is the
+            # final word on the text. Every tiddler body passes through here,
+            # which is why the conversion belongs here and not at 15 call
+            # sites: math that stays in a body (a sidenote, a list item, a
+            # footnote, a heading, a caption) never became a Formula object,
+            # so it never took the `<$latex .../>` route the whole projection
+            # is built on, and reached the wiki as MathPix's own `\(...\)` —
+            # which TiddlyWiki's KaTeX does not render. 24,419 such spans
+            # across the 20 published documents. A body carrying a
+            # `\begin{...}` is LaTeX SOURCE (a Table's tabular) and
+            # `mathdelims` returns it untouched. See out/675.txt.
+            "text": mathdelims.to_tiddlywiki(_to_markdown(text)),
             "type": "text/markdown",
             "tags": tags,
             "created": now,

@@ -266,3 +266,210 @@ def test_a_formula_with_no_surface_realization_is_published():
     doc.add(DocObject(id="f1", type="Formula",
                       props={"latex": "x^2", "flow_index": 1, "bibkey": BK}))
     assert [r.identifier for r in build_rows(doc, BK)["formula"]] == ["T_FO0001"]
+
+
+# =====================================================================
+# 676 --- the review's findings, each pinned by the case that exposed it
+# =====================================================================
+
+def _projected(lines):
+    """Run the real pipeline over `lines` and return the tiddler array."""
+    from docmodel.modules.page import PageProcessor
+    from docmodel.modules.paragraph import ParagraphProcessor
+    from docmodel.modules.document_flow import DocumentFlowProcessor
+    doc = _doc_from_lines(lines)
+    for cls in (PageProcessor, FormulaProcessor, ParagraphProcessor):
+        _module(cls).process_document(doc)
+    _module(DocumentFlowProcessor).process_objects(doc)
+    return doc, _project(doc)
+
+
+# --- B1: a caption is a figure label whatever MathPix typed its lines -----
+
+CAPTION = _line("text", r"Figure 15.12: the relation \(x^{2}\) between them")
+
+
+def test_a_caption_typed_as_plain_text_is_not_transcluded():
+    r"""The review's first blocking finding.
+
+    MathPix types most captions `text`, not `figure_label` --- 11,758
+    caption-start lines carrying 2,810 inline-math occurrences, against
+    2,382 on `figure_label`. A type-based rule misses the larger half.
+    """
+    doc, arr = _projected([CAPTION])
+    assert not any("||FO}}" in (t.get("text") or "") for t in arr)
+
+
+def test_the_caption_paragraph_is_what_identifies_the_span():
+    """`ParagraphProcessor` stamps it; nothing here re-detects it."""
+    doc, _arr = _projected([CAPTION])
+    kinds = {p.props.get("kind") for p in doc.objects_of_type("Paragraph")}
+    assert "caption" in kinds
+    assert lt.caption_anchors(doc), "the caption's anchors were not found"
+
+
+def test_a_caption_row_is_not_published():
+    doc, _arr = _projected([CAPTION])
+    assert build_rows(doc, BK)["formula"] == []
+
+
+def test_an_ordinary_paragraph_beside_a_caption_still_transcludes():
+    """The control. Without it, the three tests above pass for a projector
+    that simply stopped substituting."""
+    doc, arr = _projected([
+        CAPTION,
+        _line("text", r"Ordinary prose with \(y^{3}\) inside it.",
+              block_num=9, par_num=9),
+    ])
+    assert any("||FO}}" in (t.get("text") or "") for t in arr)
+    assert [r.identifier for r in build_rows(doc, BK)["formula"]]
+
+
+# --- B2: a title welded to a text line ------------------------------------
+
+def test_a_title_welded_to_a_text_line_still_refuses_its_math():
+    r"""The review's second blocking finding.
+
+    `ParagraphProcessor` welds consecutive {text, title, quote} lines
+    sharing a (block_num, par_num) group into ONE Paragraph. The first gate
+    refused the catch-all only when EVERY anchor was forbidden, so a welded
+    title kept the pass and its `\(...\)` came back as a synthetic FOX ---
+    a title's math transcluded or not depending on line grouping.
+    """
+    doc, arr = _projected([
+        _line("title", r"A simpler representation for \(R(4,4)\)",
+              block_num=1, par_num=1),
+        _line("text", "University of Waterloo Technical Report",
+              block_num=1, par_num=1),
+    ])
+    body = " ".join(t.get("text") or "" for t in arr)
+    assert "||FO}}" not in body
+    assert "FOX" not in body
+
+
+def test_the_text_half_of_a_welded_paragraph_keeps_its_own_math():
+    r"""Per LINE, not per paragraph, and the two halves differ VISIBLY.
+
+    The prose line's math becomes a transclusion --- a marker naming a
+    Formula tiddler. The title's math is RENDERED IN PLACE by
+    `mathdelims` (676/675): a `<$latex .../>` widget, which is not a
+    transclusion and creates no object, so the refusal holds while the
+    reader still sees typeset mathematics instead of `\(R(4,4)\)`.
+    """
+    doc, arr = _projected([
+        _line("title", r"Heading with \(R(4,4)\)", block_num=1, par_num=1),
+        _line("text", r"and prose with \(z^{5}\) in it", block_num=1,
+              par_num=1),
+    ])
+    para = next(t for t in arr if "paragraph" in (t.get("tags") or ""))
+    assert "||FO}}" in para["text"], para["text"]
+    assert "<$latex text=\"R(4,4)\"" in para["text"], para["text"]
+    assert r"\(R(4,4)\)" not in para["text"], "left in MathPix's delimiters"
+
+
+def test_a_caption_renders_its_math_in_place_rather_than_transcluding_it():
+    """The same pairing for the caption case: refused as a transclusion,
+    rendered as mathematics."""
+    _doc, arr = _projected([CAPTION])
+    body = " ".join(t.get("text") or "" for t in arr)
+    assert "||FO}}" not in body
+    assert '<$latex text="x^{2}"' in body, body
+
+
+def test_no_mask_character_ever_reaches_a_tiddler():
+    """The mask is private. A leak would be invisible in a diff and
+    visible in the wiki."""
+    doc, arr = _projected([
+        _line("title", r"Heading with \(R(4,4)\)", block_num=1, par_num=1),
+        _line("text", r"and prose with \(z^{5}\)", block_num=1, par_num=1),
+        CAPTION,
+    ])
+    for t in arr:
+        for v in t.values():
+            if isinstance(v, str):
+                assert "\x00" not in v, t.get("title")
+
+
+# --- B3: the span scan and the model must read the same field -------------
+
+def test_the_host_line_scan_reads_the_field_the_model_was_built_from(tmp_path):
+    r"""A `diagram` line carries `text == ""` and everything in
+    `text_display`. Scanning `text` alone made every span on such a line
+    invisible, so a formula built from one lost its host line --- 27
+    published rows, and "rows with no host line" went 33 -> 44."""
+    p = tmp_path / (BK + ".lines.json")
+    p.write_text(json.dumps({"pages": [{"lines": [
+        {"type": "diagram", "text": "",
+         "text_display": r"caption \(\gamma\) here", "confidence": 0.8}]}]}))
+    first = inlinectx.first_occurrences(inlinectx.load_spans(str(p)))
+    assert r"\gamma" in first
+    assert inlinectx.context_of(first[r"\gamma"])["line_type"] == "diagram"
+
+
+# --- B5: the LaTeX lane --------------------------------------------------
+
+def _latex_body(doc) -> str:
+    """The typeset BODY only.
+
+    The projection also embeds every Formula in a `readarray` data file
+    (`\\begin{filecontents*}{formulas.dat}`) that `\\Expr{i}` indexes into.
+    A suppressed formula stays in that array on purpose: the array is
+    positional, so dropping an entry renumbers every `\\Expr` after it. An
+    unreferenced entry typesets nothing, which is the property that matters
+    here --- so this reads the document body, where "prints standalone" is
+    a question that can actually be asked.
+    """
+    from docops.projectors.latex import LaTeXProjector
+    from docops.base import OperatorConfig
+    op = LaTeXProjector(OperatorConfig(op="projector",
+                                       classname="LaTeXProjector", params={}))
+    out = op.project(doc)
+    return out.split("\\begin{document}", 1)[1]
+
+
+def test_a_refused_formula_does_not_print_standalone_in_the_latex_lane():
+    """The sixth path. A standalone `$x^2$` block is not a transclusion,
+    but it is the same duplicate on a shipped surface, and task 635 already
+    treated it as the same defect (for the TOC only)."""
+    assert "x^2" not in _latex_body(_report_doc(["simple_cell"]))
+
+
+def test_a_caption_formula_does_not_print_standalone_in_the_latex_lane():
+    r"""The caption's OWN text still prints --- that is the caption, and it
+    carries its math as source. What must not appear is the SECOND,
+    standalone copy the Formula object would render as `$x^{2}$`."""
+    doc, _arr = _projected([CAPTION])
+    body = _latex_body(doc)
+    assert r"\(x^{2}\)" in body, "the caption itself stopped printing"
+    assert "$x^{2}$" not in body, "the Formula printed a standalone duplicate"
+
+
+def test_a_prose_formula_still_prints_in_the_latex_lane():
+    """The control."""
+    assert "x^2" in _latex_body(_report_doc(["text"]))
+
+
+# --- B7/B8: the set's own claims -----------------------------------------
+
+def test_column_is_not_claimed_to_be_a_table():
+    """`column` is a page-layout column (`paragraph.py:41`: "sidenotes"),
+    not any kind of table. It was in the table family and is not."""
+    assert "column" not in lt.NO_TRANSCLUDE
+    assert lt.family("column") is None
+    assert "table_column" in lt.NON_PROSE_HOSTS["table"]
+
+
+def test_the_coverage_tripwire_covers_content_not_only_type():
+    r"""676 (review B8). The first tripwire asserted
+    `_PROSE_TYPES & NO_TRANSCLUDE == {"title"}` --- "no forbidden TYPE
+    reaches a paragraph". The real exposure was forbidden CONTENT under a
+    permitted type (a caption typed `text`), which that check cannot see.
+    This asserts both halves: the type half, and that the content half has
+    a gate at all."""
+    from docmodel.modules.paragraph import _PROSE_TYPES, _CAPTION_START
+    assert set(_PROSE_TYPES) & set(lt.NO_TRANSCLUDE) == {"title"}
+    # the content half: the caption detector exists and the span helper
+    # reads the stamp it produces
+    assert _CAPTION_START.match("Figure 15.12: x")
+    doc, _arr = _projected([CAPTION])
+    assert lt.caption_anchors(doc)

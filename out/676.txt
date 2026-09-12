@@ -1,0 +1,162 @@
+676 — the review's findings: captions, the welded title, the field the host
+      scan reads, the LaTeX lane, and the delimiters left behind
+
+The 674 review returned SPEC COMPLIANCE: INCOMPLETE, CODE QUALITY: GOOD with
+defects. Nine findings. Every one is addressed below; two were rulings rather
+than changes, and both are recorded as such.
+
+B1 (BLOCKING) — A CAPTION IS A FIGURE LABEL WHATEVER MATHPIX TYPED IT
+----------------------------------------------------------------------
+674 covered the TYPE `figure_label`. `paragraph.py:54-61` already said in its
+own comment that those lines "are often EMPTY" and defined `_CAPTION_START` to
+find the captions MathPix types plain `text`. Measured over 1,363 documents:
+
+    caption-start `text` lines                     11,758
+    inline-math occurrences on caption lines        2,810
+    (compare: `figure_label` occurrences 674 caught 2,382)
+
+The missed half was larger than the caught half.
+
+A CAPTION CANNOT BE RECOGNISED LINE BY LINE, and that is why the gate is not
+in `FormulaProcessor`. The first line matches `_CAPTION_START`; the
+continuations match nothing and end at a vertical gap `ParagraphProcessor`
+measures against the caption's own line pitch. A line-level approximation —
+"every prose line after a caption start until a non-prose line" — was written
+first and measured: 110,526 lines where the real spans hold a fraction of
+that. An order of magnitude of over-reach.
+
+So the span is taken from the model, where it already exists:
+`ParagraphProcessor` stamps `kind: "caption"` and that Paragraph's
+realization IS the caption's line range. `line_types.caption_anchors(doc)`
+reads the stamp. One authority, no second detector.
+
+Applied at the two surfaces that can see a Paragraph — the projector
+(`_transclude_paragraph` refuses both passes for a caption paragraph) and the
+report. NOT at creation: `FormulaProcessor` is procOrder 12 and
+`ParagraphProcessor` is 13, so at creation time the caption does not exist
+yet. Stated as a limit, not hidden.
+
+B2 (BLOCKING) — PER LINE, NOT PER PARAGRAPH
+--------------------------------------------
+674 refused the residual catch-all only when EVERY anchor was forbidden.
+`ParagraphProcessor` welds consecutive {text, title, quote} lines sharing a
+(block_num, par_num) group into ONE Paragraph, so a title welded to a text
+line kept the pass and the title's `\(...\)` came back as a synthetic FOX.
+A title's math was transcluded or not depending on line grouping —
+nondeterminism worse than either outcome.
+
+Fixed by MASKING, not by offset ranges. The catch-all runs on the JOINED
+text, and `_substitute_footnotes` / `_substitute_inline_pictures` run in
+between and change its length, so any range recorded per line would be
+applied at stale offsets. A forbidden line's delimiters get a private U+0000
+marker between the backslash and the bracket; `_unmask_math` removes every
+one before the text is returned. A literal mask survives every rewrite.
+Cross-line math is still caught between two hosting lines, never across a
+masked one. `test_no_mask_character_ever_reaches_a_tiddler` pins the leak.
+
+B3 (HIGH) — THE FOURTH IMPLEMENTATION READ A DIFFERENT FIELD
+-------------------------------------------------------------
+`inlinectx.load_spans` re-scanned `ln["text"]`; the model was built from
+`text_display or text`. A `diagram` or `chart` line carries `text == ""` and
+all its content in `text_display`, so every span on one was invisible to the
+scan and the formula built from it silently lost its host line.
+
+This was a regression 674 introduced and did not report: "rows with no host
+line: 44" had no before value, and the before value was 33. Aligning the
+field fixes it and goes past the starting point:
+
+    rows with no host line    33 (before 674) -> 44 (674) -> 6 (676)
+
+B4 (MEDIUM) — A RULING, NOT A CHANGE
+-------------------------------------
+The review is right that "no occurrence the rule permits" is not "no
+occurrence that can host a transclusion": a `diagram`, `chart` or
+`qed_symbol` occurrence rescues an object, and none of those is in
+`_PROSE_TYPES`. 38 of 36,158 rows, 0.11%.
+
+Asking the stricter question was deliberately NOT done. `list_item` is not a
+prose type either, and it carries 22,604 inline-math occurrences that are
+real inline formulas in a list. The stricter question drops those too — a set
+nobody asked to widen. The predicate is renamed `no_transclusion_site` (from
+`only_non_prose`, which named its implementation rather than its question)
+and the gap is recorded in its docstring.
+
+B5 (MEDIUM) — THE SIXTH PATH: THE LATEX LANE
+---------------------------------------------
+`latex.py` emits every Formula not consumed by a transcluding marker as a
+standalone block, and a forbidden-line Formula is by construction never
+consumed. Measured: kohlhase-omdoc, all 17 of the formulas the report drops
+still printed as standalone `$...$`.
+
+`latex.py:250-290` already solved exactly this, bespoke, for the TOC only
+(task 635: "penev_A's 23 orphan `$T=15$`-shaped Formulas carry ONLY inline
+realizations on their TOC lines ... and kept printing"). 674 built the
+general set and did not wire it in. Now wired, bound to the FLOW realization
+for the reason 635 fix round 1 established: `FormulaProcessor` dedupes
+identical LaTeX into one object with several realizations, and `flow_index`
+is one property naming one standalone slot.
+
+The `readarray` data file still carries every Formula. That is deliberate:
+the array is positional, so dropping an entry renumbers every later `\Expr`.
+An unreferenced entry typesets nothing. The test reads the document BODY,
+where "prints standalone" is a question that can be asked.
+
+B6 (LOW) — A FALSE ABSOLUTE, CORRECTED
+---------------------------------------
+"No content is lost" is false for ~11 published rows. Corrected in place at
+the end of out/674.txt; the Table half (359/359) stands, the Section half
+does not.
+
+B7 (LOW) — `column` IS NOT A TABLE
+-----------------------------------
+Removed from the table family. It is a page-layout column, which
+`paragraph.py:41` annotates "sidenotes". Zero measured impact (16,016
+`column` lines carry no inline math at all), so this is only about the set's
+claim to be checkable against the sentence that asked for it —
+`table_column`, a real MathPix table container, stays.
+
+B8 (LOW) — THE TRIPWIRE CHECKED THE WRONG INVARIANT
+----------------------------------------------------
+The rule-22 tripwire pinned "no forbidden TYPE reaches a paragraph". The real
+exposure was forbidden CONTENT under a permitted type — a caption typed
+`text`, 2,810 occurrences — which that check cannot see. Rule 22 naming its
+own violation. The test now asserts both halves.
+
+B9 — the informational judgements (`cmd_formulas`, the retired report path,
+`formula_report`, `latex_source`, the downstream projectors) are accepted as
+the reviewer made them. No change.
+
+THE DELIMITERS (675, now wired)
+--------------------------------
+Refusing a transclusion leaves MathPix's `\(...\)` standing, and TiddlyWiki's
+KaTeX does not render it. `mathdelims.to_tiddlywiki` is wired at `_t`, the
+single constructor every tiddler body passes through, plus the four sites
+that set a `caption` field directly. Math that stays in a body is now
+RENDERED IN PLACE as the same `<$latex .../>` widget an inline Formula would
+have produced — which creates no object, no title and no transclusion, so the
+674 refusal holds and the reader still sees mathematics.
+
+Measured on kohlhase-omdoc, projected before and after:
+
+    raw MathPix delimiters in text/caption    356 -> 19
+    <$latex .../> widgets                            817
+    tiddlers carrying the private mask char            0
+
+The 19 that remain are LaTeX-source bodies (`\begin{...}`), left verbatim on
+purpose.
+
+PUBLISHED-SET EFFECT
+--------------------
+    formula rows          36,936 -> 36,041   (674 alone was 36,158)
+    rows on a forbidden host type                  0   (was 1,018)
+    rows with no host line                         6   (33 before 674, 44 after)
+
+    biggest movers: gilmore-lie-groups -462, johnston -84, voloshin -69,
+    0902.0431 -52, fong-spivak-invitation -51, fong-spivak-seven -45,
+    cardona -32, 1510.06699 -26, mielke -25, lyche -21, kohlhase -20,
+    penev_B -8
+
+TESTS
+-----
+tests/test_line_types_no_transclude.py 46 -> 60; suite 3,717 -> 3,754.
+Each finding has the case that exposed it, with a control beside it.

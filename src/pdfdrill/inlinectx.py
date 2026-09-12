@@ -59,7 +59,17 @@ def load_spans(lines_path: "Path | str") -> list:
         for line_index, ln in enumerate(pg.get("lines") or []):
             if ln.get("type") == "math":
                 continue
-            text = ln.get("text") or ""
+            # 676 (review B3) -- `text_display or text`, the SAME field
+            # `FormulaProcessor.find_items` reads. This scan was `text`
+            # alone, so for a line where the two differ it looked at
+            # different characters than the model did: a `diagram` or
+            # `chart` line carries `text == ""` and all its content in
+            # `text_display`, so every span on one was invisible here and
+            # the formula built from it silently lost its host line --- 27
+            # published rows across the 20 documents, which is how "rows
+            # with no host line" went 33 -> 44 without anyone deciding it
+            # should.
+            text = ln.get("text_display") or ln.get("text") or ""
             for m in INLINE.finditer(text):
                 body = (m.group(1) or m.group(2) or "").strip()
                 if not body:

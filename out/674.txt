@@ -147,3 +147,36 @@ identifiers, which invalidates every crop and every ink measurement keyed on
 them. That is a separate, sequenced operation.
 
 No republish. The site still shows the 36,936-row reports.
+
+===========================================================================
+CORRECTIONS (676, after review). Three claims above are wrong; see out/676.txt
+===========================================================================
+
+1. "rows still hosted on a forbidden line type 0 (was 1,018)" is right, but
+   "rows with no host line at all: 44" was reported without its before value.
+   It was 33. Eleven published rows NET lost a page, a confidence, a region
+   and a crop they previously had, because `inlinectx.load_spans` re-scanned
+   `ln["text"]` while the model was built from `text_display or text`.
+   Fixed in 676; the number is now 6, lower than the 33 this task started
+   from.
+
+2. "No content is lost by refusing the duplicate ... a Section keeps its
+   heading in `caption`" is FALSE for ~11 rows. The Table half is right
+   (359/359 Table objects in the published 20 carry the tabular). The
+   Section half was asserted, not measured: 0707.4470 and 0902.0431 have
+   `section_header` lines and ZERO Section objects, so for 35 dropped
+   formulas no object is realized on any of their host lines. Their math is
+   still in the `mathpix_lines` stream and in lines.json; it is not in any
+   published object.
+
+3. "ONE VISIBLE CONSEQUENCE, STATED" was not one, and was not stated
+   correctly. A `title` welded to an adjacent `text` line into one Paragraph
+   kept the residual pass, so a title's math was transcluded or left raw
+   depending on line grouping. Fixed in 676 (per line, not per paragraph),
+   and the consequence itself is now gone: 675's `mathdelims` renders that
+   math in place as a `<$latex .../>` widget, which is not a transclusion.
+
+4. Scope was incomplete. Captions that MathPix types plain `text` -- 11,758
+   lines carrying 2,810 inline-math occurrences, MORE than the 2,382 on
+   `figure_label` this task did catch -- were still mined and transcluded.
+   Fixed in 676.
