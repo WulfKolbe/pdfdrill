@@ -196,3 +196,44 @@ Note that B3's field fix is what GAVE these rows a host line at all: a
 `diagram` line carries `text == ""` and all its content in `text_display`,
 so before the fix they had no host and after it they have a figure's. That
 is a better state (the page is right) and not yet the right one.
+
+===========================================================================
+A MEASURED CONSEQUENCE, AND WHY IT IS THE INTENDED ONE
+===========================================================================
+
+Gating the PROJECTION of a model that was not rebuilt leaves the FO tiddler
+in the wiki with no transclusion pointing at it and no row in the report.
+Measured on kohlhase-omdoc:
+
+    FO tiddlers                                         458
+    referenced by no transclusion                        46
+      ...of which are the rows 676 drops                 20  (all 20)
+      ...unreferenced for other, pre-existing reasons    26
+
+The mechanism is definitional — no transclusion site means no substitution
+means nothing references the tiddler — so across the 20 published documents
+this is the row-drop total, 895 orphaned FO tiddlers, until the models are
+rebuilt (gate 1, which is the real fix).
+
+THIS IS THE INTENDED STATE, NOT A DEFECT, and the requirement said so: "this
+is not related to storing unexpanded and expanded LaTeX code!!". The orphaned
+FO tiddler IS that storage, retained in full — `latex`, `latex_original` and
+the host-line fields all still on it. What was removed is the CLAIM that a
+sentence contains an inline formula there. Nothing about the reading is lost;
+a reader simply is not told a table cell is prose.
+
+It is, however, one more argument for flagging rather than dropping. An
+orphan is indistinguishable in a listing from a genuinely broken tiddler, and
+`tiddler_integrity` counts it as one. A `props["non_prose_host"]` flag would
+let the listing say "not a transclusion site" instead, and would let
+`UNREFERENCED_KINDS` stop reporting a deliberate state as a fault.
+
+A GAP FOUND WHILE CHECKING THIS, out of scope and recorded: the conserve
+ratchet (656, `src/docops/conserve_baseline.json`) covers SEVEN documents —
+1811.06102, 2602.12042v1, SteerableWaveletFramesBasedontheRieszTransform,
+kolbe2018hubbard, narcissus, penev_A and one more — and NONE of the 20
+published ones. `conserve --gate` on kohlhase-omdoc therefore fails with "no
+baseline row for this bibkey — zero tolerance" and names Citation (533) and
+CodeListing (195) as new unreachable types. That is pre-existing and
+unrelated to 674/675/676; it means the ratchet has no coverage on the
+documents that actually ship.
