@@ -1,0 +1,86 @@
+680 — mielke re-measured: withdrawing a refinement costs a full measurement
+
+WHY A REBUILD WAS NOT ENOUGH
+-----------------------------
+679 withdrew mielke-geometrodynamics_EQ0378's refinement — a sentence of
+English prose published in place of its equation for seventeen days. That
+edits the model, so the ink's recorded `model_sha256` stopped describing the
+model on disk and `publishready`'s timestamp gate refused. Correctly: a
+measurement that names the model it was taken against is worth exactly as much
+as that name being true.
+
+So the document was RE-MEASURED, not merely rebuilt.
+
+    evidence --all-kinds --pdf        69.7s
+    residuals --measure --pdf        936.0s   the measure build, then inkdrill
+                                              compare per page at 300 AND 600
+                                              dpi, inkmeasure, inkconvert
+    marks --build                     35.6s
+    report (the HTML surfaces)         23.8s
+    publishready                       1.3s
+
+THE VERDICT
+-----------
+    mielke-geometrodynamics: READY
+      [ok] artefacts  all five present
+      [ok] glyphs     clean
+      [ok] ink        present
+      [ok] timestamp  measured 2026-09-12T15:32:05Z against the model on disk
+      [ok] coverage   11 equation rows shown, all measured (3 straddle)
+      [ok] crop       1056 row(s) checked, every displayed crop is the one measured
+
+The two gates this exercise existed for both pass for the right reason:
+TIMESTAMP because the ink was re-measured against the model as it now stands
+(sha 1f2c54d24f27 on both sides, checked directly), and CROP because all 1,056
+rows show the crop the ink actually measured (667).
+
+The new stamp also carries `geometry_sha256` (670's sixth question), so a
+layout change will invalidate this measurement too.
+
+WHAT MOVED
+----------
+    ink       clean 156->158  component 55->56  noise 703->698
+              stable 17->21   weak 123->121    unrendered 2 (UNCHANGED)
+    marks     1768 formula rows, 184 marked, 184 checked, 184 drawn;
+              1 refused by name (a marks row with no evidence row of that id)
+    rows      EQ0378 back to its own latex, refined_info None
+
+A CLAIM OF MINE, CORRECTED
+--------------------------
+I said the re-measure had closed mielke's 743-row `unrendered` seam, on the
+strength of the CI workflow's comment naming that figure. It had not: the
+site's PREVIOUS ink already read `unrendered: 2`, so 743 was historical and
+had been fixed earlier by 659/661/665/668. Today's re-measure left it at 2.
+Checked by reading both ink files rather than trusting the comment — which is
+rule 19, applied to my own sentence.
+
+THREE ARTEFACTS THAT MUST MOVE TOGETHER
+---------------------------------------
+`report.pdf`, `report.build.json` and `report.ink.json` are one unit after a
+re-measure: the stamp records report.pdf's bytes and sha256 (the deploy guard
+checks exactly that pair), and the ink is measured against that report.pdf.
+Publishing any one without the others is the stale-stamp failure the guard
+exists to catch. `out/to_site_676.py`'s copy list now names all three, with
+that reason written beside them; they are skipped as identical on any publish
+that did not re-measure.
+
+Verified before pushing: stamp 15,100,423 bytes / sha 074df0efb79e against the
+file beside it.
+
+AN ANOMALY FOUND BY THE SIZE GENERATOR
+--------------------------------------
+`gen-doc-downloads.py` reported mielke's site `report.pdf` going 95 kB ->
+14.4 MB. A 166-page measure build cannot be 95 kB: the site had been carrying
+a stub, and no check noticed because `gate.PUBLISHED_FILES` does not include
+`report.pdf` and the deploy guard only asks whether the stamp matches the file
+— which a consistent stub pair satisfies. Now the real build. Whether other
+documents carry stubs is unchecked; `report.pdf` is retired from reading, so
+this is recorded rather than chased.
+
+PUBLISHED
+---------
+Site f3c8880..92eec90, verified on the remote. Bars regenerated from the new
+ink (gen-residual-bars.py: 1 row disagreed, this one). Download sizes
+regenerated (3 changed). Deploy guard run locally first: 20 folders, 247
+files, 20 index rows matching their artefacts. publishcheck: 20 published and
+identical, 0 stale.
