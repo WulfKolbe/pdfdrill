@@ -1,0 +1,105 @@
+677 — publishcheck was wrong in both directions at once
+
+THE TOOL
+--------
+`docs/HANDOVER.md` says: "Run it before believing anything below."
+`tools/publishcheck.py` answers one question — is what the site carries the
+build that is on disk here — and it is the only automated answer to that
+question. Two defects, both rule 22: a correct answer to a question that had
+stopped being the right one.
+
+DEFECT 1 — EIGHT OF TWENTY DOCUMENTS HAD NEVER BEEN CHECKED
+------------------------------------------------------------
+    docs = {k: (args.docs / k) for k in docs}          # the old line
+
+The library folder is not the site slug. Task 462 renamed nine documents'
+bibkeys WITHOUT renaming their folders — the slug `voloshin-hypergraph`
+against the folder `Introduction to Graph and Hypergraph Theory (Vitaly I.
+Voloshin) (Z-Library)`. So for every Z-Library book the path did not exist,
+the document was reported `NO LOCAL BUILD`, and a verdict was printed anyway:
+
+    NO LOCAL BUILD  cardona-qft-methods
+    NO LOCAL BUILD  fong-spivak-invitation
+    NO LOCAL BUILD  fong-spivak-seven-sketches
+    NO LOCAL BUILD  gilmore-lie-groups
+    NO LOCAL BUILD  johnston-linear-matrix-algebra
+    NO LOCAL BUILD  kohlhase-omdoc
+    NO LOCAL BUILD  lyche-numerical-linear-algebra
+    NO LOCAL BUILD  mielke-geometrodynamics
+
+Eight of twenty, every one a book. This is the SAME defect as the 2026-09-11
+marks run, which resolved inkdrill's key by site slug and silently found
+nothing for the same eight documents. The lesson did not travel from one tool
+to the other because nothing made it.
+
+THE FIX USES AN AUTHORITY THAT ALREADY EXISTS, NOT A TABLE. `tools/run295.py`
+carries a hardcoded `SITE_ALIAS` map of nine entries; importing it would have
+worked and would have been a tenth place to keep in sync. Instead:
+`<bibkey>.tiddlers.json` is written beside every document, and the bibkey IS
+the site slug (`report_tex.resolve_bibkey`: the model's `meta.bibkey` is what
+`renamefolder` retargets and what every identifier is built from). One
+directory listing per folder resolves it — no model load, no table. Verified:
+20 of 20 site slugs resolve. A folder named for its slug still resolves that
+way, so an arXiv document with no tiddlers file yet behaves as before, and a
+slug that resolves to NOTHING is now named `UNRESOLVED` instead of being
+counted as an absent build.
+
+DEFECT 2 — IT COMPARED THE SITE AGAINST A FILE THE PUBLISH DOES NOT USE
+-----------------------------------------------------------------------
+634 added `<doc>/published/<f>`, a Ghostscript /ebook derivative, because the
+originals totalled 947 MB against GitHub Pages' ~1 GB cap. 655's size budget
+made the originals fit, the publish went back to copying them, and the
+derivatives were left on disk to rot. `compare_document` still preferred
+`published/<f>` whenever it existed.
+
+Measured on voloshin-hypergraph, 2026-09-12 — all five site files are
+byte-identical to the ORIGINALS and differ from all five derivatives:
+
+    evidence-equation.pdf  orig de903eb0879c  deriv 7a7fc0162cdd  site de903eb0879c
+    evidence-formula.pdf   orig 88131d001ce0  deriv a15c7ccf8750  site 88131d001ce0
+    evidence-table.pdf     orig 92b9c0f8ce0c  deriv 3aa2075488ec  site 92b9c0f8ce0c
+    evidence-image.pdf     orig c430980a1169  deriv de275950867c  site c430980a1169
+    residuals.pdf          orig 99327e03ea7d  deriv ea4306fc33ca  site 99327e03ea7d
+
+So twelve up-to-date documents were reported STALE, and the tool's verdict
+("THE SITE IS NOT UP TO DATE") was true only by accident.
+
+THE FIX DOES NOT SWAP ONE SILENT PREFERENCE FOR THE OTHER. Both candidates
+are hashed, and the status SAYS WHICH ONE MATCHED — `same / original` or
+`same / published/ derivative`. A check that cannot say which file it matched
+cannot tell a publish from a coincidence. A `stale` line now carries all
+three hashes. And a derivative that differs from its original is reported in
+its own right as `LEFTOVER`, separately from the publish verdict, because
+that rot is what made the tool measure the wrong file for weeks.
+
+WHAT THE FIXED TOOL SAYS
+------------------------
+    publishcheck — 20 documents
+      published and identical : 11
+      published but STALE     :  9     (the ones already rebuilt for 676)
+      not published           :  0
+      no local build          :  0     (was 8)
+      stale published/ files  : 100    (20 documents x 5 files)
+
+AND IT IMMEDIATELY CAUGHT A THIRD THING — IN MY OWN RUNNER
+-----------------------------------------------------------
+For each rebuilt document it reported the four evidence files stale and
+`residuals.pdf` still matching. That is the evidence rebuilt and the
+residuals not: `pdfdrill evidence` does not rebuild `residuals.pdf`, and
+`reports/residuals.findings` iterates the equation AND FORMULA rows
+(`residuals.py:50-51`), so 674/676's row change moves that report too.
+`out/residuals_676.py` is the second pass. Without this tool the site would
+have shipped four corrected files and one stale one per document.
+
+TESTS
+-----
+tests/test_publishcheck.py 6 -> 10. Two existing expectations changed with
+the semantics (the status now names the matched candidate); four new:
+either candidate may match and the answer says which, a differing derivative
+is reported, an identical one is not, a book resolves by its tiddlers file,
+and an unresolvable slug is named rather than silently absent.
+Suite 3,754 -> 3,758.
+
+THE 100 LEFTOVERS ARE NOT DELETED. They are stale derivatives of files that
+exist, deleting is not reversible, and the tool can no longer be misled by
+them. Deciding to remove them is the user's.
