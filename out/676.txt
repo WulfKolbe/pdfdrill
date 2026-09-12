@@ -160,3 +160,39 @@ TESTS
 -----
 tests/test_line_types_no_transclude.py 46 -> 60; suite 3,717 -> 3,754.
 Each finding has the case that exposed it, with a control beside it.
+
+===========================================================================
+B4's RULING, NOW WITH THE NUMBER THAT BOUNDS IT (measured 2026-09-12)
+===========================================================================
+
+The ruling above kept `diagram`, `chart` and `qed_symbol` out of the set,
+because asking the stricter question ("can this occurrence host a
+transclusion") would also drop `list_item`'s 22,604 real inline formulas.
+The review's objection was that such rows then survive on a technicality.
+What that costs was not measured at the time. It is now, over all 20
+published documents (36,041 formula rows):
+
+    rows hosted on a NON-LINE region      257     diagram 210, chart 47
+      host region height, px              median 475, max 1328
+    ...of those, rows that SHOW a crop      0
+
+So no reader is shown a picture of a whole figure where a formula's line
+should be. The FO0191 defect — a crop that is a block instead of a line —
+does not survive in the diagram/chart family on the crop surface, and that
+is the surface the whole report was raised about. What those 257 rows do
+carry is a page (correct — the formula is on that page) and a region that
+belongs to a figure rather than to a line.
+
+FOUND BY AN OFF-BY-ONE WORTH RECORDING. 0707.4470 has 9 marked rows, 9 mark
+images in `report-crops-marks/`, and 8 references in `evidence-formula.tex`.
+The missing one is `0707.4470_FO0088` (`k=0,1,2,3`): host line type
+`diagram`, region 1263x606, and `crop: None`. inkdrill marked it and wrote
+the image; pdfdrill has no crop for the row, so `marks.check_row` correctly
+drew nothing. An orphaned mark image, not a wrong picture — the gate
+refusing, which is what it is for. A count that matched would have hidden
+the whole class.
+
+Note that B3's field fix is what GAVE these rows a host line at all: a
+`diagram` line carries `text == ""` and all its content in `text_display`,
+so before the fix they had no host and after it they have a figure's. That
+is a better state (the page is right) and not yet the right one.
