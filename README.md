@@ -121,6 +121,43 @@ HTML projections accept `--embed` to base64-inline every CDN crop (fully
 self-contained); the `.distill.html`, `.inspect.html`, `report.html` and the
 `okf/` bundle all open directly in drillui's Outputs panel.
 
+### What may carry a transclusion, and what renders in place
+
+Every projection above resolves math through the same pivot: an inline
+formula is a **DocObject** with a title, and the TiddlyWiki `<$latex .../>`
+widget is the form every other projection converts FROM (`okf` derives
+`$…$`, the LaTeX lane derives an environment, the HTML views call
+`katex.render`).
+
+Two rules govern which math takes that route:
+
+- **A transclusion is a claim about prose.** Math on a table cell, a section
+  heading, a title, a TOC entry, a figure label or inside a **caption** is
+  not an inline formula and never becomes one. The object that owns the line
+  already carries that math whole — a Table keeps its entire `\begin{tabular}`,
+  a Section keeps its heading. `src/docmodel/line_types.py` states the set
+  and the measurement; 29.0% of the corpus's non-equation inline-math
+  occurrences sit on such a line.
+- **Refusing the transclusion never means losing the mathematics.**
+  `src/docops/mathdelims.py` converts MathPix's own `\(…\)` / `\[…\]`,
+  wherever it stays in a body text, into the same widget — in place, with no
+  object and no title. So a heading with math is typeset, and the wiki no
+  longer shows literal backslash-parenthesis.
+
+### Reports and evidence
+
+| Command | Output | What it is |
+|---|---|---|
+| `pdfdrill evidence <pdf> --all-kinds --pdf` | `evidence-{equation,formula,table,image}.pdf` | The published evidence surface: every object of a kind, one row each, with its page, confidence, LaTeX source, rendering and crop. An inline formula's page/confidence/crop are its **HOST LINE's**, and the file says so |
+| `pdfdrill residuals <pdf> --pdf` | `residuals.pdf` | The action list — Corrected, Unresolved, Flagged, Low confidence, Doubted, worst first |
+| `pdfdrill marks <pdf> [--build]` | `marks.json` | inkdrill's formula marks as a command (a **subprocess**, never an import). `--build` draws a rectangle on the formula evidence only where the ink is marked AND the row's line matches pdfdrill's own host line |
+| `pdfdrill publishready <pdf>` | verdict | Artefacts, glyphs, ink freshness, timestamps, coverage, crop identity |
+
+Crop size is governed by a budget ladder (`reports/budget.py`): scale and
+quality step down a fixed ladder until the artefact fits, 1.00/q75 down to
+0.42/q70 (105 dpi, the floor). `docops/conserve.py` is a ratchet gate — a
+projection that drops objects a previous one carried fails rather than ships.
+
 ### The killer case
 
 `pdfdrill links` reads the PDF **annotation layer**, so it finds hyperlinks

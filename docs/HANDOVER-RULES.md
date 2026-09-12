@@ -243,6 +243,46 @@ Each of these cost real time or real data in this project.
     named population; the missing step is periodically asking whether
     something now exists outside it.
 
+23. **An offset recorded before a rewrite is applied after it.** 676 needed
+    to hide the math on some of a paragraph's lines from a later pass that
+    scans the whole joined string. The first version recorded each line's
+    `(start, end)` range in the joined text and told the pass to skip those
+    ranges. Between the two, `_substitute_footnotes` and
+    `_substitute_inline_pictures` rewrite the string — `\({ }^{1}\)`
+    becomes `<sup>1</sup>`, an `\includegraphics` URL becomes a
+    transclusion — so every recorded range is stale by a delta nobody
+    computed, and the skip lands somewhere else. It does not crash and it
+    does not look wrong in a diff.
+
+    The fix is not to recompute the offsets; it is to stop using offsets.
+    A MARK IN THE TEXT travels with the text through any number of
+    rewrites: the delimiters get a private U+0000 between the backslash
+    and the bracket, the scanning pass cannot match them, and one literal
+    `.replace()` at the end restores the source exactly. The general form:
+    when a decision made at stage A must hold at stage C and stage B may
+    rewrite the subject, carry the decision IN the subject, not in
+    coordinates over it. A test that the private mark never reaches the
+    output is mandatory — a leaked sentinel is invisible in a diff and
+    visible to the reader.
+
+24. **Two readers of one record must read the same FIELD, and "we both read
+    the line" is not that.** MathPix gives every line both `text` and
+    `text_display`. `FormulaProcessor` builds from `text_display or text`;
+    `inlinectx.load_spans` re-scanned `text` alone. For most lines the two
+    agree, so the divergence is invisible in every sample that does not
+    contain the disambiguating case — and the case exists: a `diagram` or
+    `chart` line carries `text == ""` and all of its content in
+    `text_display`. Every span on such a line was therefore invisible to
+    the scan, so the object the model had built from it could never find
+    its host line, and 27 published rows silently lost a page, a
+    confidence, a region and a crop.
+
+    This is rule 22's shape one level down: both readers correctly answered
+    "is this value on this line", neither asked "are we looking at the same
+    characters". When two modules key a join on content, the field that
+    content comes from is part of the key — write it in both docstrings, or
+    give them one function to call.
+
 ---
 
 ## 2. Environment facts that are not obvious

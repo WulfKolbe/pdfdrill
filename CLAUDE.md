@@ -162,6 +162,17 @@ tests failing against correct source (HANDOVER-RULES rule 4).
   and `--ensure`; register it in `commands.yaml` with `requires:`/`done_when:`
   so the layer graph can reach it (audit A4, 2026-08-17; `reporttex` is the
   worked example — it started in `tools/` and had to be promoted).
+- **Math on a table cell, a heading, a title, a TOC entry, a figure label or
+  inside a caption is never a transclusion** (674/676).
+  `src/docmodel/line_types.py` is the single source of truth — five families,
+  16 line types, plus `caption_anchors(doc)` because MathPix types most
+  captions plain `text` and a caption's span is a Paragraph property, not a
+  line type. Five readers enforce it (creation, the TiddlyWiki projector, the
+  LaTeX projector, the host-line pick, the report) because the models on disk
+  predate the gate. Refusing a transclusion does NOT mean losing the
+  mathematics: `src/docops/mathdelims.py` renders it in place as the
+  `<$latex .../>` widget every projection converts from. Delete `line_types`
+  rather than growing it once the pipeline is subtractive.
 - **A layer's `requires` names everything it READS, not everything it calls.**
   `reporttex` never calls `mathpix` — it reads the model mathpix populates;
   that indirection is how dependencies stay undeclared and get rediscovered by

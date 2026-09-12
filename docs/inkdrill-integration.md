@@ -13,6 +13,39 @@ between the two tools indistinguishable from a difference of definition.
 
 ---
 
+## Locating inkdrill, and calling it
+
+**`INKDRILL_ROOT`** is the canonical environment variable and wins whenever
+both are set. **`INKDRILL_HOME`** is a deprecated alias, kept working, and
+setting only it prints a one-shot warning naming both (673 fix round 1).
+`refine._env_inkdrill_home()` is the single reader — `refine.inkdrill_root()`
+and `regionink.py` both go through it, so the two cannot disagree about which
+checkout is in use.
+
+**`pdfdrill marks <pdf>`** (673) is the supported way to run inkdrill's
+formula marks. It is a **subprocess, never an import**:
+
+- inkdrill's stdout is the ONE JSON document it promises; its stderr is
+  progress text. The two are parsed APART and the JSON is parsed BEFORE
+  anything touches disk. A 2026-09-11 hand-run merged the streams, and every
+  `marks.json` it wrote gained inkdrill's prose and then failed downstream
+  with `Extra data: line 2 column 1`.
+- **The key is the LIBRARY FOLDER NAME**, because inkdrill's `--library ROOT
+  KEY` opens `ROOT/KEY` literally. For an arXiv id that equals pdfdrill's own
+  bibkey (the site slug) because the folder is named for the id; for a
+  Z-Library book it does not — `gilmore-lie-groups` against the messy
+  download title. Resolving by slug alone silently found nothing for 9 of 20
+  documents, every one of them a book. `inkmarks.resolve_key` tries the
+  folder name first, reports which one matched, and REFUSES an ambiguous
+  match rather than guessing; `--key` settles it.
+- Prerequisites are checked before the subprocess starts, not diagnosed from
+  its traceback: a missing `evidence-formula.tex` or `<key>.lines.json`
+  raises a typed `MarksRefused` naming the file and the command that makes it.
+- `--build` additionally draws the marks onto the **formula kind only** —
+  marks never apply to the other three.
+
+---
+
 ## The contract gap — `page["ink"]["rules"]`
 
 **Read this before the phase notes below; it corrects two of them.**
