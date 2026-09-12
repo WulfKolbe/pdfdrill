@@ -1,0 +1,54 @@
+678 — the crop budget is chosen from a prediction that under-estimates by
+      ~17%, so the budget is not actually enforced
+
+FOUND WHILE PUBLISHING 676. Four of the twenty published
+`evidence-formula.pdf` files came out OVER the 20 MB budget that
+`reports/budget.py` exists to hold them under:
+
+    document                          predicted   actual   over by
+    0902.0431                          17.5 MB   20.6 MB    +18%
+    johnston-linear-matrix-algebra     18.4 MB   21.8 MB    +18%
+    lyche-numerical-linear-algebra     17.9 MB   20.7 MB    +16%
+    cardona-qft-methods                    --    22.3 MB      --
+
+(cardona's budget line was not captured in the retained stdout tail; its
+actual is the largest of the four.)
+
+THE MECHANISM. `budget.choose_rung` walks the measured ladder (scale/quality
+-> fraction of original: 1.00/q75 = 62%, 0.85/q75 = 48%, 0.70/q75 = 37%,
+0.60/q72 = 29%, 0.50/q70 = 22%, 0.42/q70 = 17%) and picks the first rung
+whose PREDICTED size fits the budget. On these four it picked a rung
+predicting 17.5-18.4 MB against a 20 MB budget -- a 9-14% margin -- and the
+compile landed 16-18% above the prediction, which eats the margin and
+crosses the line.
+
+So the ladder is not wrong; the prediction is optimistic, and the margin it
+leaves is smaller than its own error. A budget that is satisfied by a
+prediction rather than by the artefact is not a budget, it is an estimate
+with a name -- the same shape as rule 22, one level down: the check
+correctly answered "does the predicted size fit" and never asked "does the
+file".
+
+NOT A BLOCKER, BY THE USER'S OWN TOLERANCE: "no size problem, I could even
+open 30MB file in 1-2 seconds from github.io". All four are between 20.6 and
+22.3 MB. Published as they are.
+
+THE FIX IS NOT A BIGGER MARGIN. Two options, both cheap:
+
+  (a) MEASURE, THEN DECIDE. Compile at the chosen rung, check the real
+      file, and step down one rung and recompile if it missed. Costs one
+      extra xelatex run on the documents that miss (4 of 20 here).
+  (b) CALIBRATE THE PREDICTOR against the corpus it now has. 20 documents x
+      4 kinds of measured (predicted, actual) pairs exist in
+      `~/pdfdrill-library/out/republish_676.json` today; the residual is
+      what the predictor is missing, and a per-kind correction factor from
+      that population is a one-line change with a named population behind
+      it (rule 2).
+
+(b) first, because it costs nothing at build time and the data is already on
+disk; (a) as the backstop, since a calibrated predictor is still a
+prediction. `commands._status_budget_notes` already audits over-budget
+published files, so the audit exists -- it just has nothing upstream
+honouring it.
+
+NOT DONE. Recorded with its measurement; the publish did not wait on it.
