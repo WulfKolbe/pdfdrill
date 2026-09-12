@@ -97,6 +97,30 @@ def compare_document(local_dir: pathlib.Path, remote_dir: pathlib.Path,
 
     Pure — no network, no git — so it can be unit tested directly.
     """
+    # 677 fix round 2 — COMPARE WHAT THE SITE ACTUALLY CARRIES, not only the
+    # five names `gate.PUBLISHED_FILES` lists. The site carries twelve kinds
+    # per document (the four evidence PDFs, residuals.pdf, report.pdf,
+    # formula-report.html, inspect.html, tables.html, <slug>.md,
+    # report.build.json, report.ink.json); this compared five, so seven were
+    # never checked. HANDOVER-RULES rule 22 already named that tuple as a
+    # blind spot — "is this the complete list of files this document actually
+    # publishes now" — and it paid out twice in one day: a stale
+    # `formula-report.html` (a copy of `evidence-formula.html`, which
+    # `evidence --pdf` does not rebuild at all) would have shipped beside four
+    # corrected PDFs, unnoticed.
+    #
+    # The union, not a longer tuple: every name in `filenames` that exists
+    # locally, PLUS every file the site already has for this document. A file
+    # on the site that nobody put in a list is exactly the case that needs an
+    # answer, and now it gets one.
+    names = list(filenames)
+    try:
+        names += sorted(f.name for f in remote_dir.iterdir() if f.is_file())
+    except OSError:
+        pass
+    seen = set()
+    filenames = [n for n in names if not (n in seen or seen.add(n))]
+
     results = []
     for fname in filenames:
         original = sha(local_dir / fname)

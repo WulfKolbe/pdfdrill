@@ -103,3 +103,75 @@ Suite 3,754 -> 3,758.
 THE 100 LEFTOVERS ARE NOT DELETED. They are stale derivatives of files that
 exist, deleting is not reversible, and the tool can no longer be misled by
 them. Deciding to remove them is the user's.
+
+===========================================================================
+677 FIX ROUND 2 — the tuple was the blind spot, and it paid out twice
+===========================================================================
+
+`compare_document` compared only `gate.PUBLISHED_FILES` (five names). The
+site carries TWELVE kinds per document:
+
+    evidence-equation.pdf   evidence-formula.pdf
+    evidence-table.pdf      evidence-image.pdf     residuals.pdf
+    report.pdf              report.build.json      report.ink.json
+    formula-report.html     inspect.html           tables.html   <slug>.md
+
+Seven were never compared. HANDOVER-RULES rule 22 already names this exact
+tuple as an unfixed blind spot — "is this the complete list of files this
+document actually publishes now" — and today it paid out twice:
+
+1. **`formula-report.html` would have shipped stale.** It is a COPY of
+   `evidence-formula.html` (commands.py:9776-9782), and `cmd_evidence` builds
+   ONE format — `"pdf" if pdf_out else "html"` (commands.py:5571). So
+   `evidence --all-kinds --pdf` wrote four corrected PDFs and did not touch
+   the HTML at all; the copy is refreshed only in HTML mode. Measured on
+   0707.4470: `evidence-formula.html` 64,186 bytes at 20:54 yesterday against
+   `formula-report.html` 137,466 bytes at 15:55 — two different stale
+   generations sitting beside a PDF rebuilt today. `out/html_676.py` is the
+   third pass.
+
+2. **`residuals.pdf` would have shipped stale** — already recorded above.
+
+THE FIX IS A UNION, NOT A LONGER TUPLE. Every name in `filenames` that exists
+locally, plus every file the site already has for this document. Adding seven
+names to `PUBLISHED_FILES` would fix today and rebuild the same blind spot for
+the next artefact kind; and that tuple is also `publishready`'s "missing
+artefact" list, so growing it would make an HTML file a publish prerequisite,
+which is a different decision. A file on the site that nobody put in a list is
+exactly the case that needs an answer, and now it gets one.
+
+A file only the SITE has is still skipped rather than reported stale — there
+is nothing on disk here to check it against. Both directions are tested.
+
+WHAT 676 DOES *NOT* FIX, MEASURED
+---------------------------------
+`inspect.html` is UNCHANGED by 674/675/676, and the hope that republishing
+would correct it is not met. `docinspect.py` references none of `inlinectx`,
+`line_types`, `mathdelims` or host lines; it reads the model, and the model
+was not rebuilt. Its own `fillProse` already splits `\(…\)` and `$…$` to
+KaTeX, so that math was never broken there either.
+
+A `\[…\]` gap in `fillProse`'s regex was noted as a defect and then
+MEASURED: 0 display-math spans in prose objects across 6 published documents,
+because display math becomes an Equation and never stays in prose text. Not a
+defect; retracted rather than filed. (Rule 19 — write the number down before
+the sentence.)
+
+WHAT WOULD CORRECT INSPECT, AND WHAT IT COSTS
+----------------------------------------------
+Only a model rebuild removes the forbidden-line Formula objects from the
+object tree inspect shows. Measured on kohlhase-omdoc: 20 of 458 formulas
+would vanish, and **343 of the 438 survivors would get a different
+identifier** (78%) because `math_titles` numbers by flow order over the
+objects that exist. Every crop filename and every ink row keyed on those
+identifiers would be wrong — `crop_sha256` (667) and `fresh_ink` (670) would
+refuse, correctly.
+
+THE ALTERNATIVE COSTS NOTHING AND IS THE USER'S OWN STATED NEXT STEP: FLAG
+the object at creation instead of skipping it — `props["non_prose_host"] =
+"table" | "caption" | …`. The object still exists, so numbering is untouched
+and ZERO identifiers move; every gate reads one prop instead of recomputing;
+inspect can show and filter it; and a model rebuild becomes safe. The user's
+own words: "then we can have some flags that idendified formulas to be
+reported and some not to be reported." That is a design change, so it is not
+taken unilaterally today — it is the recommendation.

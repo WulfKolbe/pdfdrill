@@ -144,3 +144,29 @@ def test_a_slug_that_resolves_to_nothing_is_named(tmp_path):
     found, unresolved = pc.resolve_folders(lib, ["ghost-document"])
     assert found == {}
     assert unresolved == ["ghost-document"]
+
+
+def test_a_site_file_outside_the_known_tuple_is_still_compared(tmp_path):
+    """677 fix round 2 — the tuple was the blind spot rule 22 names.
+
+    `gate.PUBLISHED_FILES` lists five names; the site carries twelve kinds per
+    document. A stale `formula-report.html` (a copy of `evidence-formula.html`,
+    which `evidence --pdf` does not rebuild at all) would have shipped beside
+    four corrected PDFs with no check looking at it. Every file the site
+    already has is now compared, whatever list it is or is not on.
+    """
+    local, remote = tmp_path / "L", tmp_path / "R"
+    local.mkdir(); remote.mkdir()
+    (local / "formula-report.html").write_text("fresh")
+    (remote / "formula-report.html").write_text("stale")
+    rows = pc.compare_document(local, remote)
+    assert ("formula-report.html", "stale") == (rows[0][0], rows[0][1]), rows
+
+
+def test_a_site_file_with_no_local_counterpart_is_not_invented(tmp_path):
+    """The control: a file only the site has is skipped, not reported stale.
+    There is nothing on disk here to check it against."""
+    local, remote = tmp_path / "L", tmp_path / "R"
+    local.mkdir(); remote.mkdir()
+    (remote / "leftover.html").write_text("only on the site")
+    assert pc.compare_document(local, remote) == []
