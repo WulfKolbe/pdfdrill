@@ -1,0 +1,111 @@
+675 — MathPix's math delimiters, translated into each projection's own form
+      (measurement + the normalizer; not yet wired)
+
+WHY
+---
+674 refused the transclusion of math on a table cell, a heading, a title, a
+TOC entry and a figure label. Refusing the transclusion leaves MathPix's own
+delimiters standing in the text — and they are MathPix's, not ours.
+
+WHAT MATHPIX ACTUALLY WRITES
+-----------------------------
+Measured over 306 documents, both `text` and `text_display`:
+
+    \(...\)   1,012,698        \[...\]   28,857
+    $...$            74        $$...$$        2
+
+So MathPix is consistent: `\(...\)` inline, `\[...\]` display, essentially
+never dollars. The delimiter is not document-dependent after all — the
+earlier "$...$" reading was my own regex matching TiddlyWiki's `{{!!field}}`
+and `<$link>` syntax, not maths. Corrected before it reached the fix.
+
+WHAT OUR PROJECTIONS EXPECT
+----------------------------
+Each projection already HAS a standard, and they are not the same one:
+
+    TiddlyWiki   <$latex text="…" displayMode="…"/>    (TEMPLATES, FO/EQ)
+    OKF/Markdown $…$ / $$ … $$        (okf._self_widgets_to_markdown)
+    LaTeX        delimiters stripped, wrapped in an environment
+                 (latex_pipeline._strip_math_delimiters)
+    HTML         katex.render on a data-tex attribute
+
+They agree on the ROUTE: the TiddlyWiki widget is the pivot, and every other
+projection converts from it. Math that becomes a DocObject takes that route.
+Math that stays in a body text does not — it bypasses the pivot and reaches
+every projection as MathPix's raw delimiters.
+
+THE SCALE, on the 20 published documents (85,938 tiddlers)
+-----------------------------------------------------------
+Counting only `\(...\)` and `\[...\]`, which cannot be TiddlyWiki syntax:
+
+    24,419  in PROSE bodies      sidenote 11,792, listitem 8,770,
+                                 table 1,771, footnote 1,118,
+                                 Figure/Fig caption 684, reference 156,
+                                 toc 30, document 20, abstract 20
+     1,263  in LATEX-SOURCE bodies (the body carries a `\begin{...}`)
+
+TiddlyWiki's KaTeX plugin renders the widget; it does not render `\(...\)`.
+All 24,419 currently show as literal backslash-parenthesis.
+
+THIS IS OVERWHELMINGLY PRE-EXISTING, NOT 674's DOING. The top three —
+sidenote, listitem, footnote, 21,680 of the 24,419 — are line types 674 never
+touched: they were never transcluded, because a ListItem/Sidenote/Footnote
+body is rendered verbatim. 674 added exactly ONE site to this population in
+the published set (a `title` paragraph).
+
+THE MODULE — src/docops/mathdelims.py
+--------------------------------------
+One conversion at the pivot, three named policies:
+
+    to_tiddlywiki   \(x\) -> <$latex text="x" displayMode="false"/>
+    to_markdown     \(x\) -> $x$        \[x\] -> $$ x $$
+    to_plain        \(x\) -> x
+    render(text, policy)  — an unknown policy raises, never defaults
+
+`test_markdown_matches_what_okf_makes_of_the_widget` pins the agreement: a
+body converted directly and the same body converted via the widget land on
+the same string, so a formula does not read differently depending on whether
+it happened to become an object.
+
+A body carrying `\begin{...}` is LaTeX SOURCE and is returned untouched — a
+Table's `raw_text` tabular, a listing. Rewriting math inside a tabular breaks
+the tabular, and those bodies go to the SVG route (RECLASSIFY.md) where the
+raw LaTeX is what gets compiled. 159 such bodies in the published set.
+
+THE QUOTING DECISION, and why it is a refusal
+----------------------------------------------
+A TiddlyWiki attribute has no escape character, so a body containing `"`
+cannot be double-quoted. TiddlyWiki accepts single and triple-double
+quoting — but the reader downstream does not: `okf._attr_value` parses only
+the double-quoted form, and `okf._ATTR_RE` tokenises on whitespace, so a
+single-quoted value with spaces does not survive tokenisation at all. A
+quote-switching version was written first and its own test caught this.
+
+So the body is left in MathPix's delimiters and `unconvertible()` reports it.
+Measured: 74 of 1,428,984 math bodies contain a `"` — 0.005%, all of them a
+`\text{"…"}` inside the maths. `to_markdown` has no such limit and converts
+them, which is correct: dollars have no quoting problem.
+
+VALIDATED ON EVERY REAL BODY, not on fixtures
+----------------------------------------------
+Ran `to_tiddlywiki` over every `text`/`caption` field of all 85,938 published
+tiddlers:
+
+    prose bodies with math                              4,783
+    latex-source bodies correctly skipped                 159
+    spans converted                                    24,316
+    spans refused (contain a `"`)                          23
+    non-idempotent bodies                                   0
+    widgets whose text attribute does not read back
+      through okf's own parser                              0
+
+TESTS
+-----
+tests/test_mathdelims.py — 23 tests. Suite 3,717 -> 3,740.
+
+NOT DONE
+--------
+Not wired into any projector. The wiring point is the TiddlyWiki projector,
+which was under review for 674 while this was built; one writer at a time
+(HANDOVER-RULES 21). Wiring it is one call per verbatim body field, and every
+other projection then follows with no change of its own.
