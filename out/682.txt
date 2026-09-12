@@ -95,3 +95,44 @@ NOT DONE
   package in the preamble, which is a build change, not a reading change.
 * The 13-row overlay class is measured, not fixed.
 * mielke needs another rebuild + re-measure + republish to show these 19.
+
+===========================================================================
+682 FIX — a table entry seeded from memory, caught by the corpus
+===========================================================================
+
+`NAME_TOKENS["similarequal"]` shipped as `\cong`. It is `\simeq`: ≃ (U+2243)
+and ≅ are different symbols, and I wrote the entry from recall rather than
+from a row — in a table whose entire justification is that a lookup cannot
+hallucinate the way a model can.
+
+Measured, not argued: across the 25 mielke rows whose page carries
+`/similarequal`, MathPix writes `\simeq` 29 times and `\cong` never. So all
+29 "missing glyph" reports it produced were FALSE POSITIVES against readings
+that were already correct.
+
+The ground-truth manifest went 60 cases -> 36 when the entry was fixed. Had it
+shipped, 29 of 60 "defects" in a corpus meant to score future work would have
+been noise, and every one of them would have looked like a MathPix error.
+
+The rule this earns: EVERY ENTRY IN NAME_TOKENS COMES FROM A ROW. Seven
+entries, four of which a repair actually needed; the other three
+(`floorleft`, `ceilingright`, `ceilingleft`) are mirrors of a verified one and
+should be treated as unverified until a row uses them.
+
+THE MANIFEST — out/682-goldens-mielke.json
+-------------------------------------------
+36 cases, each with: identifier, page, region, MathPix's reading, the page's
+own census, which named glyphs the reading fails to account for, the
+census-verified repair where one exists, and whether the row RENDERS.
+
+    dropped-or-misread-glyph   24   (43 instances of /floorright)
+    unaccounted-overlay        11   (10 arrownortheast, 1 negationslash)
+    cjk-decomposition           2
+    ---
+    census-verified repair     21
+    still unrepaired           15
+    RENDERS DESPITE BEING WRONG 34 of 36
+
+That last number is the case for the whole exercise: 94% of these defects pass
+every gate this repository has, because typesetting successfully is not the
+same as being right.

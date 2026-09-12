@@ -316,7 +316,15 @@ NAME_TOKENS: dict = {
     "ceilingleft": (r"\lceil",),
     "Lslash":      (r"\mathrm{Ł}", r"\L", "Ł"),
     "lscript":     (r"\ell",),
-    "similarequal": (r"\cong",),
+    # 682 fix — MEASURED, after this entry shipped wrong. It said `\cong`,
+    # from memory. `similarequal` is ≃ (U+2243), which is `\simeq`; ≅ is a
+    # different symbol. Checked against the corpus rather than argued: across
+    # the 25 mielke rows whose page carries `/similarequal`, MathPix writes
+    # `\simeq` 29 times and `\cong` never. The wrong entry generated 29 false
+    # "missing glyph" reports against readings that were already correct —
+    # in a table whose whole justification is that a lookup cannot
+    # hallucinate. Every entry here must come from a row, not from recall.
+    "similarequal": (r"\simeq",),
 }
 
 

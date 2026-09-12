@@ -1,0 +1,1043 @@
+{
+ "document": "mielke-geometrodynamics",
+ "folder": "Geometrodynamics of Gauge Fields On the Geometry of Yang-Mills and Gravitational Gauge Theories (Eckehard W. Mielke) (Z-Library)",
+ "built_at": "2026-09-12T20:26:54Z",
+ "note": "ground truth for real OCR edge cases, seeded from defects a reader found and the PDF's own /Encoding settled. Every 'repaired' value is census-verified, never guessed.",
+ "cases": [
+  {
+   "identifier": "mielke-geometrodynamics_EQ0120",
+   "object": "obj_b13b1a4230b9",
+   "page": 60,
+   "region": {
+    "top_left_x": 628,
+    "top_left_y": 325,
+    "width": 266,
+    "height": 44
+   },
+   "confidence": 0.6513671875,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "d \\Sigma_{\\alpha} \\simeq\\left(e_{\\alpha} \\downharpoonleft F\\right) \\wedge j",
+   "repaired": "d \\Sigma_{\\alpha} \\simeq\\left(e_{\\alpha} \\rfloor F\\right) \\wedge j",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "Σ /similarequal ( /floorright ) ∧ d e F j α α",
+   "census_named_glyphs": [
+    "floorright",
+    "similarequal"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 1
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0240",
+   "object": "obj_3fd42e82febe",
+   "page": 90,
+   "region": {
+    "top_left_x": 577,
+    "top_left_y": 1857,
+    "width": 367,
+    "height": 99
+   },
+   "confidence": 0.8359290808439255,
+   "classes": [
+    "unaccounted-overlay"
+   ],
+   "mathpix": "\\begin{aligned} & F(m, f \\vartheta)=|f| F(m, \\vartheta), \\\\ & F(m, \\vartheta)>0 \\quad \\text { if } \\quad \\vartheta \\neq 0 . \\end{aligned}",
+   "repaired": null,
+   "repair_state": "none",
+   "repair_verified_by": null,
+   "page_census": "( , ϑ ) = | | ( , ϑ ) , F m f f F m ( , ϑ ) > ϑ /negationslash = . F m 0 i f 0",
+   "census_named_glyphs": [
+    "negationslash"
+   ],
+   "glyphs_missing_from_reading": {},
+   "unaccounted_overlay_glyphs": [
+    "negationslash"
+   ],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0292",
+   "object": "obj_ca639cb60e3d",
+   "page": 100,
+   "region": {
+    "top_left_x": 282,
+    "top_left_y": 1593,
+    "width": 957,
+    "height": 445
+   },
+   "confidence": 0.1645813919837774,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "\\begin{aligned} £_{\\xi} L & =\\left(£_{\\xi} g_{\\alpha \\beta}\\right) \\wedge \\frac{\\partial L}{\\partial g_{\\alpha \\beta}}+\\left(£_{\\xi} \\vartheta^{\\alpha}\\right) \\wedge \\frac{\\partial L}{\\partial \\vartheta^{\\alpha}} \\\\ & +\\left(£_{\\xi} \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial \\Psi}+\\left(£_{\\xi} D \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi} \\\\ & \\left.\\left.\\left.=D\\left[(\\xi\\rfloor \\vartheta^{\\alpha}\\right) \\wedge \\frac{\\partial L}{\\partial \\vartheta^{\\alpha}}+(\\xi\\rfloor \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial \\Psi}+(\\xi\\rfloor D \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}\\right] \\\\ & \\left.\\left.-\\left(\\xi \\downharpoonleft \\vartheta^{\\alpha}\\right) D \\frac{\\partial L}{\\partial \\vartheta^{\\alpha}}+(\\xi\\rfloor T^{\\alpha}\\right) \\wedge \\frac{\\partial L}{\\partial \\vartheta^{\\alpha}}+(\\xi\\lrcorner R_{\\beta}^{\\gamma}\\right) \\wedge I^{\\beta}{ }_{\\gamma} \\Psi \\wedge \\frac{\\partial L}{\\partial D \\Psi} \\\\ & \\left.+(\\xi\\rfloor D \\Psi) \\wedge \\frac{\\delta L}{\\delta \\Psi}+(-1)^{p}(\\xi\\rfloor \\Psi\\right) \\wedge D \\frac{\\delta L}{\\delta \\Psi} \\end{aligned}",
+   "repaired": "\\begin{aligned} £_{\\xi} L & =\\left(£_{\\xi} g_{\\alpha \\beta}\\right) \\wedge \\frac{\\partial L}{\\partial g_{\\alpha \\beta}}+\\left(£_{\\xi} \\vartheta^{\\alpha}\\right) \\wedge \\frac{\\partial L}{\\partial \\vartheta^{\\alpha}} \\\\ & +\\left(£_{\\xi} \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial \\Psi}+\\left(£_{\\xi} D \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi} \\\\ & \\left.\\left.\\left.=D\\left[(\\xi\\rfloor \\vartheta^{\\alpha}\\right) \\wedge \\frac{\\partial L}{\\partial \\vartheta^{\\alpha}}+(\\xi\\rfloor \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial \\Psi}+(\\xi\\rfloor D \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}\\right] \\\\ & \\left.\\left.-\\left(\\xi \\rfloor \\vartheta^{\\alpha}\\right) D \\frac{\\partial L}{\\partial \\vartheta^{\\alpha}}+(\\xi\\rfloor T^{\\alpha}\\right) \\wedge \\frac{\\partial L}{\\partial \\vartheta^{\\alpha}}+(\\xi\\lrcorner R_{\\beta}^{\\gamma}\\right) \\wedge I^{\\beta}{ }_{\\gamma} \\Psi \\wedge \\frac{\\partial L}{\\partial D \\Psi} \\\\ & \\left.+(\\xi\\rfloor D \\Psi) \\wedge \\frac{\\delta L}{\\delta \\Psi}+(-1)^{p}(\\xi\\rfloor \\Psi\\right) \\wedge D \\frac{\\delta L}{\\delta \\Psi} \\end{aligned}",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "∂ ∂ L L α = ( ) ∧ + ( ϑ ) ∧ Ł L Ł g Ł ξ ξ α β ξ ∂ ∂ ϑ α g α β ∂ ∂ L L + ( Ψ ) ∧ + ( Ψ ) ∧ Ł Ł D ξ ξ ∂ Ψ ∂ Ψ D /bracketleftBig /bracketrightBig ∂ ∂ ∂ L L L α = ( ξ /floorright ϑ ) ∧ + ( ξ /floorright Ψ ) ∧ + ( ξ /floorright Ψ ) ∧ D D ∂ ϑ α ∂ Ψ ∂ Ψ D ∂ ∂ ∂ L L L α α γ β − ( ξ /floorright ϑ ) + ( ξ /floorright ) ∧ + ( ξ /floorright ) ∧ Ψ ∧ D T R I β γ ∂ ϑ ∂ ϑ ∂ Ψ α α D δ δ L L + ( ξ /floorright Ψ ) ∧ + ( − ) p ( ξ /floorright Ψ ) ∧ . D 1 D ( δ Ψ δ Ψ",
+   "census_named_glyphs": [
+    "bracketleftBig",
+    "bracketrightBig",
+    "floorright"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 2
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0293",
+   "object": "obj_db6a6eeeea62",
+   "page": 101,
+   "region": {
+    "top_left_x": 295,
+    "top_left_y": 362,
+    "width": 839,
+    "height": 88
+   },
+   "confidence": 0.05203153586019482,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "\\xi \\downharpoonleft L \\equiv\\left(\\xi \\downharpoonleft \\vartheta^{\\alpha}\\right) \\wedge \\frac{\\partial L}{\\partial \\vartheta^{\\alpha}}+(\\xi \\downharpoonleft \\Psi) \\wedge \\frac{\\partial L}{\\partial \\Psi}+(\\xi \\downharpoonleft D \\Psi) \\wedge \\frac{\\partial L}{\\partial D \\Psi} .",
+   "repaired": "\\xi \\rfloor L \\equiv\\left(\\xi \\rfloor \\vartheta^{\\alpha}\\right) \\wedge \\frac{\\partial L}{\\partial \\vartheta^{\\alpha}}+(\\xi \\rfloor \\Psi) \\wedge \\frac{\\partial L}{\\partial \\Psi}+(\\xi \\rfloor D \\Psi) \\wedge \\frac{\\partial L}{\\partial D \\Psi} .",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "∂ ∂ ∂ L L L α ξ /floorright ≡ ( ξ /floorright ϑ ) ∧ + ( ξ /floorright Ψ ) ∧ + ( ξ /floorright Ψ ) ∧ . L D ∂ ϑ α ∂ Ψ ∂ Ψ D",
+   "census_named_glyphs": [
+    "floorright"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 4
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0294",
+   "object": "obj_8c22af453b32",
+   "page": 101,
+   "region": {
+    "top_left_x": 405,
+    "top_left_y": 679,
+    "width": 714,
+    "height": 86
+   },
+   "confidence": 0.5104777618674916,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "\\left.\\Sigma_{\\alpha}=e_{\\alpha} \\downharpoonleft L-\\left(e_{\\alpha} \\downharpoonleft D \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}-\\left(e_{\\alpha}\\right\\lrcorner \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial \\Psi} .",
+   "repaired": "\\left.\\Sigma_{\\alpha}=e_{\\alpha} \\rfloor L-\\left(e_{\\alpha} \\rfloor D \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}-\\left(e_{\\alpha}\\right\\lrcorner \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial \\Psi} .",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "∂ ∂ L L Σ = /floorright − ( /floorright Ψ ) ∧ − ( /floorright Ψ ) ∧ . e L e D e α α α α ∂ Ψ ∂ Ψ D",
+   "census_named_glyphs": [
+    "floorright"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 3
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0296",
+   "object": "obj_ad8a23f6a315",
+   "page": 101,
+   "region": {
+    "top_left_x": 447,
+    "top_left_y": 1136,
+    "width": 626,
+    "height": 86
+   },
+   "confidence": 0.8473062515258789,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "F_{\\alpha}=\\left(e_{\\alpha} \\downharpoonleft D \\Psi\\right) \\frac{\\delta L}{\\delta \\Psi}+(-1)^{p}\\left(e_{\\alpha} \\downharpoonleft \\Psi\\right) \\wedge D \\frac{\\delta L}{\\delta \\Psi}",
+   "repaired": "F_{\\alpha}=\\left(e_{\\alpha} \\rfloor D \\Psi\\right) \\frac{\\delta L}{\\delta \\Psi}+(-1)^{p}\\left(e_{\\alpha} \\rfloor \\Psi\\right) \\wedge D \\frac{\\delta L}{\\delta \\Psi}",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "δ δ L L = ( /floorright Ψ ) + ( − ) p ( /floorright Ψ ) ∧ F e D 1 e D α α α δ Ψ δ Ψ",
+   "census_named_glyphs": [
+    "floorright"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 2
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0305",
+   "object": "obj_d44d9f552ab1",
+   "page": 103,
+   "region": {
+    "top_left_x": 521,
+    "top_left_y": 1029,
+    "width": 478,
+    "height": 59
+   },
+   "confidence": 0.7933273315429688,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "\\varepsilon_{\\mathrm{RC}}:=\\xi^{\\alpha} \\Sigma_{\\alpha}+\\left(e_{\\beta} \\downharpoonleft \\overparen{D} \\xi^{\\gamma}\\right) \\tau^{\\beta}{ }_{\\gamma},",
+   "repaired": "\\varepsilon_{\\mathrm{RC}}:=\\xi^{\\alpha} \\Sigma_{\\alpha}+\\left(e_{\\beta} \\rfloor \\overparen{D} \\xi^{\\gamma}\\right) \\tau^{\\beta}{ }_{\\gamma},",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "! α γ β ε : = ξ Σ + ( /floorright ξ ) τ , e D α β γ R C",
+   "census_named_glyphs": [
+    "floorright"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 1
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0306",
+   "object": "obj_3b23cc1fdb08",
+   "page": 103,
+   "region": {
+    "top_left_x": 415,
+    "top_left_y": 1284,
+    "width": 689,
+    "height": 53
+   },
+   "confidence": 0.406494140625,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "\\left.\\widetilde{\\varepsilon}_{\\mathrm{MA}}:=\\varepsilon_{\\mathrm{RC}}+\\xi\\right\\lrcorner L \\cong-\\left(\\mathscr{L}_{\\xi} \\Gamma_{\\beta}{ }^{\\gamma}\\right) \\wedge H^{\\beta}{ }_{\\gamma}+d H_{\\infty}",
+   "repaired": null,
+   "repair_state": "none",
+   "repair_verified_by": null,
+   "page_census": "∼ γ β /tildewide ε : = ε + ξ /floorright = − L Γ ∧ + L H d H ξ β γ ∞ M A R C",
+   "census_named_glyphs": [
+    "floorright",
+    "tildewide"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 1
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0311",
+   "object": "obj_81753212cb3c",
+   "page": 104,
+   "region": {
+    "top_left_x": 497,
+    "top_left_y": 1317,
+    "width": 527,
+    "height": 133
+   },
+   "confidence": 0.11073617668453026,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "\\begin{aligned} \\widetilde{\\leftarrow}_{\\widetilde{y}} \\widetilde{\\widetilde{D}} \\widetilde{\\xi}^{\\alpha} & \\left.=\\widetilde{y}\\rfloor\\left(\\widetilde{\\widetilde{D}} \\widetilde{\\widetilde{D}} \\widetilde{\\xi}^{\\alpha}\\right)+\\widetilde{\\widetilde{D}}(\\widetilde{\\widetilde{y}}\\rfloor \\widetilde{\\widetilde{D}} \\widetilde{\\xi}^{\\alpha}\\right) \\\\ & =y J\\left(D D \\xi^{\\alpha}+R^{(T) \\alpha}\\right)=0, \\end{aligned}",
+   "repaired": null,
+   "repair_state": "none",
+   "repair_verified_by": null,
+   "page_census": "/parenleftbig /parenrightbig /parenleftbig /parenrightbig ≈ ≈ ≈ ≈ ≈ ≈ ≈ ≈ ≈ ≈ ≈ α α α ξ = /floorright ξ + /floorright ξ Ł D y D D D y D ≈ y α ( ) α = /floorright ( ξ + T ) = , y D D R 0",
+   "census_named_glyphs": [
+    "floorright",
+    "parenleftbig",
+    "parenrightbig"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 1
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0378",
+   "object": "obj_8b37beca188d",
+   "page": 128,
+   "region": {
+    "top_left_x": 186,
+    "top_left_y": 1378,
+    "width": 1149,
+    "height": 84
+   },
+   "confidence": 0.13644954161251915,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "D D \\vartheta^{\\alpha}=R_{\\beta}{ }^{\\alpha} \\wedge \\vartheta^{\\beta}=0, \\stackrel{( \\pm)}{D} \\stackrel{( \\pm)}{D} \\stackrel{( \\pm)}{\\Pi}_{\\alpha}=-\\stackrel{( \\pm)}{R}_{\\alpha}{ }^{\\beta} \\wedge \\stackrel{( \\pm)}{\\Pi}_{\\beta}= \\pm \\frac{i}{2} \\ell^{2}\\left(e_{\\alpha} \\downharpoonleft \\stackrel{( \\pm)}{\\Pi^{\\beta}}\\right) \\wedge \\Sigma_{\\beta} \\cong 0 .",
+   "repaired": "D D \\vartheta^{\\alpha}=R_{\\beta}{ }^{\\alpha} \\wedge \\vartheta^{\\beta}=0, \\stackrel{( \\pm)}{D} \\stackrel{( \\pm)}{D} \\stackrel{( \\pm)}{\\Pi}_{\\alpha}=-\\stackrel{( \\pm)}{R}_{\\alpha}{ }^{\\beta} \\wedge \\stackrel{( \\pm)}{\\Pi}_{\\beta}= \\pm \\frac{i}{2} \\ell^{2}\\left(e_{\\alpha} \\rfloor \\stackrel{( \\pm)}{\\Pi^{\\beta}}\\right) \\wedge \\Sigma_{\\beta} \\cong 0 .",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "( ± ) ( ± ) ( ± ) ( ± ) ( ± ) ( ± ) i ∼ α α β β β ϑ = ∧ ϑ = , Π = − ∧ Π = ± /lscript 2 ( /floorright Π ) ∧ Σ = . D D R 0 D D R e 0 β α α β α β 2 ( 6 . 2 . 2 9 )",
+   "census_named_glyphs": [
+    "floorright",
+    "lscript"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 1
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0381",
+   "object": "obj_66ecdeb98f44",
+   "page": 129,
+   "region": {
+    "top_left_x": 476,
+    "top_left_y": 470,
+    "width": 571,
+    "height": 86
+   },
+   "confidence": 0.58813162243285,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "\\stackrel{( \\pm)( \\pm)}{D} \\Pi_{\\alpha}:=D \\stackrel{( \\pm)}{\\Pi}_{\\alpha} \\pm \\frac{i}{2} \\ell^{2}\\left(e_{\\alpha} \\downharpoonleft \\stackrel{(\\mp)}{\\Pi}\\right) \\wedge \\stackrel{( \\pm)}{\\Pi}_{\\beta},",
+   "repaired": "\\stackrel{( \\pm)( \\pm)}{D} \\Pi_{\\alpha}:=D \\stackrel{( \\pm)}{\\Pi}_{\\alpha} \\pm \\frac{i}{2} \\ell^{2}\\left(e_{\\alpha} \\rfloor \\stackrel{(\\mp)}{\\Pi}\\right) \\wedge \\stackrel{( \\pm)}{\\Pi}_{\\beta},",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "/parenleftbig /parenrightbig ( ± ) ( ± ) ( ± ) ( ∓ ) ( ± ) i β Π : = Π ± /lscript /floorright Π ∧ Π , 2 D D e α α α β 2",
+   "census_named_glyphs": [
+    "floorright",
+    "lscript",
+    "parenleftbig",
+    "parenrightbig"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 1
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0382",
+   "object": "obj_dadef2481ea3",
+   "page": 129,
+   "region": {
+    "top_left_x": 344,
+    "top_left_y": 736,
+    "width": 723,
+    "height": 84
+   },
+   "confidence": 0.08683676137704444,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "\\stackrel{( \\pm)}{\\Gamma}_{\\alpha}{ }^{\\beta}:=\\Gamma_{\\alpha}{ }^{\\beta}+i \\stackrel{(\\mp)}{A^{\\beta}}, \\quad \\stackrel{( \\pm)}{A^{\\beta}}{ }^{\\beta}:= \\pm \\frac{1}{2} \\ell^{2} e_{\\alpha} \\downharpoonleft \\stackrel{( \\pm)}{\\Pi^{\\beta}},",
+   "repaired": "\\stackrel{( \\pm)}{\\Gamma}_{\\alpha}{ }^{\\beta}:=\\Gamma_{\\alpha}{ }^{\\beta}+i \\stackrel{(\\mp)}{A^{\\beta}}, \\quad \\stackrel{( \\pm)}{A^{\\beta}}{ }^{\\beta}:= \\pm \\frac{1}{2} \\ell^{2} e_{\\alpha} \\rfloor \\stackrel{( \\pm)}{\\Pi^{\\beta}},",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "( ± ) ( ∓ ) ( ± ) ( ± ) 1 β β β β β Γ : = Γ + , : = ± /lscript 2 /floorright Π , i A A e α α α α α 2",
+   "census_named_glyphs": [
+    "floorright",
+    "lscript"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 1
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0391",
+   "object": "obj_60eda7c7022e",
+   "page": 131,
+   "region": {
+    "top_left_x": 259,
+    "top_left_y": 1690,
+    "width": 921,
+    "height": 185
+   },
+   "confidence": 0.06582966480552419,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "\\begin{aligned} \\Sigma_{\\alpha}:=\\frac{\\delta L}{\\delta \\vartheta^{\\alpha}}= & \\left.\\left.e_{\\alpha}\\right\\rfloor L-\\left(e_{\\alpha} \\downharpoonleft D \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}-\\left(e_{\\alpha}\\right\\rfloor \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial \\Psi} \\\\ & -\\left(e_{\\alpha} \\downharpoonleft T^{\\beta}\\right) \\wedge \\frac{\\partial L}{\\partial T^{\\beta}}+D \\frac{\\partial L}{\\partial T^{\\alpha}}-\\left(e_{\\alpha} \\downharpoonleft R_{\\beta}^{\\gamma}\\right) \\wedge \\frac{\\partial L}{\\partial R_{\\beta}^{\\gamma}} . \\end{aligned}",
+   "repaired": "\\begin{aligned} \\Sigma_{\\alpha}:=\\frac{\\delta L}{\\delta \\vartheta^{\\alpha}}= & \\left.\\left.e_{\\alpha}\\right\\rfloor L-\\left(e_{\\alpha} \\rfloor D \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}-\\left(e_{\\alpha}\\right\\rfloor \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial \\Psi} \\\\ & -\\left(e_{\\alpha} \\rfloor T^{\\beta}\\right) \\wedge \\frac{\\partial L}{\\partial T^{\\beta}}+D \\frac{\\partial L}{\\partial T^{\\alpha}}-\\left(e_{\\alpha} \\rfloor R_{\\beta}^{\\gamma}\\right) \\wedge \\frac{\\partial L}{\\partial R_{\\beta}^{\\gamma}} . \\end{aligned}",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "δ ∂ ∂ L L L Σ : = = /floorright − ( /floorright Ψ ) ∧ − ( /floorright Ψ ) ∧ e L e D e α α α α δ ϑ α ∂ Ψ ∂ Ψ D ∂ ∂ ∂ L L L β γ − ( /floorright ) ∧ + − ( /floorright ) ∧ . e T D e R α α β ∂ β ∂ α ∂ γ T T R β",
+   "census_named_glyphs": [
+    "floorright"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 3
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0392",
+   "object": "obj_992c5a6d42fa",
+   "page": 132,
+   "region": {
+    "top_left_x": 398,
+    "top_left_y": 276,
+    "width": 725,
+    "height": 88
+   },
+   "confidence": 0.5520660545444116,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "\\left.\\left.n^{\\alpha} \\Sigma_{\\alpha}=n \\downharpoonleft L-(n\\rfloor D \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}-(n\\rfloor \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial \\Psi} .",
+   "repaired": "\\left.\\left.n^{\\alpha} \\Sigma_{\\alpha}=n \\rfloor L-(n\\rfloor D \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}-(n\\rfloor \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial \\Psi} .",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "∂ ∂ L L α Σ = /floorright − ( /floorright Ψ ) ∧ − ( /floorright Ψ ) ∧ . n n L n D n α ∂ Ψ ∂ Ψ D",
+   "census_named_glyphs": [
+    "floorright"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 1
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0393",
+   "object": "obj_223726de8b4b",
+   "page": 132,
+   "region": {
+    "top_left_x": 202,
+    "top_left_y": 552,
+    "width": 1031,
+    "height": 179
+   },
+   "confidence": 0.3819251724921747,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "\\begin{aligned} n^{\\alpha} \\Sigma_{\\alpha} & \\left.\\left.=n \\downharpoonleft L-\\left(\\mathrm{t}_{n} \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}-(n\\rfloor \\Psi\\right) \\wedge \\frac{\\delta L}{\\delta \\Psi}+D[(n\\rfloor \\Psi) \\wedge \\frac{\\partial L}{\\partial D \\Psi}\\right] \\\\ & \\left.\\cong n\\rfloor L-\\left(\\ell_{n} \\Psi+\\Gamma_{\\perp}^{\\alpha \\beta} \\rho\\left(I_{\\alpha \\beta}\\right) \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}+D[(n\\rfloor \\Psi) \\wedge \\frac{\\partial L}{\\partial D \\Psi}\\right] . \\end{aligned}",
+   "repaired": "\\begin{aligned} n^{\\alpha} \\Sigma_{\\alpha} & \\left.\\left.=n \\rfloor L-\\left(\\mathrm{t}_{n} \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}-(n\\rfloor \\Psi\\right) \\wedge \\frac{\\delta L}{\\delta \\Psi}+D[(n\\rfloor \\Psi) \\wedge \\frac{\\partial L}{\\partial D \\Psi}\\right] \\\\ & \\left.\\cong n\\rfloor L-\\left(\\ell_{n} \\Psi+\\Gamma_{\\perp}^{\\alpha \\beta} \\rho\\left(I_{\\alpha \\beta}\\right) \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}+D[(n\\rfloor \\Psi) \\wedge \\frac{\\partial L}{\\partial D \\Psi}\\right] . \\end{aligned}",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "∂ δ ∂ L L L α Σ = /floorright − ( Ψ ) ∧ − ( /floorright Ψ ) ∧ + ( /floorright Ψ ) ∧ n n L n D n Ł α n ∂ Ψ δ Ψ ∂ Ψ D D /bracketleftBig /bracketrightBig ( /parenleftbig /parenrightbig ∂ ∂ L L ∼ α β /floorright − /lscript Ψ + Γ ρ ( ) Ψ ∧ + ( /floorright Ψ ) ∧ . = n L I D n ⊥ α β n ∂ Ψ ∂ Ψ D D",
+   "census_named_glyphs": [
+    "bracketleftBig",
+    "bracketrightBig",
+    "floorright",
+    "lscript",
+    "parenleftbig",
+    "parenrightbig"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 1
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0437",
+   "object": "obj_7f587ef09a45",
+   "page": 142,
+   "region": {
+    "top_left_x": 301,
+    "top_left_y": 1724,
+    "width": 826,
+    "height": 86
+   },
+   "confidence": 0.5324320495128632,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "E_{\\alpha}:=\\frac{\\partial L_{g}}{\\partial \\vartheta^{\\alpha}}=e_{\\alpha} \\downharpoonleft L_{g}+\\left(e_{\\alpha} \\downharpoonleft T^{\\beta}\\right) \\wedge H_{\\beta}+\\left(e_{\\alpha} \\downharpoonleft R^{\\beta \\gamma}\\right) \\wedge H_{\\beta \\gamma},",
+   "repaired": "E_{\\alpha}:=\\frac{\\partial L_{g}}{\\partial \\vartheta^{\\alpha}}=e_{\\alpha} \\rfloor L_{g}+\\left(e_{\\alpha} \\rfloor T^{\\beta}\\right) \\wedge H_{\\beta}+\\left(e_{\\alpha} \\rfloor R^{\\beta \\gamma}\\right) \\wedge H_{\\beta \\gamma},",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "∂ L g β β γ : = = /floorright + ( /floorright ) ∧ + ( /floorright ) ∧ , E e L e T H e R H α α α β α β γ g ∂ ϑ α",
+   "census_named_glyphs": [
+    "floorright"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 3
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0440",
+   "object": "obj_9d0c55b720d9",
+   "page": 143,
+   "region": {
+    "top_left_x": 474,
+    "top_left_y": 567,
+    "width": 577,
+    "height": 53
+   },
+   "confidence": 0.28815579414367676,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "\\left.D \\Sigma_{\\alpha} \\cong\\left(e_{\\alpha} \\downharpoonleft T^{\\gamma}\\right) \\wedge \\Sigma_{\\gamma}+\\left(e_{\\alpha}\\right\\rfloor R^{\\gamma \\delta}\\right) \\wedge \\tau_{\\gamma \\delta}",
+   "repaired": "\\left.D \\Sigma_{\\alpha} \\cong\\left(e_{\\alpha} \\rfloor T^{\\gamma}\\right) \\wedge \\Sigma_{\\gamma}+\\left(e_{\\alpha}\\right\\rfloor R^{\\gamma \\delta}\\right) \\wedge \\tau_{\\gamma \\delta}",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "∼ γ γ δ Σ ( /floorright ) ∧ Σ + ( /floorright ) ∧ τ = D e T e R α α γ α γ δ",
+   "census_named_glyphs": [
+    "floorright"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 1
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0456",
+   "object": "obj_fc3cef5e9874",
+   "page": 152,
+   "region": {
+    "top_left_x": 461,
+    "top_left_y": 752,
+    "width": 607,
+    "height": 84
+   },
+   "confidence": 0.5267579938796818,
+   "classes": [
+    "unaccounted-overlay"
+   ],
+   "mathpix": "\\bar{R}_{. . c d}^{a b}=2 R_{.[c}^{[a} \\delta_{d]}^{b]} ; \\quad R_{. b}^{a}:=R_{. b}^{a}-\\frac{1}{4} \\delta_{b}^{a} R,",
+   "repaired": null,
+   "repair_state": "none",
+   "repair_verified_by": null,
+   "page_census": "− 1 [ ] a b = /arrownortheast a δ b ; /arrownortheast a : = a − δ a , R 2 R R R R . . c d · [ ] · · c d b b b 4",
+   "census_named_glyphs": [
+    "arrownortheast"
+   ],
+   "glyphs_missing_from_reading": {},
+   "unaccounted_overlay_glyphs": [
+    "arrownortheast"
+   ],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0472",
+   "object": "obj_2a9f18fbf97d",
+   "page": 155,
+   "region": {
+    "top_left_x": 483,
+    "top_left_y": 951,
+    "width": 558,
+    "height": 70
+   },
+   "confidence": 0.6820549625631992,
+   "classes": [
+    "cjk-decomposition",
+    "unaccounted-overlay"
+   ],
+   "mathpix": "\\stackrel{十}{\\Omega}^{(t)}=0 \\Longleftrightarrow R_{i j}^{\\{ \\}}=0 \\Longleftrightarrow R_{i j}^{\\{ \\}}=\\Lambda^{\\prime} g_{i j} .",
+   "repaired": "\\stackrel{+}{\\Omega}^{(t)}=0 \\Longleftrightarrow R_{i j}^{\\{ \\}}=0 \\Longleftrightarrow R_{i j}^{\\{ \\}}=\\Lambda^{\\prime} g_{i j} .",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "+ { } { } { } /prime Ω = ⇐ ⇒ /arrownortheast = ⇐ ⇒ = Λ . 0 R 0 R g i j i j i j",
+   "census_named_glyphs": [
+    "arrownortheast",
+    "prime"
+   ],
+   "glyphs_missing_from_reading": {},
+   "unaccounted_overlay_glyphs": [
+    "arrownortheast"
+   ],
+   "renders": false
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0474",
+   "object": "obj_6986cc01713d",
+   "page": 156,
+   "region": {
+    "top_left_x": 502,
+    "top_left_y": 1206,
+    "width": 514,
+    "height": 84
+   },
+   "confidence": 0.44437248166650534,
+   "classes": [
+    "unaccounted-overlay"
+   ],
+   "mathpix": "R_{\\alpha \\beta} \\equiv C_{\\alpha \\beta}+\\frac{1}{2} R i^{\\tau}{ }_{\\alpha \\beta}-\\frac{R}{12} \\vartheta_{\\alpha} \\wedge \\vartheta_{\\beta},",
+   "repaired": null,
+   "repair_state": "none",
+   "repair_verified_by": null,
+   "page_census": "1 R ≡ + /arrownortheast − ϑ ∧ ϑ , R C R i c α β α β α β α β 2 1 2",
+   "census_named_glyphs": [
+    "arrownortheast"
+   ],
+   "glyphs_missing_from_reading": {},
+   "unaccounted_overlay_glyphs": [
+    "arrownortheast"
+   ],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0475",
+   "object": "obj_c45c3cb8b13b",
+   "page": 156,
+   "region": {
+    "top_left_x": 483,
+    "top_left_y": 1522,
+    "width": 556,
+    "height": 84
+   },
+   "confidence": 0.9627012371214505,
+   "classes": [
+    "unaccounted-overlay"
+   ],
+   "mathpix": "{ }^{*} R_{\\alpha \\beta}^{(\\star)}=-C_{\\alpha \\beta}+\\frac{1}{2} R i^{\\tau}{ }_{\\alpha \\beta}+\\frac{R}{12} \\vartheta_{\\alpha} \\wedge \\vartheta_{\\beta} .",
+   "repaired": null,
+   "repair_state": "none",
+   "repair_verified_by": null,
+   "page_census": "1 R ( /star ) ∗ = − + /arrownortheast + ϑ ∧ ϑ . R C R i c α β α β α β α β 2 1 2",
+   "census_named_glyphs": [
+    "arrownortheast",
+    "star"
+   ],
+   "glyphs_missing_from_reading": {},
+   "unaccounted_overlay_glyphs": [
+    "arrownortheast"
+   ],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0478",
+   "object": "obj_64ff66fd8342",
+   "page": 157,
+   "region": {
+    "top_left_x": 548,
+    "top_left_y": 489,
+    "width": 424,
+    "height": 84
+   },
+   "confidence": 0.8489424997933384,
+   "classes": [
+    "unaccounted-overlay"
+   ],
+   "mathpix": "\\operatorname{Ric}_{\\alpha \\beta}:=\\operatorname{Ric}_{\\alpha \\beta}-\\frac{1}{4} \\operatorname{Rg}_{\\alpha \\beta}=0 .",
+   "repaired": null,
+   "repair_state": "none",
+   "repair_verified_by": null,
+   "page_census": "1 /arrownortheast : = − = . R i c R i c R g 0 α β α β α β 4",
+   "census_named_glyphs": [
+    "arrownortheast"
+   ],
+   "glyphs_missing_from_reading": {},
+   "unaccounted_overlay_glyphs": [
+    "arrownortheast"
+   ],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0544",
+   "object": "obj_7614d4cf0a0b",
+   "page": 177,
+   "region": {
+    "top_left_x": 409,
+    "top_left_y": 1176,
+    "width": 710,
+    "height": 84
+   },
+   "confidence": 0.2606740251647974,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "\\left.\\left.\\left.\\exp (\\zeta\\rfloor):=\\mathbf{1}+\\zeta\\rfloor+\\frac{1}{2!} \\zeta\\right\\rfloor \\zeta\\right\\rfloor+\\frac{1}{3!} \\zeta ل \\zeta ل \\zeta\\right\\rfloor+\\cdots .",
+   "repaired": null,
+   "repair_state": "none",
+   "repair_verified_by": null,
+   "page_census": "1 1 ( ζ /floorright ) : = + ζ /floorright + ζ /floorright ζ /floorright + ζ /floorright ζ /floorright ζ /floorright + · · · . e x p 1 ! ! 2 3",
+   "census_named_glyphs": [
+    "floorright"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 2
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0570",
+   "object": "obj_3f7ff82d0099",
+   "page": 184,
+   "region": {
+    "top_left_x": 299,
+    "top_left_y": 578,
+    "width": 832,
+    "height": 53
+   },
+   "confidence": 0.4034277773462236,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "\\left.E_{\\alpha}:=\\partial L / \\partial \\vartheta^{\\alpha}=e_{\\alpha}\\right\\rfloor L+\\left(e_{\\alpha} \\downharpoonleft T^{\\beta}\\right) \\wedge H_{\\beta}+\\left(e_{\\alpha} \\downharpoonleft R^{\\beta \\gamma}\\right) \\wedge H_{\\beta \\gamma}",
+   "repaired": "\\left.E_{\\alpha}:=\\partial L / \\partial \\vartheta^{\\alpha}=e_{\\alpha}\\right\\rfloor L+\\left(e_{\\alpha} \\rfloor T^{\\beta}\\right) \\wedge H_{\\beta}+\\left(e_{\\alpha} \\rfloor R^{\\beta \\gamma}\\right) \\wedge H_{\\beta \\gamma}",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "α β β γ : = ∂ / ∂ ϑ = /floorright + ( /floorright ) ∧ + ( /floorright ) ∧ E L e L e T H e R H α α α β α β γ",
+   "census_named_glyphs": [
+    "floorright"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 2
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0579",
+   "object": "obj_8c395d5411c9",
+   "page": 186,
+   "region": {
+    "top_left_x": 272,
+    "top_left_y": 830,
+    "width": 866,
+    "height": 93
+   },
+   "confidence": 0.35082082415465266,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "\\left.\\left.\\left.2 D\\left(e^{\\beta}\\right\\rfloor D H_{\\alpha \\beta}-\\frac{1}{4} \\vartheta_{\\alpha} \\wedge e^{\\gamma}\\right\\rfloor e^{\\delta}\\right\\lrcorner D H_{\\gamma \\delta}\\right)-E_{\\alpha}=\\Sigma_{\\alpha}-D \\mu_{\\alpha},",
+   "repaired": null,
+   "repair_state": "none",
+   "repair_verified_by": null,
+   "page_census": "1 β γ δ /floorright − ϑ ∧ /floorright /floorright − = Σ − μ , 2 D e D H e e D H E D α β α γ δ α α α 4",
+   "census_named_glyphs": [
+    "floorright"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 1
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0627",
+   "object": "obj_375fe055e7b2",
+   "page": 211,
+   "region": {
+    "top_left_x": 259,
+    "top_left_y": 466,
+    "width": 875,
+    "height": 86
+   },
+   "confidence": 0.271475844101019,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "E_{\\alpha}:=\\frac{\\partial L}{\\partial \\vartheta^{\\alpha}}=e_{\\alpha} \\downharpoonleft L+\\left(e_{\\alpha} \\downharpoonleft T^{\\beta}\\right) \\wedge H_{\\beta}+2(-1)^{s}\\left(e_{\\alpha} \\downharpoonleft R^{\\star \\beta}\\right) \\wedge H_{\\beta}^{\\star},",
+   "repaired": "E_{\\alpha}:=\\frac{\\partial L}{\\partial \\vartheta^{\\alpha}}=e_{\\alpha} \\rfloor L+\\left(e_{\\alpha} \\rfloor T^{\\beta}\\right) \\wedge H_{\\beta}+2(-1)^{s}\\left(e_{\\alpha} \\rfloor R^{\\star \\beta}\\right) \\wedge H_{\\beta}^{\\star},",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "∂ L β /star β /star : = = /floorright + ( /floorright ) ∧ + ( − ) s ( /floorright ) ∧ , E e L e T H 2 1 e R H α α α β α β ∂ ϑ α",
+   "census_named_glyphs": [
+    "floorright",
+    "star"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 3
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0654",
+   "object": "obj_50673a1e59ee",
+   "page": 216,
+   "region": {
+    "top_left_x": 207,
+    "top_left_y": 1079,
+    "width": 1106,
+    "height": 82
+   },
+   "confidence": 0.27390133524676696,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "\\left.\\left.E_{\\alpha}=e_{\\alpha} \\downharpoonleft L+\\left[\\left(e_{\\alpha} \\downharpoonleft T^{\\beta}\\right)+(-1)^{s} 2 \\delta \\ell\\left(e_{\\alpha}\\right\\rfloor R^{\\star \\beta}\\right)\\right] \\wedge H_{\\beta}+(-1)^{s} \\frac{2 \\gamma}{\\ell}\\left(e_{\\alpha}\\right\\rfloor R^{\\star \\beta}\\right) \\wedge \\vartheta_{\\beta},",
+   "repaired": "\\left.\\left.E_{\\alpha}=e_{\\alpha} \\rfloor L+\\left[\\left(e_{\\alpha} \\rfloor T^{\\beta}\\right)+(-1)^{s} 2 \\delta \\ell\\left(e_{\\alpha}\\right\\rfloor R^{\\star \\beta}\\right)\\right] \\wedge H_{\\beta}+(-1)^{s} \\frac{2 \\gamma}{\\ell}\\left(e_{\\alpha}\\right\\rfloor R^{\\star \\beta}\\right) \\wedge \\vartheta_{\\beta},",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "/bracketleftbig /bracketrightbig γ 2 β /star β /star β = /floorright + ( /floorright ) + ( − ) δ /lscript ( /floorright ) ∧ + ( − ) ( /floorright ) ∧ ϑ , s s E e L e T 1 2 e R H 1 e R α α α α β α β /lscript ( 1 0 . 3 . 1 1 )",
+   "census_named_glyphs": [
+    "bracketleftbig",
+    "bracketrightbig",
+    "floorright",
+    "lscript",
+    "star"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 2
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0686",
+   "object": "obj_461eac525125",
+   "page": 222,
+   "region": {
+    "top_left_x": 251,
+    "top_left_y": 906,
+    "width": 891,
+    "height": 95
+   },
+   "confidence": 0.4971941426447292,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "\\left.\\left.\\left.C_{l}=E_{l}^{\\alpha} *\\left\\{D^{\\{ \\}}\\left[2\\left(e^{\\beta}\\right\\lrcorner D^{\\{ \\}} H_{[\\alpha \\beta]}\\right)+\\frac{1}{2} \\vartheta_{\\alpha} \\wedge\\left(e^{\\beta}\\right\\lrcorner e^{\\gamma}\\right\\lrcorner D^{\\{ \\}} H_{[\\beta \\gamma]}\\right)\\right]\\right\\}",
+   "repaired": null,
+   "repair_state": "none",
+   "repair_verified_by": null,
+   "page_census": "/parenleftbig /parenrightbig /parenleftbig /parenrightbig 1 α ∗ { } β { } β γ { } = /floorright + ϑ ∧ /floorright /floorright C E D e D H e e D H 2 [ α β ] α [ β γ ] l l 2",
+   "census_named_glyphs": [
+    "floorright",
+    "parenleftbig",
+    "parenrightbig"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 3
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0718",
+   "object": "obj_4b01eb553f46",
+   "page": 229,
+   "region": {
+    "top_left_x": 407,
+    "top_left_y": 1269,
+    "width": 708,
+    "height": 183
+   },
+   "confidence": 0.06562688374245354,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "\\begin{aligned} \\Sigma_{\\alpha} & \\left.\\left.:=e_{\\alpha}\\right\\rfloor L_{\\Psi}-\\left(e_{\\alpha}\\right\\rfloor \\Psi\\right) \\wedge \\frac{\\partial L_{\\Psi}}{\\partial \\Psi}-\\left(e_{\\alpha} \\downharpoonleft \\bar{\\Psi}\\right) \\wedge \\frac{\\partial L_{\\Psi}}{\\partial \\bar{\\Psi}} \\\\ & \\left.-\\left(e_{\\alpha}\\right\\rfloor D \\Psi\\right) \\wedge \\frac{\\partial L_{\\Psi}}{\\partial D \\Psi}-\\left(e_{\\alpha} \\downharpoonleft D \\bar{\\Psi}\\right) \\wedge \\frac{\\partial L_{\\Psi}}{\\partial D \\bar{\\Psi}} ; \\end{aligned}",
+   "repaired": "\\begin{aligned} \\Sigma_{\\alpha} & \\left.\\left.:=e_{\\alpha}\\right\\rfloor L_{\\Psi}-\\left(e_{\\alpha}\\right\\rfloor \\Psi\\right) \\wedge \\frac{\\partial L_{\\Psi}}{\\partial \\Psi}-\\left(e_{\\alpha} \\rfloor \\bar{\\Psi}\\right) \\wedge \\frac{\\partial L_{\\Psi}}{\\partial \\bar{\\Psi}} \\\\ & \\left.-\\left(e_{\\alpha}\\right\\rfloor D \\Psi\\right) \\wedge \\frac{\\partial L_{\\Psi}}{\\partial D \\Psi}-\\left(e_{\\alpha} \\rfloor D \\bar{\\Psi}\\right) \\wedge \\frac{\\partial L_{\\Psi}}{\\partial D \\bar{\\Psi}} ; \\end{aligned}",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "∂ ∂ L L Ψ Ψ Σ : = /floorright − ( /floorright Ψ ) ∧ − ( /floorright Ψ ) ∧ e L e e α α Ψ α α ∂ Ψ ∂ Ψ ∂ ∂ L L Ψ Ψ − ( /floorright Ψ ) ∧ − ( /floorright Ψ ) ∧ ; e D e D α α ∂ Ψ ∂ Ψ D D",
+   "census_named_glyphs": [
+    "floorright"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 2
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0842",
+   "object": "obj_e62cc4ec7bf9",
+   "page": 272,
+   "region": {
+    "top_left_x": 613,
+    "top_left_y": 1100,
+    "width": 295,
+    "height": 82
+   },
+   "confidence": 0.8516088137169504,
+   "classes": [
+    "dropped-or-misread-glyph"
+   ],
+   "mathpix": "\\mu:=e_{\\alpha} \\downharpoonleft \\mu^{\\alpha}=\\frac{3}{4}{ }^{*} j_{5}",
+   "repaired": "\\mu:=e_{\\alpha} \\rfloor \\mu^{\\alpha}=\\frac{3}{4}{ }^{*} j_{5}",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "3 α ∗ μ : = /floorright μ = e j α 5 4",
+   "census_named_glyphs": [
+    "floorright"
+   ],
+   "glyphs_missing_from_reading": {
+    "floorright": 1
+   },
+   "unaccounted_overlay_glyphs": [],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0857",
+   "object": "obj_1a71a7b8e412",
+   "page": 278,
+   "region": {
+    "top_left_x": 620,
+    "top_left_y": 320,
+    "width": 278,
+    "height": 49
+   },
+   "confidence": 0.92533074086532,
+   "classes": [
+    "cjk-decomposition"
+   ],
+   "mathpix": "\\left.\\mathbf{匕}_{n} \\mathscr{G}^{A} \\cong n\\right\\rfloor\\left(D \\underline{\\tau}^{A}\\right),",
+   "repaired": "\\left.\\mathbf{Ł}_{n} \\mathscr{G}^{A} \\cong n\\right\\rfloor\\left(D \\underline{\\tau}^{A}\\right),",
+   "repair_state": "verified",
+   "repair_verified_by": "census",
+   "page_census": "∼ G A = /floorright ( τ A ) , Ł n D n",
+   "census_named_glyphs": [
+    "floorright"
+   ],
+   "glyphs_missing_from_reading": {},
+   "unaccounted_overlay_glyphs": [],
+   "renders": false
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0873",
+   "object": "obj_2e3850a93ce9",
+   "page": 284,
+   "region": {
+    "top_left_x": 575,
+    "top_left_y": 1467,
+    "width": 363,
+    "height": 84
+   },
+   "confidence": 0.99951171875,
+   "classes": [
+    "unaccounted-overlay"
+   ],
+   "mathpix": "\\nvdash^{A}{ }_{B}:=L^{A}{ }_{B}-\\frac{1}{n} \\delta_{B}^{A} L^{C}{ }_{C} .",
+   "repaired": null,
+   "repair_state": "none",
+   "repair_verified_by": null,
+   "page_census": "1 /arrownortheast A : = A − δ A C . L L L B B C B n",
+   "census_named_glyphs": [
+    "arrownortheast"
+   ],
+   "glyphs_missing_from_reading": {},
+   "unaccounted_overlay_glyphs": [
+    "arrownortheast"
+   ],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0874",
+   "object": "obj_956c89ccee07",
+   "page": 284,
+   "region": {
+    "top_left_x": 512,
+    "top_left_y": 1659,
+    "width": 500,
+    "height": 51
+   },
+   "confidence": 0.990234375,
+   "classes": [
+    "unaccounted-overlay"
+   ],
+   "mathpix": "\\left[Z^{A}{ }_{B}, Z^{C}{ }_{D}\\right]=\\delta_{D}^{A} Z^{C}{ }_{B}-\\delta_{B}^{C} Z^{A}{ }_{D}",
+   "repaired": null,
+   "repair_state": "none",
+   "repair_verified_by": null,
+   "page_census": "[ /arrownortheast A , /arrownortheast C ] = δ A /arrownortheast C − δ C /arrownortheast A L L L L B D B D D B",
+   "census_named_glyphs": [
+    "arrownortheast"
+   ],
+   "glyphs_missing_from_reading": {},
+   "unaccounted_overlay_glyphs": [
+    "arrownortheast"
+   ],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0879",
+   "object": "obj_8396bd041b89",
+   "page": 285,
+   "region": {
+    "top_left_x": 565,
+    "top_left_y": 976,
+    "width": 390,
+    "height": 63
+   },
+   "confidence": 0.5534934997558594,
+   "classes": [
+    "unaccounted-overlay"
+   ],
+   "mathpix": "\\stackrel{\\circ}{L}_{A B}:=\\hat{g}_{[A \\mid C} C^{C}{ }_{\\mid B]}=-\\stackrel{\\circ}{L}_{B A}",
+   "repaired": null,
+   "repair_state": "none",
+   "repair_verified_by": null,
+   "page_census": "◦ ◦ : = ˆ /arrownortheast C = − L g L L [ | | ] A B A C B B A",
+   "census_named_glyphs": [
+    "arrownortheast"
+   ],
+   "glyphs_missing_from_reading": {},
+   "unaccounted_overlay_glyphs": [
+    "arrownortheast"
+   ],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0897",
+   "object": "obj_6e17ffdccc5c",
+   "page": 288,
+   "region": {
+    "top_left_x": 417,
+    "top_left_y": 1431,
+    "width": 695,
+    "height": 164
+   },
+   "confidence": 0.8462619543610328,
+   "classes": [
+    "unaccounted-overlay"
+   ],
+   "mathpix": "\\begin{aligned} \\hat{R} & :=R_{A}{ }^{B} E^{A}{ }_{B}:=\\left[d \\Gamma_{A}{ }^{B}-\\Gamma_{A}{ }^{C} \\wedge \\Gamma_{C}{ }^{B}\\right] E^{A}{ }_{B} \\\\ & =\\left[R_{\\alpha}{ }^{\\beta}-\\frac{\\Lambda}{3} \\theta_{\\alpha} \\wedge \\vartheta^{\\beta}\\right] L^{\\alpha}{ }_{\\beta}+T^{\\beta} P_{\\beta}+D \\theta_{\\alpha} P_{*}^{\\alpha} \\end{aligned}",
+   "repaired": null,
+   "repair_state": "none",
+   "repair_verified_by": null,
+   "page_census": "ˆ : = B /arrownortheast A : = Γ B − Γ C ∧ Γ B /arrownortheast A R R L d L A B A A C B /bracketleftbig /bracketrightbig Λ β β α β α = − θ ∧ ϑ + + θ , R L T P D P α α β β α ∗ 3",
+   "census_named_glyphs": [
+    "arrownortheast",
+    "bracketleftbig",
+    "bracketrightbig"
+   ],
+   "glyphs_missing_from_reading": {},
+   "unaccounted_overlay_glyphs": [
+    "arrownortheast"
+   ],
+   "renders": true
+  },
+  {
+   "identifier": "mielke-geometrodynamics_EQ0898",
+   "object": "obj_1646f5faa755",
+   "page": 288,
+   "region": {
+    "top_left_x": 434,
+    "top_left_y": 1747,
+    "width": 651,
+    "height": 53
+   },
+   "confidence": 0.5149075483470765,
+   "classes": [
+    "unaccounted-overlay"
+   ],
+   "mathpix": "\\hat{B}:=B_{A}{ }^{B}{ }^{A}{ }^{A}{ }_{B}=\\left(b_{\\alpha} P_{*}^{\\alpha}+\\hat{b}^{\\alpha} P_{\\alpha}\\right) \\ell^{2}+B_{\\alpha}{ }^{\\beta} L^{\\alpha}{ }_{\\beta}",
+   "repaired": null,
+   "repair_state": "none",
+   "repair_verified_by": null,
+   "page_census": "ˆ ˆ α α β α : = /arrownortheast = ( + ) /lscript + B A 2 B B L b P b P B L α α α β A B ∗",
+   "census_named_glyphs": [
+    "arrownortheast",
+    "lscript"
+   ],
+   "glyphs_missing_from_reading": {},
+   "unaccounted_overlay_glyphs": [
+    "arrownortheast"
+   ],
+   "renders": true
+  }
+ ]
+}
