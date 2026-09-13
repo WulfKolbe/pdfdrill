@@ -1200,12 +1200,47 @@ def verified_change(obj):
     return st.get("realization") if st["state"] == VERIFIED else None
 
 
+#: What `verified_by` values are evidence about IDENTITY — whether the
+#: proposal is the same mathematics as the page — rather than about quantity.
+#: Only these authorise a projection to prefer a refinement over MathPix's own
+#: reading.
+#:
+#: 686 — `"ink"` IS NOT AMONG THEM, AND THIS IS MEASURED. Of 29 ink-verified
+#: refinements across the 20 published documents, 12 were wrong: prose
+#: replacing an equation, an FFT identity replaced by an unrelated one, and
+#: four rows of 0902.0431 all returned the SAME `nu(sum lambda_k H_k)`
+#: equation. A 41% error rate on values this function PREFERS over MathPix and
+#: publishes.
+#:
+#: The reason is structural, not a tuning problem. The ink gate accepts when
+#: the ink distance FALLS, and ink distance measures how much ink a rendering
+#: makes, not whether it is the same ink — so a short wrong expression beats a
+#: long damaged one, and the larger the claimed improvement the more
+#: suspicious it should have been. 685 tried to fix it with a magnitude
+#: ceiling and measured that no threshold separates the correct repairs from
+#: the wrong ones (a CORRECT one sits at delta -95 and string similarity
+#: 0.039, because rewriting `\longdiv` as an array changes nearly every
+#: character while preserving the mathematics). There is no ceiling to find.
+#:
+#: An ink-verified refinement is still RECORDED, with its evidence, and
+#: `refinement_state` still calls it VERIFIED — the measurement happened and
+#: saying otherwise would be a lie. What changes is that a projection no
+#: longer PREFERS it: the raw reading publishes, and the evidence says why.
+IDENTITY_EVIDENCE = frozenset({"census", "eprint", "source"})
+
+
 def chosen_latex(obj) -> "tuple[str, dict]":
     """(the value a projection should show, the evidence behind it).
 
     The evidence dict is empty when the original is being shown, which is the
     normal case. The MODEL IS NOT TOUCHED: this is a read-time choice, so the
     same model projects either way and `latex` stays exactly what MathPix said.
+
+    686 — a VERIFIED refinement is preferred only when what verified it is
+    evidence about IDENTITY (`IDENTITY_EVIDENCE`). One verified by ink alone
+    is reported, not shown: the caller receives the original plus
+    `refinement_state: "ink_only"` so a projection can say a refinement exists
+    and was not trusted, rather than silently showing either value.
     """
     props = getattr(obj, "props", None) or {}
     st = refinement_state(obj)
@@ -1219,6 +1254,26 @@ def chosen_latex(obj) -> "tuple[str, dict]":
         return props.get("latex", ""), ev
     r = st["realization"]
     rp = r.props or {}
+    by = (rp.get("verified_by") or "").strip().lower()
+    # 686 — a COMBINED value keeps its identity half. 0707.4470_FO0175 records
+    # `verified_by: "source+ink"`: the author's own e-print agreed AND the ink
+    # improved. Exact membership threw away the half that matters and demoted a
+    # row the author source had confirmed. Split on the separators that occur
+    # rather than assuming a bare token.
+    import re as _re
+    parts = {t for t in _re.split(r"[+,/;\s]+", by) if t}
+    if not (parts & IDENTITY_EVIDENCE):
+        # 686 — recorded, reported, NOT shown. See IDENTITY_EVIDENCE.
+        return props.get("latex", ""), {
+            "refinement_state": "ink_only",
+            "why": ("a refinement verified by %r carries no evidence about "
+                    "IDENTITY (%s) — ink measures how much ink a rendering "
+                    "makes, not whether it is the same mathematics; the "
+                    "original is shown"
+                    % (by or "nothing", ", ".join(sorted(IDENTITY_EVIDENCE)))),
+            "verified_by": by,
+            "refined": props.get(REFINED_FIELD, ""),
+        }
     return props[REFINED_FIELD], {
         "original": props.get("latex", ""),
         "basis": rp.get("basis") or "",

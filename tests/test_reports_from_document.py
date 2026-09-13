@@ -101,8 +101,14 @@ def test_missing_lines_json_is_not_an_error(tmp_path):
 REFUSED = "a & b \\\\ c & d"
 
 
-def _refined_obj(obj_id, *, latex, refined, state, verified_by="ink",
-                 basis="measured"):
+def _refined_obj(obj_id, *, latex, refined, state, verified_by="census",
+                 basis="census"):
+    # 686 — the default is IDENTITY evidence, not "ink". These tests are about
+    # 669's contract (a VERIFIED refinement is what a published row shows), and
+    # that contract now requires evidence about whether the proposal is the
+    # same mathematics. `verified_by="ink"` has its own test below, asserting
+    # the opposite outcome, because 12 of 29 ink-verified refinements were
+    # wrong and the ink gate cannot tell.
     """One Equation object in each of the five `refine.refinement_state`
     states, real `DocObject`/`Realization` (not the duck-typed stand-ins
     `test_refinement_state.py` uses) -- `build_rows` walks the actual
@@ -153,7 +159,7 @@ def test_verified_and_both_render_PREFERS_the_refinement():
     r = _one_equation_row(_refined_obj("e1", latex="a=b", refined="c=d",
                                        state=rf.VERIFIED))
     assert r.latex == "c=d"
-    assert r.refined_info is not None and r.refined_info["basis"] == "measured"
+    assert r.refined_info is not None and r.refined_info["basis"] == "census"
 
 
 def test_verified_and_raw_refused_PREFERS_the_refinement():
@@ -222,7 +228,7 @@ def test_refined_rows_map_collects_only_the_rows_that_actually_published_one():
     rows = build_rows(doc, BK)
     m = refined_rows_map(rows)
     assert set(m) == {"DOC_EQ0001"}
-    assert m["DOC_EQ0001"]["basis"] == "measured"
+    assert m["DOC_EQ0001"]["basis"] == "census"
 
 
 def test_a_fixture_with_no_refinement_or_identical_readings_cannot_discriminate():
@@ -238,3 +244,31 @@ def test_a_fixture_with_no_refinement_or_identical_readings_cannot_discriminate(
                                        state=rf.VERIFIED))
     assert r.latex == "a=b"          # same either way -- not a useful probe
     assert r.refined_info is not None  # but the state IS still VERIFIED
+
+
+def test_an_ink_only_refinement_is_reported_but_NOT_shown():
+    """686 — the change 685 measured its way into.
+
+    The ink gate accepts when the ink distance falls, and ink distance measures
+    how much ink a rendering makes, not whether it is the same ink. Of 29
+    ink-verified refinements across the published set, 12 were wrong: prose
+    replacing an equation, and four rows of one document all returned the same
+    equation. So a row shows MathPix's own reading and SAYS a refinement exists
+    and was not trusted — rather than silently showing either value.
+    """
+    doc = Document(meta={"bibkey": BK})
+    doc.add(_refined_obj("e1", latex="a=b", refined="c=d", state=rf.VERIFIED,
+                         verified_by="ink", basis="measured"))
+    (row,) = build_rows(doc, BK)["equation"]
+    assert row.latex == "a=b", "the original must be published"
+    assert row.refined_info is None, "it must not be marked as a refinement"
+
+
+def test_a_census_verified_refinement_IS_shown():
+    """The control beside it: identity evidence is trusted, quantity is not."""
+    doc = Document(meta={"bibkey": BK})
+    doc.add(_refined_obj("e1", latex="a=b", refined="c=d", state=rf.VERIFIED,
+                         verified_by="census", basis="census"))
+    (row,) = build_rows(doc, BK)["equation"]
+    assert row.latex == "c=d"
+    assert row.refined_info is not None
