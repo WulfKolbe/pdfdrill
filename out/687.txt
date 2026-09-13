@@ -1,0 +1,55 @@
+687 — the last four stub report.pdf: all 20 documents complete
+
+686 found, because a growth guard refused a copy, that 7 of 20 published
+documents carried a STUB `report.pdf` — a few hundred KB claiming to describe
+200 to 1,460 ink rows. Three were replaced as a side effect of that rebuild
+(johnston, lyche, voloshin) and 0902.0431 was already sound. These are the
+remaining four, rebuilt and re-measured for the purpose:
+
+    1510.06699                  0.2 MB ->  5.5 MB    248 ink rows
+    cardona-qft-methods         0.1 MB -> 14.4 MB    935
+    fong-spivak-invitation      0.3 MB -> 12.0 MB    241
+    fong-spivak-seven-sketches  0.2 MB -> 13.6 MB    242
+
+All four READY on all six gates, zero failed steps. A sweep across all 20 now
+reports 0 stubs.
+
+WHY NOTHING CAUGHT THIS
+------------------------
+`report.pdf` is not in `gate.PUBLISHED_FILES`, so `publishcheck` never
+compared it. And the deploy guard's stamp check compares
+`report.build.json` to the file beside it — which a CONSISTENT STUB PAIR
+satisfies perfectly: a 124 kB report with a stamp recording 124 kB passes.
+
+Two validators, each internally correct, both silent, because neither was
+looking at a file anyone had listed. That is the third instance of this shape
+today:
+
+    677  publishcheck compared 5 names while the site carried 12 kinds
+    677  publishcheck preferred a `published/` derivative the publish had
+         stopped using, so 12 current documents read as STALE
+    687  report.pdf in neither list, and a stub satisfying its own stamp
+
+The fix in every case was the same: make the check enumerate what EXISTS
+rather than what a list says should exist. `publishcheck` now takes the union
+of its tuple and the files the site actually holds; the stub class was found
+only because a DIFFERENT guard — the copy script's growth margin — refused to
+proceed without an explanation.
+
+THE GENERAL LESSON, which is worth more than the four files: A GUARD THAT
+REFUSES AND ASKS IS WORTH MORE THAN A CHECK THAT PASSES. Three findings today
+came from something declining to proceed (publishcheck's resolution failure,
+the missing formula-report.html rebuild, this stub class) and none came from a
+check reporting success.
+
+PUBLISHED
+---------
+Site 6f95015..b5328e6, verified on the remote. Bars regenerated (2 rows
+differed), sizes regenerated (10 changed), deploy guard run locally,
+publishcheck 20/20 identical.
+
+THE CORPUS NOW
+--------------
+20 documents, all READY. No stubs. No prose published as an equation. No
+ink-only refinement preferred over MathPix's own reading. mielke additionally
+carries 22 census-verified repairs and zero unrenderable rows.
