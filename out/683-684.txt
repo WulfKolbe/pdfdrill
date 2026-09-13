@@ -1,0 +1,84 @@
+683/684 — publishing mielke's 19 repairs in two passes, around inkdrill
+
+WHY TWO PASSES
+--------------
+The user needed the repairs visible so their inspection would not spend the
+hour re-reporting errors already fixed. But inkdrill was measuring this book,
+and BOTH `residuals --measure` and `marks --build` invoke inkdrill as a
+subprocess. Two writers on one tool's working directories is the 2026-09-11
+defect class again, so the publish was split:
+
+  683  evidence + HTML only — pure pdfdrill, no inkdrill. Published with the
+       gap STATED rather than discovered: report.pdf / report.build.json /
+       report.ink.json / residuals.pdf still described the pre-repair model,
+       and evidence-formula.pdf's 184 drawn marks were absent. The index
+       headline was moved 8,318 -> 8,134 so the page did not claim marks that
+       were not there. `publishready` would have refused this state, correctly,
+       and the commit says so.
+
+  684  the rest, once inkdrill was quiet. WAITING WAS GUARDED: five
+       consecutive clear checks sixty seconds apart, because a 60-minute
+       measurement runs in stages and one empty `pgrep` between two of them
+       would have fired early. It gave inkdrill four hours before giving up
+       and building nothing. In the event inkdrill had already finished —
+       quiet after 4.0 min.
+
+       measure 1915.3s | marks 44.7s | html 32.4s | publishready 1.6s
+
+THE VERDICT
+-----------
+    mielke-geometrodynamics: READY on all six gates
+    timestamp  measured 2026-09-13T09:05:20Z against the model on disk
+    coverage   27 equation rows shown, all measured (5 straddle)
+    crop       1056 rows checked, every displayed crop is the one measured
+
+    marks   1768 rows, 1767 measured, 184 marked, 184 DRAWN,
+            reading_changed 0 — inkdrill hashes the evidence rows it measured
+            and agrees the rows it marked are the rows now in the file.
+            1 row failed to render for measurement and is NAMED, not skipped.
+    headline restored 8,134 -> 8,318.
+
+COVERAGE 11 -> 27, which is the repairs working through: an equation that
+could not render was not in the residuals' shown set, and now is.
+
+THE INK DID NOT MOVE, AND COULD NOT
+------------------------------------
+Distribution byte-identical to the previous measurement: clean 158,
+component 56, noise 698, stable 21, unrendered 2, weak 121.
+
+`prefer_refined: False`. The measure build reads raw `latex`, so it still
+measures MathPix's `\downharpoonleft` readings while the evidence PDFs read
+the repairs. The re-measure did the ONE thing it was needed for — re-stamping
+against the current model so the timestamp gate could pass.
+
+This is the third time this question has come up and it is still the user's to
+settle: the ink is a measurement OF MATHPIX'S OUTPUT. Making it read our own
+corrections would improve the corpus's numbers without MathPix having
+improved, which is the one thing a quality measurement must not do. The
+counter-argument is that "correct residuals" ought to describe what a reader
+actually sees. `--prefer-refined` exists on the measure path either way.
+
+WHAT THE TWO-PASS SPLIT COST, HONESTLY
+---------------------------------------
+Between 683 and 684 the site carried evidence that showed the repairs beside
+an ink and residuals that did not, and an evidence-formula.pdf with no marks.
+That inconsistency was deliberate, bounded, stated in the commit, and worth
+an hour of a reader's time. `publishready` refusing it is the gate working,
+not a problem to be worked around — which is why 684 exists rather than a
+flag to silence it.
+
+PUBLISHED
+---------
+Site 826b912..9d7bc23 (683) and 9d7bc23..478b52a (684), both verified on the
+remote. Bars regenerated (0 differ both times). Sizes regenerated (1, then 2).
+Deploy guard run locally before each push. publishcheck 20/20 identical.
+
+STILL OPEN
+----------
+* 15 unrepaired cases in out/682-goldens-mielke.json: 5 rows where ⌋ was
+  DROPPED (placement, not substitution) and 10 unaccounted overlays including
+  EQ0472's slashed R, which needs the cancel package — a preamble change.
+* The 17 ink-accepted refinements with EQ0378's shape, across 0902.0431,
+  johnston, lyche and voloshin, including EQ0748. Four documents, an hour of
+  ink chain each, and an accept-gate ceiling that would have stopped them.
+* prefer_refined: the policy question above.
