@@ -246,3 +246,32 @@ def test_the_name_table_only_holds_names_a_row_needed():
 def test_tokenisation_keeps_commands_whole():
     assert gc._tokens(r"\rfloor x\, \mathbf{A}") == [
         "\\rfloor", " ", "x", "\\,", " ", "\\mathbf", "{", "A", "}"]
+
+
+# =====================================================================
+# 685 — content bleed has a fingerprint; magnitude does not
+# =====================================================================
+
+def test_two_rows_given_the_same_transcription_are_named_as_bleeding():
+    """0902.0431's EQ1187 and EQ0515 both came back as the same equation
+    (similarity 0.95). Two distinct equations on one page do not have the
+    same transcription."""
+    from pdfdrill.refine import bleeding_proposals
+    a = {"id": "a", "proposed": r"\nu H = \nu\big(\sum_{k=0}^{3}\lambda_k H_k\big) = \frac12(\lambda_0)"}
+    b = {"id": "b", "proposed": r"\nu H = \nu\big(\sum_{k=0}^{3}\lambda_k H_k\big) = \frac12(\lambda_0)"}
+    pairs = bleeding_proposals([a, b])
+    assert len(pairs) == 1 and pairs[0][2] >= 0.9
+
+
+def test_two_genuinely_different_proposals_are_not_flagged():
+    """The control — otherwise the check would condemn every document."""
+    from pdfdrill.refine import bleeding_proposals
+    a = {"id": "a", "proposed": r"\stackrel{+}{\Omega}^{(t)}=0"}
+    b = {"id": "b", "proposed": r"\mathrm{L}_{\xi}:=\xi\rfloor D+D\xi\rfloor"}
+    assert bleeding_proposals([a, b]) == []
+
+
+def test_a_proposal_is_never_compared_with_itself():
+    from pdfdrill.refine import bleeding_proposals
+    a = {"id": "a", "proposed": "x=1"}
+    assert bleeding_proposals([a, a]) == []

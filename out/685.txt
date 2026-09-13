@@ -1,0 +1,98 @@
+685 — the 17 ink-accepted refinements: 12 wrong, 5 right, and no threshold
+      that tells them apart
+
+THE POPULATION
+--------------
+Of 30 VERIFIED refinements across the 20 published documents, 29 were
+`verified_by: "ink"`. 17 of those carried EQ0378's shape — an ink delta <= -20
+or a character collapse past 65%. Read side by side against their originals:
+
+    12 are plainly DIFFERENT MATHEMATICS -> withdrawn
+     5 are the SAME content reformatted  -> kept
+
+WITHDRAWN (12), each recorded in its document's withdrawn.json with the
+evidence that accepted it:
+
+    lyche      EQ0579  normal equations        -> PROSE about triangular matrices
+               EQ0369  Jordan blocks           -> disconnected prose fragments
+               EQ0670  banded-matrix definition-> unrelated submatrix
+               EQ0729  FFT permutation identity-> unrelated (DX+XD) identity
+               EQ0630  block eigenproblem      -> generic linear system
+    0902.0431  EQ1187  wedge-product identity  -> nu(sum lambda_k H_k)
+               EQ0515  lambda coefficient table-> nu(sum lambda_k H_k)
+               EQ0425  A X A* conjugation      -> nu(sum lambda_k H_k)
+               EQ1059  E_8 fixed-point set     -> kappa-pi-H expansion
+    johnston   EQ0543  linear-programming dual -> three-vector arithmetic
+               EQ0748  Vandermonde reduction   -> vector subtraction
+    voloshin   EQ0197  chromatic polynomial    -> PROSE ("...the edge list")
+
+FOUR ROWS OF ONE DOCUMENT RECEIVED THE SAME EQUATION. 0902.0431's EQ1187,
+EQ0515, EQ0425 and EQ1059 all came back as variants of nu(sum lambda_k H_k).
+That is one equation bleeding into four rows, and it is the clearest evidence
+that these are not transcriptions at all.
+
+KEPT (5), and one was adjudicated by the census rather than by eye:
+
+    johnston EQ1276  a `\longdiv` rewritten as a proper long-division array;
+                     same polynomials, correct
+    johnston EQ0006  same equations, array reformatted
+    johnston EQ0528  same xrightarrow/array content, cleaned
+    johnston EQ0014  same dot-product identity PLUS "(property (b))" labels —
+                     and the census shows `( p r o p e r t y ( b ) )` literally
+                     on the page. MathPix had DROPPED them; the refinement
+                     restored them. A good repair, and only measurement could
+                     say so.
+    lyche    EQ0706  repairs MathPix's mangled
+                     `\boldsymbol{V}^{\boldsymbol{V}=\boldsymbol{S}...}` into
+                     `\stackrel{V=SXS}{\Longleftrightarrow}`
+
+THE NEGATIVE RESULT, WHICH MATTERS MORE THAN THE FIX
+-----------------------------------------------------
+I set out to add a magnitude ceiling to the accept stage. Measured against
+this population, no threshold on magnitude separates the two groups:
+
+    signal              correct repairs    wrong repairs     separates
+    ink delta           -95 .. -23         -261 .. -24       NO
+    character ratio     0.58 .. 1.13       0.07 .. 0.94      NO
+    string similarity   0.039 .. 0.498     0.011 .. 0.323    NO
+
+johnston EQ1276 is a CORRECT repair at delta -95 and similarity 0.039,
+because rewriting `\longdiv` as an array changes nearly every character while
+preserving the mathematics exactly. Any ceiling strict enough to reject the
+twelve rejects that too — and still passes voloshin EQ0197 at -24. So no
+ceiling was written. One that looked principled and separated nothing would
+be worse than none, and this repository has the scar already (the deploy
+guard's removed equations check, and `publishcheck`'s stale `published/`
+preference).
+
+WHAT WAS ADDED INSTEAD: `refine.bleeding_proposals()`
+------------------------------------------------------
+The one signal that survived measurement. Two rows of one document whose
+PROPOSED values are near-copies are bleeding: EQ1187~EQ0515 at 0.95,
+EQ0543~EQ0748 at 0.69, with no false positives on this population. Perfect
+precision, recall 4 of 12. Worth having because it is SPECIFIC — a pair it
+names is bleeding, not merely large.
+
+THE POLICY QUESTION THIS RAISES, FOR THE USER
+----------------------------------------------
+12 of 29 ink-verified refinements were wrong: a 41% error rate on values that
+`_chosen_reading` PREFERS over MathPix's own reading and publishes. "Verified
+by ink" does not mean verified — ink measures how much ink a rendering makes,
+not whether it is the same ink.
+
+The strongest available fix is to stop publishing ink-only refinements:
+`_chosen_reading` would prefer a refinement only when it is verified by CENSUS
+or EPRINT — evidence about identity — while ink-verified ones stay recorded
+and the raw reading publishes. That costs the 5 good repairs above until they
+are re-verified by census, which is cheap for 5 rows and would be a one-time
+pass. It is not taken here because it un-publishes readings this task has just
+judged correct, and that is the user's call.
+
+REBUILD REQUIRED
+----------------
+0902.0431, johnston-linear-matrix-algebra, lyche-numerical-linear-algebra and
+voloshin-hypergraph each need evidence + re-measure + marks + HTML +
+publishready, because withdrawing a refinement edits the model and the ink's
+model_sha256 no longer describes it.
+
+Suite 3,785 -> 3,788.

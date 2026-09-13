@@ -1043,6 +1043,51 @@ UNVERIFIED = "unverified"     # a change realization with no verified_by
 ORPHANED = "orphaned"         # a twin prop with no change realization at all
 
 
+def bleeding_proposals(proposals, *, threshold: float = 0.6) -> list:
+    """[(a, b, similarity)] for proposals whose PROPOSED values are near-copies.
+
+    685 — CONTENT BLEED HAS A FINGERPRINT, and it is the only one that
+    survived measurement. A model handed one region of a page sometimes
+    returns a neighbouring expression instead, and when it does so twice on
+    one document it returns THE SAME neighbour: 0902.0431's EQ1187 and EQ0515
+    both came back as the `nu(sum lambda_k H_k)` equation (similarity 0.95),
+    and johnston's EQ0543 and EQ0748 both as three-vector arithmetic (0.69).
+    Two distinct equations on one page do not have the same transcription.
+
+    WHY THIS AND NOT A MAGNITUDE CEILING. Measured over the 17 ink-accepted
+    refinements with a suspect shape, 12 of which were wrong:
+
+        signal              correct repairs   wrong repairs   separates
+        ink delta           -95 .. -23        -261 .. -24     NO
+        character ratio     0.58 .. 1.13      0.07 .. 0.94    NO
+        string similarity   0.039 .. 0.498    0.011 .. 0.323  NO
+
+    johnston EQ1276 is a CORRECT repair at delta -95 and similarity 0.039 —
+    it rewrote a \\longdiv into a long-division array, so the strings
+    barely overlap while the mathematics is identical. Any ceiling that
+    rejected the wrong ones rejected that too, and still passed voloshin
+    EQ0197 at -24. So no threshold on magnitude was written: it would have
+    looked principled and separated nothing.
+
+    This check is the opposite trade — perfect precision on that population
+    (2 pairs, 4 rows, no false positives) and low recall. It is worth having
+    because it is SPECIFIC: a pair it names is bleeding, not merely large.
+    """
+    import difflib
+    out = []
+    for i in range(len(proposals)):
+        for j in range(i + 1, len(proposals)):
+            a, b = proposals[i], proposals[j]
+            pa = (a.get("proposed") or "")[:400]
+            pb = (b.get("proposed") or "")[:400]
+            if not (pa and pb) or a.get("id") == b.get("id"):
+                continue
+            r = difflib.SequenceMatcher(None, pa, pb).ratio()
+            if r >= threshold:
+                out.append((a, b, round(r, 3)))
+    return out
+
+
 def withdraw_one(doc, obj_id: str, *, reason: str) -> "dict | None":
     """Remove a recorded refinement, and say what was removed.
 
