@@ -96,3 +96,81 @@ publishready, because withdrawing a refinement edits the model and the ink's
 model_sha256 no longer describes it.
 
 Suite 3,785 -> 3,788.
+
+===========================================================================
+686 — the demotion, the five rebuilds, and a stub class found while publishing
+===========================================================================
+
+THE DEMOTION
+------------
+`chosen_latex()` prefers a VERIFIED refinement only when what verified it is
+evidence about IDENTITY — `IDENTITY_EVIDENCE = {census, eprint, source}`. An
+ink-verified one stays recorded, `refinement_state` still calls it VERIFIED
+(the measurement happened; saying otherwise would be a lie), and the caller
+receives the original plus `refinement_state: "ink_only"`, so a projection can
+say a refinement exists and was not trusted rather than silently showing
+either value.
+
+A COMBINED VALUE KEEPS ITS IDENTITY HALF, and this was a defect in the first
+version. `0707.4470_FO0175` records `verified_by: "source+ink"` — the author's
+own e-print agreed AND the ink improved — and exact membership threw away the
+half that matters, demoting a row the author source had confirmed. Split on
+the separators that occur. Both directions tested, including that joining two
+quantity measurements does not make identity.
+
+SIX EXISTING TESTS ENCODED 669'S OLDER CONTRACT and were updated deliberately
+rather than worked around: the reports fixtures default to identity evidence
+now, and two new tests assert the opposite outcomes for ink-only and census.
+`test_what_is_VERIFIED_and_what_is_SHOWN_are_different_questions` names the
+distinction the change turns on.
+
+17 rows demoted across 5 documents: johnston 6, 0902.0431 4, lyche 3,
+mielke 2, voloshin 2.
+
+THE REBUILDS — 115 MINUTES, ZERO FAILED STEPS, ALL FIVE READY
+--------------------------------------------------------------
+    0902.0431   evidence 137s  measure 1421s  marks  86s  html 64s
+    johnston    evidence 433s  measure 2150s  marks 279s  html 80s
+    lyche       evidence 235s  measure 1217s  marks 165s  html 72s
+    mielke      evidence  68s  measure   51s  marks  36s  html 23s
+    voloshin    evidence  73s  measure  209s  marks  58s  html 43s
+
+A STUB CLASS, FOUND BECAUSE A GUARD REFUSED
+--------------------------------------------
+`to_site_676.py` refused the copy: +65.9 MB against a 50 MB growth margin.
+That refusal was right and it is why this was found — three documents' site
+`report.pdf` were STUBS:
+
+    johnston   1.4 MB -> 36.5 MB
+    lyche      0.2 MB -> 19.7 MB
+    voloshin   0.1 MB -> 11.2 MB
+
+Swept across all 20: SEVEN carry such a stub — a few hundred KB of report.pdf
+claiming to describe 200 to 1,460 ink rows. Four are now fixed; 1510.06699,
+cardona-qft-methods, fong-spivak-invitation and fong-spivak-seven-sketches
+still carry one.
+
+Invisible because `report.pdf` is not in `gate.PUBLISHED_FILES`, and the
+deploy guard's stamp check compares `report.build.json` to the file beside it
+— which a CONSISTENT STUB PAIR satisfies perfectly. This is the same blind
+spot as `publishcheck`'s five-name tuple (677), one layer down, and the second
+time in one day that a check was correct about the file it inspected and
+silent about the file nobody listed.
+
+The margin was raised to 120 MB deliberately, with that reason written beside
+it, which is what the refusal message asks for.
+
+PUBLISHED
+---------
+Site 478b52a..6f95015, verified on the remote. Bars regenerated (3 rows
+differed), sizes regenerated (11 changed), deploy guard run locally,
+publishcheck 20/20 identical.
+
+STILL OPEN
+----------
+* 4 stub report.pdf files (1510.06699, cardona, both fong-spivak).
+* The 15 unrepaired cases in out/682-goldens-mielke.json: 5 dropped-⌋ rows
+  needing PLACEMENT, 10 overlays including EQ0472's \cancel{R}.
+* The three inkdrill properties — junction angle, bounding-box containment,
+  glyph-count reconciliation — which are what would give a SCANNED document
+  the treatment the born-digital ones just received.
