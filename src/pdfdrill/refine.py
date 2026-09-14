@@ -877,7 +877,11 @@ def author_eprint(pdf: Path) -> "tuple[str, str]":
     """
     from . import latex_source
     pdf = Path(pdf)
-    for suffix in (".tgz", ".tar.gz"):
+    # `.gz` (689) — arXiv serves a single-file submission as gzip(paper.tex),
+    # not gzip(tar(...)); 0902.0431 is one, and until `download_arxiv_source`
+    # was fixed such a payload was mis-named `.tgz`, so BOTH names occur on
+    # disk. `read_source` sniffs content, so any of the three reads correctly.
+    for suffix in (".tgz", ".tar.gz", ".gz"):
         cand = pdf.with_suffix("") if pdf.suffix == ".pdf" else pdf
         cand = Path(str(cand) + suffix)
         if cand.is_file():

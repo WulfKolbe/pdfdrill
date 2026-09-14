@@ -500,7 +500,13 @@ def residue(folder: Path, old_stem: str, old_key: str = "") -> dict:
                       f"{cur}.md", "report.log"}
     out: dict[str, Any] = {"expected": {}, "UNEXPECTED": {}}
     for f in sorted(folder.rglob("*")):
-        if not f.is_file() or f.suffix in (".jpg", ".png", ".pdf", ".zip", ".tgz"):
+        # `.gz`/`.tar` (689): a COMPRESSED e-print cannot be scanned for the old
+        # key either way — reading it as text yields deflate noise and counts
+        # zero, which reads as "clean" rather than "not examined". Skipping says
+        # the true thing. A key inside a compressed source is invisible to this
+        # leftover scan; that is a limit of the scan, not of the rename.
+        if not f.is_file() or f.suffix in (".jpg", ".png", ".pdf", ".zip",
+                                           ".tgz", ".gz", ".tar"):
             continue
         try:
             text = f.read_text(encoding="utf-8", errors="ignore")

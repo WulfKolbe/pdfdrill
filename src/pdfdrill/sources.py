@@ -259,27 +259,74 @@ def looks_like_source_archive(head: bytes) -> bool:
     return probe.startswith(b"\\") or probe.startswith(b"%")
 
 
+#: The extensions an e-print can legitimately land under, newest lookup first.
+#: `.gz` is here because arXiv serves a SINGLE-FILE submission as gzip(paper.tex)
+#: — not gzip(tar(...)) — and 689 found seven lookups that would miss it.
+EPRINT_SUFFIXES = (".tgz", ".tar.gz", ".gz", ".tar", ".tex")
+
+
+def eprint_suffix_for(head: bytes, path: "Path | None" = None) -> str:
+    r"""The extension a payload should wear, from its bytes.
+
+    689 — `download_arxiv_source` wrote `<id>.tgz` UNCONDITIONALLY. The
+    endpoint serves three different things and only one of them is a tarball:
+
+        gzipped tar   multi-file submission          .tgz
+        plain gzip    ONE .tex, gzip'd               .gz
+        bare text     one uncompressed .tex          .tex
+
+    0902.0431 is the middle case — `gzip compressed data, was "SpEcxp.tex"`,
+    and `tarfile.is_tarfile` says no — so it sat on disk as `0902.0431.tgz`,
+    which is not true. `latex_source.read_source` sniffs content and reads it
+    correctly (its own comment at :308 says why that branch exists), so nothing
+    broke; but the name was a lie, a reader was misled by it, and the seven
+    places that match on the extension would not have found a correctly-named
+    `.gz`.
+    """
+    h = head or b""
+    if h[:2] == b"\x1f\x8b":
+        # gzip. Is it a gzipped TAR, or a gzipped single file?
+        if path is not None:
+            try:
+                import tarfile as _tf
+                if _tf.is_tarfile(str(path)):
+                    return ".tgz"
+            except Exception:
+                pass
+        return ".gz"
+    if h[257:262] == b"ustar":
+        return ".tar"
+    return ".tex"
+
+
 def download_arxiv_source(arxiv_id: str, dest_dir: Path) -> Path:
-    """Download the arXiv e-print source to `<dest_dir>/<id>.tgz` (the endpoint
-    the abs-page download button hides). Idempotent.
+    """Download the arXiv e-print source, named for WHAT IT IS. Idempotent.
 
     Not every arXiv submission HAS LaTeX: for a PDF-only submission the e-print
     endpoint serves the PDF itself. That used to be written straight to
     `<id>.tgz` — a PDF wearing a tarball name, which then failed to unpack far
     downstream with a confusing error. Sniff the payload and raise
     `NoLatexSource` instead, leaving no bogus tarball behind.
+
+    689 — and the same endpoint serves a gzipped single `.tex` as often as a
+    tarball, so the extension is now chosen by `eprint_suffix_for` rather than
+    assumed. An e-print cached under any of `EPRINT_SUFFIXES` by an older build
+    is returned as it stands: renaming a file a user may have referenced is not
+    this function's business, and every consumer sniffs content anyway.
     """
     safe = arxiv_id.replace("/", "_")
-    dest = Path(dest_dir) / f"{safe}.tgz"
-    if dest.exists() and dest.stat().st_size > 0:
-        # a tarball cached by an older build may itself be a mislabelled PDF
-        if looks_like_pdf_bytes(dest.read_bytes()[:1024]):
-            try:
-                dest.unlink()
-            except OSError:
-                pass
-        else:
-            return dest
+    for suf in EPRINT_SUFFIXES:
+        cached = Path(dest_dir) / f"{safe}{suf}"
+        if cached.exists() and cached.stat().st_size > 0:
+            # a file cached by an older build may itself be a mislabelled PDF
+            if looks_like_pdf_bytes(cached.read_bytes()[:1024]):
+                try:
+                    cached.unlink()
+                except OSError:
+                    pass
+            else:
+                return cached
+    dest = Path(dest_dir) / f"{safe}.download"
     out = download(arxiv_urls(arxiv_id)["eprint"], dest)
     try:
         head = Path(out).read_bytes()[:4096]
@@ -295,7 +342,15 @@ def download_arxiv_source(arxiv_id: str, dest_dir: Path) -> Path:
             f"arXiv has no LaTeX source for {arxiv_id}: the e-print endpoint "
             f"served {what} (a PDF-only submission). Use the PDF routes "
             f"(`pdfdrill model` / `mathpix`) — there is no .tex to ingest.")
-    return out
+    # 689 — name it for what it is, now that the bytes are known.
+    final = Path(dest_dir) / f"{safe}{eprint_suffix_for(head, Path(out))}"
+    if Path(out) != final:
+        try:
+            Path(out).replace(final)
+            return final
+        except OSError:
+            return Path(out)
+    return final
 
 
 def _safe_filename(url: str) -> str:

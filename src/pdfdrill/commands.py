@@ -10707,7 +10707,8 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
     src_kind = "explicit (--tex)" if tex else None
     aid = None if tex else _arxiv_id_for(pdf, sc)
     if src is None and aid:
-        for ext in (".tgz", ".tar.gz"):
+        # `.gz` (689): a single-file arXiv submission is gzip(paper.tex).
+        for ext in (".tgz", ".tar.gz", ".gz"):
             cand = pdf.parent / f"{pdf.stem}{ext}"
             if cand.exists():
                 src = cand
@@ -10723,8 +10724,9 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
     if src is None:
         _KIND = {".tex": "local (author .tex)",
                  ".tex.zip": "mathpix (.tex.zip — MathPix's own reconstruction)",
-                 ".tgz": "local (.tgz)", ".tar.gz": "local (.tar.gz)"}
-        for ext in (".tex", ".tex.zip", ".tgz", ".tar.gz"):
+                 ".tgz": "local (.tgz)", ".tar.gz": "local (.tar.gz)",
+                 ".gz": "local (.gz — gzipped single .tex)"}
+        for ext in (".tex", ".tex.zip", ".tgz", ".tar.gz", ".gz"):
             cand = pdf.parent / f"{pdf.stem}{ext}"
             if cand.exists():
                 src = cand
@@ -10753,7 +10755,7 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
     try:
         checked = assert_author_source(src, _lines_json_path(pdf))
     except MathPixSourceRefused as e:
-        eprint = ", ".join(f"{pdf.stem}{x}" for x in (".tgz", ".tar.gz"))
+        eprint = ", ".join(f"{pdf.stem}{x}" for x in (".tgz", ".tar.gz", ".gz"))
         return (f"Refusing to ingest {src.name} as the author's LaTeX — {e.reason}. "
                 f"Comparing against it would compare MathPix with itself. "
                 f"Fetch the author's e-print ({eprint}) or pass "
@@ -10991,7 +10993,7 @@ def _locate_latex_source(pdf: Path, sc: "Sidecar", tex: str | None):
         remember_latex_source(sc, src)
     remembered = None
     if src is None:
-        for ext in (".tex", ".tex.zip", ".tgz", ".tar.gz"):
+        for ext in (".tex", ".tex.zip", ".tgz", ".tar.gz", ".gz"):   # .gz — 689
             cand = pdf.parent / f"{pdf.stem}{ext}"
             if cand.exists():
                 src = cand
