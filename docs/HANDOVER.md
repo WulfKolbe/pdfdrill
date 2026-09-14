@@ -134,16 +134,31 @@ Z-Library book, and `inkmarks.resolve_key` tries both and says which matched.
 
 ## Current blocker
 
-**Nothing is blocking the 20.** The 676 republish is the open action:
-rebuild evidence + marks per document, copy to `~/pdfdrill.github.io`, push.
+**Nothing is blocking the 20.** `tools/publishcheck.py` is green in both
+directions: 20 published, 20 identical, 0 stale, and the 100 superseded
+`<doc>/published/` snapshots (214 MB, 09-06) were deleted on 09-14 — every
+one had a current twin in its parent folder, and the inventory is in
+`out/689-published-leftovers-deleted.txt`.
+
+The open build action is the **48 held census-verified repairs** (mielke 34,
+gilmore 6, 1510.06699 3, cardona 2, lyche 2, voloshin 1): they need a rebuild
+and re-measure of 7 documents, ~2½ h. The 7th is `penev_B`, whose model
+changed for a reason nobody has explained — check that first.
 
 ---
 
 ## Next task
 
-- **Branch cleanup and the merge to main.** `main` and `master` are
-  identical; which is authoritative is the user's decision. The working
-  branch is `eqblobs-and-gzip-tex`, a fast-forward ahead.
+- **LaTeX field promotion** — the user's decision of 2026-09-14, recorded in
+  `docs/superpowers/specs/2026-09-14-latex-field-promotion-design.md` and in
+  `docmodel.prop_contract`'s docstring. There are already TEN latex-family
+  props; pdfminer LaTeX arrives shortly with authoritative symbol names and has
+  nowhere to go that any reader looks at. The best reading takes the standard
+  name, every other keeps a source-named copy, the WRITER promotes so no reader
+  needs a flag. Four measured constraints before implementing — the sharpest
+  being that ink measures the UNPROMOTED MathPix reading by name
+  (`prefer_refined: False` is deliberate), so the losing copies are not
+  history.
 - **Listings** — MathPix math expressions that are really algorithmic
   structure tables should be detected as images. The user's named next goal.
   676's caption work is the shape this wants: a TYPE, not another exclusion.

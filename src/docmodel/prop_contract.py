@@ -1,4 +1,4 @@
-"""
+r"""
 290 — the props table: every DocObject prop, who writes it, who reads it.
 
 GENERATED, not written. `tools/propstable.py` walks the corpus for the names
@@ -29,6 +29,46 @@ THE PAIRS, because a wrong choice between them compiles silently:
     latex_refined   a VERIFIED refinement in a TWIN prop, because `latex` is
         never overwritten (232). A consumer reading `latex` alone silently
         ignores every accepted repair, which is what 233 had to build.
+
+PROMOTION — the rule for the ELEVENTH latex field, and why you are about to
+want one. There are already TEN (`latex`, `latex_raw`, `latex_original`,
+`latex_code`, `latex_prepunct`, `latex_expanded_by`, `latex_fragment`,
+`latex_pretail`, `latex_overlaid`, `latex_refined`), because `latex` means
+three things at once — the MathPix reading, macro-expanded, un-refined — and
+every new combination has so far been answered with a new sibling name that
+nothing composes with.
+
+The decision (user, 2026-09-14): the BEST AVAILABLE reading gets the standard
+name (`latex` for Equation/Formula, `latex_code` for Diagram/LtxCommand/Table);
+every other reading keeps a copy under a SOURCE-NAMED field; the writer
+promotes, so no reader needs a flag. pdfminer LaTeX arrives shortly and is
+authoritative on symbol NAMES — the thing 679-688 reconstructed by hand.
+
+Four constraints, each measured, before you implement it:
+
+  1. `latex_mathpix` is NOT archival. The measure build runs
+     `prefer_refined: False` on purpose — ink measures MathPix's output against
+     the ink on the page, not our corrections — so a named reader needs the
+     unpromoted reading BY NAME. Treating the losers as history breaks the
+     measurement chain.
+  2. Promotion reverses 232, so the winner must be STAMPED (source, evidence
+     class, did it compile). What made "never overwrite" safe was that a wrong
+     refinement stayed visibly separate; 685/686 withdrew 12 wrong refinements
+     and demoted 17 ink-only ones, and had the stamp to key on.
+  3. "Best available" is NOT a total order over sources. pdfminer gives symbol
+     identity and no structure; MathPix gives structure and misreads symbols.
+     The merge is per-symbol, which is what the 48 census repairs did by hand.
+  4. The gate is "renders", not "looks better" — `\slashed{J}` passes
+     `display_safe` and fails xelatex, and 8 rows carry an empty mandatory
+     argument. And no magnitude threshold separates correct repairs from wrong
+     ones: a correct one sat at delta -95, similarity 0.039.
+
+`latex_raw` is the precedent NOT to repeat: 112,066 objects, no reader, kept so
+a normalisation defect would be recoverable, and nothing has ever recovered
+one. A copy no reader is named for is not an audit trail, it is weight. Every
+source-named copy names its reader or is not written.
+
+Full reasoning: docs/superpowers/specs/2026-09-14-latex-field-promotion-design.md
 """
 from __future__ import annotations
 
