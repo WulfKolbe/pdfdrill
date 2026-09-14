@@ -67,7 +67,21 @@ def image_ids(lines_json: Path) -> set[str]:
 
 
 def tex_names(path: Path) -> list[str]:
-    """The .tex member stems of a zip, or the single stem of a plain .tex."""
+    """The .tex member stems of an archive, or the single stem of a plain .tex.
+
+    689 — this used to know only zips and bare `.tex`, so on an e-print it
+    returned `[]` and `classify` answered "no .tex member to test": the guard
+    PASSED, having tested nothing. 0902.0431's drill sidecar recorded exactly
+    that (`latex_source_checked = "no .tex member to test"`) while the document
+    was in fact verified against the author's `SpEcxp.tex` — the right answer
+    reached by a check that never ran. The docstring above already knew this
+    file "is not a tar at all but a single gzipped SpEcxp.tex"; the reader
+    that had to act on it did not.
+
+    A tar's members are listed; a gzipped single file is named by its gzip
+    FNAME header, which is where `SpEcxp.tex` lives. Both are real answers, so
+    a MathPix `.tex.zip` renamed to `.tgz` can no longer slip past by shape.
+    """
     p = Path(path)
     if p.suffix.lower() == ".zip" or p.name.lower().endswith(".tex.zip"):
         try:
@@ -78,6 +92,34 @@ def tex_names(path: Path) -> list[str]:
             return []
     if p.suffix.lower() == ".tex":
         return [p.stem]
+    # an e-print: gzipped tar, bare tar, or gzip of one file (any extension —
+    # the payload decides, never the name; see sources.eprint_suffix_for)
+    try:
+        import tarfile
+        if tarfile.is_tarfile(str(p)):
+            with tarfile.open(str(p)) as tf:
+                return [Path(n).stem for n in tf.getnames()
+                        if n.lower().endswith(".tex")]
+    except Exception:
+        pass
+    try:
+        with open(p, "rb") as fh:
+            if fh.read(2) == b"\x1f\x8b":
+                from .latex_source import _gzip_member_name
+                name = _gzip_member_name(str(p))
+                if name.lower().endswith(".tex"):
+                    return [Path(name).stem]
+    except Exception:
+        pass
+    # and a ZIP under any name — a MathPix `.tex.zip` copied to `<stem>.tgz`
+    # is the one way this guard could still be walked past on shape alone.
+    try:
+        if zipfile.is_zipfile(str(p)):
+            with zipfile.ZipFile(p) as z:
+                return [Path(n).stem for n in z.namelist()
+                        if n.lower().endswith(".tex")]
+    except Exception:
+        pass
     return []
 
 

@@ -67,3 +67,58 @@ def test_plain_tex_named_by_an_image_id_is_also_refused(tmp_path):
     t.write_text("x")
     with pytest.raises(MathPixSourceRefused):
         assert_author_source(t, _lines(tmp_path))
+
+
+# --- 689: the guard used to pass by testing nothing -------------------------
+
+def _eprint_tar(path, *names):
+    import io, tarfile
+    with tarfile.open(str(path), "w:gz") as tf:
+        for n in names:
+            data = b"\\documentclass{article}\n"
+            info = tarfile.TarInfo(n); info.size = len(data)
+            tf.addfile(info, io.BytesIO(data))
+
+
+def test_tex_names_reads_a_gzipped_single_tex(tmp_path):
+    """0902.0431's e-print is gzip(SpEcxp.tex) — no tar, no zip. `tex_names`
+    knew only zips and bare `.tex`, so it returned [] and the caller recorded
+    `latex_source_checked = "no .tex member to test"`: the guard PASSED having
+    tested nothing. The gzip FNAME header is where the real name lives."""
+    import gzip, io
+    from pdfdrill import author_source as A
+    buf = io.BytesIO()
+    with gzip.GzipFile(fileobj=buf, mode="wb", filename="SpEcxp.tex") as g:
+        g.write(b"\\documentclass[a4]{article}\n")
+    p = tmp_path / "0902.0431.gz"; p.write_bytes(buf.getvalue())
+    assert A.tex_names(p) == ["SpEcxp"]
+    assert A.classify(p, {"1deb350a-8d75-4da5-b1ec-153e0bfd7145"}) == (
+        "author", "no .tex member is named by a MathPix image_id")
+
+
+def test_tex_names_reads_a_gzipped_tar(tmp_path):
+    from pdfdrill import author_source as A
+    p = tmp_path / "2101.00001.tgz"
+    _eprint_tar(p, "main.tex", "fig.pdf", "sec/intro.tex")
+    assert sorted(A.tex_names(p)) == ["intro", "main"]
+
+
+def test_mathpix_texzip_is_still_refused_when_renamed_to_an_eprint(tmp_path):
+    """The evasion the extension fix makes reachable: MathPix's own `.tex.zip`
+    copied to `<stem>.tgz`. It is a ZIP whatever it is called, and the test is
+    IDENTITY — the .tex stem is this document's image_id — so the name buys
+    nothing."""
+    import zipfile
+    from pdfdrill import author_source as A
+    iid = "1deb350a-8d75-4da5-b1ec-153e0bfd7145"
+    p = tmp_path / "0902.0431.tgz"
+    with zipfile.ZipFile(p, "w") as z:
+        z.writestr(f"{iid}.tex", "\\documentclass{article}")
+    kind, why = A.classify(p, {iid})
+    assert kind == "mathpix", (kind, why)
+    try:
+        A.assert_author_source(p, known_ids={iid})
+    except A.MathPixSourceRefused as e:
+        assert iid in str(e)
+    else:
+        raise AssertionError("a renamed MathPix tex.zip was accepted as gold")
