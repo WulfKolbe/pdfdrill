@@ -1,0 +1,53 @@
+690 — the six rebuilt documents published (the 48 held repairs)
+
+WHAT "GREEN" WAS
+----------------
+    publishready, all six READY on all six gates (2026-09-14 21:17):
+      1510.06699, cardona-qft-methods, gilmore-lie-groups,
+      lyche-numerical-linear-algebra, mielke-geometrodynamics,
+      voloshin-hypergraph
+    mielke e.g.: timestamp measured 2026-09-14T14:45:38Z against the model on
+      disk; coverage 39 equation rows shown, all measured (7 straddle);
+      crop 1056 rows, every displayed crop the one measured.
+
+THE PUBLISH
+-----------
+    fresh --depth 1 clone in the scratchpad (the user's ~/PDFDRILL.github.io
+    was left untouched; ~/pdfdrill.github.io is now one commit behind origin)
+    ~/pdfdrill-library/out/to_site_676.py, SITE repointed at the clone:
+      48 copied, 132 identical, 0 absent, delta +0.3 MB
+      formula-report.html identical to evidence-formula.html in all six
+    gen-residual-bars.py   1 row differed (gilmore)
+    gen-doc-downloads.py   7 sizes changed
+    deploy guard (pages.yml, run locally)  rc=0
+      20 folders, 247 files; index.html 20 rows match their artefacts
+    publishcheck --site    20 published, 20 identical, 0 stale
+      (penev_A "not published" — retired, expected)
+
+    site commit 3756a29, pushed; git ls-remote origin master = 3756a29
+
+NOT DONE
+--------
+penev_B, the 7th document in the rebuild plan: its model changed for a
+reason nobody has explained. Not published.
+
+SIDE: pdf2mmd (~/Downloads/pdf2mmd), read-only review, not integrated
+--------------------------------------------------------------------
+- The loose structure.py / test_docmodel.py are OLDER than the copies packed in
+  pdf2mmd-setup.sh; mmd-out/ was produced by older code.
+- Fork (pdfminer-glyph-identity.patch @a18de2a) keeps code, PostScript glyph
+  name, render mode, invisible flag per char. No glyph names for CID/Type0
+  fonts (XeLaTeX/LuaLaTeX output) — inferred from the patch, not tested.
+- Math: font family by name pattern (CM, AMS, Euler, MathTime, Belleek, RSFS;
+  not Latin Modern/newtx/STIX); unknown glyphs deferred, never guessed.
+  Radicals, matrices, stacked limits refused -> crop link with reason.
+- Diagrams: one bbox per diagram (250 dpi px), no vector geometry; labels
+  inside dropped from text.
+- Evaluation code exists (mdcompare vs MathPix .md, linescompare token recall
+  in MathPix math regions + diagram IoU>0.3). No ~2000-page gold set and no
+  saved compare results found on disk; corpus tests skip (testdata/ absent).
+- Seams: docmodel.py is a flat glyph/line/span model sharing only the NAME with
+  src/docmodel (import clash); lines.json types text/formula vs MathPix's
+  math/diagram/section_header; crop URLs 250-dpi px on localhost:8000 vs
+  pdfdrill's pt-based image_ref; pdfdrill already reads glyph names without
+  a fork (cid_glyphs.py, glyphcensus.py, pdfminer_layer.py).

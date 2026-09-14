@@ -140,10 +140,15 @@ directions: 20 published, 20 identical, 0 stale, and the 100 superseded
 one had a current twin in its parent folder, and the inventory is in
 `out/689-published-leftovers-deleted.txt`.
 
-The open build action is the **48 held census-verified repairs** (mielke 34,
-gilmore 6, 1510.06699 3, cardona 2, lyche 2, voloshin 1): they need a rebuild
-and re-measure of 7 documents, ~2½ h. The 7th is `penev_B`, whose model
-changed for a reason nobody has explained — check that first.
+The **48 held census-verified repairs** are published (690, site 3756a29):
+six documents rebuilt, re-measured, READY on all six gates, publishcheck
+20/20 identical. The one open item is **`penev_B`**, the 7th planned rebuild,
+whose model changed for a reason nobody has explained — explain that before
+rebuilding it.
+
+**pdf2mmd** (`~/Downloads/pdf2mmd`, the pdfminer route built in a Claude.ai
+chat) is reviewed read-only in `out/690.txt` and deliberately NOT integrated
+until it is understood — the user's instruction of 2026-09-14.
 
 ---
 
