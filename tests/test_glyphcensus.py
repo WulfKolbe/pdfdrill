@@ -275,3 +275,64 @@ def test_a_proposal_is_never_compared_with_itself():
     from pdfdrill.refine import bleeding_proposals
     a = {"id": "a", "proposed": "x=1"}
     assert bleeding_proposals([a, a]) == []
+
+
+# =====================================================================
+# 688 — overprints: one symbol drawn as two glyphs
+# =====================================================================
+
+def _at(char, x, x1, line=1, name=None):
+    return gc.Glyph(char=char, name=name, font="F", size=10.0, x=x, line=line, x1=x1)
+
+
+def test_a_mark_drawn_THROUGH_a_glyph_is_found():
+    r"""1510.06699_EQ0241 prints a slashed J as two glyphs at one place:
+    J at x 207.84-213.36 and a solidus at 208.56-213.54. MathPix emitted
+    neither, and because the J anchored the numerator it produced a \frac
+    with an empty half."""
+    ops = gc.overprints([_at("J", 207.84, 213.36), _at("/", 208.56, 213.54)])
+    assert len(ops) == 1 and ops[0][1].char == "J"
+
+
+def test_a_mark_drawn_BESIDE_a_glyph_is_not_an_overprint():
+    r"""THE FALSE POSITIVE THAT MADE THIS RULE. The first version compared
+    START positions within 2.5 pt, so a division solidus standing next to a
+    narrow glyph looked identical to one drawn through it —
+    `(a^\dagger+a)/\sqrt{2}` is division, not a cancelled root. Three of
+    thirty detections were this. Extents must overlap."""
+    assert gc.overprints([_at("/", 100.0, 104.0), _at("√", 104.2, 112.0)]) == []
+
+
+def test_an_overprint_licenses_the_cancel_command():
+    """No single glyph corresponds to the macro that writes a slashed symbol,
+    so the PAIR licenses it."""
+    g = [_at("D", 10.0, 16.0), _at("/", 10.4, 16.2)]
+    assert gc.justifies(r"\sigma^{D}", r"\sigma^{\cancel{D}}", g)[0]
+
+
+def test_a_negation_slash_over_a_relation_licenses_the_negated_relation():
+    r"""gilmore-lie-groups_EQ0012 prints a negation slash over `=` in
+    `(23)(12) = (123)`, where the mathematics is "not equal".
+    `\cancel{=}` is visually faithful and semantically wrong."""
+    g = [_at("=", 10.0, 18.0), _at("(cid:5)", 10.4, 18.2, name="negationslash"),
+         _at("1", 30.0, 35.0)]
+    assert gc.justifies("(12)=(1)", r"(12)\neq(1)", g)[0]
+    assert not gc.justifies("(12)=(1)", r"(12)\approx(1)", g)[0]
+
+
+def test_markup_is_exempt_from_both_rules():
+    r"""688 — `\cancel{X}` introduces `\cancel`, `{` and `}`. Counting the
+    braces as content exhausted a three-token budget before anything changed,
+    and requiring the page to "place" them refused correct repairs outright.
+    A reading composes markup; a page never draws it."""
+    g = [_at("R", 10.0, 16.0), _at("/", 10.4, 16.2),
+         _at("i", 30.0, 33.0), _at("R", 50.0, 56.0), _at("/", 50.4, 56.2)]
+    assert gc.justifies("R i R", r"\cancel{R} i \cancel{R}", g)[0]
+    assert gc.justifies("R i", "R\n i", g)[0], "a newline is markup"
+
+
+def test_a_rewrite_is_still_refused_however_much_markup_it_hides_behind():
+    """The control the exemption must not break."""
+    g = [_at("R", 10.0, 16.0), _at("/", 10.4, 16.2)]
+    ok, why = gc.justifies("R", r"\alpha+\beta+\gamma+\delta+\epsilon", g)
+    assert not ok and "rewrite" in why

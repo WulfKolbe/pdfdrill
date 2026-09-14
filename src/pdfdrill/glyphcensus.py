@@ -88,6 +88,13 @@ class Glyph:
     size: float
     x: float
     line: int                      # rounded `top`, so a caller can group rows
+    #: 688 fix — the glyph's right edge. Added because `overprints()` compared
+    #: START positions within 2.5 pt and so could not tell a glyph drawn
+    #: THROUGH another from one drawn BESIDE it. Measured cost: of 30 detected
+    #: overprints, at least three were a division solidus or a prime standing
+    #: next to a narrow glyph — `(a^\dagger+a)/\sqrt{2}` is division, not a
+    #: cancelled root. Defaults to `x` so an older caller still constructs.
+    x1: float = 0.0
 
     @property
     def token(self) -> str:
@@ -177,8 +184,75 @@ def census(page, region: dict, differences: dict, *, pad: float = 4.0) -> list:
             name = (differences.get(c["fontname"]) or {}).get(int(m.group(1)))
         out.append(Glyph(char=char, name=name, font=c["fontname"],
                          size=float(c["size"]), x=float(c["x0"]),
-                         line=int(round(c["top"]))))
+                         line=int(round(c["top"])), x1=float(c["x1"])))
     out.sort(key=lambda g: (g.line, g.x))
+    return out
+
+
+#: Glyphs that are drawn THROUGH another glyph rather than beside it: the
+#: Feynman/cancel slash and its named cousins. A plain "/" is the one that
+#: matters most and is the one a named-glyph check cannot see, because it maps
+#: to Unicode perfectly well.
+OVERPRINT_MARKS = ("/", "\u2044", "\u2215")
+OVERPRINT_NAMES = ("negationslash", "arrownortheast", "arrowsoutheast")
+
+
+def overprints(glyphs, *, min_overlap: float = 0.5) -> list:
+    r"""[(mark, base, overlap fraction)] where one glyph is drawn THROUGH another.
+
+    688 — A SLASH THROUGH A LETTER IS ONE SYMBOL, AND MATHPIX DROPS BOTH HALVES.
+    `1510.06699_EQ0241` prints `\cancel{J}` as two overprinted glyphs:
+
+        'J'  x 207.84-213.36  top 470.73  CMMI10
+        '/'  x 208.56-213.54  top 469.77  CMMI10
+
+    a 0.7 pt offset, i.e. the same place. MathPix emitted neither the J nor the
+    slash, and — because the J anchored the numerator — produced
+    `rac{...}{}` and `rac{}{...}`, two fractions each missing a half. The
+    row renders and no gate sees it.
+
+    The same book composes `⇐`+`⇒` into `⟺` this way and MathPix reads THAT
+    correctly, so overprinting as such is handled; it is the rare composition
+    that is dropped.
+
+    WHY A NAMED-GLYPH CHECK CANNOT FIND THIS. `missing_glyphs` only looks at
+    glyphs the font had to NAME because Unicode could not map them. A plain
+    "/" maps perfectly, arrives as a character, and is therefore invisible to
+    it. Geometry is the only evidence: two glyphs at one position are one
+    symbol.
+
+    `min_overlap` is a fraction of the NARROWER glyph's width, so a wide
+    delimiter beside a thin letter is not mistaken for an overprint. Same
+    baseline band is required (within one glyph height), because a superscript
+    sits above rather than through.
+    """
+    out = []
+    for i, a in enumerate(glyphs):
+        for b in glyphs:
+            if a is b:
+                continue
+            a_is_mark = a.char in OVERPRINT_MARKS or a.name in OVERPRINT_NAMES
+            if not a_is_mark:
+                continue
+            if b.char in OVERPRINT_MARKS or b.name in OVERPRINT_NAMES:
+                continue
+            if abs(a.line - b.line) > 6:          # not the same baseline band
+                continue
+            aw = getattr(a, "width", None)
+            # Glyph carries x only; width is not stored, so overlap is judged
+            # on start positions, which for a 5-10pt glyph is sufficient and
+            # is what the EQ0241 measurement used.
+            # OVERLAP OF EXTENTS, not proximity of origins. A mark drawn
+            # through a glyph covers most of it; a mark drawn beside one
+            # touches at an edge.
+            aw, bw = (a.x1 or a.x) - a.x, (b.x1 or b.x) - b.x
+            if aw <= 0 or bw <= 0:                     # no width recorded
+                if abs(a.x - b.x) <= 2.5:
+                    out.append((a, b, round(abs(a.x - b.x), 2)))
+                continue
+            lo, hi = max(a.x, b.x), min(a.x1, b.x1)
+            if hi - lo >= min_overlap * min(aw, bw):
+                out.append((a, b, round(abs(a.x - b.x), 2)))
     return out
 
 
@@ -346,6 +420,23 @@ def _tokens(latex: str) -> list:
     return out
 
 
+#: LaTeX MARKUP: a reading composes these, a page never draws them. They are
+#: exempt from BOTH of `justifies`' rules — from "is this token on the page",
+#: because no page places a brace as a character, and from the narrowness
+#: count, because `\cancel{X}` introduces `\cancel`, `{` and `}` and would
+#: otherwise exhaust a three-token budget before changing anything at all.
+#:
+#: 688 — both exemptions were found by rows the route wrongly refused.
+#: cardona-qft-methods_EQ0048 was refused for its braces alone;
+#: mielke-geometrodynamics_EQ0474 for "4 distinct tokens" of which three were
+#: markup; lyche-numerical-linear-algebra_EQ0855 for a literal NEWLINE.
+STRUCTURE = frozenset({
+    "{", "}", "$", "&", "^", "_", "\\", " ", "\n", "\t",
+    r"\left", r"\right", r"\,", r"\;", r"\!", r"\:", r"\ ",
+    r"\quad", r"\qquad", r"\big", r"\Big", r"\bigg", r"\Bigg",
+})
+
+
 def justifies(original: str, proposed: str, glyphs, *,
               max_new: int = 3) -> "tuple[bool, str]":
     r"""(ok, reason) — does the PDF's own census justify this exact repair?
@@ -394,23 +485,71 @@ def justifies(original: str, proposed: str, glyphs, *,
     # refused that legitimate substitution while a rewrite introducing three
     # different tokens passed. What distinguishes a substitution is that it
     # puts back what it takes away: n of X for n of Y.
-    if len(added) > max_new:
-        return False, ("%d distinct token(s) introduced, at most %d may be — "
-                       "a census repair is a substitution, not a rewrite (%s)"
-                       % (len(added), max_new, " ".join(sorted(added))[:60]))
-    if sum(added.values()) > sum(removed.values()) + max_new:
-        return False, ("introduces %d token(s) against %d removed — a "
+    # content only: markup is not a change to the mathematics (STRUCTURE)
+    add_c = {t: n for t, n in added.items() if t.strip() and t not in STRUCTURE}
+    rem_c = {t: n for t, n in removed.items() if t.strip() and t not in STRUCTURE}
+    if len(add_c) > max_new:
+        return False, ("%d distinct content token(s) introduced, at most %d may "
+                       "be — a census repair is a substitution, not a rewrite "
+                       "(%s)" % (len(add_c), max_new, " ".join(sorted(add_c))[:60]))
+    if sum(add_c.values()) > sum(rem_c.values()) + max_new:
+        return False, ("introduces %d content token(s) against %d removed — a "
                        "substitution puts back what it takes away"
-                       % (sum(added.values()), sum(removed.values())))
+                       % (sum(add_c.values()), sum(rem_c.values())))
 
     literals = {g.char for g in glyphs if not g.unmapped}
     named = {g.name for g in glyphs if g.name}
     allowed = set()
     for nm in named:
         allowed.update(NAME_TOKENS.get(nm, ()))
+    # 688 — AN OVERPRINT LICENSES A SLASH COMMAND. Two glyphs at one position
+    # are one symbol, and no single glyph corresponds to the macro that writes
+    # it: 1510.06699_EQ0241 prints a J at x 207.84 and a solidus at x 208.56,
+    # and the reading for that is `\cancel{J}`. Without this the route refused
+    # a repair that was correct, census-consistent and complete — measured on
+    # that row, where MiniMax merged two malformed fractions and placed the
+    # slashed J exactly right.
+    #
+    # `\cancel` only: `cancel` is in the report preamble (report_tex.py:811)
+    # and `slashed` is not, so `\slashed` passes `display_safe` — which does
+    # not check that a command exists — and then fails at xelatex. A token this
+    # route licenses must be one the build can typeset.
+    ops = overprints(glyphs)
+    if ops:
+        allowed.update((r"\cancel", r"\not"))
+        # 688 — a NEGATION SLASH OVER A RELATION IS THE NEGATED RELATION, and
+        # that is a different reading from "the relation, cancelled".
+        # gilmore-lie-groups_EQ0012 prints `/negationslash` over `=` in
+        # `(23)(12) = (123)`, where the mathematics is plainly "not equal";
+        # `\cancel{=}` is visually faithful and semantically wrong. The
+        # conventional macro is licensed for exactly the relations TeX has one
+        # for, and nothing wider.
+        REL = {"=": r"\neq", r"\in": r"\notin",
+               r"\subset": r"\not\subset", r"\subseteq": r"\nsubseteq",
+               r"\mid": r"\nmid", r"\leq": r"\nleq", r"\geq": r"\ngeq",
+               r"\equiv": r"\nequiv", r"\parallel": r"\nparallel",
+               r"\sim": r"\nsim"}
+        for mark, base, _dd in ops:
+            if mark.name == "negationslash" or mark.char == "/":
+                tok = REL.get(base.char)
+                if tok:
+                    allowed.add(tok)
 
+    # 688 — LATEX MARKUP IS NOT A GLYPH, and requiring the page to "place" it
+    # refuses correct repairs. Wrapping a symbol as \cancel{D} necessarily
+    # introduces `{` and `}`, which no page places as characters. Measured on
+    # cardona-qft-methods_EQ0048: the repair rendered, was census-consistent,
+    # left nothing missing and had no empty argument, and was refused solely
+    # for its braces. 1510.06699_EQ0241 passed only by accident — its broken
+    # \frac left spare braces that cancelled out the ones the repair added.
+    #
+    # These tokens are structure: a reading composes them, a page never draws
+    # them. Same distinction as the Greek rule in `contradicts` — LaTeX spells
+    # some things as commands and some as syntax, and neither is a glyph.
     unjustified = []
     for tok in added:
+        if tok in STRUCTURE or not tok.strip():
+            continue
         if tok in literals or tok in allowed:
             continue
         # a one-character token the census places, ignoring case-only noise

@@ -1,0 +1,95 @@
+688 — overprints: one symbol drawn as two glyphs
+
+THE CASE THE USER FOUND
+------------------------
+`1510.06699_EQ0241` prints a slashed J. The PDF draws it as TWO glyphs at one
+place:
+
+    'J'  x 207.84-213.36  top 470.73  CMMI10
+    '/'  x 208.56-213.54  top 469.77  CMMI10
+
+MathPix emitted neither, and because the J anchored the numerator it produced
+`\frac{...}{}` and `\frac{}{...}` — two fractions each missing a half, joined
+by a spurious `=`. The row RENDERS, so no gate saw it. Confidence 0.019.
+
+A NAMED-GLYPH CHECK CANNOT FIND THIS. `missing_glyphs` only sees glyphs the
+font had to NAME because Unicode could not map them; a plain "/" maps
+perfectly and arrives as a character. Geometry is the only evidence.
+
+THE SWEEP: 30 ROWS, 5 DOCUMENTS
+--------------------------------
+    gilmore-lie-groups          /  on a c o i ( ; /negationslash on =
+    mielke-geometrodynamics     /arrownortheast on R i [ ,
+    1510.06699                  /  on J   (EQ0238, EQ0240, EQ0241)
+    cardona-qft-methods         /  on D ∂ F   (Feynman slashes)
+    voloshin-hypergraph         /  on 0
+
+I had earlier reported 13 of these from named glyphs alone. The true count is
+30, because a mapped "/" was invisible to that check.
+
+THE RESULT: 21 REPAIRED, 7 REFUSED, 2 MODEL ERRORS
+---------------------------------------------------
+Each proposal faced four checks — renders, census-consistent, nothing
+missing, no empty mandatory argument — plus the census licence. Recorded only
+on all five.
+
+THE SEVEN REFUSALS ARE ALL CORRECT, and three of them are MY detector's
+false positives:
+
+    cardona EQ0461   the model returned the input unchanged
+    gilmore EQ0411   `\cancel{\prime}` x5 — a solidus beside a PRIME mark
+    gilmore EQ0442   the "/" is genuine DIVISION: (a^dagger+a)/\sqrt{2}
+    gilmore EQ0490   `\cancel{(}` — cancelling a parenthesis; also fails render
+    gilmore EQ0604   a 12-token rewrite
+    mielke  EQ0474   a stray backtick, and only a partial fix
+    voloshin EQ0189  bleed: `5,4,1,3,2 .` became `\cancel{0}2\}, \text{which})`
+
+Two rows exhausted the model: MiniMax spent all 40,000 tokens reasoning and
+emitted nothing (gilmore EQ0464, lyche EQ0706). Recorded as model errors; the
+rows are untouched.
+
+THE DETECTOR'S OWN DEFECT, MEASURED AND FIXED
+----------------------------------------------
+`overprints()` compared START positions within 2.5 pt, because `Glyph` never
+stored a width. Two adjacent narrow glyphs are indistinguishable from an
+overprint under that test — which is why a division solidus and a prime were
+reported. `Glyph.x1` now carries the right edge and the rule is EXTENT
+OVERLAP: a mark drawn through a glyph covers most of it, one drawn beside it
+touches at an edge. Verified on the real EQ0241 coordinates (kept) and on
+`/`-beside-`\sqrt` (dropped).
+
+THREE LICENCE DEFECTS, EACH FOUND BY A ROW IT WRONGLY REFUSED
+--------------------------------------------------------------
+  * AN OVERPRINT LICENSES A SLASH COMMAND. No single glyph corresponds to the
+    macro that writes a slashed symbol; the PAIR does. Without this the route
+    refused EQ0241's repair, which was correct and complete.
+  * LATEX MARKUP IS NOT A GLYPH. `\cancel{D}` introduces `\cancel`, `{`, `}`.
+    Requiring the page to "place" a brace refused cardona EQ0048 outright, and
+    counting braces as CONTENT exhausted a three-token budget before anything
+    changed (mielke EQ0474: "4 distinct tokens", three of them markup). One row
+    was refused for a literal NEWLINE. `STRUCTURE` is now exempt from both
+    rules. EQ0241 had passed only by accident — its broken `\frac` left spare
+    braces that cancelled out the ones the repair added.
+  * A NEGATION SLASH OVER A RELATION IS THE NEGATED RELATION. gilmore EQ0012
+    prints a negation slash over `=` in `(23)(12) = (123)`; the mathematics is
+    "not equal", and `\cancel{=}` — which the model proposed and which renders
+    — says "equals, cancelled". `\neq` is licensed for the relations TeX has a
+    negated form for, and nothing wider.
+
+WHAT MADE MINIMAX USEFUL HERE, WHEN IT WAS NOT BEFORE
+-------------------------------------------------------
+Three earlier attempts got the symbol right and bled content from
+neighbouring equations. This time it merged two malformed fractions, dropped
+the spurious `=`, and placed the slashed J correctly — because a new third
+prompt arm (`refine-propose-census`, 2026-09-14) TOLD it the two glyphs are
+one symbol. That fact is unguessable from a crop at these sizes and free from
+the PDF.
+
+It also returned `\slashed{J}`, which passes `display_safe` — which does not
+check that a command EXISTS — and would then have failed at xelatex, because
+`slashed` is not in the preamble. `cancel` is (report_tex.py:811), so the
+route licenses only `\cancel` and `\not`: a token it authorises must be one
+the build can typeset. My earlier claim that this work needed a preamble
+change was wrong; nothing about the preamble moved.
+
+Suite 3,794 -> 3,800. Full record: out/overprints_688*.json.

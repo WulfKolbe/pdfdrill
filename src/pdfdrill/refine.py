@@ -675,7 +675,8 @@ PROPOSE_WORKERS = 4
 def propose_one(latex: str, conf: float, *, model: str = NOVITA_MODEL,
                 timeout: float = 900.0, crop=None,
                 max_tokens: int = PROPOSE_MAX_TOKENS,
-                subject: str = "", arm: str = "") -> tuple[str, str]:
+                subject: str = "", arm: str = "",
+                census: str = "", notes: str = "") -> tuple[str, str]:
     """(proposed_latex, error). Never raises.
 
     With `crop`, this is VARIANT C: the scan image AND the existing reading.
@@ -684,9 +685,18 @@ def propose_one(latex: str, conf: float, *, model: str = NOVITA_MODEL,
     """
     # 466 — the prompt NAME travels with the call, so the log records which
     # file was used and its hash. The two arms differ by exactly this.
-    pname = "refine-propose-crop" if crop else "refine-propose"
-    prompt = (PROPOSE_PROMPT_C if crop else PROPOSE_PROMPT).format(
-        conf=f"{conf:.4f}", latex=latex)
+    # 688 — a THIRD arm. With a census the model is told what the PDF records
+    # as printed, which is the one thing a crop cannot show: two glyphs at one
+    # position are one symbol, and at crop resolution that is unguessable.
+    from . import prompts as _prompts
+    if census:
+        pname = "refine-propose-census"
+        prompt = _prompts.load(pname).format(
+            conf=f"{conf:.4f}", latex=latex, census=census, notes=notes)
+    else:
+        pname = "refine-propose-crop" if crop else "refine-propose"
+        prompt = (PROPOSE_PROMPT_C if crop else PROPOSE_PROMPT).format(
+            conf=f"{conf:.4f}", latex=latex)
     txt, finish, err = _novita_chat(
         prompt, system=PROPOSE_SYSTEM, model=model, max_tokens=max_tokens,
         subject=subject, arm=arm, prompt_name=pname,
