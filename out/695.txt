@@ -1,0 +1,59 @@
+695 — report for 1804.10694v5 (Tiramisu, 13 pp): built, READY, and wrong about listings and tables
+
+WHAT RAN (~/pdfdrill-library/out/r1804_695.py / .log), 0 failed steps
+  MathPix NOT re-run: lines.json of 2026-08-22 was present. No paid call.
+  evidence --all-kinds --pdf 15s | residuals --measure --pdf 16s | report 1s
+  publishready READY (timestamp 2026-09-15T11:36:13Z; 0 equation rows shown,
+    7 crops checked). No marks: inkdrill has no formulamarks run for this paper.
+  residuals.pdf: "Nothing open."
+  NOT PUBLISHED (not a site document).
+
+THE DOCUMENT
+  lines.json: 104 `code` lines — 75 inside 8 `diagram`/algorithm regions,
+    22 standalone (p5, the GPU-generated loop nest), 7 in a column (p5
+    scheduling commands); 6 tables, 4 of them API tables whose cells are code
+    (C.tile_gpu(i0,i1,t1,t2), b.tag_gpu_global(), …); 7 equations, 58 formulas.
+  author source on disk: 24 \begin{lstlisting}, 23 \lstinline (693).
+
+WHAT IS WRONG — every item verified, nothing fixed
+
+1. LISTINGS SHOW ONLY A PICTURE. 8 of 9 image rows are listings. Their LaTeX
+   source and Rendered cells print "—". The model HAS the code text
+   (Diagram.props.code, 40–1,004 chars per listing), but
+   diagram.py empties `latex_code` for subtype "code" and moves the body to
+   `code`; reports/from_document.py builds ImageRow from `latex_code` only; so
+   region_render gets "" and prints nothing. listing_cell() exists (616) and is
+   never reached for these rows. The reading of a listing can therefore not be
+   compared with its image at all.
+
+2. TWO LISTINGS ARE MISSING ENTIRELY. The 22 standalone code lines (p5, GPU
+   loop nest) and the 7 column code lines (p5) belong to no object: the model
+   was built 08-22, the CodeListing module arrived 08-28. A model rebuild would
+   create CodeListing objects — but NO report surface reads CodeListing (only
+   the TiddlyWiki projector does), so they would still not appear.
+
+3. FIVE OF SIX TABLES "(not rendered)". Compiled standalone under the report
+   preamble:
+     p4 x4 (the API tables)   "Missing $ inserted" — a bare `_` in a text cell:
+                              P.compute_at, C.store_in, b.allocate_at, barrier_at
+     p11 (benchmarks)         "Undefined control sequence" — \multirow; the
+                              report preamble does not load multirow
+     p3 (feature matrix)      compiles
+   Also lost: the page sets command names in typewriter; MathPix's cells are
+   plain text, so a rendered table would not show which cell is code.
+
+4. THREE INLINE FORMULAS FROM CODE LINES (the 694 class): `((\mathrm{N}-2) \%
+   32,32)+2)` and its M twin (p5, from `GPUThread for(i1 in 0..min(...))`), and
+   `\geq 1` (p10, prose MathPix typed as code).
+
+PROPOSED FIXES (not built)
+  a. from_document ImageRow: for Diagram subtype "code", pass `code` to the
+     listing path (listing_cell) — report-side only, no rebuild.
+  b. report surfaces read CodeListing objects as image-region rows; then a model
+     rebuild (offline, from the pinned lines.json) creates the two missing ones.
+  c. table cells: escape bare `_` (and `#`, `%`, `&` already handled?) outside
+     math; preamble: \IfFileExists{multirow.sty}{\usepackage{multirow}}{}
+     — the 691 package probe should cover multirow as well.
+  d. code/pseudocode lines stop hosting inline formulas (694 fix 1).
+  e. The author's 24 lstlistings are gold for (a)/(b): the listing text can be
+     checked against the e-print, the way census/eprint verify maths.
