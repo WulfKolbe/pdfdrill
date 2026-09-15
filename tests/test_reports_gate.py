@@ -375,3 +375,46 @@ def test_publishready_output_marks_a_verified_crop_pass_distinctly(tmp_path, mon
 
     text = cmd_publishready(d / "D.pdf", as_json=False)
     assert _mark_for(text, "crop") == "ok"
+
+
+# ---- 696: brackets counted per type ---------------------------------------
+
+def _model_with(tmp_path, latex):
+    from docmodel.core import Document, DocObject
+    from pdfdrill import model_io
+    d = tmp_path / "doc"
+    d.mkdir(exist_ok=True)
+    doc = Document(meta={"bibkey": "DOC"})
+    doc.add(DocObject(type="Equation", props={"latex": latex, "page": 1}))
+    model_io.save_model(d / "model.docmodel.json", doc)
+    return d
+
+
+def test_brackets_gate_refuses_a_left_null_standing_in_for_a_typed_bracket(tmp_path, monkeypatch):
+    from pdfdrill import refine
+    d = _model_with(tmp_path, r"\left.+D[(n\rfloor \Psi) \wedge x\right]")
+    monkeypatch.setattr(refine, "identifiers", lambda doc, bk: {o: "DOC_EQ0001" for o in doc.objects})
+    ok, why = G.brackets_gate(d, bibkey="DOC")
+    assert not ok and "DOC_EQ0001" in why and "696" in why
+
+
+def test_brackets_gate_passes_the_repaired_reading_armed(tmp_path):
+    g = G.brackets_gate(_model_with(tmp_path, r"+D\left[(n\rfloor \Psi) \wedge x\right]"), bibkey="DOC")
+    assert g[0] and g.verified is True
+
+
+def test_brackets_gate_does_not_refuse_an_interval(tmp_path):
+    assert G.brackets_gate(_model_with(tmp_path, r"x \in [0,1)"), bibkey="DOC")[0]
+
+
+def test_brackets_gate_is_an_unarmed_pass_on_a_model_without_maths(tmp_path):
+    from docmodel.core import Document
+    from pdfdrill import model_io
+    d = tmp_path / "empty"; d.mkdir()
+    model_io.save_model(d / "model.docmodel.json", Document(meta={"bibkey": "DOC"}))
+    g = G.brackets_gate(d, bibkey="DOC")
+    assert g[0] and g.verified is False
+
+
+def test_brackets_is_in_the_checklist(tmp_path):
+    assert "brackets" in G.checklist(_model_with(tmp_path, "x=1"))

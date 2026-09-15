@@ -275,6 +275,46 @@ def crop_gate(doc_dir, bibkey: str = "", history=None) -> "GateStatus":
                              "the one measured" % len(tagged)), verified=True)
 
 
+def brackets_gate(doc_dir, bibkey: str = "") -> "GateStatus":
+    r"""696 — no SHOWN reading may use a `\left.` as a stand-in for a typed bracket.
+
+    `report_tex._lr_balanced` walks \left/\right depth with one counter for
+    every delimiter, so `\left. … D[(…)\right]` passes it and compiles — the
+    user found it on mielke EQ0393. `brackets` counts per TYPE; only its
+    precise category refuses here (see that module for why intervals like
+    `[0,1)` and `\left\{ … \right.` must not). The fix it names is the 696
+    repair, which is recorded as a census-verified refinement.
+
+    Reads the model through `refine.chosen_latex`, i.e. the reading a report
+    actually shows. A readable model with no Equation/Formula objects is an
+    unarmed pass (`verified=False`), the `crop_gate` convention.
+    """
+    from .. import brackets, model_io, refine
+    mp = Path(doc_dir) / "model.docmodel.json"
+    if not mp.is_file():
+        return GateStatus(False, "no model.docmodel.json to read the shown readings from", True)
+    try:
+        doc = model_io.load_model(mp)
+    except Exception as e:                                # noqa: BLE001
+        return GateStatus(False, "model unreadable: %s" % (str(e)[:120]), True)
+    names = refine.identifiers(doc, bibkey or (doc.meta or {}).get("bibkey", "")) or {}
+    seen, bad = 0, []
+    for oid, obj in doc.objects.items():
+        if obj.type not in ("Equation", "Formula"):
+            continue
+        seen += 1
+        shown, _ev = refine.chosen_latex(obj)
+        if brackets.repairable(shown):
+            bad.append(names.get(oid, oid))
+    if bad:
+        return GateStatus(False, (
+            "%d shown reading(s) pair a \\left. with a typed \\right while a plain "
+            "opener of that type is open (apply the 696 bracket repair): %s"
+            % (len(bad), ", ".join(sorted(bad)[:8]))), True)
+    return GateStatus(True, "%d shown readings, no \\left. standing in for a typed bracket"
+                      % seen, bool(seen))
+
+
 def checklist(doc_dir, bibkey: str = "", history=None) -> dict:
     doc_dir = Path(doc_dir)
     ink_p = doc_dir / "report.ink.json"
@@ -291,4 +331,5 @@ def checklist(doc_dir, bibkey: str = "", history=None) -> dict:
         "timestamp": timestamp_gate(doc_dir),
         "coverage": coverage_gate(doc_dir),
         "crop": crop_gate(doc_dir, bibkey=bibkey, history=history),
+        "brackets": brackets_gate(doc_dir, bibkey=bibkey),
     }
