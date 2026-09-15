@@ -83,3 +83,13 @@ REBUILD AFTER THE WITHDRAWALS (2026-09-15, ~/pdfdrill-library/out/rebuild_696.py
   update` pending, then marks --build + publishready again. gilmore: equation row
   only, no update expected.
   NOT PUBLISHED.
+
+PUBLISHED (2026-09-15)
+  johnston/cardona marks --build after inkdrill's update: reading_changed 0,
+  publishready READY. Site commit 02e8d11: 41 files for the five documents,
+  bars 0 differ, sizes 1 changed, marks headline unchanged (8,323 of 35,811),
+  guard rc=0, publishcheck 20/20 identical. Pages deploy run 34989054179.
+  Open (inkdrill 673): 62 marks in 13 documents refused since the 09-12 host-line
+  rule — formulafind's copy of the rule drifted (no NO_TRANSCLUDE skip, `text`
+  instead of `text_display or text`). Undrawn, not wrong. Fix on inkdrill's side,
+  awaiting the user's decision.
