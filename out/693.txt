@@ -1,0 +1,58 @@
+693 — which documents have the author's LaTeX (arXiv e-print), and which use listings
+
+Scanned 2026-09-15, offline, nothing downloaded. Full data: out/693-eprint-listings.json
+
+METHOD
+------
+A document "has the author's LaTeX" when the library holds it on disk: a
+`texsrc/` directory (in the folder, its .pdf.drill sidecar or blob dir) or a
+`<stem>.tgz` beside the PDF whose contents are really source, not a PDF saved
+under that name (689). `%` comments stripped before counting. Version and copy
+twins (v1/v2, "_OCR", " (1)", "arXiv_") merged into one paper; the richest twin's
+counts stand for it.
+
+SOURCE
+------
+  library folders with real LaTeX source          510   (471 texsrc/, 39 .tgz)
+  arXiv papers, twins merged                      474   (from 504 folders)
+  non-arXiv folders with source                     6   2020.emnlp-demos.14, bh2,
+      hubbard-ed, preprints201901.0053.v1, preprints202111.0359.v2,
+      preprints202505.0818.v1
+  (the JSON counts arXiv-2302.07855v1 as non-arXiv — a hyphen prefix the name
+   rule missed; it is arXiv, which gives 474 / 6 above)
+  models recording meta.latex_source_dir            172 of 1,369 (171 exist on disk)
+      — the model field under-reports; the disk is the fact
+
+  PUBLISHED documents with author source: 7 of 20
+      0707.4470, 0902.0431, 1510.06699, 1605.05775, 2010.14265, 2106.07890,
+      2501.06662
+  None of the 7 contains a listing.
+
+LISTINGS
+--------
+  arXiv papers with listing BODIES                  47
+      (\begin{lstlisting}, \lstinputlisting or \lstinline actually used)
+  arXiv papers with minted                           5
+      2103.02280, 2302.07348, 2305.16755, 2506.22516, 2512.21782
+  load \usepackage{listings} but never use it       32
+  non-arXiv: hubbard-ed, 21 lstlisting
+
+  most listing use (lstlisting / lstinputlisting / lstinline):
+      2404.04837   36 /  0 / 67
+      2502.20855    0 /  0 / 97
+      1804.10694   24 /  0 / 23
+      2310.02304   34 /  0 /  9
+      2009.11564   36 /  0 /  0
+      2407.11418   29 /  0 /  0
+      2603.03072   18 /  7 /  3
+      2604.22294   25 /  0 /  0
+      2307.13528   23 /  0 /  0
+      2407.03203   16 /  0 /  0
+  full per-paper counts: papers_with_listing_bodies in the JSON
+
+NOT CHECKED
+-----------
+- Whether each model was actually BUILT from its e-print (vs MathPix).
+- \lstinputlisting pulls an external file; whether that file is in the e-print
+  was not checked.
+- verbatim / Verbatim / algorithmic environments are not counted as listings.
