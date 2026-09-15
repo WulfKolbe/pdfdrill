@@ -58,3 +58,44 @@ def test_text_groups_are_skipped():
 def test_unchanged_value_round_trips():
     lx = r"\left(a+b\right)[c]"
     assert br.repair(lx) == (lx, 0)
+
+
+# ---- inkdrill 672: TeX pairs \left/\right only inside one group and one cell ----
+
+def test_no_promotion_across_an_alignment_cell():
+    # 0902.0431 EQ0594: the plain ( stands in the cell BEFORE the &
+    lx = r"\begin{aligned} \varphi=k_{J}^{-1}( & \left.A\left(k_{J}(M)\right)^{t} A\right)+p \end{aligned}"
+    new, n = br.repair(lx)
+    assert n == 0 and new == lx
+    assert br.ELSEWHERE in cats(lx) and not br.repairable(lx)
+
+
+def test_no_promotion_into_a_superscript_group():
+    # cardona FO0284 / mielke EQ0605: the plain ( sits inside ^{ }
+    for lx in (r"\left.S^{\mathbb{C}} \mathbb{Z}^{( } \mathbb{R}^{d}\right)",
+               r"\left.\chi(M)=\int_{M}{ }^{*} \pi^{( } \gamma_{2}^{g}\right)"):
+        assert br.repair(lx) == (lx, 0)
+        assert br.ELSEWHERE in cats(lx)
+
+
+def test_no_promotion_inside_a_brace_group_whose_right_is_outside():
+    lx = r"\left.\begin{array}{r}{[11} \\ 22 \\ \text { (d) }\end{array}\right]"      # johnston FO1528
+    assert br.repair(lx) == (lx, 0)
+
+
+def test_no_promotion_out_of_an_overbrace():
+    lx = r"A^{k}=\underbrace{(P D \overbrace{\left.P^{-1}\right)(P}^{I} P^{-1})}_{k}"  # johnston EQ0909
+    assert br.repair(lx) == (lx, 0)
+
+
+def test_same_cell_promotion_still_happens_inside_aligned():
+    lx = r"\begin{aligned} a & \left.=x+D[(n\rfloor \Psi) \wedge y\right] \\ & b \end{aligned}"
+    new, n = br.repair(lx)
+    assert n == 1 and r"D\left[(n\rfloor \Psi) \wedge y\right]" in new
+
+
+def test_sibling_groups_at_the_same_depth_are_different_places():
+    # johnston EQ0909: the plain ( sits in the FIRST \overbrace, the \left.…\right) in the SECOND
+    lx = (r"A^{k}=\underbrace{(P D \overbrace{\left.P^{-1}\right)(P}^{P^{-1} P=I} "
+          r"\overbrace{\left.P^{-1}\right)(P}^{P^{-1} P=I} P^{-1}) \cdots\left(P D P^{-1}\right)}_{k}")
+    assert br.repair(lx) == (lx, 0)

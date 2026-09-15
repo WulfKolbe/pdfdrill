@@ -42,7 +42,28 @@ pairs with a typed `\right X`, promote the nearest unmatched plain X-opener to
   EQ0515 / FO1309 (inkdrill's two hand-edit rows): after this repair one
   `\left.` is left against one hook, so inkdrill's hook rule then applies.
 
-NOT DONE
+CORRECTION (same day, after inkdrill 672) — "25 of 25 render" WAS FALSE
+  display_safe screens syntax; it never runs xelatex. Compiled for real, 14 of the
+  25 recorded repairs FAILED where MathPix's reading compiled ("Extra }, or
+  forgotten \right" / "Missing } inserted"). TeX pairs \left/\right only inside
+  ONE brace group and ONE alignment cell; the first repair promoted openers that
+  stood elsewhere: `\pi^{( }`, `\mathbb{Z}^{( }`, `k_J^{-1}( & …\right)`,
+  `{[11} \\ …\right]`, a sibling `\overbrace{…}`.
+  Withdrawn with refine.withdraw_one (all 14 had replaced MathPix's reading):
+    mielke EQ0067 EQ0605 EQ0954 | 0902.0431 EQ0594 EQ0704 EQ0946 EQ1091 EQ1095
+    EQ1211 | johnston EQ0909 EQ0936 FO1528 | cardona EQ0066 FO0284
+  Also withdrawn: gilmore EQ0444 — a 688 overprint refinement, `\cancel{\right)}`,
+    fails to compile; MathPix's division reading compiles.
+  Ledger: ~/pdfdrill-library/out/brackets_696_withdrawn.json (15 entries).
+  brackets.py now gives every delimiter a LOCATION (unique group id + cell number
+  per enclosing group/environment) and promotes only within one location; the
+  rest is `left_null_elsewhere`, reported, never repaired. Re-evaluated on the
+  25: 11 candidates, 11 compile under xelatex, 14 not repairable, 0 failures.
+  Still recorded (all compile): mielke EQ0292 EQ0311 EQ0392 EQ0393 EQ0394 EQ0396
+    EQ0515 EQ0824 FO0901 FO1309, gilmore EQ0788 — plus mielke EQ0515/FO1309's
+    hook rule (hooks_696.py), both compile.
+
+NOT DONE (original plan, superseded above)
   Nothing recorded, no model written, no gate changed.
   Proposed: (1) record the 25 via refine.record_one behind the census gate, as
   hooks_692 did; (2) the per-type walk replaces _lr_balanced's single counter

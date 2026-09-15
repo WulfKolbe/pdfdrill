@@ -9,28 +9,34 @@ mielke-geometrodynamics_EQ0393; MathPix's own reading.
 
 This module keeps a separate counter per bracket TYPE (paren, brack, brace,
 angle, ceil, floor, vert, Vert), plain and sized (`\left`/`\right`, `\bigl`…)
-apart, `\left.` / `\right.` typeless. Measured over the 20 published documents
-(out/696.txt), by category:
+apart, `\left.` / `\right.` typeless.
 
-    repairable_left_null   25  PRECISE: `\left.` paired by TeX with a typed
-                               `\right X` while a plain X-opener is unmatched
-    extra_right            16  a `\right` with nothing open (618 refuses these)
-    sized_type_mismatch   124  mostly legitimate: \left[a,b\right), bra-kets
-    right_null            284  mostly legitimate: \left\{ … \right. (cases)
-    plain_imbalance       816  intervals like [0,1), inline fragments
+WHERE A DELIMITER STANDS MATTERS AS MUCH AS ITS TYPE (inkdrill 672). TeX pairs
+\left/\right only inside ONE brace group and ONE alignment cell. The first cut
+of the repair ignored both and promoted a plain opener that stood in another
+group or cell: `\pi^{( } \gamma\right)`, `k_J^{-1}( & A … \right)`,
+`\overbrace{\left.P^{-1}\right)(P}`. 14 of 25 recorded repairs then failed to
+compile where MathPix's reading had compiled. Every delimiter now carries its
+LOCATION — the path of enclosing brace groups and environments, each with its
+alignment-cell number (`&` / `\\` bump it) — and an opener is promoted only when
+its location equals the `\right`'s.
 
-Only the first is an error signal, and it has one repair: delete that `\left.`
-and promote the plain opener to `\left X` (25 of 25 render after, and the walk
-is clean). The other categories are REPORTED, never refused: `[0,1)` is correct
-mathematics with an unbalanced bracket count.
+Categories:
+    repairable_left_null   `\left.` paired by TeX with a typed `\right X`, and a
+                           plain X-opener unmatched IN THE SAME LOCATION
+    left_null_elsewhere    the same, but the unmatched opener stands in another
+                           group or cell — a real mismatch no promotion can fix
+    extra_right            a `\right` with nothing open (618 refuses these)
+    sized_type_mismatch    mostly legitimate: \left[a,b\right), bra-kets
+    right_null             mostly legitimate: \left\{ … \right. (cases)
+    plain_imbalance        intervals like [0,1), inline fragments
+
+Only `repairable_left_null` is refused by a gate. A repair is a CANDIDATE: the
+caller must still compile it (out/696.txt — `display_safe` screens syntax, it
+does not typeset, and that is what let 14 broken repairs through).
 
 `\rfloor` is counted as `floor`; in mielke it is the interior-product hook, not
 a bracket, so a floor imbalance there is expected and is not an error.
-
-A `\left.` that MathPix invents to balance a `\right` it produced from a glyph
-misread as CJK (mielke EQ0857: `\left.\mathbf{匕}_n … n\right\rfloor`) has the
-same shape; corpus-wide 3 such pairs enclose CJK, and no recorded refinement
-removed the CJK while keeping the `\left.` (out/696.txt).
 """
 from __future__ import annotations
 
@@ -48,14 +54,20 @@ _SIZE_L = r"\\(?:left|bigl|Bigl|biggl|Biggl)(?![a-zA-Z])"
 _SIZE_R = r"\\(?:right|bigr|Bigr|biggr|Biggr)(?![a-zA-Z])"
 _DELIM = (r"(\\\{|\\\}|\\\||\\(?:lbrace|rbrace|lbrack|rbrack|langle|rangle|"
           r"lceil|rceil|lfloor|rfloor|vert|Vert)(?![a-zA-Z])|[()\[\]|.])")
-#: one token: a sized left + delimiter, a sized right + delimiter, a plain
-#: delimiter, or a \text{…} group to skip (prose brackets are not maths)
-_TOK = re.compile(r"(%s)\s*%s|(%s)\s*%s|%s|\\text\s*\{[^{}]*\}"
-                  % (_SIZE_L, _DELIM, _SIZE_R, _DELIM, _DELIM))
-#: `\\` and `\\[2pt]` row breaks: masked with same-length filler so offsets hold
-_ROWBREAK = re.compile(r"\\\\(\[[^\]]*\])?")
+#: alternatives, in order: sized left, sized right, \text{…} (skipped: prose),
+#: \begin{env}, \end{env}, row break `\\[..]`, a bare `&`, a brace, a plain delimiter
+_TOK = re.compile(
+    r"(?P<sl>%s)\s*(?P<sld>%s)|(?P<sr>%s)\s*(?P<srd>%s)"
+    r"|(?P<text>\\text\s*\{[^{}]*\})"
+    r"|(?P<begin>\\begin\s*\{[^}]*\})|(?P<end>\\end\s*\{[^}]*\})"
+    r"|(?P<row>\\\\(?:\[[^\]]*\])?)|(?P<amp>(?<!\\)&)"
+    r"|(?P<ob>(?<!\\)\{)|(?P<cb>(?<!\\)\})"
+    r"|(?P<d>%s)"
+    % (_SIZE_L, _DELIM.replace("(", "(?:", 1), _SIZE_R, _DELIM.replace("(", "(?:", 1),
+       _DELIM.replace("(", "(?:", 1)))
 
 REPAIRABLE = "repairable_left_null"
+ELSEWHERE = "left_null_elsewhere"
 EXTRA_RIGHT = "extra_right"
 
 
@@ -67,43 +79,77 @@ def _type_of(d: str, prefer: dict):
 
 def _scan(lx: str):
     """(issues, edits) — one walk yields both the report and the repair."""
-    s = _ROWBREAK.sub(lambda m: "\x00" * len(m.group(0)), lx or "")
+    s = lx or ""
     issues, edits = [], []
-    lr = []                               # TeX's own \left/\right stack
-    plain = {}                            # type -> [(start, end)] unmatched plain openers
-    plain_close = {}                      # type -> count of unmatched plain closers
+    # location: a stack of [group id, cell number] per enclosing group or
+    # environment. The id is unique per group, so two SIBLING groups at the
+    # same depth (johnston EQ0909's two \overbrace{…}) are different places.
+    groups = [[0, 0]]
+    next_id = [1]
+
+    def loc():
+        return tuple((g[0], g[1]) for g in groups)
+
+    lr = []                               # TeX's \left stack: (type, start, end, loc)
+    plain = {}                            # type -> [(start, end, loc)] unmatched openers
+    plain_close = {}
     for m in _TOK.finditer(s):
-        if m.group(0).startswith("\\text"):
+        k = m.lastgroup
+        if m.group("text"):
             continue
-        if m.group(1):                                        # sized left
-            if m.group(1).startswith(r"\left"):
-                lr.append((_type_of(m.group(2), OPEN), m.start(), m.end()))
-        elif m.group(3):                                      # sized right
-            if not m.group(3).startswith(r"\right"):
+        if m.group("begin") or m.group("ob"):
+            groups.append([next_id[0], 0])
+            next_id[0] += 1
+            continue
+        if m.group("end") or m.group("cb"):
+            if len(groups) > 1:
+                groups.pop()
+            continue
+        if m.group("row") or m.group("amp"):
+            groups[-1][1] += 1
+            continue
+        if m.group("sl"):
+            if m.group("sl").startswith(r"\left"):
+                lr.append((_type_of(m.group("sld"), OPEN), m.start(), m.end(), loc()))
+            continue
+        if m.group("sr"):
+            if not m.group("sr").startswith(r"\right"):
                 continue
-            t = _type_of(m.group(4), CLOSE)
+            t = _type_of(m.group("srd"), CLOSE)
             if not lr:
                 issues.append((EXTRA_RIGHT, t, m.start()))
                 continue
-            lt, ls, le = lr.pop()
+            lt, ls, le, lloc = lr.pop()
+            here = loc()
             if lt == "." and t not in (".", None) and plain.get(t):
-                ps, _pe = plain[t].pop()
-                issues.append((REPAIRABLE, t, ps))
-                edits += [(ls, le - ls, ""), (ps, 0, r"\left")]
+                same = [o for o in plain[t] if o[2] == here and o[2] == lloc]
+                if same:
+                    ps, _pe, _ploc = same[-1]
+                    plain[t].remove(same[-1])
+                    issues.append((REPAIRABLE, t, ps))
+                    edits += [(ls, le - ls, ""), (ps, 0, r"\left")]
+                else:
+                    issues.append((ELSEWHERE, t, plain[t][-1][0]))
             elif lt not in (".", None) and t == ".":
                 issues.append(("right_null", lt, ls))
             elif "." not in (lt, t) and lt != t and not {lt, t} <= {"vert"}:
                 issues.append(("sized_type_mismatch", "%s/%s" % (lt, t), ls))
-        else:
-            d = m.group(5)
-            if d in OPEN:
-                plain.setdefault(OPEN[d], []).append((m.start(), m.end()))
-            elif d in CLOSE:
-                t = CLOSE[d]
-                if plain.get(t):
-                    plain[t].pop()
-                else:
-                    plain_close[t] = plain_close.get(t, 0) + 1
+            continue
+        d = m.group("d")
+        if d is None or d == ".":
+            continue
+        if d in OPEN:
+            plain.setdefault(OPEN[d], []).append((m.start(), m.end(), loc()))
+        elif d in CLOSE:
+            t = CLOSE[d]
+            here = loc()
+            same = [o for o in plain.get(t, []) if o[2] == here]
+            if same:
+                plain[t].remove(same[-1])
+            elif plain.get(t):
+                plain[t].pop()
+            else:
+                plain_close[t] = plain_close.get(t, 0) + 1
     for t in sorted(set(plain) | set(plain_close)):
         o, c = len(plain.get(t, [])), plain_close.get(t, 0)
         if o or c:
@@ -117,14 +163,15 @@ def issues(latex: str) -> list:
 
 
 def repairable(latex: str) -> bool:
-    """True when the value carries the one PRECISE defect (see module doc)."""
+    """True when the value carries the one PRECISE, promotable defect."""
     return any(i[0] == REPAIRABLE for i in issues(latex))
 
 
 def repair(latex: str) -> "tuple[str, int]":
-    r"""(repaired value, pairs repaired). Deletes each `\left.` that TeX pairs
-    with a typed `\right X` while a plain X-opener is unmatched, and promotes
-    that opener to `\left X`. A value without the defect comes back unchanged."""
+    r"""(candidate value, pairs repaired). Deletes each `\left.` that TeX pairs
+    with a typed `\right X` while a plain X-opener is unmatched in the SAME
+    group and alignment cell, and promotes that opener to `\left X`. The result
+    is a candidate: compile it before recording it."""
     _issues, edits = _scan(latex)
     out = latex or ""
     for pos, n, new in sorted(edits, key=lambda e: -e[0]):
