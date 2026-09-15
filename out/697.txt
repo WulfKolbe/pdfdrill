@@ -1,0 +1,97 @@
+697 — PLAN: residuals over the full corpus, for the MathPix admin's "~0.4%"
+
+Plan and estimate only. Nothing below has been run beyond the 30-second census in
+section 1, and nothing is sent to MathPix without the user's decision (section 5).
+
+WHAT "~0.4%" IS
+  Our figure, first measured in out/064: equations MathPix itself scores below 0.1
+  confidence — 19 of 4,338 in the 49-document corpus (0.4%). The admin is asking for
+  that list, over the corpus.
+
+1. MEASURED TODAY (read-only, tiddlers.json, 30 s for 1,370 documents)
+  equations                     119,461
+  MathPix confidence < 0.1          433   0.36%   <- the admin's list, confirmed at scale
+  MathPix confidence < 0.5        2,839   2.38%
+  no confidence value at all     22,877  19.15%   (older snapshots; say so, do not guess)
+  our render gate refuses           824   0.69%
+  brackets, promotable (696)        110   0.09%
+  brackets, elsewhere (696)         148   0.12%
+  \right with no \left               88   0.07%
+  rows with any of these          4,334   3.63%
+  by provenance        equations  conf<0.1  render-refused  any flag (docs)
+    arXiv                 23,147        76             545     1,154 (160)
+    other                 39,021       149             181     1,462 (216)
+    Z-Library books       57,293       208              98     1,718  (64)
+  MathPix pdf_id stored (sidecar evidence `mathpix_pdf_id`): 1,154 of 1,368
+    documents — arXiv 371/502, other 715/787, Z-Library 68/79.
+
+  What these flags are NOT: wrong readings. Confidence is MathPix's own doubt; the
+  render/bracket flags are syntactic. 682 measured that 34 of 36 known-wrong
+  equations RENDER, so the valuable class is the one only a measurement finds.
+
+2. THE TIERS
+  T0  confidence + syntactic flags               ~1 min     no rendering
+      Deliverable today: the 433 (and the 3.6% superset), keyed on pdf_id.
+  T1  compile truth: `evidence --kind equation --pdf` per document
+      The xelatex fixpoint names every "(not rendered)" row for real (696's lesson:
+      a syntactic gate is not a compile).
+  T2  ink residuals: `residuals --measure --pdf` per document
+      Render vs scan, flag classes C/W/S/N/K/U. This is "residuals over the corpus".
+  T3  glyph census on born-digital documents (text layer names the glyph; 71% of the
+      library is LaTeX-produced) — optional, the ⌋-class evidence. Not estimated here.
+  Not in scope: inline formulas (537,397 rows) — no ink measurement exists for them;
+  marks (inkdrill's); mathpix (paid, never run); publishing.
+
+3. ESTIMATE
+  Measured today, this machine (16 cores, 62 GB, NVMe), TWO documents in parallel:
+    evidence (all kinds)   0.20–1.02 s per source page
+    residuals --measure    0.81–1.46 s per equation row (mielke 0.84, cardona 0.81,
+                           gilmore 1.15, 0902.0431 1.35, johnston 1.46);
+                           tiny documents cost more per row (1804.10694v5: 2.3 s)
+  Corpus still to measure: 1,368 documents, 75,434 pages, ~99,000 equation rows
+    (250 documents / ~20,000 rows already carry a measurement).
+
+                              lane-hours   this machine (8 lanes*)   32-core NVMe (16 lanes*)
+  T0                          0.01         1 min                     1 min
+  T1 evidence, equation kind  2–8          0.3–1 h                   0.2–0.5 h
+  T2 residuals --measure      22–40        3–5 h                     1.5–2.5 h
+  copy library (88 GB)                     —                         ~15 min NVMe / 1 GbE
+  calibration (step 2 below)               ~1 h                      ~1 h
+  TOTAL wall-clock                         ~5–7 h                    ~3–4.5 h
+  * UNVERIFIED: the scaling. Today's rates are from 2 concurrent lanes; whether
+    `inkdrill compare` is single-threaded per page, and how much RAM a lane at 600 dpi
+    needs, are not measured. Memory, not cores, is the likely limit here (62 GB).
+    The calibration run exists to replace these two guesses.
+  Outlier: 1511.08771 (5,000 pages, 555 equations, 91,450 formulas) — equation kind
+  only, run alone.
+
+4. THE TASK, STEP BY STEP
+  1. T0 export (no rendering): CSV/JSON per flagged row —
+       mathpix_pdf_id, page, region (MathPix px), MathPix confidence, MathPix's own
+       reading, our flag classes. No crops, no page images, no titles.
+  2. Calibrate on the target machine: 20 documents spanning 13–500 pages at 4 / 8 / 12
+     lanes; record s/row, peak RSS per lane, CPU per `inkdrill compare`. Pick the lane
+     count; re-estimate before committing hours.
+  3. Driver (`tools/`→ promote to a command if it stays): a queue ordered to mix large
+     and small documents; per-document log + JSON; one writer per document (doclock);
+     RESUMABLE — skip a document whose report.ink.json `measured_against` equals the
+     model on disk; stop a document on its first failed step, never the run.
+  4. Aggregate: per row the union of T0/T1/T2 classes; per-document and corpus counts;
+     the same census re-run at the end must reproduce section 1's T0 numbers.
+  5. Review: out/NNN.txt with the counts; the user reads it and decides what goes out.
+
+  Target machine setup: the same repo (pip -e .), TeX Live with xelatex, Ghostscript,
+  poppler, fonts DejaVu + Noto Sans Math/CJK JP/Bengali, the inkdrill repo
+  (INKDRILL_ROOT), PDFDRILL_NO_PREFLIGHT=1, and the library (88 GB, deny-by-default
+  git — copy the working tree, not a clone of a remote). No credentials needed: no
+  paid or network step runs.
+
+5. DECISIONS FOR THE USER BEFORE ANYTHING IS SENT
+  - Scope: the 433 (confidence < 0.1) as asked, or the T1/T2 superset?
+  - Identification: by mathpix_pdf_id only (reaches 1,154 of 1,368 documents; the 214
+    without one would be omitted, or arXiv ones named by arXiv id).
+  - Books: 208 of the 433 are in Z-Library books. out/455's licence position: no crops
+    or page reproductions leave; naming those titles to a vendor is a separate
+    decision.
+  - Wording: "flagged" is not "wrong" — the list should say which instrument flagged
+    each row.
