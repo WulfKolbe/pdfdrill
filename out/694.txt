@@ -1,0 +1,48 @@
+694 — kohlhase-omdoc residuals.pdf: what is wrong, row by row
+
+The site copy IS the local build (sha 3935590c…, 2026-09-12 12:48) — not a
+stale publish. 6 rows on 4 pages. Four causes, none of them the crop step:
+every Image cell is the correct crop of the book page. OMDoc is a book ABOUT
+markup, so several pages print LaTeX/XML source code, and the crop of that code
+is what looks like "LaTeX instead of the image".
+
+1. FO0317, FO0319, FO0323 (p215) — CODE LINES TURNED INTO INLINE FORMULAS. OURS.
+   lines.json p215 lines #12, #25, #29 are type=code, e.g.
+       '${\,p\mid\hbox{$p$ and $p+2$ are prime}\,}$'
+   — the book's example source. The formula module splits the `$…$` inside a
+   code line into Formula objects, so the rows carry fragments
+   (`{\,p\mid\hbox{`, `are prime}\,}`) that can never render, and their crop is
+   the code line. 674's line_types gate excludes table/heading/title/TOC/figure
+   label, but `hosts_transclusion("code")` and `("pseudocode")` are True.
+   Scope in the 20 published documents: 26 inline readings hosted only on
+   code/pseudocode lines (0707.4470 16, 2010.14265 8, fong-spivak-seven-sketches
+   2), plus these 3.
+   Fix (not built): code and pseudocode join the no-transclusion families in
+   docmodel/line_types.py.
+
+2. EQ0001 (p60) — `_` INSIDE \text{}. OURS (the gate), MathPix's reading is fine.
+   `\wedge \text { law_of_composition }(E, F)` passes renderable() and
+   display_safe(), then xelatex stops: "Missing $ inserted" — a bare `_` is a
+   math-mode character inside a text argument. The compile fixpoint demotes the
+   row to "(not rendered)". Compiled standalone with `law\_of\_composition`:
+   compiles.
+   Fix (not built): escape bare `_` (and `^`) inside \text{…} arguments in
+   renderable(), before the compile.
+
+3. EQ0004 (p297) — LaTeX SOURCE PRINTED IN THE BOOK, READ AS DISPLAY MATHS. MathPix's.
+   lines.json p297 #20 is type=math:
+       `\backslash \text { CSum\{k\}1\infty\{\Cexp\{x\}k\} instead of } …`
+   The page prints `\CSum{k}1\infty{\Cexp{x}k} instead of \sum_{k=1}^\infty x^k`
+   in typewriter. Same "Missing $ inserted" (the `_` in \text). Escaping would
+   make it typeset, but the value is code, not mathematics — an MathPix
+   classification error; no rule of ours should "repair" it into maths.
+
+4. EQ0005 (p309) — THE WHOLE FIGURE AS THE EQUATION. OURS — the 691 class.
+   `\begin{figure} \[ … \] \captionsetup… \caption{Fig. 26.26 …} \end{figure}`:
+   equation.py:212 reads text_display (the float) before text (the maths).
+
+5. Page 1 is blank but for the two-line header: the template emits \clearpage
+   directly after it. Cosmetic.
+
+None fixed. Fix 1 and fix 4 change the model (rebuild + re-measure for every
+affected published document); fix 2 is report-side only.
