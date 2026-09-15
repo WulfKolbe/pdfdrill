@@ -3,10 +3,31 @@
 Plan and estimate only. Nothing below has been run beyond the 30-second census in
 section 1, and nothing is sent to MathPix without the user's decision (section 5).
 
-WHAT "~0.4%" IS
-  Our figure, first measured in out/064: equations MathPix itself scores below 0.1
-  confidence — 19 of 4,338 in the 49-document corpus (0.4%). The admin is asking for
-  that list, over the corpus.
+WHAT "~0.4%" IS — CORRECTED after reading the mail (2026-08-17 12:24 EDT)
+  The mail says "Claude CLI was able to find this error plus 0.4% others based on the
+  inkdrill tool". So the number is an INK finding, not MathPix confidence (the
+  confidence 0.4% of out/064 is a coincidence of value, measured four days later).
+  Its source is inkdrill commit 0bfd5c0 (2026-08-17 16:09 CEST, two hours before the
+  mail) — "bh2 report, 54-page check": 333 display equations of the scanned bh2 book,
+  component delta 0 for 71, <=2 for 185, >10 for 23; confirmed by eye EQ0105 (drops a
+  whole display line), and later EQ0273, EQ0131 — plus EQ0123/EQ0082 with no MathPix
+  LaTeX at all. 3 confirmed of 333 is 0.9%, 5 of 333 is 1.5%: the "0.4%" does not
+  reconcile with that population, and nothing on disk records how it was computed.
+  The admin should be told the number measured now, not the one in the mail.
+  (~/Downloads/"report (1).pdf" is NOT that attachment: a one-page 0902.0431
+  form-field demo.)
+
+  WHAT THE ADMIN'S LIST THEREFORE IS: the rows the INK flags — tier T2 below, the
+  expensive one — not the confidence census of section 1. Rate today over the 251
+  documents already measured (20,374 equations):
+      component 8.25%, weak 15.84% of rows carry a non-clean flag,
+      component/weak with |delta| >= 20 (FLAG_SHOW_DELTA, what residuals.pdf shows):
+      320 rows = 1.57%  ->  ~1,900 rows at corpus scale if the rate holds.
+  These are CANDIDATES, not errors: out/067 read the top 10 of the 066 ink list by eye
+  and found typography (delimiter sizing, \frac vs \dfrac, spacing), not content.
+  Eye confirmation does not scale to ~1,900; ranking by the symbol channels
+  (components, holes) rather than layout (stacked, centred, offset) is what surfaces
+  content errors (067).
 
 1. MEASURED TODAY (read-only, tiddlers.json, 30 s for 1,370 documents)
   equations                     119,461
@@ -87,7 +108,10 @@ WHAT "~0.4%" IS
   paid or network step runs.
 
 5. DECISIONS FOR THE USER BEFORE ANYTHING IS SENT
-  - Scope: the 433 (confidence < 0.1) as asked, or the T1/T2 superset?
+  - Scope: what he asked for is the INK-flagged list (T2, ~1,900 candidate rows at
+    today's 1.57% rate), ranked by the symbol channels; the confidence/syntax census
+    (T0) can go alongside as a second, cheaper list. And the mail's "0.4%" should be
+    replaced by the rate measured at the end of the run.
   - Identification: by mathpix_pdf_id only (reaches 1,154 of 1,368 documents; the 214
     without one would be omitted, or arXiv ones named by arXiv id).
   - Books: 208 of the 433 are in Z-Library books. out/455's licence position: no crops
