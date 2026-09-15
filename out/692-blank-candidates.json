@@ -1,0 +1,678 @@
+{
+ "produced": "2026-09-15, pdfdrill 692",
+ "what": "EQ rows whose MathPix reading has >=1 empty cell in a flat array/matrix with >=2 rows and >=3 columns, restricted to the 20 published documents",
+ "caveat": "READING-based, not ink-based: an empty cell in the reading can be a genuinely blank entry OR content MathPix dropped. johnston EQ0486 has 14 empty cells in the reading against 8 by ink. Nested arrays skipped.",
+ "count": 132,
+ "documents": {
+  "lyche-numerical-linear-algebra": 44,
+  "gilmore-lie-groups": 34,
+  "johnston-linear-matrix-algebra": 22,
+  "0902.0431": 10,
+  "fong-spivak-invitation": 9,
+  "fong-spivak-seven-sketches": 8,
+  "cardona-qft-methods": 3,
+  "mielke-geometrodynamics": 2
+ },
+ "rows": [
+  {
+   "id": "gilmore-lie-groups_EQ0584",
+   "page": "188",
+   "empty_cells_in_reading": 79
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0583",
+   "page": "188",
+   "empty_cells_in_reading": 76
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0586",
+   "page": "189",
+   "empty_cells_in_reading": 62
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0371",
+   "page": "151",
+   "empty_cells_in_reading": 38
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0605",
+   "page": "194",
+   "empty_cells_in_reading": 36
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ0735",
+   "page": "278",
+   "empty_cells_in_reading": 34
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0369",
+   "page": "150",
+   "empty_cells_in_reading": 31
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0318",
+   "page": "128",
+   "empty_cells_in_reading": 23
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0175",
+   "page": "077",
+   "empty_cells_in_reading": 23
+  },
+  {
+   "id": "0902.0431_EQ0756",
+   "page": "125",
+   "empty_cells_in_reading": 20
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ0510",
+   "page": "205",
+   "empty_cells_in_reading": 16
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0108",
+   "page": "057",
+   "empty_cells_in_reading": 15
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0117",
+   "page": "060",
+   "empty_cells_in_reading": 14
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0873",
+   "page": "276",
+   "empty_cells_in_reading": 14
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ0486",
+   "page": "196",
+   "empty_cells_in_reading": 14
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0995",
+   "page": "336",
+   "empty_cells_in_reading": 12
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0994",
+   "page": "336",
+   "empty_cells_in_reading": 12
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0326",
+   "page": "133",
+   "empty_cells_in_reading": 12
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0151",
+   "page": "067",
+   "empty_cells_in_reading": 12
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0095",
+   "page": "054",
+   "empty_cells_in_reading": 12
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0089",
+   "page": "051",
+   "empty_cells_in_reading": 12
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0010",
+   "page": "024",
+   "empty_cells_in_reading": 11
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0946",
+   "page": "294",
+   "empty_cells_in_reading": 11
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0712",
+   "page": "225",
+   "empty_cells_in_reading": 11
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0918",
+   "page": "285",
+   "empty_cells_in_reading": 10
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ0509",
+   "page": "204",
+   "empty_cells_in_reading": 10
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0699",
+   "page": "251",
+   "empty_cells_in_reading": 9
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0917",
+   "page": "285",
+   "empty_cells_in_reading": 8
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ0793",
+   "page": "293",
+   "empty_cells_in_reading": 8
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0229",
+   "page": "092",
+   "empty_cells_in_reading": 7
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0184",
+   "page": "079",
+   "empty_cells_in_reading": 7
+  },
+  {
+   "id": "fong-spivak-seven-sketches_EQ0181",
+   "page": "274",
+   "empty_cells_in_reading": 7
+  },
+  {
+   "id": "0902.0431_EQ1033",
+   "page": "174",
+   "empty_cells_in_reading": 6
+  },
+  {
+   "id": "0902.0431_EQ0870",
+   "page": "144",
+   "empty_cells_in_reading": 6
+  },
+  {
+   "id": "0902.0431_EQ0558",
+   "page": "094",
+   "empty_cells_in_reading": 6
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0897",
+   "page": "281",
+   "empty_cells_in_reading": 6
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0668",
+   "page": "215",
+   "empty_cells_in_reading": 6
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ0524",
+   "page": "209",
+   "empty_cells_in_reading": 6
+  },
+  {
+   "id": "0902.0431_EQ0860",
+   "page": "143",
+   "empty_cells_in_reading": 5
+  },
+  {
+   "id": "0902.0431_EQ0365",
+   "page": "059",
+   "empty_cells_in_reading": 5
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0687",
+   "page": "220",
+   "empty_cells_in_reading": 5
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0481",
+   "page": "147",
+   "empty_cells_in_reading": 5
+  },
+  {
+   "id": "fong-spivak-seven-sketches_EQ0061",
+   "page": "110",
+   "empty_cells_in_reading": 5
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ0994",
+   "page": "347",
+   "empty_cells_in_reading": 5
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ0543",
+   "page": "218",
+   "empty_cells_in_reading": 5
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ0541",
+   "page": "217",
+   "empty_cells_in_reading": 5
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ0006",
+   "page": "022",
+   "empty_cells_in_reading": 5
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0729",
+   "page": "258",
+   "empty_cells_in_reading": 4
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0366",
+   "page": "149",
+   "empty_cells_in_reading": 4
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0205",
+   "page": "086",
+   "empty_cells_in_reading": 4
+  },
+  {
+   "id": "cardona-qft-methods_EQ0908",
+   "page": "350",
+   "empty_cells_in_reading": 4
+  },
+  {
+   "id": "0902.0431_EQ0921",
+   "page": "153",
+   "empty_cells_in_reading": 4
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0478",
+   "page": "146",
+   "empty_cells_in_reading": 4
+  },
+  {
+   "id": "fong-spivak-invitation_EQ0185",
+   "page": "282",
+   "empty_cells_in_reading": 4
+  },
+  {
+   "id": "fong-spivak-invitation_EQ0180",
+   "page": "273",
+   "empty_cells_in_reading": 4
+  },
+  {
+   "id": "fong-spivak-invitation_EQ0062",
+   "page": "113",
+   "empty_cells_in_reading": 4
+  },
+  {
+   "id": "fong-spivak-seven-sketches_EQ0191",
+   "page": "282",
+   "empty_cells_in_reading": 4
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ0005",
+   "page": "022",
+   "empty_cells_in_reading": 4
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0834",
+   "page": "289",
+   "empty_cells_in_reading": 3
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0757",
+   "page": "270",
+   "empty_cells_in_reading": 3
+  },
+  {
+   "id": "0902.0431_EQ1178",
+   "page": "199",
+   "empty_cells_in_reading": 3
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0704",
+   "page": "224",
+   "empty_cells_in_reading": 3
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0474",
+   "page": "145",
+   "empty_cells_in_reading": 3
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0141",
+   "page": "056",
+   "empty_cells_in_reading": 3
+  },
+  {
+   "id": "fong-spivak-invitation_EQ0040",
+   "page": "078",
+   "empty_cells_in_reading": 3
+  },
+  {
+   "id": "fong-spivak-seven-sketches_EQ0036",
+   "page": "077",
+   "empty_cells_in_reading": 3
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ0562",
+   "page": "222",
+   "empty_cells_in_reading": 3
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ0508",
+   "page": "204",
+   "empty_cells_in_reading": 3
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0694",
+   "page": "248",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0564",
+   "page": "210",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0193",
+   "page": "082",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0192",
+   "page": "081",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "0902.0431_EQ0059",
+   "page": "014",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0806",
+   "page": "253",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0780",
+   "page": "245",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0686",
+   "page": "220",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0542",
+   "page": "169",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0276",
+   "page": "092",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0274",
+   "page": "092",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0265",
+   "page": "089",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0132",
+   "page": "054",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0128",
+   "page": "053",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "fong-spivak-invitation_EQ0039",
+   "page": "078",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "fong-spivak-seven-sketches_EQ0035",
+   "page": "076",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "fong-spivak-seven-sketches_EQ0003",
+   "page": "024",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ1287",
+   "page": "430",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ1040",
+   "page": "358",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ0066",
+   "page": "046",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ0035",
+   "page": "036",
+   "empty_cells_in_reading": 2
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ1051",
+   "page": "359",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ1050",
+   "page": "358",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0975",
+   "page": "330",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0927",
+   "page": "314",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0926",
+   "page": "314",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0680",
+   "page": "245",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0678",
+   "page": "243",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0662",
+   "page": "239",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0584",
+   "page": "216",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0253",
+   "page": "103",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0230",
+   "page": "092",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0228",
+   "page": "092",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0223",
+   "page": "089",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0179",
+   "page": "078",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0164",
+   "page": "073",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0141",
+   "page": "065",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0069",
+   "page": "043",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0046",
+   "page": "037",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "lyche-numerical-linear-algebra_EQ0036",
+   "page": "035",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "cardona-qft-methods_EQ0889",
+   "page": "345",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "cardona-qft-methods_EQ0441",
+   "page": "210",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "0902.0431_EQ0941",
+   "page": "156",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0368",
+   "page": "114",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0266",
+   "page": "089",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0152",
+   "page": "059",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0122",
+   "page": "052",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0118",
+   "page": "050",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0022",
+   "page": "024",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0016",
+   "page": "021",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "gilmore-lie-groups_EQ0009",
+   "page": "019",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "mielke-geometrodynamics_EQ0597",
+   "page": "196",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "mielke-geometrodynamics_EQ0207",
+   "page": "083",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "fong-spivak-invitation_EQ0202",
+   "page": "291",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "fong-spivak-invitation_EQ0055",
+   "page": "096",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "fong-spivak-invitation_EQ0020",
+   "page": "056",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "fong-spivak-invitation_EQ0003",
+   "page": "026",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "fong-spivak-seven-sketches_EQ0184",
+   "page": "274",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "fong-spivak-seven-sketches_EQ0053",
+   "page": "094",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ1080",
+   "page": "368",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ1059",
+   "page": "362",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ1058",
+   "page": "362",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ0513",
+   "page": "205",
+   "empty_cells_in_reading": 1
+  },
+  {
+   "id": "johnston-linear-matrix-algebra_EQ0500",
+   "page": "201",
+   "empty_cells_in_reading": 1
+  }
+ ]
+}

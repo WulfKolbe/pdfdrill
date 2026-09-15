@@ -1,0 +1,59 @@
+692 — inkdrill's task of 2026-09-15: mielke hook rewrite applied, whitespace grids checked
+
+Task file: ~/inkdrill-marks/TASK-2026-09-15-hooks-and-whitespace.md
+inkdrill records: ~/inkdrill/out/666.txt, 667.txt, 668.txt, 669.txt
+
+A. MIELKE HOOK REWRITE
+----------------------
+MathPix reads the interior product ⌋ as `\left. … \right\rfloor`, a stretching
+delimiter (EQ0579: 23.94 pt rendered vs 8.46 pt printed). inkdrill's rule:
+delete \left., \right-hook -> \rfloor, a script on the hook moves to {}^{…}.
+
+Applied: 61 of 61 rows (40 EQ, 21 FO). 0 skipped for a `published` mismatch.
+  the shown reading (refine.chosen_latex) equalled `published` on every row:
+  50 via `latex`, 11 via an existing census `latex_refined` (now superseded)
+Gates per row (~/pdfdrill-library/out/hooks_692.py, hooks_692.json):
+  renders            report_tex.display_safe
+  census_consistent  glyphcensus.contradicts, own region (EQ only)
+  licensed           glyphcensus.justifies(current, proposed)
+                     FO: on the HOST-LINE census (inlinectx); contradicts is
+                     not valid there and was not run — scope in the evidence
+Recorded: refine.record_one, verified_by "census+ink" (census = identity,
+  ink = inkdrill's hook heights), so chosen_latex shows it (686). `latex` keeps
+  MathPix's reading. Field promotion is not implemented; twin-prop convention.
+
+Not applied:
+  EQ0515, FO1309  inkdrill skipped them (2 \left. for 1 hook); no hand edit.
+  FO0444          fits the rule, missing from inkdrill's file; held because it
+                  has no host line: it is a table cell (p102, inkdrill 669), so
+                  there is no census and no identity evidence, and a table-cell
+                  formula is never published as an FO row (674). inkdrill
+                  measured its hooks NOT enlarged; the rewrite would only fix
+                  parenthesis pairing.
+Done-check: \right-hooks left in evidence-equation.tex / evidence-formula.tex
+  = EQ0515, FO1309 only.
+
+Rebuild + re-measure (~/pdfdrill-library/out/mielke_692.py/.log), 0 failed steps:
+  evidence 75s | residuals --measure 948s | marks 34s | report 23s
+  (a first run was stopped at page 53 to fold FO0444 in; it was then held)
+publishready: READY on all six gates
+  timestamp  measured 2026-09-15T09:47:50Z against the model on disk
+  coverage   68 equation rows shown, all measured (10 straddle)   [09-14: 39 / 7]
+  crop       1056 rows checked, every displayed crop the one measured
+Render check, evidence-equation.pdf: EQ0579 (p10) hooks glyph-sized, both
+  parentheses large; EQ0544 (p8) glyph-sized; EQ0486 (p41) `e_β⌋ {}^*H`.
+
+NOT PUBLISHED. The site's mielke copy (3756a29) is now stale.
+
+B. WHITESPACE GRIDS
+-------------------
+Mapping check: johnston p196, MediaBox = CropBox (504.57 x 720), MathPix px ->
+  400 dpi scale 1.6. All 8 empty cells of EQ0486 land on the blanks; all 47
+  filled cells on ink.
+Candidates sent: out/692-blank-candidates.json — 132 EQ rows in 8 published
+  documents with >=1 empty cell in a flat array (READING-based).
+inkdrill's verdict (668): 12 eye-verified grids, 51 empty cells, now the only
+  content of grids.json; six failure shapes F1-F6; overlay stays unbuilt.
+"62 rows without a page" was inkdrill's parser: every evidence row carries its
+  page; 73 have ~\eqnum{} and/or \lowconf{} after \ident{}. Fixed on their side
+  (3,745 of 8,718 equation-row pages had been lost corpus-wide).
