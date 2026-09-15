@@ -1,0 +1,227 @@
+[
+ {
+  "id": "0902.0431_EQ0594",
+  "pairs_repaired": 1,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\begin{aligned} \\varphi(p, A)(M+\\boldsymbol{a})=k_{J}^{-1}( & \\left.A\\left(k_{J}(M)\\right)^{t} A\\right)+p \\boldsymbol{a} k^{-1}\\left(\\tau^{t} A\\right), \\\\ & M+\\boldsymbol{a} \\in\\left(\\mathfrak{J}_{\\boldsymbol{H}}\\right)^{C} \\oplus\\left(\\boldsymbol{H}^{3}\\right)^{C}=\\mathfrak{J}^{C} . \\end{aligned}",
+  "after": "\\begin{aligned} \\varphi(p, A)(M+\\boldsymbol{a})=k_{J}^{-1}\\left( & A\\left(k_{J}(M)\\right)^{t} A\\right)+p \\boldsymbol{a} k^{-1}\\left(\\tau^{t} A\\right), \\\\ & M+\\boldsymbol{a} \\in\\left(\\mathfrak{J}_{\\boldsymbol{H}}\\right)^{C} \\oplus\\left(\\boldsymbol{H}^{3}\\right)^{C}=\\mathfrak{J}^{C} . \\end{aligned}"
+ },
+ {
+  "id": "0902.0431_EQ0704",
+  "pairs_repaired": 1,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\begin{aligned} 2(\\psi(X \\times X) & \\left.+\\frac{1}{3}(2 \\nu+\\mu)(X \\times X)\\right) \\times(X \\times X) \\\\ & =(\\operatorname{det} X)\\left(\\nu X+\\phi X+\\frac{1}{3}(\\nu+2 \\mu) X\\right) \\end{aligned}",
+  "after": "\\begin{aligned} 2\\left(\\psi(X \\times X) & +\\frac{1}{3}(2 \\nu+\\mu)(X \\times X)\\right) \\times(X \\times X) \\\\ & =(\\operatorname{det} X)\\left(\\nu X+\\phi X+\\frac{1}{3}(\\nu+2 \\mu) X\\right) \\end{aligned}"
+ },
+ {
+  "id": "0902.0431_EQ0946",
+  "pairs_repaired": 1,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\begin{aligned} \\psi(A, & \\epsilon) \\psi(B, 1) P=\\psi(A, \\epsilon)\\left(f^{-1}(B(f P))\\right) \\\\ & \\left.=f^{-1}\\left(A f \\overline{\\left(f^{-1}(B(f P)\\right.}\\right)\\right)=f^{-1}\\left(A f\\left(f^{-1}\\left(\\overline{\\left.\\left(\\mathrm{Ad} J_{3}\\right) B\\right)}(f \\bar{P})\\right)\\right)\\right. \\\\ & =f^{-1}((A(\\epsilon B))(f \\bar{P}))=\\psi(A(\\epsilon B), \\epsilon) P \\end{aligned}",
+  "after": "\\begin{aligned} \\psi(A, & \\epsilon) \\psi(B, 1) P=\\psi(A, \\epsilon)\\left(f^{-1}(B(f P))\\right) \\\\ & =f^{-1}\\left(A f \\overline{\\left(f^{-1}\\left(B(f P)\\right.}\\right)\\right)=f^{-1}\\left(A f\\left(f^{-1}\\left(\\overline{\\left.\\left(\\mathrm{Ad} J_{3}\\right) B\\right)}(f \\bar{P})\\right)\\right)\\right. \\\\ & =f^{-1}((A(\\epsilon B))(f \\bar{P}))=\\psi(A(\\epsilon B), \\epsilon) P \\end{aligned}"
+ },
+ {
+  "id": "0902.0431_EQ1091",
+  "pairs_repaired": 1,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\begin{aligned} \\zeta[l & \\left.\\left(D_{1}\\right), l\\left(D_{2}\\right)\\right]=\\zeta l\\left[D_{1}, D_{2}\\right] \\\\ & =\\Theta\\left(\\varphi_{*}\\left[D_{1}, D_{2}\\right], 0,0,0,0,0\\right)=\\Theta\\left(\\left[\\varphi_{*} D_{1}, \\varphi_{*} D_{2}\\right], 0,0,0,0,0\\right) \\\\ & =\\left[\\Theta\\left(\\varphi_{*} D_{1}, 0,0,0,0,0\\right), \\Theta\\left(\\varphi_{*} D_{2}, 0,0,0,0,0\\right)\\right] \\\\ & =\\left[\\zeta l\\left(D_{1}\\right), \\zeta l\\left(D_{2}\\right)\\right] . \\end{aligned}",
+  "after": "\\begin{aligned} \\zeta\\left[l & \\left(D_{1}\\right), l\\left(D_{2}\\right)\\right]=\\zeta l\\left[D_{1}, D_{2}\\right] \\\\ & =\\Theta\\left(\\varphi_{*}\\left[D_{1}, D_{2}\\right], 0,0,0,0,0\\right)=\\Theta\\left(\\left[\\varphi_{*} D_{1}, \\varphi_{*} D_{2}\\right], 0,0,0,0,0\\right) \\\\ & =\\left[\\Theta\\left(\\varphi_{*} D_{1}, 0,0,0,0,0\\right), \\Theta\\left(\\varphi_{*} D_{2}, 0,0,0,0,0\\right)\\right] \\\\ & =\\left[\\zeta l\\left(D_{1}\\right), \\zeta l\\left(D_{2}\\right)\\right] . \\end{aligned}"
+ },
+ {
+  "id": "0902.0431_EQ1095",
+  "pairs_repaired": 1,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\begin{aligned} \\zeta[l & \\left.\\left(S_{1}\\right) I, l\\left(S_{2}\\right) I\\right]=\\zeta l\\left(S_{1} \\tau S_{2}-S_{2} \\tau S_{1}\\right) \\\\ = & \\zeta\\left(l\\left(S_{1} \\tau S_{2}-S_{2} \\tau S_{1}-\\frac{1}{8} \\operatorname{tr}\\left(S_{1} \\tau S_{2}-S_{2} \\tau S_{1}\\right) E\\right)\\right. \\\\ & \\left.\\quad+l\\left(\\frac{1}{8} \\operatorname{tr}\\left(S_{1} \\tau S_{2}-S_{2} \\tau S_{1}\\right) E\\right)\\right) \\\\ = & \\Theta\\left(\\varphi_{*}\\left(S_{1} \\tau S_{2}-S_{2} \\tau S_{1}-\\frac{1}{8} \\operatorname{tr}\\left(S_{1} \\tau S_{2}-S_{2} \\tau S_{1}\\right) E\\right), 0,0,0\\right. \\\\ & \\left.\\quad-\\frac{i}{4} \\operatorname{tr}\\left(S_{1} \\tau S_{2}-S_{2} \\tau S_{1}\\right), \\frac{i}{4} \\operatorname{tr}\\left(S_{1} \\tau S_{2}-S_{2} \\tau S_{1}\\right)\\right) \\\\ = & \\Theta\\left(4\\left(\\lambda \\gamma \\chi^{-1} S_{1} \\times \\chi^{-1} S_{2}-\\lambda \\gamma \\chi^{-1} S_{2} \\times \\chi^{-1} S_{1}\\right), 0,0,0\\right. \\\\ & \\left.\\quad\\left\\{\\chi^{-1} S_{1}, \\chi^{-1} S_{2}\\right\\}-\\left\\{\\chi^{-1} S_{1}, \\chi^{-1} S_{2}\\right\\}\\right)(\\text { Lemma 5.8.3). } \\end{aligned}",
+  "after": "\\begin{aligned} \\zeta\\left[l & \\left(S_{1}\\right) I, l\\left(S_{2}\\right) I\\right]=\\zeta l\\left(S_{1} \\tau S_{2}-S_{2} \\tau S_{1}\\right) \\\\ = & \\zeta\\left(l\\left(S_{1} \\tau S_{2}-S_{2} \\tau S_{1}-\\frac{1}{8} \\operatorname{tr}\\left(S_{1} \\tau S_{2}-S_{2} \\tau S_{1}\\right) E\\right)\\right. \\\\ & \\left.\\quad+l\\left(\\frac{1}{8} \\operatorname{tr}\\left(S_{1} \\tau S_{2}-S_{2} \\tau S_{1}\\right) E\\right)\\right) \\\\ = & \\Theta\\left(\\varphi_{*}\\left(S_{1} \\tau S_{2}-S_{2} \\tau S_{1}-\\frac{1}{8} \\operatorname{tr}\\left(S_{1} \\tau S_{2}-S_{2} \\tau S_{1}\\right) E\\right), 0,0,0\\right. \\\\ & \\left.\\quad-\\frac{i}{4} \\operatorname{tr}\\left(S_{1} \\tau S_{2}-S_{2} \\tau S_{1}\\right), \\frac{i}{4} \\operatorname{tr}\\left(S_{1} \\tau S_{2}-S_{2} \\tau S_{1}\\right)\\right) \\\\ = & \\Theta\\left(4\\left(\\lambda \\gamma \\chi^{-1} S_{1} \\times \\chi^{-1} S_{2}-\\lambda \\gamma \\chi^{-1} S_{2} \\times \\chi^{-1} S_{1}\\right), 0,0,0\\right. \\\\ & \\left.\\quad\\left\\{\\chi^{-1} S_{1}, \\chi^{-1} S_{2}\\right\\}-\\left\\{\\chi^{-1} S_{1}, \\chi^{-1} S_{2}\\right\\}\\right)(\\text { Lemma 5.8.3). } \\end{aligned}"
+ },
+ {
+  "id": "0902.0431_EQ1211",
+  "pairs_repaired": 1,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\begin{aligned} \\exp (\\operatorname{ad} & (Z, 0))(C, D, \\boldsymbol{x} \\otimes \\boldsymbol{a}, \\boldsymbol{b} \\otimes \\boldsymbol{y}, \\boldsymbol{c} \\otimes \\boldsymbol{z}, \\boldsymbol{w} \\otimes \\boldsymbol{d}) \\\\ = & (\\exp (\\operatorname{ad}(Z)) C, D,((\\exp Z) \\boldsymbol{x}) \\otimes \\boldsymbol{a}, \\\\ & ((\\exp Z) \\boldsymbol{b}) \\otimes \\boldsymbol{y},\\left(\\left(\\exp \\left(-{ }^{t} Z\\right)\\right) \\boldsymbol{c} \\otimes \\boldsymbol{z},\\left(\\left(\\exp \\left(-{ }^{t} Z\\right)\\right) \\boldsymbol{w}\\right) \\otimes \\boldsymbol{d}\\right) \\\\ = & (\\operatorname{Ad}(\\exp Z) C, D,((\\exp Z) \\boldsymbol{x}) \\otimes \\boldsymbol{a}, \\\\ & \\left.((\\exp Z) \\boldsymbol{b}) \\otimes \\boldsymbol{y},\\left({ }^{t}(\\exp Z)^{-1} \\boldsymbol{c}\\right) \\otimes \\boldsymbol{z},\\left({ }^{t}(\\exp Z)^{-1} \\boldsymbol{w}\\right) \\otimes \\boldsymbol{d}\\right) \\\\ = & \\varphi_{1}(\\exp Z)(C, D, \\boldsymbol{x} \\otimes \\boldsymbol{a}, \\boldsymbol{b} \\otimes \\boldsymbol{y}, \\boldsymbol{c} \\otimes \\boldsymbol{z}, \\boldsymbol{w} \\otimes \\boldsymbol{d}) . \\end{aligned}",
+  "after": "\\begin{aligned} \\exp (\\operatorname{ad} & (Z, 0))(C, D, \\boldsymbol{x} \\otimes \\boldsymbol{a}, \\boldsymbol{b} \\otimes \\boldsymbol{y}, \\boldsymbol{c} \\otimes \\boldsymbol{z}, \\boldsymbol{w} \\otimes \\boldsymbol{d}) \\\\ = & (\\exp (\\operatorname{ad}(Z)) C, D,((\\exp Z) \\boldsymbol{x}) \\otimes \\boldsymbol{a}, \\\\ & ((\\exp Z) \\boldsymbol{b}) \\otimes \\boldsymbol{y},\\left(\\left(\\exp \\left(-{ }^{t} Z\\right)\\right) \\boldsymbol{c} \\otimes \\boldsymbol{z},\\left(\\left(\\exp \\left(-{ }^{t} Z\\right)\\right) \\boldsymbol{w}\\right) \\otimes \\boldsymbol{d}\\right) \\\\ = & \\left(\\operatorname{Ad}(\\exp Z) C, D,((\\exp Z) \\boldsymbol{x}) \\otimes \\boldsymbol{a}, \\\\ & ((\\exp Z) \\boldsymbol{b}) \\otimes \\boldsymbol{y},\\left({ }^{t}(\\exp Z)^{-1} \\boldsymbol{c}\\right) \\otimes \\boldsymbol{z},\\left({ }^{t}(\\exp Z)^{-1} \\boldsymbol{w}\\right) \\otimes \\boldsymbol{d}\\right) \\\\ = & \\varphi_{1}(\\exp Z)(C, D, \\boldsymbol{x} \\otimes \\boldsymbol{a}, \\boldsymbol{b} \\otimes \\boldsymbol{y}, \\boldsymbol{c} \\otimes \\boldsymbol{z}, \\boldsymbol{w} \\otimes \\boldsymbol{d}) . \\end{aligned}"
+ },
+ {
+  "id": "cardona-qft-methods_FO0284",
+  "pairs_repaired": 1,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\left.S^{\\mathbb{C}} \\mathbb{Z}^{( } \\mathbb{R}^{d}\\right)",
+  "after": "S^{\\mathbb{C}} \\mathbb{Z}^{\\left( } \\mathbb{R}^{d}\\right)"
+ },
+ {
+  "id": "cardona-qft-methods_EQ0066",
+  "pairs_repaired": 1,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\begin{aligned} & a_{0}(f, P)=(4 \\pi)^{-d / 2} \\int_{M} d v o l_{g} \\operatorname{tr}_{V}(f), \\\\ & a_{2}(f, P)=\\frac{(4 \\pi)^{-d / 2}}{6} \\int_{M} d v o l_{g} \\operatorname{tr}_{V}[(f(6 E+s)], \\\\ & \\begin{aligned} a_{4}(f, P)=\\frac{(4 \\pi)^{-d / 2}}{360} \\int_{M} d v o l_{g} \\operatorname{tr}_{V}\\left[f \\left(60 E_{; k k}+60 E s+180 E^{2}+12 R_{; k k}\\right.\\right. \\\\ \\left.\\left.+5 s^{2}-2 R_{i j} R_{i j}+2 R_{i j k l} R_{i j k l}+30 \\Omega_{i j} \\Omega_{i j}\\right)\\right] \\end{aligned} \\end{aligned}",
+  "after": "\\begin{aligned} & a_{0}(f, P)=(4 \\pi)^{-d / 2} \\int_{M} d v o l_{g} \\operatorname{tr}_{V}(f), \\\\ & a_{2}(f, P)=\\frac{(4 \\pi)^{-d / 2}}{6} \\int_{M} d v o l_{g} \\operatorname{tr}_{V}[\\left(f(6 E+s)], \\\\ & \\begin{aligned} a_{4}(f, P)=\\frac{(4 \\pi)^{-d / 2}}{360} \\int_{M} d v o l_{g} \\operatorname{tr}_{V}\\left[f \\left(60 E_{; k k}+60 E s+180 E^{2}+12 R_{; k k}\\right.\\right. \\\\ \\left.+5 s^{2}-2 R_{i j} R_{i j}+2 R_{i j k l} R_{i j k l}+30 \\Omega_{i j} \\Omega_{i j}\\right)\\right] \\end{aligned} \\end{aligned}"
+ },
+ {
+  "id": "gilmore-lie-groups_EQ0788",
+  "pairs_repaired": 1,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\begin{aligned} M_{+}^{\\prime} Y_{m}^{l}= & \\langle\\theta \\phi|\\left(\\left|\\begin{array}{cc} j / 2 & j / 2 \\\\ m_{a}+1 & m_{b} \\end{array}\\right\\rangle\\left\\langle\\left.\\begin{array}{cc} j / 2 & j / 2 \\\\ m_{a} & m_{b} \\end{array} \\right\\rvert\\, m\\right\\rangle \\times \\sqrt{\\left(j / 2-m_{a}\\right)\\left(j / 2+m_{a}+1\\right)}\\right. \\\\ & \\left.-\\left|\\begin{array}{cc} j / 2 & j / 2 \\\\ m_{a} & m_{b}+1 \\end{array}\\right\\rangle\\left\\langle\\left.\\begin{array}{cc} j / 2 & j / 2 \\\\ m_{a} & m_{b} \\end{array} \\right\\rvert\\, m\\right\\rangle \\times \\sqrt{\\left(j / 2-m_{b}\\right)\\left(j / 2+m_{b}+1\\right)}\\right) \\end{aligned}",
+  "after": "\\begin{aligned} M_{+}^{\\prime} Y_{m}^{l}= & \\left\\langle\\theta \\phi|\\left(\\left|\\begin{array}{cc} j / 2 & j / 2 \\\\ m_{a}+1 & m_{b} \\end{array}\\right\\rangle\\left\\langle\\begin{array}{cc} j / 2 & j / 2 \\\\ m_{a} & m_{b} \\end{array} \\right\\rvert\\, m\\right\\rangle \\times \\sqrt{\\left(j / 2-m_{a}\\right)\\left(j / 2+m_{a}+1\\right)}\\right. \\\\ & \\left.-\\left|\\begin{array}{cc} j / 2 & j / 2 \\\\ m_{a} & m_{b}+1 \\end{array}\\right\\rangle\\left\\langle\\left.\\begin{array}{cc} j / 2 & j / 2 \\\\ m_{a} & m_{b} \\end{array} \\right\\rvert\\, m\\right\\rangle \\times \\sqrt{\\left(j / 2-m_{b}\\right)\\left(j / 2+m_{b}+1\\right)}\\right) \\end{aligned}"
+ },
+ {
+  "id": "johnston-linear-matrix-algebra_FO1528",
+  "pairs_repaired": 1,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\left.\\begin{array}{r}{[11} \\\\ 22 \\\\ \\text { (d) }\\end{array}\\right]",
+  "after": "\\begin{array}{r}{\\left[11} \\\\ 22 \\\\ \\text { (d) }\\end{array}\\right]"
+ },
+ {
+  "id": "johnston-linear-matrix-algebra_EQ0909",
+  "pairs_repaired": 2,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "A^{k}=\\underbrace{(P D \\overbrace{\\left.P^{-1}\\right)(P}^{P^{-1} P=I} \\overbrace{\\left.P^{-1}\\right)(P}^{P^{-1} P=I} P^{-1}) \\cdots\\left(P D P^{-1}\\right)}_{k \\text { times }}=P D^{k} P^{-1} .",
+  "after": "A^{k}=\\underbrace{\\left(P D \\overbrace{P^{-1}\\right)\\left(P}^{P^{-1} P=I} \\overbrace{P^{-1}\\right)(P}^{P^{-1} P=I} P^{-1}) \\cdots\\left(P D P^{-1}\\right)}_{k \\text { times }}=P D^{k} P^{-1} ."
+ },
+ {
+  "id": "johnston-linear-matrix-algebra_EQ0936",
+  "pairs_repaired": 2,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "A^{k}=\\underbrace{(P D \\overbrace{\\left.P^{-1}\\right)(P}^{P^{-1} P=I} \\overbrace{\\left.P^{-1}\\right)(P}^{P^{-1} P=I} P^{-1}) \\cdots\\left(P D P^{-1}\\right)}_{k \\text { times }}=P D^{k} P^{-1} \\quad \\text { for all } k \\geq 0,",
+  "after": "A^{k}=\\underbrace{\\left(P D \\overbrace{P^{-1}\\right)\\left(P}^{P^{-1} P=I} \\overbrace{P^{-1}\\right)(P}^{P^{-1} P=I} P^{-1}) \\cdots\\left(P D P^{-1}\\right)}_{k \\text { times }}=P D^{k} P^{-1} \\quad \\text { for all } k \\geq 0,"
+ },
+ {
+  "id": "mielke-geometrodynamics_FO0901",
+  "pairs_repaired": 1,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\left.\\exp (\\zeta\\rfloor\\right)(\\widetilde{\\Theta} \\oplus \\phi)",
+  "after": "\\exp \\left(\\zeta\\rfloor\\right)(\\widetilde{\\Theta} \\oplus \\phi)"
+ },
+ {
+  "id": "mielke-geometrodynamics_FO1309",
+  "pairs_repaired": 1,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\left.\\left.T:=\\frac{1}{4} \\operatorname{Tr}(\\check{\\gamma}\\rfloor \\Theta\\right)=e_{\\alpha}\\right\\lrcorner T^{\\alpha}",
+  "after": "\\left.T:=\\frac{1}{4} \\operatorname{Tr}\\left(\\check{\\gamma}\\rfloor \\Theta\\right)=e_{\\alpha}\\right\\lrcorner T^{\\alpha}"
+ },
+ {
+  "id": "mielke-geometrodynamics_EQ0067",
+  "pairs_repaired": 1,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\begin{aligned} & \\operatorname{Tr}\\left\\{d\\left(\\omega \\wedge d \\omega-\\frac{2}{3} \\omega \\wedge \\omega \\wedge \\omega\\right)\\right\\}=\\operatorname{Tr}\\{d \\omega \\wedge d \\omega-\\omega \\wedge d d \\omega \\\\ & \\left.-\\frac{2}{3} d \\omega \\wedge \\omega \\wedge \\omega+\\frac{2}{3} \\omega \\wedge d \\omega \\wedge \\omega-\\frac{2}{3} \\omega \\wedge \\omega \\wedge d \\omega\\right\\} \\\\ & =\\operatorname{Tr}\\{d \\omega \\wedge d \\omega-d \\omega \\wedge \\omega \\wedge \\omega-\\omega \\wedge \\omega \\wedge d \\omega\\} \\\\ & =\\operatorname{Tr}\\{(d \\omega-\\omega \\wedge \\omega) \\wedge(d \\omega-\\omega \\wedge \\omega)\\}=\\operatorname{Tr}(\\Omega \\wedge \\Omega) \\end{aligned}",
+  "after": "\\begin{aligned} & \\operatorname{Tr}\\left\\{d\\left(\\omega \\wedge d \\omega-\\frac{2}{3} \\omega \\wedge \\omega \\wedge \\omega\\right)\\right\\}=\\operatorname{Tr}\\left\\{d \\omega \\wedge d \\omega-\\omega \\wedge d d \\omega \\\\ & -\\frac{2}{3} d \\omega \\wedge \\omega \\wedge \\omega+\\frac{2}{3} \\omega \\wedge d \\omega \\wedge \\omega-\\frac{2}{3} \\omega \\wedge \\omega \\wedge d \\omega\\right\\} \\\\ & =\\operatorname{Tr}\\{d \\omega \\wedge d \\omega-d \\omega \\wedge \\omega \\wedge \\omega-\\omega \\wedge \\omega \\wedge d \\omega\\} \\\\ & =\\operatorname{Tr}\\{(d \\omega-\\omega \\wedge \\omega) \\wedge(d \\omega-\\omega \\wedge \\omega)\\}=\\operatorname{Tr}(\\Omega \\wedge \\Omega) \\end{aligned}"
+ },
+ {
+  "id": "mielke-geometrodynamics_EQ0292",
+  "pairs_repaired": 5,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\begin{aligned} \u00a3_{\\xi} L & =\\left(\u00a3_{\\xi} g_{\\alpha \\beta}\\right) \\wedge \\frac{\\partial L}{\\partial g_{\\alpha \\beta}}+\\left(\u00a3_{\\xi} \\vartheta^{\\alpha}\\right) \\wedge \\frac{\\partial L}{\\partial \\vartheta^{\\alpha}} \\\\ & +\\left(\u00a3_{\\xi} \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial \\Psi}+\\left(\u00a3_{\\xi} D \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi} \\\\ & \\left.\\left.\\left.=D\\left[(\\xi\\rfloor \\vartheta^{\\alpha}\\right) \\wedge \\frac{\\partial L}{\\partial \\vartheta^{\\alpha}}+(\\xi\\rfloor \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial \\Psi}+(\\xi\\rfloor D \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}\\right] \\\\ & \\left.\\left.-\\left(\\xi \\rfloor \\vartheta^{\\alpha}\\right) D \\frac{\\partial L}{\\partial \\vartheta^{\\alpha}}+(\\xi\\rfloor T^{\\alpha}\\right) \\wedge \\frac{\\partial L}{\\partial \\vartheta^{\\alpha}}+(\\xi\\rfloor R_{\\beta}^{\\gamma}\\right) \\wedge I^{\\beta}{ }_{\\gamma} \\Psi \\wedge \\frac{\\partial L}{\\partial D \\Psi} \\\\ & \\left.+(\\xi\\rfloor D \\Psi) \\wedge \\frac{\\delta L}{\\delta \\Psi}+(-1)^{p}(\\xi\\rfloor \\Psi\\right) \\wedge D \\frac{\\delta L}{\\delta \\Psi} \\end{aligned}",
+  "after": "\\begin{aligned} \u00a3_{\\xi} L & =\\left(\u00a3_{\\xi} g_{\\alpha \\beta}\\right) \\wedge \\frac{\\partial L}{\\partial g_{\\alpha \\beta}}+\\left(\u00a3_{\\xi} \\vartheta^{\\alpha}\\right) \\wedge \\frac{\\partial L}{\\partial \\vartheta^{\\alpha}} \\\\ & +\\left(\u00a3_{\\xi} \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial \\Psi}+\\left(\u00a3_{\\xi} D \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi} \\\\ & \\left.=D\\left[(\\xi\\rfloor \\vartheta^{\\alpha}\\right) \\wedge \\frac{\\partial L}{\\partial \\vartheta^{\\alpha}}+\\left(\\xi\\rfloor \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial \\Psi}+\\left(\\xi\\rfloor D \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}\\right] \\\\ & -\\left(\\xi \\rfloor \\vartheta^{\\alpha}\\right) D \\frac{\\partial L}{\\partial \\vartheta^{\\alpha}}+\\left(\\xi\\rfloor T^{\\alpha}\\right) \\wedge \\frac{\\partial L}{\\partial \\vartheta^{\\alpha}}+\\left(\\xi\\rfloor R_{\\beta}^{\\gamma}\\right) \\wedge I^{\\beta}{ }_{\\gamma} \\Psi \\wedge \\frac{\\partial L}{\\partial D \\Psi} \\\\ & +(\\xi\\rfloor D \\Psi) \\wedge \\frac{\\delta L}{\\delta \\Psi}+(-1)^{p}\\left(\\xi\\rfloor \\Psi\\right) \\wedge D \\frac{\\delta L}{\\delta \\Psi} \\end{aligned}"
+ },
+ {
+  "id": "mielke-geometrodynamics_EQ0311",
+  "pairs_repaired": 1,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\begin{aligned} \\widetilde{\\leftarrow}_{\\widetilde{y}} \\widetilde{\\widetilde{D}} \\widetilde{\\xi}^{\\alpha} & \\left.=\\widetilde{y}\\rfloor\\left(\\widetilde{\\widetilde{D}} \\widetilde{\\widetilde{D}} \\widetilde{\\xi}^{\\alpha}\\right)+\\widetilde{\\widetilde{D}}(\\widetilde{\\widetilde{y}}\\rfloor \\widetilde{\\widetilde{D}} \\widetilde{\\xi}^{\\alpha}\\right) \\\\ & =y\\rfloor\\left(D D \\xi^{\\alpha}+R^{(T) \\alpha}\\right)=0, \\end{aligned}",
+  "after": "\\begin{aligned} \\widetilde{\\leftarrow}_{\\widetilde{y}} \\widetilde{\\widetilde{D}} \\widetilde{\\xi}^{\\alpha} & =\\widetilde{y}\\rfloor\\left(\\widetilde{\\widetilde{D}} \\widetilde{\\widetilde{D}} \\widetilde{\\xi}^{\\alpha}\\right)+\\widetilde{\\widetilde{D}}\\left(\\widetilde{\\widetilde{y}}\\rfloor \\widetilde{\\widetilde{D}} \\widetilde{\\xi}^{\\alpha}\\right) \\\\ & =y\\rfloor\\left(D D \\xi^{\\alpha}+R^{(T) \\alpha}\\right)=0, \\end{aligned}"
+ },
+ {
+  "id": "mielke-geometrodynamics_EQ0392",
+  "pairs_repaired": 2,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\left.\\left.n^{\\alpha} \\Sigma_{\\alpha}=n \\rfloor L-(n\\rfloor D \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}-(n\\rfloor \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial \\Psi} .",
+  "after": "n^{\\alpha} \\Sigma_{\\alpha}=n \\rfloor L-\\left(n\\rfloor D \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}-\\left(n\\rfloor \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial \\Psi} ."
+ },
+ {
+  "id": "mielke-geometrodynamics_EQ0393",
+  "pairs_repaired": 3,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\begin{aligned} n^{\\alpha} \\Sigma_{\\alpha} & \\left.\\left.=n \\rfloor L-\\left(\\mathrm{t}_{n} \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}-(n\\rfloor \\Psi\\right) \\wedge \\frac{\\delta L}{\\delta \\Psi}+D[(n\\rfloor \\Psi) \\wedge \\frac{\\partial L}{\\partial D \\Psi}\\right] \\\\ & \\left.\\cong n\\rfloor L-\\left(\\ell_{n} \\Psi+\\Gamma_{\\perp}^{\\alpha \\beta} \\rho\\left(I_{\\alpha \\beta}\\right) \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}+D[(n\\rfloor \\Psi) \\wedge \\frac{\\partial L}{\\partial D \\Psi}\\right] . \\end{aligned}",
+  "after": "\\begin{aligned} n^{\\alpha} \\Sigma_{\\alpha} & =n \\rfloor L-\\left(\\mathrm{t}_{n} \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}-\\left(n\\rfloor \\Psi\\right) \\wedge \\frac{\\delta L}{\\delta \\Psi}+D\\left[(n\\rfloor \\Psi) \\wedge \\frac{\\partial L}{\\partial D \\Psi}\\right] \\\\ & \\cong n\\rfloor L-\\left(\\ell_{n} \\Psi+\\Gamma_{\\perp}^{\\alpha \\beta} \\rho\\left(I_{\\alpha \\beta}\\right) \\Psi\\right) \\wedge \\frac{\\partial L}{\\partial D \\Psi}+D\\left[(n\\rfloor \\Psi) \\wedge \\frac{\\partial L}{\\partial D \\Psi}\\right] . \\end{aligned}"
+ },
+ {
+  "id": "mielke-geometrodynamics_EQ0394",
+  "pairs_repaired": 1,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\left.\\mathscr{H} \\cong n^{\\alpha} \\underline{\\Sigma}_{\\alpha}+\\Gamma_{\\perp}^{\\alpha \\beta} \\rho\\left(I_{\\alpha \\beta}\\right) \\underline{\\Psi} \\wedge \\frac{\\partial L}{\\partial D \\Psi}-\\underline{d}[(n\\rfloor \\Psi) \\wedge \\frac{\\partial L}{\\partial D \\Psi}\\right] .",
+  "after": "\\mathscr{H} \\cong n^{\\alpha} \\underline{\\Sigma}_{\\alpha}+\\Gamma_{\\perp}^{\\alpha \\beta} \\rho\\left(I_{\\alpha \\beta}\\right) \\underline{\\Psi} \\wedge \\frac{\\partial L}{\\partial D \\Psi}-\\underline{d}\\left[(n\\rfloor \\Psi) \\wedge \\frac{\\partial L}{\\partial D \\Psi}\\right] ."
+ },
+ {
+  "id": "mielke-geometrodynamics_EQ0396",
+  "pairs_repaired": 1,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\begin{aligned} \\mathscr{H} \\cong & n^{\\alpha} \\frac{\\delta L}{\\frac{\\delta \\vartheta^{\\alpha}}{}}+\\Gamma_{\\perp}^{\\alpha \\beta} \\frac{\\delta L}{\\frac{\\delta \\Gamma^{\\alpha \\beta}}{\\partial L}} \\\\ & \\left.-\\underline{d}[(n\\rfloor \\Psi) \\wedge \\frac{\\partial L}{\\partial D \\Psi}+n^{\\alpha} \\frac{\\partial L}{\\partial T^{\\alpha}}+\\Gamma_{\\perp}^{\\alpha \\beta} \\frac{\\partial L}{\\partial R^{\\alpha \\beta}}\\right] . \\end{aligned}",
+  "after": "\\begin{aligned} \\mathscr{H} \\cong & n^{\\alpha} \\frac{\\delta L}{\\frac{\\delta \\vartheta^{\\alpha}}{}}+\\Gamma_{\\perp}^{\\alpha \\beta} \\frac{\\delta L}{\\frac{\\delta \\Gamma^{\\alpha \\beta}}{\\partial L}} \\\\ & -\\underline{d}\\left[(n\\rfloor \\Psi) \\wedge \\frac{\\partial L}{\\partial D \\Psi}+n^{\\alpha} \\frac{\\partial L}{\\partial T^{\\alpha}}+\\Gamma_{\\perp}^{\\alpha \\beta} \\frac{\\partial L}{\\partial R^{\\alpha \\beta}}\\right] . \\end{aligned}"
+ },
+ {
+  "id": "mielke-geometrodynamics_EQ0515",
+  "pairs_repaired": 1,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\left.\\left.T:=\\frac{1}{4} \\operatorname{Tr}(\\check{\\gamma}\\rfloor \\Theta\\right)=e_{\\alpha}\\right\\rfloor T^{\\alpha}, \\quad \\mathscr{A}:=\\frac{1}{4}{ }^{*} \\operatorname{Tr}(\\gamma \\wedge \\Theta)={ }^{*}\\left(\\vartheta_{\\alpha} \\wedge T^{\\alpha}\\right) .",
+  "after": "\\left.T:=\\frac{1}{4} \\operatorname{Tr}\\left(\\check{\\gamma}\\rfloor \\Theta\\right)=e_{\\alpha}\\right\\rfloor T^{\\alpha}, \\quad \\mathscr{A}:=\\frac{1}{4}{ }^{*} \\operatorname{Tr}(\\gamma \\wedge \\Theta)={ }^{*}\\left(\\vartheta_{\\alpha} \\wedge T^{\\alpha}\\right) ."
+ },
+ {
+  "id": "mielke-geometrodynamics_EQ0605",
+  "pairs_repaired": 1,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\left.\\chi(M):=\\sum_{p=0}^{n}(-1)^{p} b_{p}=\\int_{M}{ }^{*} \\pi^{( } \\gamma_{2}^{g}\\right)",
+  "after": "\\chi(M):=\\sum_{p=0}^{n}(-1)^{p} b_{p}=\\int_{M}{ }^{*} \\pi^{\\left( } \\gamma_{2}^{g}\\right)"
+ },
+ {
+  "id": "mielke-geometrodynamics_EQ0824",
+  "pairs_repaired": 1,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\left.\\left.r_{s} \\equiv\\langle | \\vec{x}\\right|^{2}\\right\\rangle_{\\psi}^{1 / 2}:=\\left(\\frac{\\int_{H^{3}}|\\vec{x}|^{2} \\bar{\\psi}^{*} \\gamma \\psi}{\\int_{H^{3}} \\bar{\\psi}^{*} \\gamma \\psi}\\right)^{1 / 2} .",
+  "after": "\\left.r_{s} \\equiv\\left\\langle | \\vec{x}\\right|^{2}\\right\\rangle_{\\psi}^{1 / 2}:=\\left(\\frac{\\int_{H^{3}}|\\vec{x}|^{2} \\bar{\\psi}^{*} \\gamma \\psi}{\\int_{H^{3}} \\bar{\\psi}^{*} \\gamma \\psi}\\right)^{1 / 2} ."
+ },
+ {
+  "id": "mielke-geometrodynamics_EQ0954",
+  "pairs_repaired": 3,
+  "renders_before": true,
+  "renders_after": true,
+  "still": [],
+  "before": "\\begin{aligned} & \\left.(-1)^{z} \\operatorname{Tr}_{\\{ }{ }^{*} \\xi \\wedge \\vartheta \\wedge \\xi-\\xi \\wedge \\vartheta \\wedge{ }^{*} \\xi\\right\\} \\wedge d \\delta \\\\ & \\left.=\\operatorname{Tr}_{\\{ }{ }^{*} \\xi \\wedge \\vartheta \\wedge D^{*} \\xi+\\xi \\wedge \\vartheta \\wedge D \\xi\\right\\} \\\\ & \\left.=-\\frac{1}{2} D \\operatorname{Tr}_{\\{ }{ }^{*} \\xi \\wedge \\vartheta \\wedge{ }^{*} \\xi-\\xi \\wedge \\vartheta \\wedge \\xi\\right\\} . \\end{aligned}",
+  "after": "\\begin{aligned} & (-1)^{z} \\operatorname{Tr}_{\\left\\{ }{ }^{*} \\xi \\wedge \\vartheta \\wedge \\xi-\\xi \\wedge \\vartheta \\wedge{ }^{*} \\xi\\right\\} \\wedge d \\delta \\\\ & =\\operatorname{Tr}_{\\left\\{ }{ }^{*} \\xi \\wedge \\vartheta \\wedge D^{*} \\xi+\\xi \\wedge \\vartheta \\wedge D \\xi\\right\\} \\\\ & =-\\frac{1}{2} D \\operatorname{Tr}_{\\left\\{ }{ }^{*} \\xi \\wedge \\vartheta \\wedge{ }^{*} \\xi-\\xi \\wedge \\vartheta \\wedge \\xi\\right\\} . \\end{aligned}"
+ }
+]

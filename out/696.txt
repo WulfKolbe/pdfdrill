@@ -1,0 +1,51 @@
+696 — brackets counted per TYPE: the unbalanced `D[ … \right]` and 24 more like it
+
+THE ROW THE USER FOUND
+  mielke-geometrodynamics_EQ0393 (p132), MathPix's own reading:
+    \left.\left.=n \rfloor L … -(n\rfloor \Psi\right) … +D[(n\rfloor \Psi) \wedge \frac{…}{…}\right]
+  TeX pairs \left with \right REGARDLESS OF TYPE, so three `\left.` absorb
+  `\right)`, `\right]`, `\right]`, the plain `[` and `(` stay unmatched, and it
+  compiles. The page prints D\left[ … \right].
+
+WHY NOTHING CAUGHT IT
+  report_tex._lr_balanced (618) is a depth walk over \left/\right — one
+  counter for every kind of delimiter. The brace check counts {} only. No check
+  asks whether a `]` closes a `[`.
+
+THE CHECK, PROTOTYPED (out/696-brackets_proto.py)
+  Separate counters per type — paren, brack, brace, angle, ceil, floor,
+  vert/Vert — and plain vs sized (\left/\right/\bigl/…) kept apart; `\left.` and
+  `\right.` typeless; \text{…} skipped. Self-tests:
+    \left.+D[(…)\right]          -> repairable_left_null (brack)
+    +D\left[(…)\right]           -> clean
+    \left.\frac{df}{dx}\right|_0 -> clean (evaluation bar is legitimate)
+    x \in [0,1)                  -> plain_imbalance only (an interval)
+
+  Over the 20 published documents (latex_refined or latex), rows per category:
+    repairable_left_null     25   PRECISE — every one inspected below
+    extra_right              16   a \right with no \left at all
+    sized_type_mismatch     124   mostly legitimate: \left[a,b\right), bra-kets
+    repairable_right_null?  284   mostly legitimate: \left\{ … \right. (cases)
+    plain_imbalance         816   intervals, inline fragments — not an error signal
+  \rfloor is counted as `floor` but in mielke it is the interior-product hook,
+  so floor imbalance there is expected.
+
+THE REPAIR (dry run, out/696-bracket-repairs.json): delete the `\left.` that TeX
+pairs with a typed `\right X`, promote the nearest unmatched plain X-opener to
+`\left X`.
+  25 of 25 render after (display_safe), 25 of 25 clean on the walk.
+  mielke 13: EQ0067 EQ0292 EQ0311 EQ0392 EQ0393 EQ0394 EQ0396 EQ0515 EQ0605
+             EQ0824 EQ0954 FO0901 FO1309
+  0902.0431 6, johnston 3, cardona 2, gilmore 1
+  EQ0393 after: … -\left(n\rfloor \Psi\right) … +D\left[(n\rfloor \Psi) \wedge
+                \frac{\partial L}{\partial D \Psi}\right]   — the user's reading.
+  EQ0515 / FO1309 (inkdrill's two hand-edit rows): after this repair one
+  `\left.` is left against one hook, so inkdrill's hook rule then applies.
+
+NOT DONE
+  Nothing recorded, no model written, no gate changed.
+  Proposed: (1) record the 25 via refine.record_one behind the census gate, as
+  hooks_692 did; (2) the per-type walk replaces _lr_balanced's single counter
+  in the report gate — refuse extra_right, flag repairable_left_null, report the
+  other three categories without refusing; (3) mielke + 4 more published
+  documents then need re-measure (+ marks for the FO rows) and republish.
