@@ -57,3 +57,21 @@ inkdrill's verdict (668): 12 eye-verified grids, 51 empty cells, now the only
 "62 rows without a page" was inkdrill's parser: every evidence row carries its
   page; 73 have ~\eqnum{} and/or \lowconf{} after \ident{}. Fixed on their side
   (3,745 of 8,718 equation-row pages had been lost corpus-wide).
+
+MARKS, AFTER inkdrill 671 (2026-09-15 12:24)
+--------------------------------------------
+The rewrite dropped the 21 formula rows' marks (a changed reading is not
+re-marked; 184 -> 179). inkdrill built `formulamarks update`: only changed rows,
+at the run's stored scale, hosted by MathPix's `latex` from tiddlers.json.
+1,746 unchanged rows identical field for field.
+  marks --build   1768 rows, 1768 measured, 189 marked, 189 drawn, reading_changed 0
+  report          evidence-formula.html / evidence-equation.html / formula-report.html
+  publishready    READY on all six gates (timestamp 09:47:50Z, coverage 68/10, crop 1056)
+Known wrong mark: FO0805's rectangle starts at the arrow and misses the leading
+  Γ_α^β (inkdrill, by eye; 9 of 10 new rectangles right). Drawn in
+  evidence-formula.pdf.
+Open elsewhere: 65 formula rows corpus-wide whose shown reading is neither
+  `latex` nor `latex_refined` (59 in fong-spivak: \mathbf shown where MathPix
+  wrote \boldsymbol) cannot be re-marked by `update` unless recorded as a
+  refinement.
+Still NOT PUBLISHED.
