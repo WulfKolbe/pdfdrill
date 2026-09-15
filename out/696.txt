@@ -70,3 +70,16 @@ NOT DONE (original plan, superseded above)
   in the report gate — refuse extra_right, flag repairable_left_null, report the
   other three categories without refusing; (3) mielke + 4 more published
   documents then need re-measure (+ marks for the FO rows) and republish.
+
+REBUILD AFTER THE WITHDRAWALS (2026-09-15, ~/pdfdrill-library/out/rebuild_696.py, lanes A/B)
+  evidence --all-kinds --pdf | residuals --measure --pdf | marks --build | report — 0 failed steps
+    mielke       measure 1004s   publishready READY (7 gates)  brackets 2942 shown readings
+    0902.0431    measure 1643s   READY                         brackets 4389
+    johnston     measure 2432s   READY                         brackets 6813
+    cardona      measure  825s   READY                         brackets 4767
+    gilmore      measure 1195s   READY                         brackets 4510
+  inkdrill marks: mielke and 0902.0431 identical after the rebuild (189 / 1,471);
+  johnston FO1528 and cardona FO0284 returned to MathPix's reading -> `formulamarks
+  update` pending, then marks --build + publishready again. gilmore: equation row
+  only, no update expected.
+  NOT PUBLISHED.
