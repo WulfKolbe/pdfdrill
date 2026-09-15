@@ -1,0 +1,124 @@
+691 — (A) the maximal preamble for MathPix LaTeX, (B) the figure frame in EQ values
+
+======================================================================
+(A) THE MAXIMAL PREAMBLE
+======================================================================
+Census rerun 2026-09-15 (tools/pkggap482.py, 1,350 documents, 781 distinct
+control sequences): 200 undefined under today's report preamble, 10,950
+occurrences (482 on 09-01: 213 / 11,624). Compiler: xelatex.
+
+WHAT IS IN USE AND MEASURED (report_tex.PREAMBLE, 484: 407 gained, 0 lost of
+600 controls)
+    \usepackage{amsmath}
+    \usepackage{amssymb}
+    \usepackage{bbm}            + \mathbb dispatch: digits -> \mathbbm (199)
+    \usepackage{bm}
+    \usepackage{mathtools}
+    \usepackage{extarrows}
+    \usepackage{cancel}
+    \usepackage{mathrsfs}
+    \usepackage{stmaryrd}
+    \providecommand{\Perp}{\mathrel{\perp\!\!\!\perp}}
+    \providecommand{\overparen}[1]{\overset{\frown}{#1}}
+    \providecommand{\oiint}{\oint\!\!\!\oint}
+    \providecommand{\longdiv}[1]{\overline{\smash{\raise.4ex\hbox{$)$}}\,#1}}
+    \usepackage{array}  \usepackage{longtable}  \usepackage{graphicx}
+    \IfFileExists{tikz.sty}{\usepackage{tikz}}{}
+    \IfFileExists{tikz-cd.sty}{\usepackage{tikz-cd}}{}
+    \IfFileExists{listings.sty}{\usepackage{listings}}{}
+    \usepackage[no-math]{fontspec}   (no-math: 665, \cos as bold COS)
+    \setmainfont{DejaVu Serif} \setmonofont{DejaVu Sans Mono}
+    fallback families Noto Sans Math / Noto Sans CJK JP / Noto Sans Bengali
+    (guarded) + generated \newunicodechar lines (088-093, 221)
+  standalone renderer adds pgfplots, adjustbox, xcolor (guarded);
+  chemistry rows add chemfig and mhchem[version=4] on demand (svg.py).
+
+WHAT TODAY'S GAPS WOULD ADD — probed 2026-09-15, one xelatex existence test
+each, on top of the preamble above
+    package      defines                    corpus use         compiles
+    xy [all]     \xymatrix \ar              86 occ, 5+2 docs   yes
+    braket       \bra \ket \braket          178 occ, 5 docs    yes
+    caption      \captionsetup              42 occ, 21 docs    yes  (*)
+    amsthm       \qedhere                   6 occ, 3 docs      yes
+    arydshln     \hdashline                 5 occ, 3 docs      yes
+    dsfont       \mathds                    20 occ, 3 docs     yes
+    wasysym      \varangle                  12 occ, 4 docs     yes
+  cumulative: all seven together compile (probe C, rc=0).
+  (*) \captionsetup occurs only inside the figure floats of (B) — fixing B
+      removes the reason for caption.
+
+REFUSED
+    stix2     "Too many symbol fonts declared" (484, reconfirmed today)
+    mathabx   "Command \leftmoon already defined" on top of wasysym;
+              buys only \nprecsim, 2 occurrences
+    physics   compiles, but redefines \Re/\Im/\qty and more; braket covers
+              \bra/\ket without that. Not recommended.
+
+NOT A PACKAGE GAP
+    \arrow \node \draw   defined inside tikzcd/tikzpicture only — false
+                         positives of a top-level csname test
+    \relax               the csname test's own side effect
+    \mv \C \wt \D \R \abs \x \m \GT \Real ...   author macros; ~95% of all
+                         undefined occurrences, no package defines them.
+                         Route: injectlatex / the document's own preamble.
+
+NOT DONE: the seven additions are probed for definition and compile only.
+No 600-row control has been run for them (484's standard), so nothing was
+added to PREAMBLE.
+
+======================================================================
+(B) johnston EQ0439 and "the figure frame in math"
+======================================================================
+The user named johnston-linear-matrix-algebra_EQ043. EQ0043 itself is fine
+(ink N|+0, rendered). EQ0439 is the figure-frame row, with EQ0114 and EQ0575
+the same class in the same book; all three print "(not rendered)" in
+evidence-equation.pdf and have no ink row.
+
+THE CAUSE IS OURS, IN THE MODEL BUILD, NOT MATHPIX'S
+  lines.json, p170, the math line under a figure parent:
+    text          '\[ \begin{aligned} {[A \mid I] } & = … \]'        CLEAN
+    text_display  '\begin{figure} \[ … \] \captionsetup{…} \caption{…}
+                   \end{figure}'                                     FLOAT
+  src/docmodel/modules/equation.py:212
+    latex_raw = payload.get("text_display") or payload.get("text") or ""
+  reads text_display first, so the whole float — caption included — becomes
+  the equation's latex.
+
+CORPUS, measured over 1,367 lines.json
+  math lines with \begin{figure} in text_display   42 in 21 documents
+  of those, `text` is clean                         42 of 42
+  of the clean `text`, renderable() accepts         41 of 42
+    (the one refusal: Schaum's p308, an array — a separate cause)
+  Currently rendered: 0 of 42.
+  Published documents affected (site reports/ slugs): johnston 3, lyche 4,
+  kohlhase-omdoc 1 — 8 rows in 3 documents. The other 34 rows are in 18
+  unpublished documents.
+
+WHERE "THE CHANGES" WENT — they were never on this path
+  446 (09-01)  leading-opener rule in report_tex.renderable — declines here
+               by design: the \end{figure} is present, so the opener is
+               "balanced".
+  483/485      _drop_leading_furniture (report_tex.py:1388) — strips a
+               caption BEFORE the \[, not after the \].
+  446's own text classified these 42 as "whole floats with captions —
+               434's work" and stopped.
+  434 (08-31)  the reclassification design — "Design report only; nothing
+               implemented."
+  657 (09-10)  inventoried 446/483/485 as present, which is true: present
+               and reader-side only, in the PDF report's gate. Nothing in
+               src/docmodel ever detected the frame (git log -S shows no
+               docmodel change since 2026-05-31).
+  446 was also wrong on one point: it said the value "genuinely IS a
+  figure". MathPix's `text` for the line is the equation alone; the float is
+  only in text_display.
+
+PROPOSED FIX — not built
+  equation.py: for a math line, take `text` when text_display wraps a float
+  (or prefer `text` for math lines outright — needs a corpus diff first,
+  because text_display may carry other intended differences).
+  Cost: a model rebuild renumbers FO identifiers, which invalidates every
+  crop and ink row keyed on them (667, HANDOVER), so each of the 3 published
+  documents needs rebuild + re-measure + publish (johnston, lyche,
+  kohlhase-omdoc). The 18 unpublished ones need only the rebuild.
+  Alternative with no rebuild: the same `text`-over-float rule reader-side in
+  report_tex.renderable — a sixth reader, which is the pattern 674 regretted.
