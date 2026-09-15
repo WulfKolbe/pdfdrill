@@ -1,0 +1,117 @@
+698 — the corpus-wide inkdrill run, distributed; and the pdf2mmd seams for tomorrow's audit
+
+Plan and observations only. Nothing run, nothing integrated.
+
+THE USER'S PROCESS, AS UNDERSTOOD
+  A. candidates (several thousand, by confidence threshold) -> report.pdf -> inkdrill
+     measures -> repair by the standard process (census/compile-gated refinements,
+     re-measure, publish). Routine.
+  B. what MathPix actually wants: the inkdrill information for ALL documents — every
+     document processed the way reports/ on pdfdrill.github.io is. Several nights,
+     several computers.
+
+PART 1 — THE DISTRIBUTED RUN (B)
+
+  UNIT: one library folder. Documents never share state, so the corpus shards by
+  folder with no coordination beyond a manifest.
+
+  PER-DOCUMENT CHAIN (existing commands, as run today in rebuild_696.py):
+      evidence --all-kinds --pdf      compile truth, "(not rendered)" rows named
+      residuals --measure --pdf       the inkdrill measurement -> report.ink.json
+      report                          HTML surfaces
+      publishready                    the seven gates, brackets included
+    Not in the worker chain: mathpix (paid), marks (inkdrill's `formulamarks run`,
+    its own pass), refinements and repairs (see ONE WRITER below).
+
+  ONE WRITER ACROSS MACHINES. doclock is per host. Workers therefore NEVER write a
+  model: they read model.docmodel.json + lines.json + the PDF and produce the
+  measurement artefacts. Repairs happen on the main machine only, after merge.
+  Every returned report.ink.json carries measured_against.model_sha256; the merge
+  refuses one whose sha differs from the main machine's model (the timestamp gate,
+  applied at merge time instead of at publish time).
+
+  SHARDING. Estimated seconds per document = 1.2 s x equation rows + 0.5 s x pages
+  (today's medians); balance shards by that, not by document count. 104 documents
+  over 300 pages hold 49,117 of 75,434 pages — spread them first. 1511.08771
+  (5,000 pages, 91,450 formula rows) runs alone, equation kind only.
+
+  RESUMABLE. A document is done when report.ink.json exists and its
+  measured_against.model_sha256 equals the model in the shard; a restarted worker
+  skips it. Per document: a status JSON (steps, rc, seconds, host) — the merge reads
+  those, not logs.
+
+  TRANSFER. rsync the shard's folders (PDF, lines.json, model, tiddlers,
+  report-crops*) — the library is 88 GB in total; results come back as evidence-*,
+  residuals.*, report.ink.json, report.build*.json, status JSON. Copyrighted books
+  and scanned mail stay on the user's machines (the library is deny-by-default git;
+  copy the working tree, never push it anywhere).
+
+  MERGE -> THE LIST FOR MATHPIX. Per equation row: mathpix_pdf_id (1,154 of 1,368
+  documents carry it), page, region, MathPix confidence, the ink flag class
+  (C/W/S/N/K/U) with its component delta, render status. No crops, no titles.
+  Ranked by the symbol channels (components, holes), not layout (067).
+
+  HOW MANY NIGHTS
+    inkdrill's record (docs/units.md, 2026-08-08) is about PAGE-parallel work inside
+    ONE run: 16 real pages on 16 cores reach 3.26x (20.4% efficiency). The cause it
+    names is a 185x per-page cost spread — one 67.7-Mpx colour page takes 38 s, 99.5%
+    of it image DECODE — so the slowest page sets an Amdahl ceiling (~4.2x). That is
+    CPU work, not I/O, and it bounds how fast a SINGLE document can go, not how many
+    documents run side by side: separate documents in separate processes do not wait
+    on each other's slow pages. (An earlier draft of this file misread it as an I/O
+    limit and as a per-machine lane ceiling; both were wrong.)
+      measurement, whole corpus    22–40 lane-hours (~99,000 unmeasured rows)
+      evidence builds               2–8 lane-hours
+      per machine, 8 document lanes ~3–6 h if lanes scale near-linearly — UNVERIFIED
+      the real floor               the largest single documents (a 500-page book is
+                                    40 min of measurement in one lane today) — spread
+                                    them across machines, start them first
+      two machines                  one night with margin; one machine: one to two
+    What limits a machine is cores and RAM per lane (600-dpi rasters, image decode),
+    so more cores and memory help; a fast SSD helps the rasterise-to-file steps but
+    is not the main lever. The 1-hour calibration (20 documents at 2/4/8 lanes, peak
+    RSS per lane) decides the lane count before any night run.
+
+  ORDER: calibrate -> night 1 the 104 large documents split across machines ->
+  night 2 the 1,264 small ones -> merge on the main machine -> review -> the user
+  decides what goes to MathPix (out/697 section 5).
+
+PART 2 — pdf2mmd, AS FOUND TODAY (~/Downloads/pdf2mmd, not a git repo)
+
+  Processed today (mmd-out/): 1804.10694v5, Clifford_Algebras_…, Kohlhase (425 pp),
+  Nazarathy (531 pp), Statistics-with-Julia pages 1–20. Each: .md, .tex, .lines.json,
+  .fonts.md, .report.txt, 250-dpi pages in mmd-out/inspect/pages/<stem>/.
+  Its own reports: maths projected 100% (1804), 98.6% (Clifford), 91.3% (Kohlhase),
+  92.4% (Nazarathy); deferrals mostly script-or-multi-baseline and unmapped-glyph,
+  each a crop link. Two of these five (1804.10694v5, Kohlhase/omdoc) also have a
+  MathPix lines.json in the library.
+
+  SEAMS FOR THE AUDIT — each measured on today's output
+  1. NO DISPLAY EQUATIONS IN lines.json. Line types are `text` and `formula` only;
+     a `formula` line is any line carrying maths. 1804.10694v5: 141 formula lines,
+     121 prose-with-inline-maths, 20 other, 0 display-delimited; Kohlhase: 4,459
+     prose, 61 whole-line single spans, 322 other. The display decision exists only
+     in the Markdown projection (project_mmd.is_display: centred, no prose -> `$$`).
+     pdfdrill's Equation rows — and therefore report.pdf, inkdrill's measurement and
+     every residual — are DISPLAY equations with their own region. The display test
+     has to move into the model (or into lines.json as its own type) before the
+     inkdrill chain has anything to measure.
+  2. LINE TYPES. No table, code, section_header, caption, figure_label, footnote.
+     The 674 no-transclusion gates, the table and listing reports (695) and the
+     heading/TOC logic all key on those types. 1804.10694v5 in MathPix has 104 code
+     lines and 6 tables; pdf2mmd reads them as text/formula.
+  3. GEOMETRY. Regions are in 250-dpi page pixels with px_per_pt per page; crops are
+     `http://localhost:8000/cropped/<stem>g-<page>.jpg?...`. pdfdrill's non-MathPix
+     crops are pt-based (mathpix.image_ref, units=pt), and inkdrill measures at
+     300/600 dpi renders. pdf2mmd's own README: 250 dpi gets glyph components wrong
+     for 2.6% and holes for 6.7% — do not measure on those images.
+  4. SIZE. deferred_glyphs is 96–97% of every lines.json's bytes (Nazarathy 230 MB
+     for 531 pages). At ~0.4 MB/page, the born-digital share of the corpus would
+     be tens of GB of mostly per-glyph records.
+  5. NO CONFIDENCE. MathPix's 0–1 confidence drives the Low-confidence residual
+     class and the candidate threshold of process A; pdf2mmd has `complete` (bool)
+     and deferral reasons instead. A candidate list for pdf2mmd documents needs its
+     own criterion (deferred / incomplete spans).
+  6. NAME CLASH. pdf2mmd's docmodel.py is a flat glyph/line/span model; pdfdrill's
+     src/docmodel is the Document/DocObject/Stream model. Importing both by name
+     collides (earlier read-only review, 2026-09-14).
