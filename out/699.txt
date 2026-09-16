@@ -1,0 +1,73 @@
+699 — marks rebuilt across the published set after inkdrill matched the host rule;
+      penev_B's unexplained model change, explained
+
+NOT PUBLISHED. The site is at 02e8d11; 20 documents are stale against it.
+
+WHAT INKDRILL DID (their 674)
+  formulafind now matches our host rule: NO_TRANSCLUDE line types skipped, and the
+  span scan reads `text_display or text` (676 B3). Their copy of the 17 line types is
+  pinned by a test against docmodel.line_types, so our next change to the set fails
+  their suite instead of drifting. `update` gained a host-moved trigger — a re-hosted
+  row's READING does not change, so nothing else notices.
+  8,413 -> 8,383 marks; 589 rows re-measured at each document's stored scale; 62
+  refusals under our rule -> 0. table_of_contents_item 18 -> 0, figure_label 5 -> 0.
+
+WHAT RAN HERE (~/pdfdrill-library/out/marks_699.py, two lanes, 0 failed steps)
+  marks --build + report + publishready over the 20 published documents.
+  reading_changed 0 everywhere; every mark in each file drawn.
+    johnston 1581 | 0902.0431 1470 | lyche 1105 | cardona 1068 | fong-inv 617
+    gilmore 563 | voloshin 495 | fong-7s 452 | 1510.06699 255 | mielke 189
+    2106.07890 100 | rph8-g15q 95 | 2501.06662 93 | kohlhase-omdoc 60 | 2010.14265 48
+    penev_B 42 | 1605.05775 26 | bradley_spring22 23 | BGT2023 13 | 0707.4470 8
+  19 READY immediately; penev_B NOT READY on the timestamp gate — see below.
+
+PENEV_B — THE MODEL CHANGE "NOBODY HAS EXPLAINED" (HANDOVER, 690)
+  Its model was rewritten 2026-09-06 21:58; its ink was measured 09-05 13:33. It is
+  the only published document whose ink predates its model.
+  CAUSE: task 645 ("citations reach the page", commit d20ce485, 21:37 the same
+  evening) ran cmd_model + cmd_bibliography + cmd_tiddlers on penev_A and penev_B
+  through the real CLI. `Built unified model` = a REBUILD (430: re-mints every
+  object id). No repair, no refinement: 0 change realizations in the model.
+  CHECKED against 645's own frozen before-model
+  (~/pdfdrill-library/penev_B/out/645/model.before.docmodel.json):
+    objects added        Citation 0->25, Reference 0->23 (+48 realizations)
+    props added          citekey/author/year 48 each, stub/ref_source 23, style 25
+    maths objects        559 before, 559 after
+    object ids           ALL 559 re-minted by the rebuild
+    identifiers          same set (559), and 0 of them read differently
+    published ink rows   59 of 59 still resolve to an identifier
+  So the published rows were never wrong; only the freshness stamp was stale, which
+  is exactly what the timestamp gate is for.
+  RE-MEASURED (rebuild_696.py P penev_B): evidence 12s, measure 44s, marks 6s,
+  html 1s -> READY on all seven gates; the crop gate is now ARMED (58 rows checked)
+  where before it passed unarmed ("ink carries no crop identity, measured before 667").
+
+IF PUBLISHED
+  27 files: 19 documents' evidence-formula.pdf (the redrawn marks) + penev_B's 8
+  (re-measured). Site delta +2.3 MB. publishcheck: 20 stale, 0 identical.
+
+OPEN — BOTH THE USER'S, NEITHER STARTED
+  1. A fit-score clause on marks. inkdrill measured 45 marked rows, banded, drawn on
+     the page, score hidden from the judge (their 675): every WRONG mark scores below
+     0.60; 24 of 24 sampled at 0.70+ are right; four of the six wrong ones box plain
+     words. Margin equals score to four decimals in all six, so the existing margin
+     clause cannot see them. Cut at 0.60 suppresses 132 marks (1.6%) and removes every
+     wrong one in the sample, costing ~30 correct marks corpus-wide (small display
+     matrices whose rendered template differs from the print). Cut at 0.70 suppresses
+     486 and catches no extra wrong one. Caveat: 45 verdicts, one judge, not blind to
+     the band; 0-of-32 above 0.60 bounds that rate only loosely (95% upper ~9%).
+     Recommendation: take 0.60 — a rectangle on the wrong glyphs misleads, a missing
+     one only leaves the row as most rows already are — and have inkdrill re-measure
+     the suppressed rows before it ships.
+  2. Which line types may host an inline formula. Measured over the 20 published
+     documents (hosted rows | would lose their host | would move to another line):
+       page_info         8 |  7 | 1        qed_symbol       10 | 10 | 0
+       equation_number   6 |  5 | 1        footnote         41 | 29 | 12
+       pseudocode       26 | 25 | 1        diagram         210 | 21 | 189
+       chart            47 |  6 | 41
+     page_info, qed_symbol and equation_number are repeating frame / marginal
+     furniture — the class 674's rule excludes in spirit; adding them is small and
+     looks like an omission (inkdrill found gilmore FO0001 hosting on a running head).
+     footnote is prose: keep. diagram/chart move 230 rows and their marks — a separate
+     decision, related to 694's finding that MathPix turns `$…$` inside a printed code
+     listing into formula rows (kohlhase FO0317/0319/0323).
