@@ -1,0 +1,75 @@
+700 — the user's three decisions of 2026-09-16, carried out
+
+NOT PUBLISHED YET. The site is at 9278b3a (the previous round, live); 20 documents
+are stale against it. The publish decision is the user's — see THE PUBLISH below.
+
+THE THREE DECISIONS
+  1. publish the marks round            -> done, live (site 9278b3a, deploy 2m48s)
+  2. "Go on with 0.6"                   -> inkdrill's score clause, placed
+  3. "inline math (not transcluded) may be in tables, titles, citation, figure
+     text and annotation and TiKz figures"
+                                        -> docmodel.line_types, 5 families -> 7
+
+1. THE HOST RULE (commit 42152e16, full suite 3,846 passed)
+  figure      diagram, chart                          (the user's TikZ figures)
+  annotation  page_info, equation_number, qed_symbol  (the page's own furniture)
+  17 -> 21 types. IT REVERSES WHAT THE FILE SAID: the figure_label comment argued a
+  diagram/chart line is an image REGION whose math is its content and may host, and
+  676's B4 note built on that. Both rewritten to record the decision and what it
+  overturns. inkdrill found the case: gilmore FO0001 hosted on the running head of
+  page 225 instead of a body line on page 10.
+  NOT widened past what was asked: `code`/`pseudocode` (4,634 readings; 694's
+  listing case) and `footnote` (prose) still host. "citation" maps to NO MathPix
+  line type — citations sit inside `text` lines — recorded rather than guessed at.
+  Two tests changed deliberately: the B3 field-reading tripwire moved off its
+  `diagram` vehicle to a hosting type (and a new test pins both halves: the scan
+  SEES the span, the host lookup REFUSES the line); test_report_tex's
+  first-occurrence fixture now resolves `P` to the prose line, not the page_info one.
+  Measured, corpus-wide, readings whose host was one of the five: diagram 4,438 in
+  395 documents, chart 826 in 160, equation_number 361, page_info 333, qed_symbol
+  223 — 6,181.
+
+2. THE 0.60 SCORE CLAUSE (inkdrill 675/677)
+  Every WRONG mark in their 59 eye verdicts scores below 0.60; 24 of 24 sampled at
+  0.70+ are right. The clause suppresses ~132 marks (1.6%), removing ~54 wrong and
+  ~34 off at the cost of ~44 right (small display matrices whose rendered template
+  differs from the print). Margin equals score to four decimals on the wrong rows,
+  so the existing margin clause could never see them.
+
+3. TWO MARKS SUPPRESSED BY ID, NOT BY THRESHOLD
+  Of the 16 rectangles that moved or appeared, 13 right, 1 off by a token, 2 WRONG:
+  gilmore FO2420 (score 0.9338 — the reading is a single \alpha, the box spans
+  "α → Zα") and fong-spivak-seven-sketches FO2524 (0.6349, covers "p = (x").
+  FO2420 IS THE COUNTEREXAMPLE WORTH KEEPING: a wrong mark well above the band where
+  24 of 24 were right. The score cut is a floor on badness, not a guarantee of
+  goodness — so these went out by eye verdict, recorded in inkdrill's
+  work/suppressed.json, and `marks` reports `why_no_mark = "suppressed by eye
+  verdict (... score 0.9338)"` with rect null. No constant was moved.
+  penev_A FO0008 (off by a leading "1") left alone: retired, unpublished, and "off
+  by a token" is not the class being removed.
+
+WHAT RAN HERE
+  evidence --all-kinds --pdf + report over the 20 (evidence_700.py, lanes A/B) —
+    0 failed steps. No re-measure and no model write: the host rule is read-time and
+    the ink measures DISPLAY equations, not formula host lines.
+  marks --build + report + publishready over the 20 (marks_699.py, lanes C/D/E) —
+    0 failed steps, reading_changed 0 everywhere, every mark in each file drawn.
+  ALL 20 READY on seven gates.
+    johnston 1492 | 0902.0431 1469 | lyche 1086 | cardona 1066 | fong-inv 612
+    gilmore 562 | voloshin 489 | fong-7s 443 | 1510.06699 255 | mielke 189
+    2106.07890 100 | rph8-g15q 95 | 2501.06662 93 | kohlhase-omdoc 59 | 2010.14265 50
+    penev_B 42 | 1605.05775 26 | bradley_spring22 23 | BGT2023 13 | 0707.4470 8
+  Corpus marks 8,383 -> 8,258 (the two rules) -> 8,256 (the two suppressions).
+  Over the 20 published: 8,172 of 35,655 rows — the index headline when it publishes.
+
+THE PUBLISH
+  99 files: 20 x evidence-{equation,formula,table,image}.pdf + 19 formula-report.html.
+  Site delta -14.0 MB (it SHRINKS). report.pdf, residuals.pdf, report.ink.json and
+  the build stamps are NOT in the plan — unchanged, as they must be with no
+  re-measure. publishcheck: 20 stale, 0 identical.
+
+STILL OPEN FOR THE USER
+  `code` / `pseudocode` as hosts (4,634 readings). 694 measured the same shape the
+  figure rule just fixed: MathPix turns `$...$` inside a PRINTED code listing into
+  inline formula rows (kohlhase FO0317/0319/0323, whose readings are fragments like
+  `{\,p\mid\hbox{` that can never render). Not named in the decision, so not done.
