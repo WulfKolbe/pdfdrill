@@ -1,9 +1,11 @@
-r"""Math on a table cell, a section heading, a title, a TOC entry or a figure
-label is never a transclusion.
+r"""Math on a table cell, a section heading, a title, a TOC entry, a figure
+label, a TikZ figure or the page's own furniture is never a transclusion.
 
-The requirement, in the words it was given in: "transclusion of math
+The requirements, in the words they were given in: "transclusion of math
 expression is not performed on any kind of table, section heading, titles,
-toc entries, figure and image labels". Each family below is asserted by its
+toc entries, figure and image labels" (674/676), and "inline math (not
+transcluded) may be in tables, titles, citation, figure text and annotation
+and TiKz figures" (699, which added the `figure` and `annotation` families). Each family below is asserted by its
 own name, at each of the four sites that could reintroduce it:
 
   1. `FormulaProcessor.find_items`  -- the object is not created
@@ -42,13 +44,21 @@ FORBIDDEN_SAMPLE = [
     ("toc", "table_of_contents_item"),
     ("toc", "table_of_contents_row"),
     ("figure_label", "figure_label"),
+    # 699 — the user's decision of 2026-09-16: inline math in a TikZ figure
+    # or in the page's own furniture is never transcluded.
+    ("figure", "diagram"),
+    ("figure", "chart"),
+    ("annotation", "page_info"),
+    ("annotation", "equation_number"),
+    ("annotation", "qed_symbol"),
 ]
 
 #: Line types that DO host an inline formula. `list_item` and `quote` are
-#: prose; `footnote` and `code` are lines whose math the requirement did not
-#: name, and widening the refusal to them would be a different change.
+#: prose; `footnote`, `code` and `pseudocode` are lines whose math neither
+#: requirement named, and widening the refusal to them would be a different
+#: change (694 measured `code`/`pseudocode` at 4,634 readings).
 HOSTING_SAMPLE = ["text", "list_item", "quote", "footnote", "code",
-                  "pseudocode", "page_info", "authors"]
+                  "pseudocode", "authors"]
 
 
 def _module(cls, bibkey=BK):
@@ -91,7 +101,8 @@ def test_the_flat_set_is_exactly_the_union_of_the_named_families():
         union |= set(members)
     assert union == set(lt.NO_TRANSCLUDE)
     assert set(lt.NON_PROSE_HOSTS) == {"table", "section_header", "title",
-                                       "toc", "figure_label"}
+                                       "toc", "figure_label",
+                                       "figure", "annotation"}
 
 
 # -------------------------------------------- site 1: no object is created
@@ -147,7 +158,7 @@ def test_only_title_of_the_forbidden_families_can_reach_a_paragraph():
     A substitution is only ever applied inside `_transclude_paragraph`, so a
     forbidden line can produce a transclusion only if `ParagraphProcessor`
     admits it as prose. It admits exactly `text`, `title` and `quote`
-    (`paragraph._PROSE_TYPES`) --- so of the 17 forbidden types, `title` is
+    (`paragraph._PROSE_TYPES`) --- so of the 21 forbidden types, `title` is
     the one and only reachable case, and the projector gate is asserted
     below on `title` for that reason rather than on a family it could never
     have seen. This test is the claim's own tripwire: add a forbidden type
@@ -393,17 +404,39 @@ def test_no_mask_character_ever_reaches_a_tiddler():
 # --- B3: the span scan and the model must read the same field -------------
 
 def test_the_host_line_scan_reads_the_field_the_model_was_built_from(tmp_path):
-    r"""A `diagram` line carries `text == ""` and everything in
-    `text_display`. Scanning `text` alone made every span on such a line
-    invisible, so a formula built from one lost its host line --- 27
-    published rows, and "rows with no host line" went 33 -> 44."""
+    r"""A line can carry `text == ""` and everything in `text_display`.
+    Scanning `text` alone made every span on such a line invisible, so a
+    formula built from one lost its host line --- 27 published rows, and
+    "rows with no host line" went 33 -> 44.
+
+    699 — the vehicle for this claim used to be a `diagram` line, which no
+    longer hosts. The claim is about the FIELD, not the type, so it is
+    asserted here on a type that still hosts; the diagram half moved to the
+    test below, which pins both halves: the scan still SEES the span, and
+    the host lookup still REFUSES the line."""
+    p = tmp_path / (BK + ".lines.json")
+    p.write_text(json.dumps({"pages": [{"lines": [
+        {"type": "list_item", "text": "",
+         "text_display": r"item \(\gamma\) here", "confidence": 0.8}]}]}))
+    first = inlinectx.first_occurrences(inlinectx.load_spans(str(p)))
+    assert r"\gamma" in first
+    assert inlinectx.context_of(first[r"\gamma"])["line_type"] == "list_item"
+
+
+def test_a_figure_line_is_scanned_but_never_hosts(tmp_path):
+    r"""699. `load_spans` reads `text_display or text` and therefore still
+    SEES the math a diagram line carries --- that is 676's B3 fix and it is
+    what `formula.find_items` needs. `first_occurrences` then refuses the
+    line as a host, because a TikZ figure's math is the figure's content and
+    no sentence points at it."""
     p = tmp_path / (BK + ".lines.json")
     p.write_text(json.dumps({"pages": [{"lines": [
         {"type": "diagram", "text": "",
          "text_display": r"caption \(\gamma\) here", "confidence": 0.8}]}]}))
-    first = inlinectx.first_occurrences(inlinectx.load_spans(str(p)))
-    assert r"\gamma" in first
-    assert inlinectx.context_of(first[r"\gamma"])["line_type"] == "diagram"
+    spans = inlinectx.load_spans(str(p))
+    assert [s["latex"] for s in spans] == [r"\gamma"]
+    assert spans[0]["line_type"] == "diagram"
+    assert inlinectx.first_occurrences(spans) == {}
 
 
 # --- B5: the LaTeX lane --------------------------------------------------
@@ -473,3 +506,42 @@ def test_the_coverage_tripwire_covers_content_not_only_type():
     assert _CAPTION_START.match("Figure 15.12: x")
     doc, _arr = _projected([CAPTION])
     assert lt.caption_anchors(doc)
+
+
+# --- 699: TikZ figures and the page's own furniture -----------------------
+
+def test_a_running_head_is_not_a_host_and_the_prose_occurrence_wins(tmp_path):
+    r"""inkdrill found gilmore FO0001 hosted on the running head of page 225
+    rather than a body line on page 10. A `page_info` line repeats on every
+    page; it is not a sentence, and the formula's real context is the prose
+    occurrence wherever that is."""
+    p = tmp_path / (BK + ".lines.json")
+    p.write_text(json.dumps({"pages": [
+        {"lines": [{"type": "page_info", "text": r"Chapter 7 $\rho$ 225"}]},
+        {"lines": [{"type": "text", "text": r"we define $\rho$ here"}]}]}))
+    first = inlinectx.first_occurrences(inlinectx.load_spans(str(p)))
+    assert first[r"\rho"]["line_type"] == "text"
+
+
+def test_a_formula_only_on_furniture_gets_no_host_at_all(tmp_path):
+    """A reading that occurs ONLY on forbidden lines has no context to
+    inherit, and `context_of(None)` is `{}` --- the FO row shows "---"
+    rather than a running head's confidence and region."""
+    p = tmp_path / (BK + ".lines.json")
+    p.write_text(json.dumps({"pages": [{"lines": [
+        {"type": "qed_symbol", "text": r"$\square$"},
+        {"type": "equation_number", "text": r"$(3.1)$"}]}]}))
+    first = inlinectx.first_occurrences(inlinectx.load_spans(str(p)))
+    assert first == {}
+    assert inlinectx.context_of(first.get(r"\square")) == {}
+
+
+def test_code_and_pseudocode_and_footnote_still_host_deliberately():
+    """699 named tables, titles, citations, figure text and annotations and
+    TikZ figures. It did not name `code`/`pseudocode` (694 measured 4,634
+    readings there, and MathPix turns `$...$` inside a PRINTED listing into
+    formula rows --- kohlhase FO0317/0319/0323) nor `footnote`, which is
+    prose. The set is not widened past what was asked for."""
+    for t in ("code", "pseudocode", "footnote"):
+        assert lt.hosts_transclusion(t) is True
+        assert lt.family(t) is None

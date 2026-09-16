@@ -29,10 +29,16 @@ type is NOT `equation`/`math`:
     table_split_cell           6      quote                    6
     table_of_contents_number   3
 
-The five families below --- the ones named as forbidden --- are 17 line
-types and account for 381,597 of those 1,315,050 occurrences (29.0%):
-table 376,418, figure_label 2,382, toc 1,394, section_header 1,384,
-title 19.
+The seven families below --- the ones named as forbidden --- are 21 line
+types and account for 404,134 of those 1,315,050 occurrences (30.7%):
+table 376,418, qed_symbol 8,277, diagram 10,307, figure_label 2,382,
+chart 1,827, page_info 1,650, toc 1,394, section_header 1,384,
+equation_number 476, title 19.
+
+Five of those types --- `diagram`, `chart`, `page_info`, `equation_number`,
+`qed_symbol` --- were added on 2026-09-16 (699) by the user's decision, which
+is recorded beside the `figure` and `annotation` families below together with
+what it reverses.
 
 WHAT THIS IS NOT
 ----------------
@@ -77,13 +83,42 @@ NON_PROSE_HOSTS: dict[str, frozenset[str]] = {
         "table_of_contents_container", "table_of_contents_item",
         "table_of_contents_row", "table_of_contents_number",
     }),
-    # "figure and image labels" --- the label, NOT the figure itself. A
-    # `diagram`/`chart` line is an image REGION whose math is its content;
-    # only the text that LABELS an image is excluded here.
+    # "figure and image labels" --- the label, NOT the figure itself.
     "figure_label": frozenset({
         "figure_label", "diagram_info", "x_axis_tick_label",
     }),
+    # 699, the user's decision of 2026-09-16: "inline math (not transcluded)
+    # may be in tables, titles, citation, figure text and annotation and
+    # TiKz figures". The figure ITSELF joins the label.
+    #
+    # THIS REVERSES WHAT THIS FILE SAID. The `figure_label` comment above
+    # used to end "...a `diagram`/`chart` line is an image REGION whose math
+    # is its content; only the text that LABELS an image is excluded here",
+    # and 676 (review B4, in `no_transclusion_site` below) recorded the same
+    # reading. The decision is the other way: math drawn inside a figure is
+    # the figure's content, carried whole by the Diagram object, and a
+    # sentence never points at it.
+    "figure": frozenset({"diagram", "chart"}),
+    # "annotation" --- the page's own furniture, repeating or marginal, which
+    # is not a sentence: the running head/folio, the equation's number, the
+    # end-of-proof mark. inkdrill found gilmore FO0001 hosted on the running
+    # head of page 225 rather than a body line on page 10.
+    "annotation": frozenset({"page_info", "equation_number", "qed_symbol"}),
 }
+
+#: Measured 2026-09-16 over the 1,368-document library, inline readings whose
+#: FIRST hosting occurrence sits on each newly forbidden type (the host a
+#: report row would show): diagram 4,438 in 395 documents, chart 826 in 160,
+#: equation_number 361, page_info 333, qed_symbol 223 --- 6,181 readings.
+#: Over the 20 PUBLISHED documents: diagram 210 (189 of them have another,
+#: prose occurrence to move to; 21 have none), chart 47 (41 move, 6 lose),
+#: page_info 8 (1 moves), equation_number 6 (1), qed_symbol 10 (0).
+#:
+#: STILL OPEN, deliberately: `code` and `pseudocode` (4,634 readings) --- 694
+#: found MathPix turning `$...$` inside a PRINTED code listing into inline
+#: formulas (kohlhase FO0317/0319/0323), which is the same shape, but the
+#: decision above did not name them and this set is not widened past what was
+#: asked for. `footnote` (261) is prose and stays a legal host.
 
 #: Flat membership test. 17 types.
 NO_TRANSCLUDE: frozenset[str] = frozenset().union(*NON_PROSE_HOSTS.values())
@@ -186,14 +221,18 @@ def no_transclusion_site(obj, doc, stream_name: str = "mathpix_lines",
     676 (review B4) --- ON THE QUESTION THIS ASKS. The review observed that
     "no occurrence the rule permits" is not the same as "no occurrence that
     can actually host a transclusion": a `diagram`, `chart` or `qed_symbol`
-    occurrence rescues an object here, and none of those types is in
-    `ParagraphProcessor._PROSE_TYPES`, so none can ever carry one (38 rows
-    of the published 36,158, 0.11%). That is correct, and asking the
-    stricter question was DELIBERATELY not done: `list_item` is not a prose
-    type either, and it carries 22,604 inline-math occurrences that are
-    real inline formulas in a list. The stricter question drops those too.
-    So this asks what the requirement named, and the gap is recorded rather
-    than closed by widening a set nobody asked to widen.
+    occurrence rescued an object here, and none of those types is in
+    `ParagraphProcessor._PROSE_TYPES`, so none could ever carry one (38 rows
+    of the published 36,158, 0.11%). 699 CLOSED THAT for exactly those three
+    --- they are now in the `figure` and `annotation` families and rescue
+    nothing --- by a decision about what a figure and a page's furniture
+    are, not by answering the stricter question.
+    The stricter question is still deliberately unasked, and `list_item` is
+    why: it is not a prose type either, and it carries 22,604 inline-math
+    occurrences that are real inline formulas in a list. So this asks what
+    the requirement named, and the remaining gap is recorded rather than
+    closed by widening a set nobody asked to widen (`code` and `pseudocode`,
+    4,634 readings, sit in that gap today --- see 694).
     """
     surfaces = [r for r in getattr(obj, "realizations", ()) or ()
                 if r.stream == stream_name and r.role == "surface"

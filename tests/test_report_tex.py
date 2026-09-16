@@ -1217,8 +1217,13 @@ def test_first_occurrence_wins_and_it_is_an_equality_not_a_search(tmp_path):
     from pdfdrill import inlinectx
     spans = inlinectx.load_spans(_lines_fixture(tmp_path))
     first = inlinectx.first_occurrences(spans)
-    # `P` first occurs in the page_info line, and that IS its first occurrence
-    assert first["P"]["line_type"] == "page_info"
+    # `P` occurs first in the page_info line and again in the prose line.
+    # 699 — a running head is the page's own furniture and never hosts, so
+    # the first HOSTABLE occurrence is the prose one. Before that decision
+    # this asserted `page_info`; the rule it tests ("first occurrence wins,
+    # by equality not by search") is unchanged, and `x^2` below still pins
+    # it on a value that occurs once.
+    assert first["P"]["line_type"] == "text"
     ctx = inlinectx.context_of(first["x^2"])
     assert ctx["page"] == 1 and ctx["confidence"] == 0.91
     assert (ctx["top_left_x"], ctx["width"]) == (10, 300)
