@@ -415,19 +415,20 @@ def test_row_source_column_keeps_the_original_render_uses_the_mapped_form():
     reading UNCHANGED; the Rendered cell shows the SAME reading with its
     display environment mapped to an in-math form. The two must legitimately
     disagree on this population — that is the decision, not a bug."""
-    from pdfdrill.report_tex import row, esc_text
+    from pdfdrill.report_tex import row, esc_source
 
     raw = r"\begin{align} a &= b \\ c &= d \end{align}"
     out = row("EQ0001", raw, "3")
 
-    # the source column: esc_text(raw) verbatim — the environment name is
-    # still "align", never remapped to "aligned"
-    assert esc_text(raw) in out
+    # the source column: esc_source(raw) verbatim — the environment name is
+    # still "align", never remapped to "aligned". 709b: esc_source is
+    # esc_text plus break penalties; the characters are the same.
+    assert esc_source(raw) in out
 
     # the rendered cell: the MAPPED environment name, inside \FitMath, and
     # the source cell precedes it (columns appear in the order src, math)
     assert r"\FitMath{$\displaystyle \begin{aligned}" in out
-    assert out.index(esc_text(raw)) < out.index(r"\FitMath{$\displaystyle ")
+    assert out.index(esc_source(raw)) < out.index(r"\FitMath{$\displaystyle ")
 
     # the raw name must NOT appear inside \FitMath's own argument
     fitmath_start = out.index(r"\FitMath{$\displaystyle ")
@@ -521,6 +522,64 @@ def test_source_column_never_breaks_after_a_backslash():
     out = esc_text(r"\mathcal{D} g \mathrm{e}")
     assert r"\textbackslash{}\allowbreak{}" not in out     # never after
     assert r"\allowbreak{}\textbackslash{}" in out         # always before
+
+
+def test_esc_source_changes_no_character():
+    r"""709b — the property the source column's whole reason for existing
+    rests on: `esc_source` adds `\allowbreak{}` penalties and NOTHING else,
+    so with the penalties stripped it is `esc_text` exactly. `\allowbreak`
+    is `\penalty0` — no glyph, no width, gone from a copy-out."""
+    from pdfdrill.report_tex import esc_text, esc_source
+    AB = r"\allowbreak{}"
+    for raw in (r"\mathcal{D} g \mathrm{e}",
+                r"\begin{aligned} a &= b \end{aligned}",
+                r"C^{t o t}=108 \cdot c^{s u b}+\sum_{t}\left(0,005\right)",
+                r"100\% of $x$ & #y ~ z_1^2"):
+        assert esc_source(raw).replace(AB, "") == esc_text(raw).replace(AB, "")
+
+
+def test_esc_source_never_breaks_after_a_backslash_or_inside_a_command():
+    r"""The 0711.0273 defect, one character later. A line wrapped straight
+    after `\textbackslash{}` copies out as `\` + newline + `mathrm{e}` and
+    compiles to the literal letters "mathrme"; breaking INSIDE the command
+    name (`\math` | `rm`) is the same defect. Neither may happen."""
+    from pdfdrill.report_tex import esc_source
+    AB = r"\allowbreak{}"
+    BS = r"\textbackslash{}"
+    out = esc_source(r"\mathcal{D} g \mathrm{e} \frac{1}{2}")
+    assert BS + AB not in out                      # never after the backslash
+    for name in ("mathcal", "mathrm", "frac"):     # the name arrives whole
+        assert BS + name in out
+
+
+def test_esc_source_has_no_leading_or_trailing_penalty():
+    r"""WDorg4: a leading `\allowbreak` in a `p{}` cell gives an EMPTY first
+    line in every such cell — 60 -> 83 pages (+38%). A trailing one can only
+    produce an empty LAST line, so it goes too."""
+    from pdfdrill.report_tex import esc_source
+    AB = r"\allowbreak{}"
+    for raw in (r"\begin{aligned} a &= b \end{aligned}", "x", r"\alpha"):
+        out = esc_source(raw)
+        assert not out.startswith(AB)
+        assert not out.endswith(AB)
+
+
+def test_esc_source_shortens_the_unbreakable_runs_that_straddle():
+    r"""709b's purpose, measured on the shape the corpus actually carries:
+    super/subscript markup with no backslash in it, which the
+    before-a-backslash rule alone cannot break. On the shipped report.tex
+    source cells the worst run falls 175 -> 30 (wzlxjtu-093_EQ0001),
+    96 -> 24 (088_EQ0001), 92 -> 21 (013_EQ0002), at x2.40 markup."""
+    from pdfdrill.report_tex import esc_text, esc_source
+    AB = r"\allowbreak{}"
+    raw = (r"V=\left(\sigma^{\prime}\right)^{2}+\frac{1}{4}"
+           r"\left(-\left(\phi^{3\prime}\right)^{2}+\cos^{2}\phi^{3}\right)")
+
+    def worst(s):
+        return max((len(p) for p in s.split(AB)), default=0)
+
+    assert worst(esc_text(raw)) > 40
+    assert worst(esc_source(raw)) <= 25
 
 
 def test_source_column_has_no_leading_penalty():

@@ -66,12 +66,18 @@ def test_the_source_column_is_not_what_this_touches():
     environment to its in-math form (`to_inline_env`) and THEN calls
     `renderable()` (which still runs `alphabet_safe` internally, so this
     test's own claim still holds) — see `display_safe`'s docstring for why
-    the map lives outside the gate rather than inside it. The source cell
-    is unaffected either way: `esc_text(latex)` never changed."""
+    the map lives outside the gate rather than inside it.
+
+    709b — the source cell now calls `esc_source(latex)` rather than
+    `esc_text(latex)`. The CLAIM THIS TEST DEFENDS IS UNCHANGED and still
+    true: `esc_source` is `esc_text` plus `\\allowbreak{}` penalties, which
+    set no glyph, take no width, and leave the characters MathPix returned
+    exactly as they were — `test_esc_source_changes_no_character` pins that
+    directly. What moved is only where the line may wrap."""
     import inspect
     from pdfdrill import report_tex
     src = inspect.getsource(report_tex.row)
-    assert "esc_text(latex)" in src          # source cell: raw
+    assert "esc_source(latex)" in src        # source cell: raw + break points
     assert "display_safe(latex)" in src      # rendered cell: mapped, then gated
     assert "alphabet_safe" in inspect.getsource(report_tex.renderable)
 

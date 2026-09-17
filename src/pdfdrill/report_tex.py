@@ -44,6 +44,109 @@ def esc_text(s: str) -> str:
     return out
 
 
+#: 709b — the tokens `esc_source` may break AFTER. Order matters: the
+#: multi-character escapes are tried before the single characters they
+#: contain, so `\textasciicircum{}` is one token and never `^` plus a brace.
+_SRC_TOKENS = (r"\textasciicircum{}", r"\textasciitilde{}", r"\{", r"\}",
+               r"\&", r"\#", r"\_", r"\%", r"\$")
+
+
+def esc_source(s: str) -> str:
+    r"""`esc_text` plus a break opportunity after EVERY token.
+
+    THE SAME CHARACTERS, MORE PLACES TO WRAP. `\allowbreak{}` is
+    `\penalty0`: it sets no glyph, occupies no width, and disappears from a
+    copy-out exactly as the breaks `esc_text` already inserts do. The source
+    column still shows what MathPix returned, character for character —
+    which is the property `test_the_source_column_is_not_what_this_touches`
+    exists to defend, and it still holds.
+
+    WHY A SECOND FUNCTION RATHER THAN A CHANGE TO `esc_text`. `esc_text` has
+    ~30 callers: identifiers, page numbers, captions, class codes, verdicts,
+    tex.zip filenames. None of them is a wrapping problem and all of them
+    would gain the markup. `breakable_ident` in particular builds ON
+    `esc_text` and adds its own breaks after `.` and `\_`; running both
+    would double them. So the source cell — and only the source cell — calls
+    this.
+
+    THE RULE, and every clause of it is a defect already paid for:
+
+      after a complete token      `}`, `{`, `^`, `~`, `&`, `#`, `_`, `%`, `$`
+                                  in their escaped forms, and after a run of
+                                  letters or digits.
+      NEVER after a backslash     `\textbackslash{}` is the escaped `\`, and
+                                  a line wrapped straight after it copies out
+                                  as `\` + newline + `mathrm{e}`, which
+                                  compiles to the literal letters "mathrme"
+                                  (0711.0273, user 2026-08-19).
+      NEVER inside `\<letters>`   the same defect one character later:
+                                  breaking `\math` | `rm` copies out as two
+                                  broken fragments. A letter run that STARTS
+                                  after `\textbackslash{}` is a command name
+                                  and takes no interior break.
+      NEVER leading               `\allowbreak` at the very start of a `p{}`
+                                  cell gives an EMPTY first line in every
+                                  such cell — WDorg4 went 60 -> 83 pages
+                                  (+38%) when this slipped in (2026-08-20).
+
+    Measured on the report.tex the corpus actually ships: the longest
+    unbreakable run is 175 characters on wzlxjtu-093_EQ0001 (a 15,835-char
+    cell), 96 on 088_EQ0001, 92 on 013_EQ0002, 80 on 083_EQ0002 — every one
+    of them a stretch of super/subscript markup carrying no backslash, which
+    is precisely what the before-a-backslash rule alone cannot break.
+    """
+    out = esc_text(s)
+    AB = r"\allowbreak{}"
+    BS = r"\textbackslash{}"
+    res = []
+    i, n = 0, len(out)
+    while i < n:
+        # a break already placed by esc_text: copy it and the backslash
+        # escape it protects, so this never inserts a second one there.
+        if out.startswith(AB, i):
+            res.append(AB)
+            i += len(AB)
+            continue
+        if out.startswith(BS, i):
+            # the escaped backslash, and the command name that follows it:
+            # one unit, no break after the backslash and none inside the name.
+            res.append(BS)
+            i += len(BS)
+            j = i
+            while j < n and out[j].isalpha():
+                j += 1
+            if j > i:
+                res.append(out[i:j])
+                i = j
+                res.append(AB)
+            continue
+        for tok in _SRC_TOKENS:
+            if out.startswith(tok, i):
+                res.append(tok)
+                res.append(AB)
+                i += len(tok)
+                break
+        else:
+            if out[i].isalnum():
+                j = i
+                while j < n and out[j].isalnum():
+                    j += 1
+                res.append(out[i:j])
+                res.append(AB)
+                i = j
+            else:
+                res.append(out[i])
+                i += 1
+    got = "".join(res)
+    # never leading, and never a trailing penalty either — a break at the very
+    # end of a cell can only produce an empty last line.
+    while got.startswith(AB):
+        got = got[len(AB):]
+    while got.endswith(AB):
+        got = got[:-len(AB)]
+    return got
+
+
 #: The TiddlyWiki projector sanitises every tiddler title through
 #: `re.sub(r"[^A-Za-z0-9_\-\.]", "_", t)` (docops/projectors/tiddlywiki.py
 #: `_sanitize_title`), so a bibkey with a space, a parenthesis or a `+` reaches
@@ -782,6 +885,12 @@ MATHBB_DIGITS = r'''%% 199: BLACKBOARD-BOLD DIGITS.
 PREAMBLE = r"""%% report.tex — generated by tools/make_report_tex.py; compile with xelatex
 \documentclass[10pt]{article}
 \usepackage[%(geom)s,margin=18mm]{geometry}
+%% 709b — no printed folio. Every row already carries its own Page cell, so
+%% the page number at the foot restates it once per page and nothing reads
+%% it. This is `article`'s `plain` default, not anything this file set.
+%% It does NOT touch the \thepage in \pdrulepos label names (457/489): those
+%% are zref KEY names, never typeset, and they still need per-page uniqueness.
+\pagestyle{empty}
 %(pagesel)s
 %(cellrect)s
 \usepackage{amsmath}
@@ -996,6 +1105,15 @@ def table_open(caption: str, widths, form: bool = False,
     elif len(heads) != len(widths):
         raise ValueError("heads must have one entry per column (%d != %d)"
                           % (len(heads), len(widths)))
+    # 709b — THE CAPTION STAYS. Removing it looked right on a one-table
+    # document (`Display equations` sitting directly on top of `Identifier |
+    # Page | Conf. | ...` reads as two stacked headers) and broke six tests
+    # at once, all naming the same thing: the caption is how each SECTION of
+    # a multi-section report is identified — `Unresolved (1)`, `Inline
+    # formulas that did not render (1 of 2)`, `Flagged, not acted on`, `Low
+    # confidence`. The column header says what the columns are; the caption
+    # says which population this table holds. Only the second is expendable
+    # on a single-table report, and no report is guaranteed to be one.
     return (
         "\\section*{%s}\n" % caption +
         "\\begin{longtable}{%s}\n\\hline\n" % cols + _cellrect_table_open() +
@@ -2390,7 +2508,9 @@ def row(title, latex, page, extra="", image=None, punct="", conf="",
     # faithful transcription. Published on purpose: the two columns
     # disagree, by construction, on the small population where the map
     # fires — see `to_inline_env`'s docstring for the argument.
-    src = "{\\ttfamily\\footnotesize %s}" % esc_text(latex) if latex else "---"
+    # 709b — esc_SOURCE: the same characters esc_text produces, with a break
+    # opportunity after every token. Only the source cell; see esc_source.
+    src = "{\\ttfamily\\footnotesize %s}" % esc_source(latex) if latex else "---"
     safe = display_safe(latex) if latex else ""
     # 025: the mark is set BESIDE the math, never inside it — the same
     # separation the TiddlyWiki text field makes, so the rendered cell still
@@ -4291,7 +4411,8 @@ def findings_tex(found: dict, widths, crops=None, out_dir=None,
 
     def cell(lx):
         # 661 — untransformed: see `row()`'s identical note on `src`.
-        return ("{\\ttfamily\\footnotesize %s}" % esc_text(lx)) if lx else "---"
+        # 709b — esc_source: same characters, more break points.
+        return ("{\\ttfamily\\footnotesize %s}" % esc_source(lx)) if lx else "---"
 
     def rendered(lx):
         safe = display_safe(lx) if lx else ""
@@ -4840,7 +4961,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
             tab_widths = col_widths(usable, with_image=bool(crops))
             out_parts.append(table_open("Tables", tab_widths, form, legend_on))
             for title, latex, page, dims, _region, tconf in tab:
-                src_cell = ("{\\ttfamily\\footnotesize %s}" % esc_text(latex)
+                src_cell = ("{\\ttfamily\\footnotesize %s}" % esc_source(latex)
                             ) if latex else (
                     # 426 — no cross-reference. This said "see tables.html", in
                     # 10,928 rows across 680 documents, and that file exists in 17

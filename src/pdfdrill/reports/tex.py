@@ -75,7 +75,9 @@ def render_row(r: EvidenceRow, widths, *, out_dir, px2mm, bibkey,
         ("~\\eqnum{%s}" % rt.esc_text(extra)) if extra else "",
         rt.conf_flag(r.shown_confidence),
         rt.refined_flag(getattr(r, "refined_info", None)))
-    src = ("{\\ttfamily\\footnotesize %s}" % rt.esc_text(r.latex)
+    # 709b — esc_source for the SOURCE cell only; the page cell below keeps
+    # esc_text (it is not a wrapping problem and would only gain markup).
+    src = ("{\\ttfamily\\footnotesize %s}" % rt.esc_source(r.latex)
            if r.latex else "---")
     cells = [ident, rt.esc_text(r.shown_page), _conf(r, ink_bullets), src,
              _rendered(r, widths, out_dir)]

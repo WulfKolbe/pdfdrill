@@ -94,9 +94,10 @@ def test_rendered_maps_a_display_environment_but_source_keeps_it_raw(tmp_path):
     body = T.render_row(r, w, out_dir=tmp_path, px2mm=None, bibkey="D")
     assert "(not rendered)" not in body
     assert r"\begin{aligned}" in body        # the RENDERED cell: mapped
-    # the SOURCE cell: the raw environment name, unmapped, escaped verbatim
+    # the SOURCE cell: the raw environment name, unmapped, escaped verbatim.
+    # 709b — esc_source: esc_text plus break penalties, same characters.
     from pdfdrill import report_tex as rt
-    assert rt.esc_text(raw) in body
+    assert rt.esc_source(raw) in body
     # the raw name must not survive inside \FitMath's own argument
     start = body.index(r"\FitMath{$\displaystyle ")
     arg = body[start:body.index("$}", start)]
