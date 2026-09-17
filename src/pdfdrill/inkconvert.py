@@ -53,7 +53,37 @@ FLAG_CODE = {"clean": "K", "noise": "N", "weak": "W", "stable": "S",
              # 386 — a row whose Rendered AND Scan cells are both empty. Not
              # clean (nothing was compared) and not unrendered (the report did
              # render it); _INK_COLOUR already maps it to inkUnmeasured.
-             "absent": "A"}
+             "absent": "A",
+             # 709 — the SCAN CROP overran its region and captured ink that
+             # belongs to the neighbouring line, rule or column. inkdrill
+             # measures this itself and appends the verdict to every compare
+             # row ("REGION-OVERRUN <n>", `mathstruct.region_overrun`), and
+             # `compare_page` was dropping that column on the floor: it reads
+             # cells[3:13], [13], [18] and [19] and never looked at [15]. So a
+             # CROPPING defect arrived here as a component delta and was
+             # classified `component` — the class that says the other tool
+             # dropped a symbol. The two want opposite fixes.
+             #
+             # Measured on the three rows the user flagged by eye, all three
+             # REGION-OVERRUN and all three previously `component`:
+             #   wzlxjtu-013_EQ0002   L 72 vs R 128   overrun 98
+             #   wzlxjtu-083_EQ0002   L 217 vs R 261  overrun 128
+             #   wzlxjtu-088_EQ0004   L 309 vs R 371  overrun 123
+             # 013_EQ0002 renders IDENTICALLY in both columns by eye; its +56
+             # was a crop border, not a missing symbol.
+             #
+             # REPORTED, NEVER SUBTRACTED — inkdrill's own contract for this
+             # column: "the five-tuple is never edited, the count stays the
+             # measured one and the caller decides what the label is worth."
+             # So L, R, distance and comp_delta keep their measured values and
+             # only the CLASS changes. A row reclassified here is not a clean
+             # row and not a MathPix finding: it is a row whose ink comparison
+             # says nothing, which is why X joins neither INK_FLAGS (it is not
+             # a finding to act on) nor INK_AGREES (it is not evidence the two
+             # sources agree). 083_EQ0002 and 088_EQ0004 ARE real MathPix
+             # errors by eye — the flag does not make them correct, it says
+             # the ink delta was never the evidence for them.
+             "crop": "X"}
 FIVE_L = ("L_comp", "L_holes", "L_stk", "L_cen", "L_off")
 FIVE_R = ("R_comp", "R_holes", "R_stk", "R_cen", "R_off")
 
@@ -109,9 +139,25 @@ class ConversionRefused(Exception):
     """The pairing cannot be established. No file is written."""
 
 
-def flag_of(distance: int, comp_delta: int, scale_stable: bool) -> str:
+def flag_of(distance: int, comp_delta: int, scale_stable: bool,
+            overrun: bool = False) -> str:
+    """709 — `overrun` is inkdrill's REGION-OVERRUN verdict for this row.
+
+    It is asked AFTER `clean` and BEFORE `component`, and the order is the
+    whole point. inkdrill only labels a row REGION-OVERRUN when the surplus
+    is positive AND the overrunning components account for all of it
+    (`len(ro["overrun"]) >= surplus`, __main__.py:836), so the label can only
+    ever arrive on a row whose delta would otherwise read as a conversion
+    defect — which is precisely `component`. Asking first would be wrong for
+    a different reason: a distance of 0 is agreement whatever the crop did.
+
+    Defaults False so every existing caller, and every `report.compare.tsv`
+    written before the column existed, keeps its current classification.
+    """
     if distance == 0:
         return "clean"
+    if overrun:
+        return "crop"
     if comp_delta > NOISE_COMP_DELTA:
         return "component"
     if distance <= NOISE_DISTANCE:
@@ -196,9 +242,13 @@ def convert(tsv: Path, tex: Path, *, stamp: dict | None = None) -> dict:
         # which is B against its own half-scale resample: one render, weaker,
         # and not what this class means.
         rendered = did_render[len(out)] if len(out) < len(did_render) else True
+        # 709 — absent in every TSV written before the column existed, which
+        # `.get` reads as False: those files keep their current classification.
+        overran = str(r.get("overrun", "")).strip().lower() in ("yes", "true", "1")
         flag = flag_of(distance, abs(signed),
                        str(r.get("A_eq_B", "")).strip().lower()
-                       in ("yes", "true", "1")) if rendered else "unrendered"
+                       in ("yes", "true", "1"),
+                       overrun=overran) if rendered else "unrendered"
         out.append({
             "id": ident,
             "report_page": int(r["report_page"]),
@@ -302,6 +352,8 @@ def convert_by_page(tsv: Path, pdf: Path, *, stamp: dict | None = None) -> dict:
             else:
                 flag = flag_of(distance, abs(signed),
                                str(r.get("A_eq_B", "")).strip().lower()
+                               in ("yes", "true", "1"),
+                               overrun=str(r.get("overrun", "")).strip().lower()
                                in ("yes", "true", "1"))
             out.append({
                 "id": ident, "report_page": pg, "line": int(r["line"]),

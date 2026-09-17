@@ -40,10 +40,15 @@ EQUATION_CAPTION = "Display equations"
 #: established positionally, so inkconvert does not have to guess it again
 #: from report.tex — which it cannot, now that a straddling row is measured
 #: by neither side and the two lists have different lengths.
+#: 709 — `overrun` is APPENDED for the same reason and with the same
+#: guarantee: inkdrill's REGION-OVERRUN verdict for the row, carried from
+#: `compare_page` so `inkconvert` can classify a CROPPING defect as one.
+#: Without it the verdict died between the measurement and the conversion —
+#: `compare_page` parsed the column and this header could not carry it.
 TSV_HEADER = ("report_page", "line", "dis", "A_eq_B",
               "L_comp", "L_holes", "L_stk", "L_cen", "L_off",
               "R_comp", "R_holes", "R_stk", "R_cen", "R_off",
-              "identifier")
+              "identifier", "overrun")
 
 
 class MeasureRefused(RuntimeError):
@@ -480,5 +485,13 @@ def to_tsv(rows: list) -> str:
         lines.append("\t".join(str(x) for x in (
             r["page"], r["line"], distance(r["L"], r["R"]),
             "YES" if r["a_eq_b"] else "NO",
-            *r["L"], *r["R"], r.get("identifier", ""))))
+            *r["L"], *r["R"], r.get("identifier", ""),
+            # "NO", never "": an empty trailing field makes the LINE one
+            # column shorter than the header (str.split gives 15 against 16),
+            # and csv.DictReader then fills the key with None instead of a
+            # value. The classification survives that by luck — str(None) is
+            # falsy here — but a short row is a malformed TSV, and this file
+            # already refuses rather than letting a pairing be rescued by
+            # chance.
+            "YES" if r.get("overrun") else "NO")))
     return "\n".join(lines) + "\n"

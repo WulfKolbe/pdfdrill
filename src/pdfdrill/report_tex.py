@@ -942,6 +942,10 @@ FORM_PREAMBLE = r"""
 \definecolor{inkNoise}{RGB}{120,120,120}
 \definecolor{inkClean}{RGB}{40,160,40}
 \definecolor{inkUnmeasured}{RGB}{190,190,190}
+%% 709: crop X — the scan crop overran its region (inkdrill's REGION-OVERRUN).
+%% Slate, deliberately NOT the red of inkComponent: the row is explained, not
+%% flagged, and must not read as a MathPix finding.
+\definecolor{inkCrop}{RGB}{110,125,150}
 \newcommand{\inkbullet}[1]{{\footnotesize\textcolor{#1}{$\bullet$}}}
 """
 
@@ -1875,7 +1879,11 @@ _INK_COLOUR = {"component": "inkComponent", "weak": "inkWeak",
                # five-tuple pair scores distance 0 and would otherwise take the
                # best class. Distinct from "no ink.json entry at all", which is
                # also inkUnmeasured but for a different reason.
-               "absent": "inkUnmeasured"}
+               "absent": "inkUnmeasured",
+               # 709 — the scan crop captured a neighbour's ink. Its own
+               # colour, not inkUnmeasured: the row WAS measured and the
+               # measurement is sound; it is the crop that is wrong.
+               "crop": "inkCrop"}
 
 
 #: 241 — the credibility test, and the population it must NOT be run over.
@@ -2001,6 +2009,7 @@ LEGEND_INK = (r"\textbf{Residual} render vs scan (inkdrill): "
               r"\textcolor{inkStable}{$\bullet$}\,S stable \quad "
               r"\textcolor{inkNoise}{$\bullet$}\,N noise \quad "
               r"\textcolor{inkClean}{$\bullet$}\,K clean \quad "
+              r"\textcolor{inkCrop}{$\bullet$}\,X crop overran its region \quad "
               r"\textcolor{inkUnmeasured}{$\bullet$}\,not measured")
 
 #: 661 — said, not left for a reader to find by diffing two columns. Once
@@ -4092,7 +4101,9 @@ DOUBTED_MAX_CONF = 0.05
 #: flagged. The names are the ones the preamble already defines.
 _INK_COLOUR_BY_CODE = {"K": "inkClean", "N": "inkNoise", "W": "inkWeak",
                        "C": "inkComponent", "S": "inkStable",
-                       "U": "inkUnmeasured", "A": "inkUnmeasured"}
+                       "U": "inkUnmeasured", "A": "inkUnmeasured",
+                       # 709 — crop overrun; see FLAG_CODE["crop"].
+                       "X": "inkCrop"}
 
 #: the classes that flag a real difference — the fourth state's population
 INK_FLAGS = {"C", "W"}

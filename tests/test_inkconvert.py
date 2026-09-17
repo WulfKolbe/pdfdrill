@@ -214,6 +214,70 @@ def test_scale_stable_accepts_the_spellings_inkdrill_emits(tmp_path):
     assert flag_of(3, 0, True) == "noise"
 
 
+def test_region_overrun_outranks_component_but_not_clean():
+    """709 — a CROPPING defect must not be reported as a missing symbol.
+
+    The three rows this was measured on were all `component` before and all
+    carry inkdrill's REGION-OVERRUN verdict: wzlxjtu-013_EQ0002 (L 72 vs
+    R 128, overrun 98), 083_EQ0002 (217/261, 128), 088_EQ0004 (309/371, 123).
+    013_EQ0002 renders identically in both columns by eye.
+    """
+    from pdfdrill.inkconvert import flag_of, FLAG_CODE
+    # the class it would otherwise take, and the one it takes now
+    assert flag_of(127, 56, False) == "component"
+    assert flag_of(127, 56, False, overrun=True) == "crop"
+    # distance 0 is agreement whatever the crop did — clean is asked first
+    assert flag_of(0, 0, False, overrun=True) == "clean"
+    # the label only ever arrives on a surplus row, but the ordering is
+    # pinned for the noise band too, so a later edit cannot quietly reorder it
+    assert flag_of(3, 0, True, overrun=True) == "crop"
+    # DEFAULT FALSE: every existing caller and every pre-709 TSV is unmoved
+    assert flag_of(127, 56, False) == "component"
+    assert FLAG_CODE["crop"] == "X"
+
+
+def test_overrun_column_survives_the_tsv_and_an_old_tsv_still_reads(tmp_path):
+    """The verdict has to cross report.compare.tsv to reach the classifier.
+
+    `compare_page` parsed inkdrill's column and `TSV_HEADER` could not carry
+    it, so it died between the measurement and the conversion.
+    """
+    from pdfdrill import inkmeasure as im
+    from pdfdrill.inkconvert import convert
+    rows = [{"page": 1, "line": 1, "L": [72, 31, 3, 2, 1],
+             "R": [128, 6, 26, 11, 15], "a_eq_b": False,
+             "identifier": "D_EQ0001", "overrun": True},
+            {"page": 1, "line": 2, "L": [46, 15, 5, 3, 2],
+             "R": [46, 13, 5, 3, 2], "a_eq_b": False,
+             "identifier": "D_EQ0002", "overrun": False}]
+    tsv = tmp_path / "report.compare.tsv"
+    tsv.write_text(im.to_tsv(rows), encoding="utf-8")
+    assert "overrun" in im.to_tsv(rows).splitlines()[0]
+    # EVERY line carries every column. A trailing "" would make the row one
+    # field shorter than the header and DictReader would read None for the
+    # key — the classification would still come out right, by luck.
+    widths = {len(l.split("\t")) for l in im.to_tsv(rows).strip().splitlines()}
+    assert widths == {len(im.TSV_HEADER)}
+    tex = tmp_path / "report.tex"
+    tex.write_text("\\ident{D\\_EQ0001} & 1 & x\n\\ident{D\\_EQ0002} & 1 & x\n",
+                   encoding="utf-8")
+    out = convert(tsv, tex)["rows"]
+    assert [r["flag"] for r in out] == ["crop", "noise"]
+    # REPORTED, NEVER SUBTRACTED — the five-tuple is inkdrill's contract
+    assert out[0]["L"] == [72, 31, 3, 2, 1] and out[0]["R"] == [128, 6, 26, 11, 15]
+    assert out[0]["comp_delta"] == 56 and out[0]["code"] == "X|+56"
+    # A TSV WRITTEN BEFORE THE COLUMN EXISTED keeps its verdict. Built by
+    # dropping the last field of every line — which is well-formed only
+    # because to_tsv now writes "NO" rather than "" on a non-overrun row, so
+    # each line really does have one field to drop.
+    old = tmp_path / "old.tsv"
+    old_lines = [l.rsplit("\t", 1)[0] for l in im.to_tsv(rows).strip().splitlines()]
+    assert {len(l.split("\t")) for l in old_lines} == {len(im.TSV_HEADER) - 1}
+    assert old_lines[0].split("\t")[-1] == "identifier"
+    old.write_text("\n".join(old_lines) + "\n", encoding="utf-8")
+    assert [r["flag"] for r in convert(old, tex)["rows"]] == ["component", "noise"]
+
+
 def test_cmd_inkconvert_records_crop_sha256_and_rung_per_row(tmp_path):
     """667 — `cmd_inkconvert` (not `inkconvert.convert` itself, which takes
     no crops directory and stays untouched) is where the measurement's own

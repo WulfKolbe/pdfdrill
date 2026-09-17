@@ -185,6 +185,18 @@ def compare_page(a: Path, b: Path, page: int, timeout: int = 900) -> list:
                "dis": dis,
                "L": nums[:5], "R": nums[5:],
                "a_eq_b": cells[13].strip().lower() in ("yes", "true", "1")}
+        # 709 — column 15 is inkdrill's REGION-OVERRUN verdict and column 16
+        # its BOTH-EMPTY mark. Both were parsed and thrown away: this dict
+        # took 3..13, 13, 18 and 19 and nothing else, so a row inkdrill had
+        # already diagnosed as a CROPPING defect reached `flag_of` as a bare
+        # component delta and was reported as a missing symbol. The column is
+        # APPENDED by inkdrill precisely so a positional consumer is
+        # unaffected (__main__.py:618) — which also meant nothing broke when
+        # it was ignored, and nothing said so.
+        rec["overrun"] = cells[15].strip().upper().startswith("REGION-OVERRUN") \
+            if len(cells) > 15 and cells[15] else False
+        rec["both_empty"] = cells[16].strip().upper().startswith("BOTH-EMPTY") \
+            if len(cells) > 16 and cells[16] else False
         # columns 18 and 19: the row's y-extent in raster px, top-down.
         try:
             rec["row_y0"] = int(cells[18])
@@ -247,7 +259,10 @@ def build(rows: list, manifest: list, stamp: dict | None = None) -> dict:
         L, R = r["L"], r["R"]
         distance = sum(abs(x - y) for x, y in zip(L, R))
         signed = R[0] - L[0]
-        flag = flag_of(distance, abs(signed), r["a_eq_b"])
+        # 709 — `compare_page` already carries inkdrill's REGION-OVERRUN
+        # verdict; this is the path that had it in hand and dropped it.
+        flag = flag_of(distance, abs(signed), r["a_eq_b"],
+                       overrun=bool(r.get("overrun")))
         recs.append({
             "id": m["id"], "page": m["page"],
             "report_page": r["page"], "line": r["line"],
