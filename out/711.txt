@@ -1,0 +1,101 @@
+711 — the overnight re-measure, and what the component channel actually contains
+
+THE RUN. 348 documents, 19,104 rows, 0 FAILURES, 13 with no measurable rows.
+Four lanes, 142/199/215/148 minutes. Every stored measurement was stale by
+design: 709b moved `geometry_sha256` (329543be18ef -> 6cc2aeeb4701) because
+`row` is in GEOMETRY_FUNCS, so `fresh_ink`'s sixth question refused to resume
+and every document was measured against the build that would actually ship.
+
+  noise      9215  48.2%      component   636   3.3%
+  clean      3707  19.4%      stable      353   1.8%
+  crop       3117  16.3%      unrendered   59   0.3%
+  weak       2017  10.6%
+
+CROP IS 16.3% OF EVERY MEASURED ROW. Those are rows inkdrill had already
+diagnosed as REGION-OVERRUN -- the scan crop capturing a neighbour's ink --
+and that pdfdrill was reporting as MathPix dropping a symbol, because
+`compare_page` parsed columns 3..13, 13, 18 and 19 and never read column 15.
+709 fixed the parse. One in six of every "finding" this channel produced was
+a cropping defect.
+
+COMPONENT IS NOT UNIFORM: 2.2%, 3.2%, 2.4%, 4.9% by lane. The rate follows
+which books landed where, not any property of the measurement. Quoting 3.3%
+as "the rate" would be quoting the lane split.
+
+THE RESIDUALS LIST: 636 component rows -> 50 candidates across 26 documents.
+Five filters, each one a class measured before it became a rule (the sixth
+column names how many rows it removed):
+
+  negative delta            452   our rendering DENSER than the scan. Six were
+                                  tested with -dTextAlphaBits=4: -9, -10, -13,
+                                  -3, -3, -3 all collapse to ~0. Bilevel stroke
+                                  shattering (inkdrill HANDOVER item 11).
+  our cell blank/demoted     48   L=[13,6,0,0,0] is "(not rendered)" -- 13
+                                  glyphs, 6 counters -- measured against a real
+                                  formula. Our defect, not MathPix's.
+  multi-line crop            49   crop >= 2x the document's median height. On
+                                  Introduction to Linear and Matrix Algebra
+                                  EQ0040 that is 847x418 px against a 105 px
+                                  median: four printed lines in one cell.
+  coloured/shaded/tinted     19   the print decorates and our cell is plain
+                                  black on white. Three shapes: saturated
+                                  colour (s42256 EQ0018, 39.5% chromatic),
+                                  shaded blocks (lin EQ0793), pale wash
+                                  (IDG1+2handout EQ0005, caught by background
+                                  luminance 235 vs 255, not by chroma).
+  FitMath-shrunk             16   a wide \begin{array} shrunk to fit the
+                                  column: EQ0429 renders 23 components where
+                                  the scan has 337.
+
+ELEVEN CANDIDATES WERE EXAMINED BY EYE. ALL ELEVEN WERE ARTEFACTS.
+NONE WAS A MATHPIX ERROR. That is the answer to the MathPix admin's
+question, and it is a result rather than a failure to find one.
+
+THREE THINGS I CLAIMED TONIGHT AND HAD TO RETRACT, recorded because the
+method that produced them is the lesson:
+
+  1. "s42256 EQ0018 is a substituted sub-expression at confidence 1.0."
+     FALSE. I had compared two DIFFERENT ROWS. My band extraction took the
+     last three vertical rules in a band, and the bands spanned 2-3 table
+     rows -- ratios 1.9x to 3.4x the crop height on every row I checked.
+     Every image verdict before that point came from the wrong pixels.
+     The fix: compare the shipped crop JPEG (keyed by identifier) against
+     the reading typeset on its own. No geometry, nothing to mis-pair.
+
+  2. "1910.05241 EQ0025 drops the tenth matrix column." FALSE. The array
+     spec is 9 and row 1 holds 9 cells; they agree, and across all 16
+     array-bearing rows in that document none is wider than its spec. I
+     miscounted a wide crop against a differently scaled rendering.
+
+  3. "The straddle rate went UP after the escaper (4.71% vs 3.93%)." That
+     compared two different populations. Like-for-like on wzlxjtu, the only
+     corpus with both states: 1.61% -> 1.35%.
+
+THE ESCAPER'S REAL SCORECARD (709b). Worst unbreakable run in the shipped
+report.tex: 175 -> 30 (093 EQ0001, a 15,835-char cell), 153 -> 30, 96 -> 24,
+92 -> 21, 80 -> 25, at x2.40 markup. Straddling 1.61% -> 1.35% like-for-like.
+BUT the commit message claimed it would bring 088_EQ0001 and 093_EQ0001 into
+measurement, and IT DID NOT: 093_EQ0001 re-measured at 01:17 under the new
+code still straddles, because its two bounding rules sit on DIFFERENT PAGES
+(above=765.562 BELOW below=778.314, a negative height). 1,049 of the 5,456
+straddling rows corpus-wide have that inverted shape and no amount of
+intra-cell breaking touches them.
+
+OPEN, NOT DONE
+  * The 1.2-2.0x crop-ratio band: 26 of the 50 candidates, concentrated in
+    1910.05241 (8) and Introduction to Linear and Matrix Algebra (7). Same
+    class as FitMath shrinkage, below the 2.5x component-ratio cut. A scale
+    filter would remove half the remaining list; not written, because the
+    threshold has not been measured against eye verdicts.
+  * `regionink._render` returns its destination path WITHOUT checking that
+    Ghostscript wrote it. A failed render hands back a name, and the caller
+    fails far from the cause. `measure()` guards with `a.is_file()`, so the
+    corpus run is unaffected -- but it cost two wrong checks tonight.
+  * 98% of fresh manifests (236 of 242) reference pages beyond their
+    report's page count: the phase-1 manifest describes the full listing
+    while the reading build is truncated. Expected, recorded so it is not
+    rediscovered as a defect.
+
+THE LIST IS AT out/711-residuals.tsv AND IS NOT A FINDINGS LIST. It is 50
+rows that survived five filters and have not been looked at. Eleven of its
+predecessors looked exactly as promising and every one dissolved.
