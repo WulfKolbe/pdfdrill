@@ -151,10 +151,23 @@ def _render(report_pdf: Path, page: int, dpi: int, out: Path) -> Path:
     dst = out / f"p{page}_{dpi}.pgm"
     if dst.is_file():
         return dst
-    subprocess.run(["gs", "-q", "-dNOPAUSE", "-dBATCH", "-sDEVICE=pgmraw",
-                    f"-r{dpi}", f"-dFirstPage={page}", f"-dLastPage={page}",
-                    f"-sOutputFile={dst.name}", str(report_pdf)],
-                   cwd=out, capture_output=True, timeout=900)
+    p = subprocess.run(["gs", "-q", "-dNOPAUSE", "-dBATCH", "-sDEVICE=pgmraw",
+                        f"-r{dpi}", f"-dFirstPage={page}", f"-dLastPage={page}",
+                        f"-sOutputFile={dst.name}", str(report_pdf)],
+                       cwd=out, capture_output=True, timeout=900)
+    # 713 — SAY SO WHEN THE RENDER DID NOT HAPPEN. This returned `dst`
+    # unconditionally, so a Ghostscript failure handed back the name of a file
+    # that does not exist and the caller died later, somewhere else, with a
+    # bare FileNotFoundError naming a path nobody wrote. `measure()` happens to
+    # guard with `a.is_file()`, which is why the corpus runs were unaffected --
+    # and why this stayed invisible until an ad-hoc caller hit it twice in one
+    # night and read the missing file as "the page is empty".
+    if not dst.is_file():
+        raise RegionInkRefused(
+            "ghostscript wrote no raster for page %d of %s at %d dpi%s"
+            % (page, report_pdf.name, dpi,
+               (": " + (p.stderr or b"").decode("utf-8", "replace").strip()[:200])
+               if p.stderr else " (rc=%d, no stderr)" % p.returncode))
     return dst
 
 
