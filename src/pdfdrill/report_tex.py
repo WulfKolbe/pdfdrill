@@ -867,6 +867,19 @@ MATHBB_DIGITS = r'''%% 199: BLACKBOARD-BOLD DIGITS.
 %% -- it rendered U+22AE, "does not force", and `\mathbb{0}`/`\mathbb{2}`
 %% rendered U+22AC/U+22AD. Correct source, silently wrong glyph, in 758 places
 %% across 44 documents (748 of them \mathbb{1}).
+%% \argmax is the author's own operator, declared in a preamble the gold
+%% transcription does not carry. Checked, not guessed: of the 135 distinct
+%% commands used across all 422 gold display equations, this is THE ONLY ONE
+%% undefined here. \argmin comes with it because a document that defines one
+%% defines the other.
+\providecommand{\argmax}{\operatorname*{arg\,max}}
+\providecommand{\argmin}{\operatorname*{arg\,min}}
+%% dsfont supplies \mathds, the DOUBLESTROKE font. A document that sets its
+%% identity matrix from `dsrom` writes `\mathds{1}`, and the author's own
+%% source does too -- wzlxjtu-026 does it eight times. Undefined here, every
+%% row carrying one errored and was demoted to "(not rendered)", so three of
+%% that document's seven equations showed nothing in ANY column.
+\IfFileExists{dsfont.sty}{\usepackage{dsfont}}{\providecommand{\mathds}[1]{\mathbb{#1}}}
 %% bbm supplies blackboard digits as \mathbbm. \mathbb is redefined to
 %% DISPATCH: digits to bbm, everything else to the AMS font, so every existing
 %% \mathbb{R} is byte-identical to before.
@@ -1648,6 +1661,49 @@ def split_glued_delimiter(lx: str) -> str:
 #: `\mathbf{\operatorname{Rel}}` -> 0). X is kept VERBATIM — it may carry
 #: interior spaces MathPix inserted (`R e l`) — matched with a single level
 #: of braces, which is the only shape ever seen.
+#: 754 -- AN UNDERSCORE INSIDE `\text{}` IS NOT A SUBSCRIPT, IT IS AN ERROR.
+#:
+#: MathPix transcribes an identifier like `gb_imp` verbatim into text mode:
+#:
+#:     y_{t, \text { est }}^{\text {gb_imp }}
+#:
+#: `_` is a maths-mode operator; in text mode it is "Missing $ inserted",
+#: forty errors from one cell. Measured: `$\text{gb_imp}$` gives 40 errors
+#: and `$\text{gb\_imp}$` gives none. wzlxjtu-067's second equation is one,
+#: and it is why that cell showed its SOURCE instead of the mathematics.
+#:
+#: A safety normalisation, like the rest of this gate: it changes nothing a
+#: reader would call the value's identity -- the identifier still reads
+#: `gb_imp` -- it only spells it so TeX can set it. ONLY inside text-mode
+#: commands; `\mathrm{x_1}` is a real subscript and is left alone.
+_TEXT_CMD = re.compile(r"\\(?:text|textrm|textit|textbf|textsf|textsc|mbox)"
+                       r"\s*\{")
+
+
+def _escape_text_underscore(lx: str) -> str:
+    r"""Escape a bare `_` inside a text-mode group, brace-matched."""
+    out, i = [], 0
+    for m in _TEXT_CMD.finditer(lx):
+        if m.start() < i:
+            continue                       # inside a group already rewritten
+        depth, j = 1, m.end()
+        while j < len(lx) and depth:
+            if lx[j] == "{" and lx[j - 1] != "\\":
+                depth += 1
+            elif lx[j] == "}" and lx[j - 1] != "\\":
+                depth -= 1
+            j += 1
+        if depth:
+            continue                       # unbalanced: leave it to the gate
+        body = lx[m.end():j - 1]
+        fixed = re.sub(r"(?<!\\)_", r"\\_", body)
+        if fixed != body:
+            out.append(lx[i:m.end()]); out.append(fixed); out.append("}")
+            i = j
+    out.append(lx[i:])
+    return "".join(out)
+
+
 _BOLD_OPERATORNAME = re.compile(r"\\boldsymbol\{\\operatorname\s*\{([^{}]*)\}\}")
 
 
@@ -1775,6 +1831,7 @@ def renderable(latex: str) -> str:
     # pass every other check.
     lx = _BOLD_OPERATORNAME.sub(
         lambda m: r"\operatorname{\mathbf{%s}}" % m.group(1), lx)
+    lx = _escape_text_underscore(lx)
     if cjk_defect(lx):
         return ""              # 128: hallucinated script never reaches xelatex
     # MathPix glues a stray environment CLOSER onto the end of display math when
@@ -3987,8 +4044,23 @@ def _demote_line(line: str) -> str:
     the document. 2208.01506 line 462 is the measured case — a `\csname{op}`
     and a `\mathcal` outside math mode inside a tikzcd.
     """
-    out = re.sub(r"\$\\displaystyle .*\$", r"\\emph{(not rendered)}", line)
-    if out != line:
+    # 738 -- ONE CELL, NOT THE ROW. The pattern was `\$\\displaystyle .*\$`,
+    # and `.*` is greedy: on a row of three rendered cells it matched from the
+    # FIRST cell's opening `$` to the LAST cell's closing `$` and replaced all
+    # three with a single "(not rendered)" -- collapsing a four-column row to
+    # two columns. wzlxjtu-026 rows 1, 3 and 5 lost the gold reading AND both
+    # machine readings because one of the three would not typeset.
+    #
+    # Demote the FIRST rendered cell only and let the fixpoint come round
+    # again: a row whose third cell is the bad one costs three passes and
+    # loses three cells, which is what it cost before on the first pass. Every
+    # other row now loses exactly the cell that failed.
+    #
+    # `(?:[^$\\]|\\.)*` so an escaped `\$` inside the cell and the `\\` that
+    # separates alignment rows do not end the match early.
+    out, n = re.subn(r"\$\\displaystyle (?:[^$\\]|\\.)*\$",
+                     r"\\emph{(not rendered)}", line, count=1)
+    if n:
         return out
     i = line.find("\\resizebox{")
     if i < 0:

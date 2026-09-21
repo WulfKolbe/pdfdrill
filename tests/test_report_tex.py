@@ -1481,3 +1481,37 @@ def test_table_open_heads_default_unchanged_and_overridable():
     overridden = table_open("x", (1, 2, 3, 4, 5, 6), heads=COLUMNS)
     assert "\\textbf{Image}" in overridden
     assert "Scan image" not in overridden
+
+
+def test_underscore_inside_text_is_escaped():
+    r"""754 — MathPix transcribes an identifier verbatim into text mode:
+
+        y_{t, \text { est }}^{\text {gb_imp }}
+
+    `_` is a maths-mode operator; in text mode it is "Missing $ inserted".
+    Measured: `$\text{gb_imp}$` gives 40 errors, `$\text{gb\_imp}$` none.
+    wzlxjtu-067's second equation is one, and it is why that cell showed its
+    source instead of the mathematics.
+    """
+    from pdfdrill.report_tex import display_safe
+    assert display_safe(r"x^{\text {gb_imp }}") == r"x^{\text {gb\_imp }}"
+
+
+def test_a_real_subscript_is_left_alone():
+    """`\\mathrm` is maths mode: `x_1` there is a subscript, not an error."""
+    from pdfdrill.report_tex import display_safe
+    assert display_safe(r"\mathrm{x_1}") == r"\mathrm{x_1}"
+    assert display_safe(r"a_{1} + b_{2}") == r"a_{1} + b_{2}"
+
+
+def test_every_text_group_on_the_line_is_escaped():
+    from pdfdrill.report_tex import _escape_text_underscore
+    assert (_escape_text_underscore(r"\text{a_b} + \text{c_d}")
+            == r"\text{a\_b} + \text{c\_d}")
+
+
+def test_an_unbalanced_text_group_is_left_to_the_gate():
+    """Rewriting inside a group whose brace never closes would corrupt the
+    rest of the line; the delimiter checks below refuse it anyway."""
+    from pdfdrill.report_tex import _escape_text_underscore
+    assert _escape_text_underscore(r"\text{a_b") == r"\text{a_b"
