@@ -1641,6 +1641,13 @@ def _do_beamer(args):
                       compile="--compile" in args)
 
 
+def _do_bracketrepair(args):
+    """pdfdrill bracketrepair <pdf> [--apply]  — 773, the 696 repair."""
+    from .commands import cmd_bracketrepair
+    pos = [a for a in args if a != "--apply"]
+    return cmd_bracketrepair(_pdf(pos), apply="--apply" in args)
+
+
 def _do_injectlatex(args):
     """pdfdrill injectlatex <pdf> [--tex <path>] [--force]  — pull the author's
     LaTeX source IN as gold `tex` provenance (the old `latex` behavior)."""
@@ -2350,6 +2357,7 @@ HANDLERS = {
         "folder": _do_folder,
         "latex": _do_latex,
         "beamer": _do_beamer,
+        "bracketrepair": _do_bracketrepair,
         "injectlatex": _do_injectlatex,
         "latexbook": _do_latexbook,
         "markdown": _do_markdown,

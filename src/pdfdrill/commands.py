@@ -10672,6 +10672,51 @@ def promote_equation_label(obj, src_eq: dict) -> bool:
     return True
 
 
+@_writes("bracketrepair")
+def cmd_bracketrepair(pdf: Path, apply: bool = False) -> str:
+    r"""773 — apply the 696 bracket repair, licensed by the author's e-print.
+
+    Read-only unless `--apply`. See `bracketrepair` for what licenses it.
+    """
+    from . import bracketrepair as br, model_io, refine
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+    doc_dir = model_path.parent
+    src, src_file = br.author_source(doc_dir)
+    if not src:
+        return (f"No author e-print beside {pdf.name} ({pdf.stem}.tgz / .tar.gz "
+                f"/ .gz). The repair needs the AUTHOR's source to license it — "
+                f"MathPix's {pdf.stem}.tex.zip is its own output and verifying "
+                f"against it would verify the reading against itself (065).")
+    if not br.basis_holds(src):
+        n = src.count("\\left.")
+        return (f"{pdf.stem}: the author DOES write `\\left.` in {src_file} "
+                f"({n} time(s)), so 'no `\\left.` here is his' does not hold for "
+                f"this document. Refusing — this repair would need per-equation "
+                f"evidence, which it does not attempt.")
+
+    doc = model_io.load_model(model_path)
+    names = refine.identifiers(doc, (doc.meta or {}).get("bibkey", pdf.stem)) or {}
+    cands = br.candidates(doc, src_file)
+    if not cands:
+        return f"{pdf.stem}: no reading pairs a `\\left.` with a typed `\\right`."
+    if not apply:
+        head = ", ".join(sorted(names.get(o, o) for o, _s, _c, _p in cands)[:8])
+        return (f"{pdf.stem}: {len(cands)} reading(s) would be repaired "
+                f"({src_file} contains no `\\left.`): {head}"
+                f"{' …' if len(cands) > 8 else ''}. Re-run with --apply.")
+    for oid, shown, cand, pairs in cands:
+        refine.record_one(doc, oid, br.proposal(shown, cand, pairs, src_file))
+    model_io.save_model(model_path, doc)
+    return (f"{pdf.stem}: repaired {len(cands)} reading(s), each recorded as a "
+            f"refinement verified by the author's {src_file}. The original "
+            f"`latex` is untouched. Re-run `pdfdrill residuals --measure --pdf "
+            f"{pdf.name}` — the model has changed.")
+
+
 @_writes("injectlatex")
 def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
     """Ingest the author's LaTeX source (.tex or arXiv .tgz) as a competing

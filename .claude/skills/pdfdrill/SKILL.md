@@ -632,6 +632,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | Command | Returns |
 |---|---|
 | `pdfdrill refine <pdf> [--max-conf MAX_CONF] [--limit LIMIT] [--stages STAGES] [--model MODEL] [--author AUTHOR] [--dpi DPI] [--request REQUEST]` | Propose, verify and record corrections to low-confidence maths values. Six stages, each able to stop a proposal: select (low-confidence rows, minus those the ink gate says already match the scan), propose (one re-transcription per row, written to changes.json with status proposed / basis inferred / author), validate (width uniformity, environment balance, CJK, standalone xelatex compile), measure (render the proposal, measure it against the scan crop), accept (keep it only when the ink distance FALLS), record (attach it as a provenance="change" realization carrying the verification that actually ran, with before/after; the original `latex` is never overwritten). Nothing is applied because a model proposed it. A second acceptance route exists for rows the ink gate cannot reach (an inline formula has no region and no crop): with basis=eprint the gate reads the value out of the AUTHOR's arXiv e-print at that site, located by its surrounding prose, and accepts only if the source agrees. It is a check, not a flag. _(network)_ |
+| `pdfdrill bracketrepair <pdf> [--apply APPLY]` | Apply the 696 bracket repair to every reading that pairs a `\left.` with a typed `\right` while a plain opener of that type is open — the null delimiter MathPix invents, which prints nothing and closes the group in the wrong place. Licensed by the AUTHOR's e-print at document scope: if `\left.` does not occur in it at all, no `\left.` in any reading of that document is his. A document whose author DOES write one is refused, not guessed at. Read-only without --apply; the original `latex` is never overwritten, the repair is recorded as a refinement verified by the source. |
 
 ### Projection / export
 
@@ -667,6 +668,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-8c7be4d4` before any build/extract command.
-DRILL-8c7be4d4
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-0545189b` before any build/extract command.
+DRILL-0545189b
 <!-- PREFLIGHT-TOKEN:END -->
