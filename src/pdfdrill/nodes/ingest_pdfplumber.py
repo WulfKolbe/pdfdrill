@@ -343,6 +343,9 @@ class IngestPdfplumberNode(Node):
 
     def __init__(self, chars_json_path: str | Path):
         self.path = Path(chars_json_path)
+        #: 770 — how much sideways text was set aside, for the caller to say.
+        self.sideways_chars = 0
+        self.sideways_pages: set[int] = set()
 
     def should_run(self, ctx: DocumentContext) -> bool:
         return self.path.exists()
@@ -370,6 +373,34 @@ class IngestPdfplumberNode(Node):
             chars = page.get("chars", [])
             if not chars:
                 continue
+
+            # 770 — SIDEWAYS TEXT IS NOT PART OF THE FLOW.
+            #
+            # A rotated glyph's text-space origin runs along the page's Y axis,
+            # so its `top` is not comparable with an upright glyph's and line
+            # detection scatters it through the body. arXiv stamps every
+            # preprint down the left margin of page 1, and on 2609.16055v1
+            # those 40 characters came out interleaved into the abstract --
+            #
+            #   3 Test-time compute has … capabili-  1  ties of Large Language
+            #   ] L ing programs …   ## C both generalization …
+            #
+            # -- which reads bottom-to-top as "arXiv:2609.16055v1 [cs.CL] 13
+            # Sep 2026". Reported as "pdf stream data in the Markdown", which
+            # is what it looks like.
+            #
+            # pdfplumber already says which glyphs these are (`upright`), and
+            # pdf2mmd's docmodel separates them for the same reason. They are
+            # SET ASIDE, not dropped: the count is reported, because a
+            # character removed without a word said is the failure this
+            # project keeps paying for.
+            sideways = [c for c in chars if not c.get("upright", True)]
+            if sideways:
+                chars = [c for c in chars if c.get("upright", True)]
+                self.sideways_chars += len(sideways)
+                self.sideways_pages.add(page_idx + 1)
+                if not chars:
+                    continue
 
             # Column-aware reading order: split into columns (left→right), then
             # detect lines WITHIN each column so a 2-column page isn't interleaved.

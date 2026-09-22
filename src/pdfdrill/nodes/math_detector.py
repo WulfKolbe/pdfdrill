@@ -37,6 +37,52 @@ BREAK_CHARS = set(".\n\f")
 VARIABLE_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 
+#: 770 — TeX TAKES THE PERIOD AND THE COMMA FROM THE MATH ITALIC FONT.
+#:
+#: In math mode `.` and `,` are punctuation class and are set from CMMI, not
+#: from the text roman the digits around them come from. So `$62.6\%$` reaches
+#: this node as CMR digits with ONE math-font character between them — and `.`
+#: is a BREAK_CHAR, so it can never bridge to its neighbours. The span that
+#: survives is a single period, emitted as `$.$`:
+#:
+#:     reducing generated tokens by 62$.$6% and end-to-end latency by 44$.$6%
+#:     Under constrained access, SoT retains 38$.2%/36.$5% mean accuracy gains
+#:
+#: A span made of nothing but punctuation is not an expression in any
+#: notation. This is a REFUSAL, not a repair: the characters stay in the text
+#: exactly as they were read, they simply stop being wrapped in maths.
+_PUNCT_ONLY = set(".,;:!?'\"`´ \t\n")
+
+
+def _is_only_punctuation(text: str) -> bool:
+    """True when a span carries no symbol, variable or digit at all."""
+    return bool(text) and all(ch in _PUNCT_ONLY for ch in text)
+
+
+#: 770 — A DECIMAL POINT BELONGS TO ITS NUMBER.
+#:
+#: The same CMMI period that produced `$.$` also lands at the EDGE of a real
+#: expression, and there it cannot be refused — the span carries digits, so it
+#: is mathematics. What it carries is the wrong extent:
+#:
+#:     38$.2%/36.$5%        for the author's  $38.2\%/36.5\%$
+#:
+#: The span opens on the period after `38` and closes on the one before `5`,
+#: because a digit scores zero and only bridges. A boundary that falls BETWEEN
+#: a digit and its own decimal point is never right, whichever side the span
+#: is on, so the digits are pulled in.
+def _absorb_decimal(start: int, end: int, text: str) -> tuple:
+    """Extend a span over a digit run its boundary decimal point belongs to."""
+    s, e = start, end
+    while 0 < s < len(text) and text[s] in ".," and text[s - 1].isdigit():
+        while s > 0 and text[s - 1].isdigit():
+            s -= 1
+    while 0 < e < len(text) and text[e - 1] in ".," and text[e].isdigit():
+        while e < len(text) and text[e].isdigit():
+            e += 1
+    return s, e
+
+
 def _is_math_unicode(text: str) -> bool:
     return any(ord(ch) in MATH_CODEPOINTS for ch in (text or ""))
 
@@ -521,6 +567,8 @@ class MathDetectorNode(Node):
         # Final trim: strip whitespace and trailing text-font punctuation
         spans = [_trim_span(s, e, text, char_meta) for s, e in spans]
         spans = [(s, e) for s, e in spans if s < e]
+        spans = [_absorb_decimal(s, e, text) for s, e in spans]
+        spans = [(s, e) for s, e in spans if not _is_only_punctuation(text[s:e])]
 
         # Classify inline vs display
         classified = _classify_display(spans, text, char_meta, propagated)

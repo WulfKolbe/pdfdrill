@@ -15923,6 +15923,17 @@ def cmd_md(pdf: Path, pages: str | None = None) -> str:
     summary = (f"Extracted {words} words of Markdown across {sc.page_count} pages. "
                f"Detected {math_i} inline and {math_d} display math expressions, "
                f"{refs} references. Stored as layer `md`.")
+    # 770 — SAY what was set aside. A character removed without a word said is
+    # the failure this project keeps paying for, and sideways text is removed
+    # from the flow precisely because it is not part of it.
+    _ing = nodes[0]
+    if getattr(_ing, "sideways_chars", 0):
+        _pp = sorted(_ing.sideways_pages)
+        summary += (f"\n\nSet aside {_ing.sideways_chars} sideways character(s) on "
+                    f"page(s) {', '.join(str(x) for x in _pp[:6])}"
+                    f"{' …' if len(_pp) > 6 else ''} — rotated text (an arXiv "
+                    f"stamp, a turned table header) is not part of the reading "
+                    f"flow and was interleaving itself into the prose.")
     if suppressed:
         summary += "\n\nSuperseded earlier absents using the markdown: " + ", ".join(suppressed)
     summary += _md_note(pdf, sc)
