@@ -8,10 +8,12 @@ identity, not an upstream stage whose output it reads.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from docmodel import line_types
-from docops.projectors.tiddlywiki import math_titles, region_titles
+from docops.projectors.tiddlywiki import (math_titles, region_titles,
+                                          listing_titles)
 from .rows import (EquationRow, FormulaRow, TableRow, ImageRow, HostLine)
 
 
@@ -120,6 +122,7 @@ def build_rows(doc, bibkey: str, *, ink: "dict | None" = None,
     ink = ink or {}
     names = dict(math_titles(doc, bibkey))
     names.update(region_titles(doc, bibkey))
+    names.update(listing_titles(doc, bibkey))
     if lines_path is None:
         sp = str((doc.meta or {}).get("source_path") or "")
         lines_path = sp if sp.endswith(".lines.json") else None
@@ -190,7 +193,50 @@ def build_rows(doc, bibkey: str, *, ink: "dict | None" = None,
                 region=reg, dims=_dims(reg),
                 listing=(p.get("code") or "") if p.get("subtype") == "code" else "",
                 language=p.get("language") or ""))
+    out["image"].extend(_listing_rows(doc, names, out["image"]))
     return out
+
+
+def _norm_code(s: str) -> str:
+    """Whitespace-free, for asking whether two bodies are the same text."""
+    return re.sub(r"\s+", "", s or "")
+
+
+def _listing_rows(doc, names: dict, shown: list) -> list:
+    r"""695b -- the CodeListings whose body NO image row already carries.
+
+    `code_listing.py` (2026-08-28) makes one CodeListing per maximal run of
+    consecutive `code` lines, and for 43,933 of the corpus's code lines that
+    run sits inside a Diagram which carries the same text in its own `code`
+    prop -- the module says so at the site. Reporting every CodeListing
+    would therefore print most listings twice.
+
+    But a run is not bounded by the Diagram. On 1804.10694v5 page 5 the
+    figure sets three pseudocode panels side by side and the run spans two of
+    them, so the Diagram holds 712 characters and the CodeListing 1,556 --
+    including the only two lines in the document that MathPix routed through
+    the math path. Those 844 characters were in no report at all.
+
+    The test is the CONTENT, not the parentage: `parent_id` on a CodeListing
+    is a MathPix line id, not a DocObject id, so it cannot address the
+    Diagram row directly. A body already printed is not printed again; a
+    body that is not is a row.
+    """
+    def _seen(body: str) -> bool:
+        n = _norm_code(body)
+        return bool(n) and any(n in _norm_code(r.listing) for r in shown)
+
+    rows = []
+    for o in _flow(doc.objects_of_type("CodeListing")):
+        p = o.props
+        body = p.get("code") or ""
+        if not body.strip() or _seen(body):
+            continue
+        rows.append(ImageRow(
+            identifier=names.get(o.id, o.id), latex="",
+            page=_page(p.get("page")), listing=body,
+            language=p.get("language") or ""))
+    return rows
 
 
 def refined_rows_map(rows_by_kind: dict) -> dict:

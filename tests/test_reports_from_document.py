@@ -326,3 +326,59 @@ def test_the_source_cell_shows_the_listing_too(tmp_path):
     out = rtex.render_row(r, (10, 10, 10, 40, 40), out_dir=str(tmp_path),
                           px2mm=0.24, bibkey=BK)
     assert out.count("GPUThread") == 2      # source cell and rendered cell
+
+
+# --- 695b: the CodeListings no image row already carries -------------------
+
+GPU = ("GPUThread for(i1 in 0..min \\(((\\mathrm{N}-2) \\% 32,32)+2)\\)\n"
+       "  int i = i0*32+i1")
+
+
+def _listing_objects_doc(listing_body, diagram_body=CODE):
+    doc = Document(meta={"bibkey": BK})
+    doc.add(DocObject(id="d1", type="Diagram", props={
+        "flow_index": 1, "page": 5, "subtype": "code",
+        "latex_code": "", "code": diagram_body,
+        "region": {"top_left_x": 3, "top_left_y": 4, "width": 100, "height": 50}}))
+    doc.add(DocObject(id="l1", type="CodeListing", props={
+        "flow_index": 2, "page": 5, "code": listing_body, "language": "C"}))
+    return doc
+
+
+def test_a_listing_already_shown_by_its_diagram_is_not_repeated():
+    r"""`code_listing.py` says it at the site: for 43,933 of the corpus's
+    code lines the run sits inside a Diagram that carries the same text in
+    its own `code` prop. Reporting both would print most listings twice."""
+    rows = build_rows(_listing_objects_doc(CODE), BK)["image"]
+    assert [r.identifier for r in rows] == ["DOC_DIA_0001"]
+
+
+def test_a_listing_that_runs_past_its_diagram_gets_a_row():
+    r"""A run is not bounded by the Diagram. On 1804.10694v5 page 5 the
+    figure sets three pseudocode panels side by side, the run spans two of
+    them, and the 844 characters past the Diagram's end hold the only two
+    lines MathPix routed through the math path."""
+    rows = build_rows(_listing_objects_doc(CODE + "\n" + GPU), BK)["image"]
+    assert [r.identifier for r in rows] == ["DOC_DIA_0001", "DOC_LST0001"]
+    assert "GPUThread" in rows[1].listing
+    assert rows[1].page == "5"
+
+
+def test_whitespace_alone_does_not_make_a_listing_new():
+    body = CODE.replace("\n", "\n   ")
+    rows = build_rows(_listing_objects_doc(body), BK)["image"]
+    assert [r.identifier for r in rows] == ["DOC_DIA_0001"]
+
+
+def test_an_empty_listing_gets_no_row():
+    rows = build_rows(_listing_objects_doc("   \n  "), BK)["image"]
+    assert [r.identifier for r in rows] == ["DOC_DIA_0001"]
+
+
+def test_the_listing_is_named_by_the_same_authority_as_its_tiddler():
+    """`code_listing_tiddlers` names these `<bibkey>_LST<nnnn>` in flow
+    order; a report naming them otherwise would give a reader two names for
+    one object."""
+    from docops.projectors.tiddlywiki import listing_titles
+    doc = _listing_objects_doc(CODE + "\n" + GPU)
+    assert listing_titles(doc, BK) == {"l1": "DOC_LST0001"}

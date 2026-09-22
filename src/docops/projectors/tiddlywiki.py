@@ -388,6 +388,24 @@ def math_titles(doc, bibkey: str) -> dict:
     return out
 
 
+def listing_titles(doc, bibkey: str) -> dict:
+    """`{object_id: "<bibkey>_LST0001"}` for every CodeListing in the model.
+
+    695b -- the peer of `math_titles` and `region_titles` for the listing
+    kind, and for the same reason: `code_listing_tiddlers` already names
+    these `<bibkey>_LST<nnnn>` in flow order, so a report that names them
+    any other way would hand a reader two names for one object.
+
+    A CodeListing is NOT region-bearing, which is why it is not in
+    `region_titles` -- that function's contract is the kinds that carry a
+    crop rectangle.
+    """
+    def _flow(objs):
+        return sorted(objs, key=lambda o: o.props.get("flow_index", 10**9))
+    return {o.id: title_for(bibkey, "CodeListing", i)
+            for i, o in enumerate(_flow(doc.objects_of_type("CodeListing")), 1)}
+
+
 def region_titles(doc, bibkey: str) -> dict:
     """`{object_id: "<bibkey>_PIC_0001" | "_DIA_0001" | "_TAB_001"}`.
 
