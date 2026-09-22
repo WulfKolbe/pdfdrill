@@ -178,11 +178,18 @@ def build_rows(doc, bibkey: str, *, ink: "dict | None" = None,
         for o in _flow(doc.objects_of_type(kind)):
             p = o.props
             reg = _region(p)
+            # 695a -- a listing's body lives in `code`, not `latex_code`:
+            # `diagram.py` empties `latex_code` for subtype "code" so the
+            # listing is never compiled as a graphic. Building this row from
+            # `latex_code` alone left every listing with an empty source cell
+            # and an empty Rendered cell.
             out["image"].append(ImageRow(
                 identifier=names[o.id], latex=p.get("latex_code") or "",
                 page=_page(p.get("page")),
                 cdn_url=p.get("cdn_url") or p.get("url") or "",
-                region=reg, dims=_dims(reg)))
+                region=reg, dims=_dims(reg),
+                listing=(p.get("code") or "") if p.get("subtype") == "code" else "",
+                language=p.get("language") or ""))
     return out
 
 

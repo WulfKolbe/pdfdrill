@@ -93,6 +93,22 @@ class TableRow(EvidenceRow):
 class ImageRow(EvidenceRow):
     dims: tuple = ("", "")
     texzip_crop: Optional[Path] = None
+    #: 695a -- THE BODY OF A SOURCE-CODE LISTING, which is not `latex`.
+    #:
+    #: `diagram.py` classifies a Diagram whose body is a fenced code block as
+    #: subtype "code", moves the body to the `code` prop and sets
+    #: `latex_code` to "" so no projector ever compiles a listing as TikZ.
+    #: This row was built from `latex_code` alone, so every listing arrived
+    #: with an empty LaTeX-source cell and an empty Rendered cell -- on
+    #: 1804.10694v5, 8 of 9 image rows. `report_tex.listing_cell` has existed
+    #: since 616 to set exactly this and was never reached.
+    #:
+    #: Kept as its OWN field rather than assigned into `latex`: `latex` means
+    #: "what the source says in LaTeX" everywhere else in this dataclass, and
+    #: a listing body is not that (see docs/layers/PROPS.md on the pairs that
+    #: compile silently when confused).
+    listing: str = ""
+    language: str = ""
 
 
 _KIND_OF = {EquationRow: "equation", FormulaRow: "formula",

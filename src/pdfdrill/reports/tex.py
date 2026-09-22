@@ -40,6 +40,15 @@ def _rendered(r: EvidenceRow, widths, out_dir) -> str:
     # cell reads `r.latex` directly, so the LaTeX-source column still shows
     # the reading unchanged, matching report_tex.row()'s published-form
     # decision.
+    # 695a -- A LISTING IS SET, NOT COMPILED. Its body is escaped monospace
+    # with its `\(…\)` spans set as real inline maths, which is what
+    # `report_tex.listing_cell` has done since 616 for the lstlisting branch
+    # of `region_render`. Image rows never reached it: `diagram.py` moves a
+    # code listing's body out of `latex_code`, so `r.latex` is empty and this
+    # cell printed "---" for 8 of 9 image rows on 1804.10694v5.
+    listing = getattr(r, "listing", "")
+    if listing:
+        return rt.listing_cell(listing)
     safe = rt.display_safe(r.latex) if r.latex else ""
     tail = rt.esc_text(r.trailing_punct) if r.trailing_punct else ""
     if safe:
@@ -77,8 +86,11 @@ def render_row(r: EvidenceRow, widths, *, out_dir, px2mm, bibkey,
         rt.refined_flag(getattr(r, "refined_info", None)))
     # 709b — esc_source for the SOURCE cell only; the page cell below keeps
     # esc_text (it is not a wrapping problem and would only gain markup).
-    src = ("{\\ttfamily\\footnotesize %s}" % rt.esc_source(r.latex)
-           if r.latex else "---")
+    # 695a -- the SOURCE cell of a listing is the listing, for the same
+    # reason: `r.latex` is empty on a code Diagram by construction.
+    source = r.latex or getattr(r, "listing", "")
+    src = ("{\\ttfamily\\footnotesize %s}" % rt.esc_source(source)
+           if source else "---")
     cells = [ident, rt.esc_text(r.shown_page), _conf(r, ink_bullets), src,
              _rendered(r, widths, out_dir)]
     if len(widths) == 6:

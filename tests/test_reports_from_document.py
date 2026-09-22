@@ -272,3 +272,57 @@ def test_a_census_verified_refinement_IS_shown():
     (row,) = build_rows(doc, BK)["equation"]
     assert row.latex == "c=d"
     assert row.refined_info is not None
+
+
+# --- 695a: a code listing's body is `code`, not `latex_code` ---------------
+
+CODE = ("GPUThread for(i1 in 0..min \\(((\\mathrm{N}-2) \\% 32,32)+2)\\)\n"
+        "  int i = i0*32+i1")
+
+
+def _listing_doc(subtype="code"):
+    doc = Document(meta={"bibkey": BK})
+    doc.add(DocObject(id="d1", type="Diagram", props={
+        "flow_index": 1, "page": 5, "subtype": subtype,
+        "latex_code": "", "code": CODE, "language": "C",
+        "region": {"top_left_x": 3, "top_left_y": 4, "width": 100, "height": 50}}))
+    return doc
+
+
+def test_a_code_listing_reaches_the_row_with_its_body():
+    r"""695a -- `diagram.py` empties `latex_code` for subtype "code" and
+    moves the body to `code`, so a row built from `latex_code` alone carried
+    nothing. 8 of 9 image rows on 1804.10694v5 printed an empty LaTeX-source
+    cell and an empty Rendered cell, and `report_tex.listing_cell` -- written
+    for exactly this in 616 -- was never reached."""
+    (r,) = build_rows(_listing_doc(), BK)["image"]
+    assert r.latex == ""
+    assert r.listing == CODE
+    assert r.language == "C"
+
+
+def test_a_graphic_diagram_carries_no_listing():
+    """The field stays empty for everything that is not subtype "code", so
+    no other image row changes."""
+    (r,) = build_rows(_listing_doc(subtype="tikz"), BK)["image"]
+    assert r.listing == ""
+
+
+def test_the_listing_is_set_not_compiled(tmp_path):
+    r"""The Rendered cell runs the body through `listing_cell`: escaped
+    monospace, with the `\(…\)` spans set as real inline maths."""
+    from pdfdrill.reports import tex as rtex
+    (r,) = build_rows(_listing_doc(), BK)["image"]
+    out = rtex.render_row(r, (10, 10, 10, 40, 40), out_dir=str(tmp_path),
+                          px2mm=0.24, bibkey=BK)
+    assert "ttfamily" in out
+    assert "GPUThread" in out
+    assert "(not rendered)" not in out
+
+
+def test_the_source_cell_shows_the_listing_too(tmp_path):
+    from pdfdrill.reports import tex as rtex
+    (r,) = build_rows(_listing_doc(), BK)["image"]
+    out = rtex.render_row(r, (10, 10, 10, 40, 40), out_dir=str(tmp_path),
+                          px2mm=0.24, bibkey=BK)
+    assert out.count("GPUThread") == 2      # source cell and rendered cell
