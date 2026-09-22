@@ -541,7 +541,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill report <pdf> [--scale SCALE] [--embed]` | ALIAS of evidence --kind formula. Full inline+display math report (formula-report.html). --scale N scales each KaTeX render to the CDN image height (1.0=same, 2.0=200%); --embed |
 | `pdfdrill inspect <pdf> [--pages PAGES] [--dpi DPI] [--no-images]` | DevTools-style docmodel inspector HTML (<bibkey>.inspect.html): every DocObject as a hover/click box on the rendered page AND a DOM-like ELEMENTS tree + INSPECTOR pane (region/LaTeX/ props/realizations/alignments) + reading-order REFLOW. Self-contained (embeds downscaled pages); --no-images = boxes-only; --dpi N inlined-page DPI (default 120) |
 | `pdfdrill folder <dir>` | Build the full structure for every PDF in <dir> from existing |
-| `pdfdrill injectlatex <pdf> [--tex TEX]` | INJECT the author's LaTeX source (.tex/.tgz, arXiv e-print auto-downloaded) as a competing `tex` provenance on each matched equation (original+expanded LaTeX). INPUT direction (was `latex`); for LaTeX OUTPUT use `latex`. --tex <path> |
+| `pdfdrill injectlatex <pdf> [--tex TEX] [--audit AUDIT]` | INJECT the author's LaTeX source (.tex/.tgz, arXiv e-print auto-downloaded) as a competing `tex` provenance on each matched equation (original+expanded LaTeX). INPUT direction (was `latex`); for LaTeX OUTPUT use `latex`. --tex <path> |
 | `pdfdrill merge <pdf> [--tex TEX]` | Merge gold LaTeX prose onto a layout skeleton (MathPix OR born-digital pdfminer/pdfplumber OR tesseract): the model's Paragraphs fix the boundaries + regions, the author LaTeX supplies the text (LaTeX always wins; original kept as text_source). On a born-digital 2-column paper this DROPS the column interleaving + arXiv margin watermark from the prose. Refuses a source-built model (already gold). Needs a model + a LaTeX source. |
 | `pdfdrill fontspans <pdf> [--pages PAGES]` | The pdfminer LEG: recover the local formatting MathPix flattens — bold headings, bold/italic key terms, COLOURED runs (red/blue link text), small footnotes/captions — from the born-digital glyph layer via pdfminer.six (fontname/size/CTM/colour). Writes <bibkey>.fontspans.json, attaches per-page emphasis onto Page objects + fuses inline emphasis onto the merged Paragraphs by page-fraction overlap, and cross-checks visual bold+larger headings against the model Sections (confirms matches; flags missed headings as repair candidates). Born-digital only. |
 | `pdfdrill latexbook <tex> [--no-svg]` | One-shot source-only pipeline from a .tex book: model + TikZ/table SVGs + KaTeX report (no PDF, no MathPix) |
@@ -667,6 +667,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-8c7be4d4` before any build/extract command.
-DRILL-8c7be4d4
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-20c0ee54` before any build/extract command.
+DRILL-20c0ee54
 <!-- PREFLIGHT-TOKEN:END -->

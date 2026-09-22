@@ -1648,15 +1648,18 @@ def _do_injectlatex(args):
     pdf_args: list[str] = []
     tex = None
     force = False
+    audit = False
     i = 0
     while i < len(args):
         if args[i] == "--tex" and i + 1 < len(args):
             tex = args[i + 1]; i += 2
         elif args[i] == "--force":
             force = True; i += 1
+        elif args[i] == "--audit":
+            audit = True; i += 1
         else:
             pdf_args.append(args[i]); i += 1
-    return cmd_injectlatex(_pdf(pdf_args), tex=tex, force=force)
+    return cmd_injectlatex(_pdf(pdf_args), tex=tex, force=force, audit=audit)
 
 
 def _do_folder(args):

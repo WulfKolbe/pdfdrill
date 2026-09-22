@@ -10673,7 +10673,8 @@ def promote_equation_label(obj, src_eq: dict) -> bool:
 
 
 @_writes("injectlatex")
-def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
+def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False,
+                    audit: bool = False) -> str:
     """Ingest the author's LaTeX source (.tex or arXiv .tgz) as a competing
     `tex` provenance on each matched equation.
 
@@ -10691,6 +10692,21 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
+    if audit:
+        # 769 — READ-ONLY: what is the author LaTeX already on this model?
+        #
+        # 065 guards the INPUT, and does it well: `assert_author_source`
+        # refuses MathPix's `.tex.zip` by image-id. Nothing looked at what is
+        # already on disk, and the models predate the guard. Measured on
+        # 1205.5935v1, 458 of 479 injected equations are MathPix's own
+        # reconstruction while the sidecar records the `.tgz` — the right file
+        # name over the wrong file's content.
+        from . import injected_source as _inj, model_io as _mio
+        if not model_path.exists():
+            return f"No model for {pdf.name} — nothing to audit."
+        _doc = _mio.load_model(model_path)
+        _a = _inj.audit(_doc, model_path.parent)
+        return _inj.verdict_line(_a, pdf.stem)
     if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
         cmd_model(pdf)
         sc = Sidecar(pdf)
