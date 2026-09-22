@@ -2138,9 +2138,6 @@ commands:
     type: path
     flag: --tex
     help: author .tex/.tgz
-  - name: audit
-    flag: --audit
-    help: read-only — is the author LaTeX already on this model MathPix's own tex.zip?
   typed: true
 - name: merge
   section: Introspection (fast, no extraction)
