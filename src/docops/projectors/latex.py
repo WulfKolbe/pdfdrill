@@ -80,6 +80,11 @@ _DEFAULT_PREAMBLE = (
     # booktabs/multirow (tables) — the packages a projected paper commonly needs.
     "\\usepackage{amsmath,amssymb,amsfonts,mathtools,bm}\n"
     "\\usepackage{graphicx,booktabs,multirow,xcolor,url,hyperref}\n"
+    # 781m — `listings`, for the CodeListing branch. Declared here rather
+    # than conditionally: a listing that reaches the .tex without its
+    # package does not render badly, it FAILS TO COMPILE, and the preamble
+    # is already unconditional for every other type.
+    "\\usepackage{listings}\n"
 )
 
 
@@ -866,6 +871,61 @@ class LaTeXProjector(BaseProjector):
                 return _pipe.normalize_cite_commands(code)
             raw = (p.get("raw_text") or "").strip()
             return f"% table p{p.get('page')}\n\\begin{{verbatim}}\n{raw}\n\\end{{verbatim}}" if raw else ""
+        if t == "CodeListing":
+            # 781m — NOT IMPLEMENTED, AND THIS IS THE SPEC FOR WHEN IT IS.
+            #
+            # `CodeListing` has existed since 695b and carries `code`,
+            # `language`, `line_count`, `page`, `parent_id`. The TiddlyWiki
+            # projector emits one tiddler per listing; THIS projector has
+            # never had a branch, so a listing reaches the .tex through the
+            # prose path and renders as one justified paragraph — the same
+            # defect pdf2mmd had until 781, where the line breaks and the
+            # indentation die before LaTeX sees the file.
+            #
+            # How it must be projected, worked out and measured in pdf2mmd
+            # (`project_mmd._listing_tex`, gold set of 291 listings):
+            #
+            #   THE BODY IS THE PROGRAM. A listing is the opposite of an
+            #   equation: an equation wants markup, code wants a body a
+            #   compiler could be handed unchanged. Nothing goes in it —
+            #   no \textcolor, no escape markers, no delimiters.
+            #
+            #   THE STYLE IS A HEADER PROPERTY, said the way `listings`
+            #   says it: `morekeywords` with a `keywordstyle`,
+            #   `commentstyle`, `stringstyle`. Carrying colour INSIDE the
+            #   body was tried first and is backwards.
+            #
+            #   BRACE ANY OPTION VALUE CARRYING A BRACKET.
+            #   `\begin{lstlisting}[...]` ends its optional argument at the
+            #   first unbraced `]`, so `morekeywords=[1]{for}` silently
+            #   drops every option after it: the file compiles, the listing
+            #   sets, and NOTHING IS COLOURED. Cost two rounds to find.
+            #
+            #   columns=fullflexible + keepspaces=true, or LaTeX re-spaces
+            #   the line and the measured indentation is lost.
+            #
+            #   firstnumber is NOT always 1. `\lstinputlisting` with
+            #   `firstline=10` starts the gutter at 10; a projection that
+            #   assumes 1 renumbers every line.
+            #
+            # The worked example, including the provenance case (a caption
+            # that is an \href to the commit containing the file, with a
+            # #L10-L25 anchor) is
+            # `~/pdfdrill-library/lstgold/probe/gh/` — read back 16 of 16
+            # on text, indentation and numbering. Its README records that
+            # `\href[opts]{url}{text}` inside `listings`' caption= does NOT
+            # work: `#` is TeX's parameter character and listings re-reads
+            # the caption, so the URL is typeset instead of linked.
+            code = (p.get("code") or "").strip()
+            if not code:
+                return ""
+            lang = (p.get("language") or "").strip()
+            opt = ["basicstyle=\\ttfamily\\small", "columns=fullflexible",
+                   "keepspaces=true"]
+            if lang:
+                opt.append("language=%s" % lang)
+            return ("\\begin{lstlisting}[" + ",".join(opt) + "]\n"
+                    + code + "\n\\end{lstlisting}")
         if t in ("Picture", "Diagram"):
             code = (p.get("latex_code") or "").strip()
             if code:

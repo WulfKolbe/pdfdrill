@@ -167,6 +167,26 @@ until it is understood — the user's instruction of 2026-09-14.
 - **Listings** — MathPix math expressions that are really algorithmic
   structure tables should be detected as images. The user's named next goal.
   676's caption work is the shape this wants: a TYPE, not another exclusion.
+- **The LaTeX projection of a `CodeListing`** — a branch now exists in
+  `src/docops/projectors/latex.py`, and the comment above it is the SPEC,
+  written from the worked example at `~/pdfdrill-library/lstgold/probe/gh/`
+  (read back 16 of 16 on text, indentation and numbering). Four things it
+  must keep, each learned by a defect in pdf2mmd 781:
+  **the body is the program** — a listing is the opposite of an equation, so
+  nothing goes inside it: no `\textcolor`, no escape markers;
+  **the style is a header property** — `morekeywords` with a `keywordstyle`,
+  `commentstyle`, `stringstyle`, said the way `listings` says it;
+  **brace any option value carrying a bracket** — `morekeywords=[1]{for}`
+  ends the environment's optional argument at `[1]` and silently drops every
+  option after it: the file compiles, the listing sets, nothing is coloured;
+  **`firstnumber` is not always 1** — `\lstinputlisting[firstline=10]`
+  starts the gutter at 10.
+  The probe also covers provenance: a caption that is an `\href` to the
+  commit containing the file, with a `#L10-L25` anchor, recoverable only
+  from the annotation layer. Its README records that `\href[opts]{url}{text}`
+  inside `listings`' `caption=` does NOT work — `#` is TeX's parameter
+  character and listings re-reads the caption, so the URL is typeset
+  instead of linked.
 - **Inline formula measurement**, and with it moving the measure build from
   `report.pdf` to `evidence-equation.pdf`.
 - **The 38 rows with no prose-typed occurrence** (676 B4, ruled and recorded,
