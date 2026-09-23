@@ -103,6 +103,33 @@ commands:
     help: PDF path, https URL, or bare arXiv id
   typed: true
   done_when: fact:SIZE_KNOWN
+- name: profile
+  section: Introspection (fast, no extraction)
+  summary: 'What is ON each page, and on what evidence — the triage layer (781o). Counting
+    is the wrong instrument for a mixed corpus: pdftc_900k_1018.pdf carries 10,368 monospace
+    glyphs and 170 rows of listing, so counting glyphs calls it code and counting rows calls
+    it prose, and both are wrong about the same page — the monospace is mostly INLINE. Reports
+    properties with their measurement (listing, inline-code, equation, inline-math, frame,
+    coloured-fill, coloured-frame, diagram, rotated-text, no-text-layer, invisible-text), per
+    page and rolled up, and writes <stem>.profile.json. A property that is not established is
+    ABSENT, not false — a guess is what sends a file to a paid API. It PRICES the decision: over
+    that 132-page manual the listings live on 37 pages, so a paid pass bills 132 for content on
+    37, which is what route/mathpix can consult before anyone spends a key. Free, keyless,
+    offline; reads with pdf2mmd''s glyph model ($PDF2MMD_HOME, default ~/pdf2mmd) because that
+    model is on a patched pdfminer and is not importable here.'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: json
+    flag: --json
+    type: bool
+    help: write the sidecar and print its path only
+  typed: true
+  done_when: file:{stem}.profile.json
 - name: corrections
   typed: true
   section: Introspection (fast, no extraction)

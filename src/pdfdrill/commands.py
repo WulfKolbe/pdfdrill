@@ -13918,6 +13918,101 @@ def _invalidate_font_caches(sc) -> None:
     sc.save()
 
 
+# ---------------------------------------------------------------- profile
+#: pdf2mmd is a SEPARATE INSTALL with a PATCHED pdfminer (the glyph-identity
+#: fork). It cannot be imported here and must not be: the fork is what makes
+#: its glyph names trustworthy, and pulling it into this environment would
+#: change what every other pdfminer caller in this package sees. So it is a
+#: TOOL, spoken to over a pipe — the same shape as the language detector in
+#: pdf2mmd's own `out/langdetect.py`.
+#:
+#: $PDF2MMD_HOME   where it lives (default ~/pdf2mmd)
+_PROFILE_RUNNER = r'''
+import json, sys
+sys.path.insert(0, sys.argv[1])
+import docmodel_six as dm, profile as pr
+pages = dm.build(sys.argv[2])
+out = {"pages": len(pages), "where": {}, "page_props": {}}
+for p in pages:
+    f = pr.page_profile(p)
+    if f.props:
+        out["page_props"][str(p.page)] = f.props
+for k, v in pr.document_profile(pages).items():
+    out["where"][k] = v
+print(json.dumps(out))
+'''
+
+
+def _pdf2mmd_home() -> Path:
+    import os
+    return Path(os.environ.get("PDF2MMD_HOME",
+                               str(Path.home() / "pdf2mmd"))).expanduser()
+
+
+@_writes("profile")
+def cmd_profile(pdf: Path, pages: str | None = None, json_only: bool = False) -> str:
+    """WHAT IS ON EACH PAGE, and on what evidence — the triage layer (781o).
+
+    Counting is the wrong instrument for a heterogeneous corpus, and one
+    document shows why: `pdftc_900k_1018.pdf` carries 10,368 monospace
+    glyphs and 170 rows of listing. Counting glyphs calls it a code
+    document; counting rows calls it prose. Both are wrong about the same
+    page, because the monospace is mostly INLINE — command names in running
+    text — and inline code and a code block are different things.
+
+    So this reports PROPERTIES WITH THEIR EVIDENCE, per page and rolled up
+    to the document: `listing`, `inline-code`, `equation`, `inline-math`,
+    `frame`, `coloured-fill`, `coloured-frame`, `diagram`, `rotated-text`,
+    `no-text-layer`, `invisible-text`. A property that is not established
+    is ABSENT, not false — a guess is what sends a file to a paid API.
+
+    Why it is a layer and not a report: it prices the decision. Over that
+    132-page manual the listings live on 37 pages, so a paid pass bills 132
+    for content that is on 37. `route` and `mathpix` can consult
+    `<stem>.profile.json` before anyone spends a key.
+
+    Free, keyless, offline. Needs pdf2mmd installed ($PDF2MMD_HOME, default
+    ~/pdf2mmd) because the reading is its glyph model, on its patched
+    pdfminer; absent, this says so rather than half-answering.
+    """
+    home = _pdf2mmd_home()
+    py = home / ".pdfmm-venv" / "bin" / "python"
+    if not py.is_file():
+        return (f"pdf2mmd not found at {home} (set $PDF2MMD_HOME). "
+                f"`profile` reads with pdf2mmd's glyph model, which lives on a "
+                f"patched pdfminer and is not importable here.")
+    try:
+        r = subprocess.run([str(py), "-c", _PROFILE_RUNNER, str(home), str(pdf)],
+                           capture_output=True, text=True, timeout=900)
+    except subprocess.TimeoutExpired:
+        return f"profile: pdf2mmd did not finish within 900s on {pdf.name}."
+    if r.returncode != 0 or not r.stdout.strip():
+        why = (r.stderr or "").strip().split("\n")[-1][:160]
+        return f"profile: pdf2mmd could not read {pdf.name} — {why}"
+    data = json.loads(r.stdout)
+
+    out = pdf.with_suffix(".profile.json")
+    out.write_text(json.dumps(data, indent=1), encoding="utf-8")
+    if json_only:
+        return str(out)
+
+    n = data["pages"] or 1
+    carry = len(data["page_props"])
+    lines = [f"{pdf.name}: {n} page(s), {carry} carrying anything "
+             f"({100 * carry // n}%)."]
+    where = data["where"]
+    if not where:
+        lines.append("  No property established on any page — nothing here a "
+                     "paid pass would find either.")
+    for k, ps in sorted(where.items(), key=lambda kv: -len(kv[1])):
+        span = f"p{ps[0]}" if len(ps) == 1 else f"first p{ps[0]}"
+        lines.append(f"  {k:<16} {len(ps):4d} page(s) {100*len(ps)//n:3d}%   {span}")
+    if carry < n:
+        lines.append(f"  A paid pass bills {n} page(s) for content on {carry}.")
+    lines.append(f"  Written: {out.name}")
+    return "\n".join(lines)
+
+
 def cmd_fonts(pdf: Path, force: bool = False) -> str:
     """Run pdffonts. Return sentence summary of fonts."""
     sc = Sidecar(pdf)

@@ -478,6 +478,12 @@ def _do_fonts(args):
     return cmd_fonts(_pdf(args), force="--force" in args)
 
 
+def _do_profile(args):
+    """`profile` — what is on each page, and on what evidence (781o)."""
+    from .commands import cmd_profile
+    return cmd_profile(_pdf(args), json_only="--json" in args)
+
+
 def _do_speak(args):
     """`speak` — render math to speech via la2speech and store it as `spoken`."""
     from .commands import cmd_speak
@@ -2269,6 +2275,7 @@ HANDLERS = {
         "abstract": _do_abstract,
         "toc": _do_toc,
         "fonts": _do_fonts,
+        "profile": _do_profile,
         "docs": _do_docs,
         "breport": _do_breport,
         "evidence": _do_evidence,
