@@ -136,3 +136,64 @@ def test_visionocr_lines_still_take_the_merged_route():
     # and the rule it must not break: MathPix contributes everything already
     assert not prefers_merged_route(lines_exists=True, lines_source="visionocr",
                                     is_arxiv=True, mathpix=True)
+
+
+# --------------------------------------------------------------------------
+# The rectangles have to reach the SCREEN, not just the model.
+# --------------------------------------------------------------------------
+
+def test_a_merged_model_still_knows_its_page_size():
+    """The overlay places a box at `100 * x / pt_w` percent.
+
+    A LaTeX-source model has no `meta["pages"]`, so `pages_meta` used to fall
+    back to `pt_w: None` — and `100 * x / null` is `"Infinity%"`, which CSS
+    silently discards. Every rectangle in the model was correct and not one of
+    them was drawn: a full model looked exactly like an empty one. The merged
+    route adds a Page OBJECT per page carrying the real dimensions; read those.
+    """
+    from pdfdrill.docinspect import build_stream_index, collect_elements
+
+    model = {
+        "meta": {},                                   # no meta["pages"]
+        "streams": {},
+        "objects": [
+            {"id": "p1", "type": "Page", "props": {
+                "page_number": 1, "page_width": 595.28, "page_height": 841.89},
+             "realizations": [], "children": []},
+            {"id": "o1", "type": "Paragraph", "props": {
+                "page": 1, "text": "body",
+                "region": {"top_left_x": 72, "top_left_y": 100,
+                           "width": 400, "height": 12}},
+             "realizations": [], "children": []},
+        ],
+    }
+    _elements, pages_meta = collect_elements(model, build_stream_index(model))
+    page1 = next(m for m in pages_meta if m["page"] == 1)
+    assert page1["pt_w"] == 595 and page1["pt_h"] == 842, \
+        "no page size means no scale, and the overlay draws nothing at all"
+
+
+def test_a_page_object_is_addressed_by_its_own_page_number():
+    """A Page numbers itself `page_number`; everything else carries `page`.
+
+    Reading only the latter gave every merged Page `page: None`, and the
+    overlay filters boxes with `e.page === curPage` — so the frame was never
+    drawn, on exactly the models where the Page was the best-measured object
+    on the sheet.
+    """
+    from pdfdrill.docinspect import build_stream_index, collect_elements
+
+    model = {
+        "meta": {}, "streams": {},
+        "objects": [
+            {"id": "p1", "type": "Page", "props": {
+                "page_number": 7, "page_width": 595, "page_height": 842,
+                "region": {"top_left_x": 60, "top_left_y": 50,
+                           "width": 470, "height": 740}},
+             "realizations": [], "children": []},
+        ],
+    }
+    elements, _pm = collect_elements(model, build_stream_index(model))
+    page_el = next(e for e in elements if e["type"] == "Page")
+    assert page_el["page"] == 7, "an unaddressable box is never drawn"
+    assert page_el["bbox"], "the page frame lost its rectangle"

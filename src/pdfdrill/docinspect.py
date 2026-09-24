@@ -267,7 +267,13 @@ def object_geometry(obj: dict, sidx: dict) -> tuple[Optional[int], Optional[dict
     """
     payload_of = sidx["payload"]
     order_of = sidx["order"]
-    page: Optional[int] = obj.get("props", {}).get("page")
+    # A Page object numbers itself `page_number`; everything else carries
+    # `page`. Reading only the latter left every merged Page with page=None, so
+    # the overlay's `e.page === curPage` filter never matched one and the frame
+    # was never drawn — on a model where the Page was the only thing with a
+    # rectangle, that is a view with nothing on it.
+    page: Optional[int] = (obj.get("props", {}).get("page")
+                           or obj.get("props", {}).get("page_number"))
     bbox: Optional[dict] = None
     texts: list[str] = []
 
@@ -472,12 +478,26 @@ def collect_elements(model: dict, sidx: dict, *, with_blobs: bool = False):
                 "pt_h": _int(pm.get("page_height")),
             })
     else:
-        # No meta['pages'] — a LaTeX-source / non-rasterized model SPECIES (which
-        # carries no page geometry). Derive the page list from the objects' page
-        # props so the ELEMENTS tree + REFLOW still work (boxes-only: there's no
-        # page geometry to draw against). Prevents the KeyError('pages') that made
-        # `inspect` return a cryptic failure and the agent improvise.
+        # No meta['pages'] — a LaTeX-SOURCE model carries no page geometry of its
+        # own. But the MERGED route adds a Page OBJECT per page holding the real
+        # width/height it took from the lines.json, and those are the page
+        # dimensions. Reading them is not cosmetic: the overlay places every box
+        # as `100*x/ptW` percent, so a null ptW yields "Infinity%", which CSS
+        # discards — the model is full of correct rectangles and the page shows
+        # not one of them. A merged model looked exactly like a broken one.
         seen: dict = {}
+        for o in model.get("objects", []):
+            if o.get("type") != "Page":
+                continue
+            pr = o.get("props") or {}
+            pg = pr.get("page_number")
+            if pg is None or pg in seen:
+                continue
+            seen[pg] = {"page": pg,
+                        "pt_w": _int(pr.get("page_width")),
+                        "pt_h": _int(pr.get("page_height"))}
+        # Then any page that only the elements know about (no Page object, so no
+        # dimensions either) — the tree and REFLOW still want it listed.
         for e in elements:
             pg = e.get("page")
             if pg is not None and pg not in seen:
@@ -1521,6 +1541,18 @@ function drawBlobs(canvas, sx, sy){
 }
 
 /* ---------- STAGE: page view (boxes are hooked elements too) ---------- */
+/* Without the page's size in points there is no scale, and `100*x/null` is
+   "Infinity%" — CSS drops it and every box vanishes without a word. Say so
+   instead: a view that draws nothing must not look like a model that contains
+   nothing. */
+function noScale(stage,wrap,pn){
+  const warn=el('div');
+  warn.style.cssText='position:absolute;left:0;top:0;padding:6px 10px;'
+    +'background:#b3261e;color:#fff;font:12px monospace;z-index:9';
+  warn.textContent='page '+pn+': no page size in points — boxes cannot be placed';
+  stage.appendChild(warn); wrap.appendChild(stage);
+}
+
 function renderPage(){
   const wrap=document.getElementById('stagewrap'); wrap.innerHTML='';
   const g=pageScale(curPage); const stage=el('div','stage');
@@ -1528,6 +1560,7 @@ function renderPage(){
   const img=el('img'); img.src=g.src; stage.appendChild(img);
   const ov=el('div','overlay'); stage.appendChild(ov);
   const W=g.ptW, H=g.ptH;
+  if(!W || !H){ noScale(stage,wrap,curPage); return; }
   /* Largest FIRST: a later sibling paints on top, so a page-sized box appended
    * after a figure covered it and swallowed every click — selecting the Page
    * when the user was pointing at the picture inside it. Ordering by area
