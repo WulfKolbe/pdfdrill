@@ -482,6 +482,36 @@ def pdf_in_folder(folder: Path) -> "Path | None":
     return pdfs[0] if len(pdfs) == 1 else None
 
 
+def library_pdf_for(name: str, root: Path) -> "Path | None":
+    """The library document a BARE NAME means, or None.
+
+    The self-contained layout names the folder after the document's STEM —
+    `<library>/1001850/1001850.pdf` — and a user reading that folder types the
+    thing they can see, which is the file: `add 1001850.pdf`. That carried an
+    extension the folder does not have, so the folder lookup missed, nothing
+    else matched, and the answer was "Not found" for a document sitting right
+    there. `add Zwiebeln` worked and `add Zwiebeln.pdf` did not, which is not a
+    distinction anyone can be expected to hold.
+
+    Tried in order, most specific first: the folder named exactly as typed, the
+    folder named by the stem, then a loose PDF at the library root (the
+    pre-adoption layout, and anything dropped in by hand).
+    """
+    try:
+        root = Path(root)
+        stem = Path(name).stem
+        for folder in (root / name, root / stem):
+            hit = pdf_in_folder(folder)
+            if hit is not None:
+                return hit
+        for cand in (root / name, root / f"{stem}.pdf"):
+            if cand.is_file():
+                return cand
+    except OSError:
+        return None
+    return None
+
+
 def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
     """Resolve a command argument to a local PDF path.
 
@@ -523,9 +553,10 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
         # self-contained layout without typing the full `<stem>/<stem>.pdf`.
         folder = pdf_in_folder(Path(arg))
         if folder is None:
-            # a BARE name matching a library doc folder (`<library>/<arg>/<arg>.pdf`)
-            # → reopen it, BEFORE treating the name as an arXiv id to re-download.
-            folder = pdf_in_folder(dest_dir / arg)
+            # a BARE name matching a library doc — by folder, by STEM (the name
+            # the layout uses), or as a loose file at the root — BEFORE treating
+            # the name as an arXiv id to re-download.
+            folder = library_pdf_for(arg, dest_dir)
         if folder is not None:
             return {"path": folder, "source": None,
                     "arxiv_id": bare_arxiv_id(folder.stem)}

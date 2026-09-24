@@ -92,3 +92,77 @@ def test_a_failed_download_leaves_no_empty_folder(tmp_path, monkeypatch):
         pass
     assert not dest.parent.exists(), \
         "an empty doc folder makes the bare name stop resolving for good"
+
+
+# --------------------------------------------------------------------------
+# A bare name has to mean what the user can SEE.
+# --------------------------------------------------------------------------
+
+def test_a_bare_name_resolves_with_or_without_the_extension(tmp_path):
+    """The layout names the folder after the STEM — `1001850/1001850.pdf` — and
+    a user reading that folder types the file they can see: `add 1001850.pdf`.
+    The folder has no extension, so the lookup missed and the answer was "Not
+    found" for a document sitting right there. `add Zwiebeln` worked and `add
+    Zwiebeln.pdf` did not, which is not a distinction anyone can hold.
+    """
+    from pdfdrill.sources import library_pdf_for
+
+    doc = _pdf(tmp_path / "1001850", "1001850.pdf")
+    assert library_pdf_for("1001850", tmp_path) == doc
+    assert library_pdf_for("1001850.pdf", tmp_path) == doc
+
+
+def test_a_loose_pdf_at_the_library_root_is_still_found(tmp_path):
+    """The pre-adoption layout, and anything dropped in by hand."""
+    from pdfdrill.sources import library_pdf_for
+
+    loose = _pdf(tmp_path, "notes.pdf")
+    assert library_pdf_for("notes.pdf", tmp_path) == loose
+    assert library_pdf_for("notes", tmp_path) == loose
+
+
+def test_a_folder_wins_over_a_loose_file_of_the_same_name(tmp_path):
+    """Most specific first: the drilled document, not the stray copy beside it."""
+    from pdfdrill.sources import library_pdf_for
+
+    _pdf(tmp_path, "paper.pdf").write_bytes(b"%PDF-1.4\n%loose\n")
+    inside = _pdf(tmp_path / "paper", "paper.pdf")
+    inside.write_bytes(b"%PDF-1.4\n%drilled\n")
+    assert library_pdf_for("paper.pdf", tmp_path) == inside
+
+
+def test_a_name_that_is_not_there_is_still_not_there(tmp_path):
+    """Widening the lookup must not start inventing documents."""
+    from pdfdrill.sources import library_pdf_for
+
+    assert library_pdf_for("nothing.pdf", tmp_path) is None
+
+
+def test_not_found_says_where_it_looked(tmp_path, monkeypatch):
+    """"Not found: 1001850.pdf" is true and useless — the document was in the
+    library the whole time, one directory down, and the user had just listed
+    it. A lookup that searched three places must say which ones, because the
+    next move depends entirely on which was wrong: a typo, the wrong working
+    directory, or a document that is really not there."""
+    from pdfdrill import cli, config as cfg
+
+    (tmp_path / "Zwiebeln").mkdir()
+    (tmp_path / "Zwiebeln" / "Zwiebeln.pdf").write_bytes(b"%PDF-1.4\n")
+    monkeypatch.setattr(cfg, "library_root", lambda: tmp_path)
+
+    msg = cli._not_found_message("Zwiebln.pdf", tmp_path / "Zwiebln.pdf")
+    assert "Not found: Zwiebln.pdf" in msg
+    assert str(tmp_path) in msg, "the library it searched must be named"
+    assert "did you mean: Zwiebeln?" in msg, \
+        "a typo is the case that sends people here; substring matching misses it"
+
+
+def test_a_name_with_no_near_miss_offers_none(tmp_path, monkeypatch):
+    """Guessing is worse than silence: a wrong suggestion sends the reader
+    looking for a document that does not exist."""
+    from pdfdrill import cli, config as cfg
+
+    (tmp_path / "Zwiebeln").mkdir()
+    monkeypatch.setattr(cfg, "library_root", lambda: tmp_path)
+    assert "did you mean" not in cli._not_found_message("quantum.pdf",
+                                                        tmp_path / "quantum.pdf")

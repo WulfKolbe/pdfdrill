@@ -164,6 +164,43 @@ def _emit(text: str, stream=None) -> None:
         return
 
 
+def _not_found_message(arg: str, resolved: Path) -> str:
+    """Say WHERE we looked, and name the near miss.
+
+    "Not found: 1001850.pdf" is true and useless: the file was in the library
+    the whole time, one directory down, and the user had just listed it. A
+    lookup that searched three places must say so, because the reader's next
+    move depends entirely on which of them was wrong — a typo, the wrong
+    working directory, or a document that really is not there.
+    """
+    from . import sources
+    lines = [f"Not found: {arg}"]
+    cwd = Path.cwd()
+    lines.append(f"  as a path, relative to {cwd}")
+    try:
+        from . import config as cfg
+        root = cfg.library_root()
+        lines.append(f"  in the library {root} — by folder, by stem, "
+                     f"and as a loose file")
+        # A near miss is worth more than the whole listing. Substring matching
+        # is not enough — the case that sends people here is a TYPO, and
+        # "Zwiebln" contains nothing of "Zwiebeln". difflib answers both.
+        import difflib
+        stem = Path(arg).stem
+        names = [d.name for d in root.iterdir() if d.is_dir()]
+        near = difflib.get_close_matches(stem, names, n=3, cutoff=0.7)
+        low = stem.lower()
+        near += [n for n in names
+                 if low and low in n.lower() and n not in near][:3 - len(near)]
+        if near:
+            lines.append("  did you mean: " + ", ".join(near[:3]) + "?")
+    except Exception:                       # noqa: BLE001
+        pass
+    lines.append("  (a bare arXiv id or an https URL is downloaded; "
+                 "`pdfdrill config show` for the library root)")
+    return "\n".join(lines)
+
+
 def _probe_on_acquire(p: Path) -> Path:
     """Run the three cheap probes the first time we resolve a PDF.
 
@@ -222,7 +259,11 @@ def _pdf(args: list[str]) -> Path:
             # reopened by name (the arxiv-id branch below only fires for id-shapes).
             try:
                 from . import config as cfg
-                folder_pdf = sources.pdf_in_folder(cfg.library_root() / arg)
+                # By folder, by STEM, or as a loose file at the root. The stem
+                # is the one that matters: the layout names the folder
+                # `1001850/` and the user types `1001850.pdf`, the file they can
+                # actually see in it.
+                folder_pdf = sources.library_pdf_for(arg, cfg.library_root())
             except Exception:                       # noqa: BLE001
                 folder_pdf = None
         if folder_pdf is not None:
@@ -270,7 +311,7 @@ def _pdf(args: list[str]) -> Path:
             raise
         except Exception:                   # noqa: BLE001
             pass
-        raise FileNotFoundError(f"Not found: {p}")
+        raise FileNotFoundError(_not_found_message(arg, p))
     return _probe_on_acquire(p)
 
 
