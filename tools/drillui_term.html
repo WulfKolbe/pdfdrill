@@ -13,7 +13,8 @@
 <!-- Stamped by the bridge with the content hash of THIS file; compared against
      the `hello` payload so a tab left open across a bridge restart reloads
      itself instead of silently running stale JS. Literal when opened directly. -->
-<script>window.__DRILLUI_UI_VERSION = "__DRILLUI_UI_VERSION__";</script>
+<script>window.__DRILLUI_UI_VERSION = "__DRILLUI_UI_VERSION__";
+window.__DRILLUI_BUILD_REV = "__DRILLUI_BUILD_REV__";</script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
 
@@ -172,6 +173,10 @@
     <span class="brand"><span class="glyph">▚</span> drillui<span class="sub">ask the document</span></span>
     <span class="spacer"></span>
     <span class="chip loc" id="loc" title=""><span class="loc-glyph">⌂</span><span id="loc-label">—</span></span>
+    <!-- WHICH CODE IS RUNNING. After a pull-and-restart the only evidence the
+         new code took was whether the bug went away, which is the question, not
+         evidence. The bridge stamps its commit here at serve time. -->
+    <span class="chip" id="build" title="bridge build (git commit of the running code)">__DRILLUI_BUILD_REV__</span>
     <span class="chip" id="conn" data-state="down"><span class="dot"></span><span id="conn-label">offline</span></span>
   </header>
 

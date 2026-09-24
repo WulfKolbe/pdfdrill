@@ -21,7 +21,7 @@
 
 import { dirname, join, resolve, normalize, sep, extname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
-import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync, statSync } from "node:fs";
 import { homedir, tmpdir, hostname } from "node:os";
 import { lanAddresses, isLocalClient as isLocalClientOf,
          isPrivateOrigin } from "./drillui_net.ts";
@@ -165,6 +165,38 @@ async function uiVersion(): Promise<string> {
   return _uiVer;
 }
 await uiVersion();          // before any WS can connect
+
+// BUILD REVISION — which CODE is running, as opposed to which page is served.
+//
+// `uiVersion` hashes drillui_term.html, so it answers "is this tab's JS
+// current". It says nothing about the BRIDGE, and the bridge is what resolves
+// artifacts. After a pull-and-restart the only evidence that the new code took
+// was whether the bug went away — which is not evidence, it is the question.
+// So: the commit this file was checked out at, printed in the banner, shown in
+// the UI, returned by /version, and stamped into the 404 body, because the 404
+// is where someone is standing when they need it.
+const BUILD_REV: string = (() => {
+  try {
+    const r = Bun.spawnSync({
+      cmd: ["git", "-C", REPO_ROOT, "log", "-1", "--format=%h %cs"],
+      stdout: "pipe", stderr: "ignore",
+    });
+    const out = new TextDecoder().decode(r.stdout).trim();
+    if (r.exitCode === 0 && out) {
+      // A dirty tree is a different thing from the commit it sits on, and
+      // saying so is the whole point of a revision string.
+      const d = Bun.spawnSync({ cmd: ["git", "-C", REPO_ROOT, "status",
+                                      "--porcelain"], stdout: "pipe",
+                                stderr: "ignore" });
+      const dirty = new TextDecoder().decode(d.stdout).trim() ? "+dirty" : "";
+      return out + dirty;
+    }
+  } catch { /* not a git checkout — fall through to the file's own mtime */ }
+  try {
+    const st = statSync(fileURLToPath(import.meta.url));
+    return "nogit " + new Date(st.mtimeMs).toISOString().slice(0, 16).replace("T", " ");
+  } catch { return "unknown"; }
+})();
 
 // ---- artifact serving ------------------------------------------------------
 // pdfdrill prints artifact paths RELATIVE TO THE DOCUMENT'S folder (e.g.
@@ -844,6 +876,14 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
     }
 
     // serve a pdfdrill output file (under ART_ROOT only)
+    // /version — "is the thing I just pulled the thing that is running?"
+    // answerable with curl, by anyone, without reading a banner they have
+    // already scrolled past.
+    if (url.pathname === "/version") {
+      return Response.json({ build: BUILD_REV, ui: _uiVer, repo: REPO_ROOT,
+                             roots: ART_ROOTS, library_root: LIBRARY_ROOT });
+    }
+
     // /a/<path> — THE SAME ARTIFACTS, ADDRESSED BY PATH.
     //
     // `/artifact?path=<doc>/<file>` is a QUERY endpoint, so a relative link
@@ -865,7 +905,8 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
       if (!abs) return new Response("forbidden path", { status: 403 });
       const f = Bun.file(abs);
       if (!(await f.exists())) {
-        return new Response(`not found: ${want}\n`, { status: 404,
+        return new Response(`not found: ${want}   [bridge ${BUILD_REV}]\n`,
+          { status: 404,
           headers: { "content-type": "text/plain; charset=utf-8" } });
       }
       const ct = MIME[extname(abs).toLowerCase()] ?? "application/octet-stream";
@@ -900,7 +941,24 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
         const quiet = !!process.env.DRILLUI_NO_DIAG
                       && !isLocalClient(peerIp(server, req));
         if (quiet) return new Response(why, { status: 404 });
-        const tried = ART_ROOTS.map((r) => `  ${r}/${want}`).join("\n");
+        // Show the ALIAS EXPANSION, not just the literal joins. `library/x`
+        // is not looked for at `<root>/library/x` — the prefix is CONSUMED and
+        // the rest joined to the library root. Printing only the literal joins
+        // named three paths nobody ever tried and omitted the one that
+        // actually decided the answer.
+        const lines: string[] = ART_ROOTS.map((r) => `  ${r}/${want}`);
+        const h = want.replace(/^\/+/, "").split("/")[0];
+        const rest = want.replace(/^\/+/, "").slice(h.length + 1);
+        if (h && rest) {
+          for (const root of ART_ROOTS) {
+            const aliases = [basename(root)];
+            if (LIBRARY_ROOT && root === LIBRARY_ROOT) aliases.push("library");
+            if (aliases.includes(h)) {
+              lines.push(`  ${root}/${rest}   (via the "${h}/" alias)`);
+            }
+          }
+        }
+        const tried = lines.join("\n");
         // The `library/…` prefix is an ALIAS, not a directory: it resolves only
         // when the bridge knows which root is the library. Silently failing to
         // match looks identical to a missing file, so name it.
@@ -910,7 +968,8 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
             `root,\nso it matched nothing. That is what failed here, not the file.\n`
           : "";
         return new Response(
-          `${why}\n\npath as given: ${want}\n${aliasNote}\nroots tried, in order:\n${tried}\n` +
+          `${why}   [bridge ${BUILD_REV}]\n\npath as given: ${want}\n${aliasNote}` +
+          `\nroots tried, in order:\n${tried}\n` +
           `\nIf the document lives somewhere not listed above, the bridge cannot\n` +
           `see it. Point pdfdrill at it and restart the bridge (the roots are\n` +
           `read once, at startup):\n` +
@@ -1065,8 +1124,9 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
       // "the old view with wrong behaviour" (commands silently mis-routed).
       // The client compares this stamp against the one in `hello` and reloads
       // itself once on mismatch.
-      const html = (await file.text()).replace(
-        "__DRILLUI_UI_VERSION__", await uiVersion());
+      const html = (await file.text())
+        .replaceAll("__DRILLUI_UI_VERSION__", await uiVersion())
+        .replaceAll("__DRILLUI_BUILD_REV__", BUILD_REV);
       return new Response(html, { headers: {
         "content-type": "text/html; charset=utf-8",
         "cache-control": "no-store, must-revalidate",
@@ -1196,6 +1256,7 @@ if (host === "0.0.0.0" || host === "::") {
   }
 }
 if (staticServer) console.error(`  static artifacts → http://localhost:${staticServer.port}/ (CoCalc route)`);
+console.error(`  build: ${BUILD_REV}   ui: ${_uiVer}`);
 console.error(`  chat: ${pythonBin} ${CHAT_SCRIPT}`);
 console.error(`  doc=${doc}  model=${model ?? "default"}  k=${k}  store=${store}`);
 console.error(`  cwd / artifacts root: ${ART_ROOT}`);
