@@ -1675,7 +1675,8 @@ class TiddlyWikiProjector(BaseProjector):
             if e.props.get("confidence_rate") is not None:
                 t["confidence_rate"] = "%.6f" % float(e.props["confidence_rate"])
             if e.props.get("cdn_url"):
-                t["canonical_uri"] = self._uri(e.props["cdn_url"])
+                t["canonical_uri"] = self._uri(e.props["cdn_url"],
+                                               t.get("title", ""))
             self._copy_region(t, e.props)
             # Competing LaTeX readings (snip/llm/...) as parallel fields so a
             # TiddlyWiki table macro can show them side by side, like compare.html.
@@ -1694,7 +1695,8 @@ class TiddlyWikiProjector(BaseProjector):
                 "<$image source={{!!canonical_uri}} width={{!!width}} height={{!!height}}/>",
                 f"picture {_bibtag(bibkey)}",
             )
-            t["canonical_uri"] = self._uri(pic.props.get("url") or "")
+            t["canonical_uri"] = self._uri(pic.props.get("url") or "",
+                                           t.get("title", ""))
             t["page"] = self._p3(pic.props.get("page"))
             for k in ("caption", "kind", "refnum"):
                 if pic.props.get(k):
@@ -2321,10 +2323,49 @@ class TiddlyWikiProjector(BaseProjector):
     def _sort_by_flow(objs: list[DocObject]) -> list[DocObject]:
         return sorted(objs, key=lambda o: o.props.get("flow_index", 10**9))
 
-    def _uri(self, url: str) -> str:
-        """Pass a URL through, or base64-embed it as a data: URI when the
-        projector is in --embed mode (self-contained tiddlers)."""
+    def _uri(self, url: str, title: str = "") -> str:
+        """The image reference a tiddler should carry.
+
+        LOCAL CROP FIRST. MathPix retired the crop CDN and every `cdn_url` in
+        every model now answers HTTP 500, so a tiddler pointing at one renders
+        as its equation number and nothing else. The bytes are not lost: the
+        crop layer fetched them long ago into `report-crops/<title>.jpg` — 5,226
+        of them for BH1org_OCR, one per EQ and FO tiddler, named after the
+        tiddler itself. So the reference is rewritten to that file.
+
+        A FILE REFERENCE, never base64. A data: URI for 5,226 crops would add
+        hundreds of megabytes to a JSON array that is already 5 MB, and
+        TiddlyWiki does not need it: `_canonical_uri`/`canonical_uri` is the
+        external-image mechanism, and the crops can sit beside the wiki or be
+        imported as ordinary PNG/JPEG tiddlers. `--embed` still embeds, for the
+        single-file case where that is the whole point.
+
+        `crops_base` sets the prefix (default `report-crops`, the folder name
+        the crop layer writes and the evidence HTML already uses), so a wiki
+        served from somewhere else can point at a URL instead.
+        """
+        local = self._local_crop(title)
+        if local:
+            return embed_image(local) if self.params.get("embed") else \
+                f"{self.params.get('crops_base', 'report-crops')}/{title}.jpg"
         return embed_image(url) if self.params.get("embed") else url
+
+    def _local_crop(self, title: str) -> str:
+        """The crop file for a tiddler, or "" — checked on disk, never assumed.
+
+        A reference to a file that is not there is the failure this replaces,
+        so the existence test is the point: with no `crops_dir` configured, or
+        no file, the caller keeps whatever it had.
+        """
+        base = self.params.get("crops_dir")
+        if not (base and title):
+            return ""
+        try:
+            from pathlib import Path as _P
+            f = _P(str(base)) / f"{title}.jpg"
+            return str(f) if f.is_file() else ""
+        except OSError:
+            return ""
 
     @staticmethod
     def _p3(value) -> str:

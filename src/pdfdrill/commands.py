@@ -11962,9 +11962,15 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
         sc.set_evidence("bibkey", key)
 
     t0 = time.monotonic()
+    # The crop layer's output, so a tiddler can reference the FILE instead of a
+    # CDN url MathPix has retired (every one now answers HTTP 500). Passed as a
+    # directory rather than a flag: the projector checks each crop exists and
+    # leaves the reference alone when it does not.
     proj = TiddlyWikiProjector(
         OperatorConfig(op="projector", classname="TiddlyWikiProjector",
-                   params={"embed": embed}))
+                   params={"embed": embed,
+                           "crops_dir": str(sc.blob_dir / "report-crops"),
+                           "crops_base": "report-crops"}))
     result = proj.project(doc)
     count = proj.counters.get("tiddlers_emitted", 0)
     # 639 -- the model (010) now creates a stub Reference for every cited

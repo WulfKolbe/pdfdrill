@@ -947,6 +947,24 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
       }
     }
 
+    // A path that LOOKS LIKE A FILE and resolved to nothing is a 404, never the
+    // terminal page. The catch-all below answered every unmatched path with the
+    // UI at HTTP 200, so `<img src="report-crops/EQ0001.jpg">` in an artifact
+    // served through `/artifact?path=…` — where the relative link loses the
+    // document folder — received 50 KB of HTML with a 200 and rendered as a
+    // broken image. Nothing reported an error, at either end: the report showed
+    // equation numbers with no equations and looked like a missing-crop problem
+    // when the crops were on disk the whole time. A 200 carrying the wrong
+    // content type is worse than a 404, because only the 404 is legible.
+    if (/\.[a-z0-9]{1,8}$/i.test(url.pathname) && url.pathname !== "/") {
+      return new Response(
+        `not found: ${url.pathname}\n\n` +
+        `A RELATIVE link inside an artifact served as /artifact?path=<doc>/<file>\n` +
+        `loses the document folder. Open the artifact on the static route instead,\n` +
+        `where relative links resolve: /<doc>/<file>\n`,
+        { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+    }
+
     // serve the terminal page (default route). no-store: we iterate on this file
     // a lot — a stale cached copy is a real source of "it doesn't work" (old JS).
     const file = Bun.file(HTML_PATH);
