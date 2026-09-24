@@ -186,7 +186,7 @@ const DOC_DIR = (() => {
 // them, and pdfdrill now reports FOLDER-QUALIFIED paths (`<stem>/<file>`) that
 // resolve directly under the library/download root.
 let LIBRARY_ROOT: string | null = null;   // 410 — set from config below
-const CONFIG_DIRS = (() => {
+const CONFIG_DIRS: string[] = (() => {
   const dirs: string[] = [];
   const cands = [process.env.PDFDRILL_CONFIG,
                  join(homedir(), ".config", "pdfdrill", "config.json"),
@@ -217,6 +217,35 @@ const CONFIG_DIRS = (() => {
   const dl = join(homedir(), "Downloads");
   if (existsSync(dl)) dirs.push(dl);
   return dirs;
+})();
+
+// ASK PDFDRILL, don't re-derive. Parsing the config FILE only ever sees a
+// DECLARED value, and pdfdrill's own `library_root()` falls back to
+// `download_dir()`, which falls back to ~/Downloads and then to the cwd. On a
+// machine with no config the two therefore disagreed: pdfdrill resolved a
+// library and emitted paths for it, while the bridge had `LIBRARY_ROOT = null`
+// so its `library/…` alias silently did not exist — and a path pdfdrill
+// considered perfectly valid came back "not found" with nothing to say the
+// PREFIX was the problem. One subprocess at startup removes the whole class:
+// whatever pdfdrill thinks its roots are, they are now the bridge's too.
+(() => {
+  try {
+    const r = Bun.spawnSync({
+      cmd: [pythonBin, "-m", "pdfdrill", "config", "--json"],
+      cwd: REPO_ROOT,
+      env: { ...process.env, PYTHONPATH: join(REPO_ROOT, "src"),
+             PDFDRILL_NO_PREFLIGHT: "1" },
+    });
+    if (r.exitCode !== 0) return;
+    const d = JSON.parse(new TextDecoder().decode(r.stdout).trim());
+    for (const key of ["library_root", "download_dir"]) {
+      const v = d?.[key];
+      if (!v) continue;
+      const abs = resolve(String(v));
+      if (!CONFIG_DIRS.includes(abs)) CONFIG_DIRS.push(abs);
+      if (key === "library_root") LIBRARY_ROOT = LIBRARY_ROOT ?? abs;
+    }
+  } catch { /* pdfdrill not importable here — the config-file path still applies */ }
 })();
 // The doc's PARENT too — the library root. In the self-contained layout a
 // document lives at <library>/<stem>/<stem>.pdf and pdfdrill reports artifact
@@ -843,8 +872,16 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
                       && !isLocalClient(peerIp(server, req));
         if (quiet) return new Response(why, { status: 404 });
         const tried = ART_ROOTS.map((r) => `  ${r}/${want}`).join("\n");
+        // The `library/…` prefix is an ALIAS, not a directory: it resolves only
+        // when the bridge knows which root is the library. Silently failing to
+        // match looks identical to a missing file, so name it.
+        const head = want.replace(/^\/+/, "").split("/")[0];
+        const aliasNote = (head === "library" && !LIBRARY_ROOT)
+          ? `\nthe "library/" prefix is an ALIAS and this bridge has no library ` +
+            `root,\nso it matched nothing. That is what failed here, not the file.\n`
+          : "";
         return new Response(
-          `${why}\n\npath as given: ${want}\n\nroots tried, in order:\n${tried}\n` +
+          `${why}\n\npath as given: ${want}\n${aliasNote}\nroots tried, in order:\n${tried}\n` +
           `\nIf the document lives somewhere not listed above, the bridge cannot\n` +
           `see it. Point pdfdrill at it and restart the bridge (the roots are\n` +
           `read once, at startup):\n` +

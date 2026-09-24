@@ -1638,8 +1638,20 @@ def cmd_config(action: str = "show", value: str | None = None) -> str:
                 f"  edit `download_dir` to change where downloads + each doc's "
                 f"`<name>.drill` sidecar land.\n  active download_dir: {cfg.download_dir()}")
     if action == "json":
+        # library_root belongs here. The drillui bridge needs the RESOLVED
+        # roots, and it used to re-derive them by parsing the config file —
+        # which only sees a DECLARED value. pdfdrill's own `library_root()`
+        # falls back to `download_dir()`, so with no config the two disagreed:
+        # pdfdrill resolved a library and the bridge had none, its `library/…`
+        # alias silently did not exist, and a path pdfdrill considered valid
+        # answered "not found" with no hint that the PREFIX was the problem.
+        # Asking pdfdrill is the only way the two can agree by construction.
         return json.dumps({"config_path": str(p) if p else None,
-                           "download_dir": str(dl)}, ensure_ascii=False)
+                           "download_dir": str(dl),
+                           "library_root": str(cfg.library_root()),
+                           "library_root_declared": bool(cfg.get("library_root")),
+                           "scratch_dir": str(cfg.scratch_dir())},
+                          ensure_ascii=False)
     return "\n".join([
         "pdfdrill config",
         f"  config file   : {p if p else '(none — using defaults; run `pdfdrill config --init`)'}",
