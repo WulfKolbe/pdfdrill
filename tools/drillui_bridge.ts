@@ -413,10 +413,18 @@ function safeResolve(p: string): string | null {
   const head = p.replace(/^\/+/, "").split("/")[0];
   if (head) {
     for (const root of ART_ROOTS) {
-      // the root's own basename ("pdfdrill-library/…"), or the LOGICAL name
-      // "library/…" for whichever root the config calls library_root.
+      // The root's own basename ("pdfdrill-library/…"), or the LOGICAL name
+      // "library/…".
+      //
+      // "library/" IS TRIED AGAINST EVERY ROOT, not only the configured
+      // library_root. The prefix means "the library, wherever that is", and on
+      // a machine with no config `library_root` falls back to ~/Downloads —
+      // so a reader who had just `cd`'d into their real library still got a
+      // 404, with the alias expanding against a directory the document was
+      // never in. Widening it can only find MORE real files: resolution stops
+      // at the first candidate that EXISTS, in root order, exactly as before.
       const aliases = [basename(root)];
-      if (LIBRARY_ROOT && root === LIBRARY_ROOT) aliases.push("library");
+      if (head === "library") aliases.push("library");
       if (!aliases.includes(head)) continue;
       const trimmed = p.replace(/^\/+/, "").slice(head.length + 1);
       if (!trimmed) continue;
@@ -989,7 +997,7 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
         if (h && rest) {
           for (const root of ART_ROOTS) {
             const aliases = [basename(root)];
-            if (LIBRARY_ROOT && root === LIBRARY_ROOT) aliases.push("library");
+            if (h === "library") aliases.push("library");
             if (aliases.includes(h)) {
               lines.push(`  ${root}/${rest}   (via the "${h}/" alias)`);
             }
