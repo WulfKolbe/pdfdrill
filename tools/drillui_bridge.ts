@@ -844,6 +844,35 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
     }
 
     // serve a pdfdrill output file (under ART_ROOT only)
+    // /a/<path> — THE SAME ARTIFACTS, ADDRESSED BY PATH.
+    //
+    // `/artifact?path=<doc>/<file>` is a QUERY endpoint, so a relative link
+    // inside an artifact resolves against `/`, not against the document's
+    // folder: `<img src="report-crops/EQ0001.jpg">` in an evidence report
+    // became `/report-crops/EQ0001.jpg` and missed. No URL the reader could
+    // type fixed that, because the folder is simply not in the path. A `<base>`
+    // cannot repair it either — a base href carrying a query contributes only
+    // its PATH to a relative reference, so the query is dropped.
+    //
+    // Serving the same files under a real path makes the relative link resolve
+    // by construction: the browser joins it against `/a/<doc>/` and asks for
+    // `/a/<doc>/report-crops/EQ0001.jpg`, which is the file. Same origin, same
+    // port, no dependency on the separate static server (a different port a LAN
+    // reader may not reach).
+    if (url.pathname.startsWith("/a/")) {
+      const want = decodeURIComponent(url.pathname.slice(3));
+      const abs = want ? safeResolve(want) : null;
+      if (!abs) return new Response("forbidden path", { status: 403 });
+      const f = Bun.file(abs);
+      if (!(await f.exists())) {
+        return new Response(`not found: ${want}\n`, { status: 404,
+          headers: { "content-type": "text/plain; charset=utf-8" } });
+      }
+      const ct = MIME[extname(abs).toLowerCase()] ?? "application/octet-stream";
+      return new Response(f, { headers: { "content-type": ct,
+                                          "cache-control": "no-store" } });
+    }
+
     if (url.pathname === "/artifact") {
       const want = url.searchParams.get("path") || "";
       const abs = safeResolve(want);
@@ -891,6 +920,16 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
       if (!abs) return new Response("forbidden path", { status: 403 });
       const f = Bun.file(abs);
       if (!(await f.exists())) return diag("not found");
+      // An HTML artifact is the one kind whose RELATIVE links matter, so it is
+      // redirected to the path route where they resolve. Every other type keeps
+      // this endpoint's behaviour — the `content-disposition` filename the
+      // Outputs `save ⤓` relies on lives below. Existing /artifact?path= links
+      // therefore keep working and simply land somewhere their images load.
+      if (/\.x?html?$/i.test(abs)) {
+        return new Response(null, { status: 302, headers: {
+          location: "/a/" + want.split("/").map(encodeURIComponent).join("/"),
+          "cache-control": "no-store" } });
+      }
       const ct = MIME[extname(abs).toLowerCase()] ?? "application/octet-stream";
       // filename for save-as: the REAL basename (e.g. 2110.13883.tiddlers.json),
       // not "artifact" (the route). `inline` keeps the in-tab viewer; the browser's
