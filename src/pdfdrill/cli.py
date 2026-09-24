@@ -176,6 +176,19 @@ def _probe_on_acquire(p: Path) -> Path:
     probing those would store a failed pdfinfo AND mark them probed, so nothing
     would ever look again.
     """
+    # ONE FOLDER PER DOCUMENT, everything under it — the layout a download
+    # already gets. A PDF copied into the library by hand stayed at the root,
+    # and `blob_dir_for` then chose the legacy layout, so a single document
+    # became four entries side by side (`x.pdf`, `x.pdf.drill/`,
+    # `x.pdf.drill.json`, `x.profile.json`). Done here because every local
+    # path in the CLI funnels through this call, and only for an undrilled
+    # PDF sitting in the library root, where the move is a rename with no
+    # reference to break. Nothing outside the library is ever moved.
+    try:
+        from . import config as _cfg, sources as _src
+        p = _src.adopt_into_doc_folder(p, _cfg.library_root())
+    except Exception:                       # noqa: BLE001
+        pass                                # never let tidiness fail a command
     try:
         if p.suffix.lower() == ".pdf" and p.is_file():
             from . import probes
@@ -242,6 +255,21 @@ def _pdf(args: list[str]) -> Path:
         fixed = sources.existing_local_path(arg)
         if fixed is not None:
             return _probe_on_acquire(fixed)
+        # An EMPTY doc folder is what a download that failed leaves behind.
+        # "Not found" about a name the user can see a directory for is the
+        # least useful true answer available — name the folder instead.
+        try:
+            from . import config as cfg
+            stale = cfg.library_root() / arg
+            if stale.is_dir() and not any(stale.iterdir()):
+                raise FileNotFoundError(
+                    f"{arg}: the doc folder {stale} is EMPTY — a download that "
+                    f"never finished. Re-add it by URL, or remove the folder "
+                    f"and try the id again.")
+        except FileNotFoundError:
+            raise
+        except Exception:                   # noqa: BLE001
+            pass
         raise FileNotFoundError(f"Not found: {p}")
     return _probe_on_acquire(p)
 
@@ -268,8 +296,10 @@ def _do_artifacts(args):
     --all includes the giant model JSON (hidden by default)."""
     from .commands import cmd_artifacts
     all_files = "--all" in args
-    rest = [a for a in args if a != "--all"]
-    return cmd_artifacts(_drilled(rest), all_files=all_files)
+    json_only = "--json" in args
+    rest = [a for a in args if a not in ("--all", "--json")]
+    return cmd_artifacts(_drilled(rest), all_files=all_files,
+                         json_only=json_only)
 
 
 def _do_preflight(args):

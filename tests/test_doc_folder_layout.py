@@ -1,78 +1,94 @@
-"""
-Self-contained document folders: a doc folder named after its PDF holds the PDF
-AND all artifacts (blob_dir = pdf.parent). A legacy sibling `<name>.pdf.drill/`
-still works (back-compat); an ad-hoc PDF (parent not named after it, no sibling)
-gets a sibling `.drill` as before. See
-docs/superpowers/specs/2026-07-14-self-contained-doc-folders.md.
+"""One folder per document, everything under it — 785.
+
+The layout a DOWNLOAD gets is `<library>/<stem>/<stem>.pdf` with every
+artifact beside it. A PDF copied into the library by hand did not get it: it
+stayed at the root, `blob_dir_for` chose the legacy layout, and one document
+became four entries side by side — `x.pdf`, `x.pdf.drill/`,
+`x.pdf.drill.json`, `x.profile.json`. An agent told to drill a reading list
+produces exactly that and then has to tidy up after itself, which is work
+nobody should have had to do.
+
+And the other half: a download that FAILED left the folder it had already
+created, empty. `pdf_in_folder` finds no PDF there, so the bare name stops
+resolving and `add <id>` answers "Not found" about a name the user can see a
+directory for. Four were sitting in the library.
 """
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from pdfdrill.sidecar import Sidecar
-
-
-def test_self_contained_doc_folder(tmp_path):
-    # <root>/2502.20855v2/2502.20855v2.pdf  ->  blob_dir is the folder itself
-    folder = tmp_path / "2502.20855v2"
-    folder.mkdir()
-    pdf = folder / "2502.20855v2.pdf"
-    pdf.write_bytes(b"%PDF-1.4")
-    sc = Sidecar(pdf)
-    assert sc.blob_dir == folder
-    assert sc.json_path == folder / "2502.20855v2.drill.json"
+from pdfdrill.sources import adopt_into_doc_folder
 
 
-def test_legacy_sibling_layout_still_works(tmp_path):
-    # <dir>/X.pdf with an existing X.pdf.drill/  ->  use the sibling (back-compat)
-    d = tmp_path / "Downloads"
-    d.mkdir()
-    pdf = d / "paper.pdf"
-    pdf.write_bytes(b"%PDF-1.4")
-    (d / "paper.pdf.drill").mkdir()
-    sc = Sidecar(pdf)
-    assert sc.blob_dir == d / "paper.pdf.drill"
-    assert sc.json_path == d / "paper.pdf.drill.json"
+def _pdf(at: Path, name: str = "paper.pdf") -> Path:
+    at.mkdir(parents=True, exist_ok=True)
+    p = at / name
+    p.write_bytes(b"%PDF-1.4\n%stub\n")
+    return p
 
 
-def test_ad_hoc_pdf_gets_sibling_drill(tmp_path):
-    # a one-off PDF whose parent is NOT named after it and has no .drill  ->
-    # sibling .drill (unchanged default; artifacts don't pollute the folder)
-    d = tmp_path / "scratch"
-    d.mkdir()
-    pdf = d / "random.pdf"
-    pdf.write_bytes(b"%PDF-1.4")
-    sc = Sidecar(pdf)
-    assert sc.blob_dir == d / "random.pdf.drill"
-    assert sc.json_path == d / "random.pdf.drill.json"
+def test_a_loose_library_pdf_moves_into_its_own_folder(tmp_path):
+    pdf = _pdf(tmp_path)
+    out = adopt_into_doc_folder(pdf, tmp_path)
+    assert out == tmp_path / "paper" / "paper.pdf"
+    assert out.is_file() and not pdf.exists()
 
 
-def test_stray_legacy_dir_does_not_flip_self_contained(tmp_path):
-    """A self-contained doc with a SELF sidecar (`<stem>.drill.json`) stays
-    self-contained even if a stray `<name>.pdf.drill/` appears inside its folder
-    (an old hardcoded-legacy-path bug created one → the whole doc flipped to
-    legacy and `md`/artifacts split into `<name>.pdf.drill/`)."""
-    folder = tmp_path / "Zwiebeln"; folder.mkdir()
-    pdf = folder / "Zwiebeln.pdf"; pdf.write_bytes(b"%PDF-1.4")
-    Sidecar(pdf).save()                                     # writes Zwiebeln.drill.json
-    (folder / "Zwiebeln.pdf.drill").mkdir()                 # a stray legacy dir
-    sc = Sidecar(pdf)
-    assert sc.blob_dir == folder                            # NOT flipped to legacy
-    assert sc.json_path == folder / "Zwiebeln.drill.json"
+def test_a_pdf_outside_the_library_is_never_moved(tmp_path):
+    """Someone's Downloads folder, a working directory, a mounted share —
+    pdfdrill reorganises its OWN storage and nothing else."""
+    elsewhere = tmp_path / "Downloads"
+    pdf = _pdf(elsewhere)
+    assert adopt_into_doc_folder(pdf, tmp_path / "library") == pdf
+    assert pdf.is_file()
 
 
-def test_genuine_pre_selfcontained_legacy_wins(tmp_path):
-    """A doc at `<stem>/<stem>.pdf` drilled BEFORE self-contained folders (a legacy
-    `.drill.json`/`.drill/` and NO self sidecar) keeps using the legacy store."""
-    folder = tmp_path / "old"; folder.mkdir()
-    pdf = folder / "old.pdf"; pdf.write_bytes(b"%PDF-1.4")
-    (folder / "old.pdf.drill").mkdir()
-    (folder / "old.pdf.drill.json").write_text("{}")
-    sc = Sidecar(pdf)
-    assert sc.blob_dir == folder / "old.pdf.drill"
+import pytest
 
 
-if __name__ == "__main__":
-    import pytest
-    raise SystemExit(pytest.main([__file__, "-q"]))
+@pytest.mark.parametrize("sibling", [
+    "paper.pdf.drill.json", "paper.lines.json", "paper.md",
+    "paper.tex.zip", "paper.profile.json",
+])
+def test_a_document_that_has_been_worked_on_is_left_where_it_is(tmp_path, sibling):
+    """Moving the PDF away from its own `lines.json` re-acquires it — by the
+    paid route if a key is set. Every sibling named after the document is work
+    the move would separate from it, so any one of them declines."""
+    pdf = _pdf(tmp_path)
+    (tmp_path / sibling).write_text("{}")
+    assert adopt_into_doc_folder(pdf, tmp_path) == pdf
+    assert pdf.is_file()
+
+
+def test_a_document_already_in_its_folder_is_not_nested_again(tmp_path):
+    pdf = _pdf(tmp_path / "paper")
+    assert adopt_into_doc_folder(pdf, tmp_path / "paper") == pdf
+    assert not (tmp_path / "paper" / "paper" ).exists()
+
+
+def test_an_occupied_target_is_not_overwritten(tmp_path):
+    """`test.pdf` at the root and a DIFFERENT `test/test.pdf` already in the
+    library is a real case. Declining is the only safe answer."""
+    pdf = _pdf(tmp_path)
+    other = _pdf(tmp_path / "paper")
+    other.write_bytes(b"%PDF-1.4\n%different\n")
+    assert adopt_into_doc_folder(pdf, tmp_path) == pdf
+    assert other.read_bytes().endswith(b"different\n")
+
+
+def test_a_failed_download_leaves_no_empty_folder(tmp_path, monkeypatch):
+    from pdfdrill import sources
+
+    def boom(url, dest):
+        raise OSError("connection reset")
+
+    monkeypatch.setattr(sources, "download", boom)
+    dest = sources._doc_dest(tmp_path, "2609.24972.pdf")
+    assert dest.parent.is_dir()                    # created ahead of the bytes
+    try:
+        sources._download_into_doc_folder("https://example.invalid/x.pdf", dest)
+    except OSError:
+        pass
+    assert not dest.parent.exists(), \
+        "an empty doc folder makes the bare name stop resolving for good"

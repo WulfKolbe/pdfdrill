@@ -397,6 +397,72 @@ def _doc_dest(root: Path, filename: str) -> Path:
     return folder / filename
 
 
+def _download_into_doc_folder(url: str, dest: Path) -> None:
+    """Download to `dest`, and leave NO empty folder behind if it fails.
+
+    `_doc_dest` creates the doc folder before the bytes arrive, so a download
+    that raised left `<library>/<id>/` empty — and an empty doc folder is worse
+    than no folder at all: `pdf_in_folder` finds no PDF, the bare name stops
+    resolving, and `add <id>` answers "Not found" for a document the user can
+    see a directory for. Four of them were sitting in the library.
+    """
+    made = dest.parent
+    try:
+        download(url, dest)
+    except BaseException:
+        try:
+            if made.is_dir() and not any(made.iterdir()):
+                made.rmdir()
+        except OSError:
+            pass
+        raise
+
+
+def adopt_into_doc_folder(pdf: Path, root: Path) -> Path:
+    """Move a loose PDF in the library ROOT into its own doc folder.
+
+    The layout the user asks for — one folder per document, everything under
+    it — is what a DOWNLOAD already gets. A PDF copied into the library by
+    hand did not: it stayed at the root and `blob_dir_for` fell back to the
+    legacy layout, so one document became four entries beside each other
+    (`x.pdf`, `x.pdf.drill/`, `x.pdf.drill.json`, `x.profile.json`). Told to
+    drill a list of papers, an agent produces exactly that, and then has to
+    tidy up after itself.
+
+    Only in the library root, and only while the document has NO artifacts
+    yet: then the move is a rename of a single file and there is no reference
+    to break. Anywhere else — someone's Downloads folder, a working
+    directory — nothing is ever moved.
+    """
+    if pdf.parent.resolve() != Path(root).resolve():
+        return pdf                                  # not ours to reorganise
+    if pdf.parent.name == pdf.stem:
+        return pdf                                  # already self-contained
+    # ANY sibling already named after this document means work exists that the
+    # move would separate from it — not only `.drill`/`.drill.json` but
+    # `<stem>.lines.json`, `<stem>.md`, `<stem>.tex.zip`, `<stem>.profile.json`.
+    # Moving the PDF away from its own lines.json would silently re-acquire it,
+    # paid route included. Every one of the five loose PDFs in the library has
+    # such a sibling, so adoption touches genuinely new files only.
+    prefix = f"{pdf.stem}."
+    try:
+        for sib in pdf.parent.iterdir():
+            if sib.name != pdf.name and sib.name.startswith(prefix):
+                return pdf                          # already worked on
+    except OSError:
+        return pdf
+    folder = pdf.parent / pdf.stem
+    target = folder / pdf.name
+    if target.exists():
+        return pdf
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        pdf.replace(target)
+    except OSError:
+        return pdf
+    return target
+
+
 def pdf_in_folder(folder: Path) -> "Path | None":
     """The PDF inside a self-contained doc FOLDER: `<folder>/<folder-name>.pdf`
     preferred (the library layout), else the sole `*.pdf` if there is exactly one.
@@ -447,6 +513,10 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
         # resolve to `<folder>/<id>.pdf` instead.
         local = Path(arg) if Path(arg).is_file() else existing_local_path(arg)
         if local is not None:
+            # NOT adopted here. `resolve_input`'s contract is that a local file
+            # passes through unchanged — three tests pin it, and callers that
+            # only want a path resolved must not have a file moved under them.
+            # The CLI adopts, once, in `_probe_on_acquire`.
             return {"path": local, "source": None, "arxiv_id": None}
         # REOPEN by FOLDER: a directory path (`<stem>/`, or `<library>/<stem>/`) →
         # the PDF inside it. This is how you re-open an already-drilled doc in the
@@ -464,8 +534,21 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
         if arxiv_id:
             dest = _doc_dest(dest_dir, f"{arxiv_id.replace('/', '_')}.pdf")
             if not (dest.exists() and dest.stat().st_size > 0):
-                download(arxiv_urls(arxiv_id)["pdf"], dest)
+                _download_into_doc_folder(arxiv_urls(arxiv_id)["pdf"], dest)
             return {"path": dest, "source": "arxiv", "arxiv_id": arxiv_id}
+        # An EMPTY doc folder is the remains of a download that failed. Saying
+        # "Not found" about a name the user can see a directory for is the
+        # least useful true answer available; name the folder instead, so the
+        # next move is obvious.
+        stale = dest_dir / arg
+        try:
+            if stale.is_dir() and not any(stale.iterdir()):
+                raise ValueError(
+                    f"{arg!r} has an EMPTY doc folder at {stale} — a download "
+                    f"that never finished. Re-add it by URL, or remove the "
+                    f"folder and try the id again.")
+        except OSError:
+            pass
         # not a URL, not a local file, not a bare id → let the caller raise
         return {"path": Path(arg), "source": None, "arxiv_id": None}
 
@@ -478,7 +561,7 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
                 f"(expected e.g. 2604.17042 or math/0309136). Check the id.")
         dest = _doc_dest(dest_dir, f"{arxiv_id.replace('/', '_')}.pdf")
         if not (dest.exists() and dest.stat().st_size > 0):
-            download(arxiv_urls(arxiv_id)["pdf"], dest)
+            _download_into_doc_folder(arxiv_urls(arxiv_id)["pdf"], dest)
         return {"path": dest, "source": "arxiv", "arxiv_id": arxiv_id}
 
     # generic http(s): one registry (pdfdrill-downloads.json) logs every download
@@ -494,7 +577,7 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
             return {"path": p, "source": "url", "arxiv_id": None}
     base = _doc_dest(dest_dir, _safe_filename(arg))   # <library>/<stem>/<file>
     tmp = base.parent / f"{base.stem}.download-tmp{base.suffix}"
-    download(arg, tmp)
+    _download_into_doc_folder(arg, tmp)
     digest, algo = _dl.hash_file(tmp)
     final = _place_download(base, tmp, digest, reg)
     # registry filename is relative to the library root (e.g. "<stem>/<file>") so

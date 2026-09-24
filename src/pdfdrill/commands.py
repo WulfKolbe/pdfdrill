@@ -1676,27 +1676,94 @@ def _artref(sc: "Sidecar", p: Path) -> str:
         return p.name
 
 
-def cmd_artifacts(pdf: Path, all_files: bool = False) -> str:
+#: Commands whose artifact is a thing a READER opens — a projection of the
+#: document, not an internal step. `artifacts` offers these for generation;
+#: the rest of the 153 are machinery and would bury the list.
+_OPENABLE_PROJECTIONS = (
+    "report", "md", "tiddlers", "inspect", "latex", "beamer", "markdown",
+    "plaintext", "llmtext", "formulas", "compare", "status", "okf",
+    "reporttex", "semantic", "evidence", "breport", "glyphlines", "profile",
+)
+
+
+def projection_state(pdf: Path) -> dict:
+    """What this document HAS, and what it could have — with the command.
+
+    `artifacts` listed what was built and said nothing about the rest, so the
+    only way to learn that a document could have tiddlers was to run
+    `tiddlers` and see. An agent handed a reading list cannot see that at all:
+    it runs what it happens to know, and the folder ends up holding a
+    different subset for every document it touched.
+
+    Returns {"built": [...], "available": [...]}. `available` carries the
+    exact command that makes each one and whether it costs money, so a caller
+    — the drillui panel, or an agent — can offer it without guessing.
+    """
+    from . import planner
+    sc = Sidecar(pdf)
+    manifest = planner.load_manifest()
+    _req, done = planner.load_graph(manifest)
+    model_path = Path(_model_path(sc))
+    try:
+        satisfied = planner.satisfied_set(done, sc, pdf, model_path)
+    except Exception:                                # noqa: BLE001
+        satisfied = set()
+    paid = planner.network_commands(manifest)
+
+    built, available = [], []
+    for name in _OPENABLE_PROJECTIONS:
+        if name not in done:
+            continue
+        rec = {"command": name, "network": name in paid,
+               "done_when": done[name]}
+        (built if name in satisfied else available).append(rec)
+    return {"built": built, "available": available,
+            "folder": str(sc.blob_dir), "name": pdf.stem}
+
+
+def cmd_artifacts(pdf: Path, all_files: bool = False,
+                  json_only: bool = False) -> str:
     """List the openable files in this doc's drill folder (formula-report.html,
     the extracted `<bibkey>.md`, tiddlers/semantic/llm `*.json`/`*.txt`, SVGs) with
     their paths — so they're clickable in the drillui Outputs panel (the browser
     opens md/json/svg/pdf/html directly). The giant model JSON is skipped unless
     `--all`. No `fetch`, no `find`."""
     sc = Sidecar(pdf)
-    if not sc.blob_dir.exists():
-        return (f"No drill folder yet for {pdf.name} — run `pdfdrill model` / "
-                f"`md` / `report` / `tiddlers` first.")
-    rel_dir = _artref(sc, sc.blob_dir)
-    files = _list_artifacts(sc, all_files=all_files)
-    if not files:
-        return f"No openable artifacts in {rel_dir}/ yet (run md/report/tiddlers/…)."
-    lines = [f"{len(files)} artifact(s) in {rel_dir}/ — click to open in a tab:"]
-    for p in files:
-        lines.append(f"  {_artref(sc, p)}  "
-                     f"({p.stat().st_size / 1024:.0f} KB)")
-    if not all_files and any((sc.blob_dir / n).exists() for n in _HEAVY_INTERNAL):
-        lines.append("  (the raw model JSON is hidden — `pdfdrill artifacts "
-                     f"{pdf.name} --all` to include it)")
+    state = projection_state(pdf)
+    if json_only:
+        files = _list_artifacts(sc, all_files=all_files) if sc.blob_dir.exists() else []
+        state["files"] = [{"path": _artref(sc, p), "name": p.name,
+                           "kb": round(p.stat().st_size / 1024)}
+                          for p in files]
+        return json.dumps(state, indent=1)
+
+    lines: list[str] = []
+    if sc.blob_dir.exists():
+        rel_dir = _artref(sc, sc.blob_dir)
+        files = _list_artifacts(sc, all_files=all_files)
+        if files:
+            lines.append(f"{len(files)} artifact(s) in {rel_dir}/ — click to "
+                         f"open in a tab:")
+            for p in files:
+                lines.append(f"  {_artref(sc, p)}  "
+                             f"({p.stat().st_size / 1024:.0f} KB)")
+            if not all_files and any((sc.blob_dir / n).exists()
+                                     for n in _HEAVY_INTERNAL):
+                lines.append("  (the raw model JSON is hidden — `pdfdrill "
+                             f"artifacts {pdf.name} --all` to include it)")
+        else:
+            lines.append(f"No openable artifacts in {rel_dir}/ yet.")
+    else:
+        lines.append(f"No drill folder yet for {pdf.name}.")
+
+    # THE OTHER HALF. What is missing is as much a fact about the document as
+    # what is there, and it is the half a caller cannot find out by looking.
+    if state["available"]:
+        lines.append("")
+        lines.append(f"Not generated yet — `pdfdrill <command> {pdf.name}`:")
+        for rec in state["available"]:
+            tag = "  (paid/network)" if rec["network"] else ""
+            lines.append(f"  {rec['command']}{tag}")
     return "\n".join(lines)
 
 

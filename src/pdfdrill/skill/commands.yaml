@@ -79,7 +79,10 @@ commands:
   section: Introspection (fast, no extraction)
   summary: 'List the openable files in the doc''s drill folder (report.html, the extracted <bibkey>.md,
     tiddlers/semantic/llm *.json/*.txt, SVGs) with paths — clickable in the drillui Outputs panel. Giant
-    model JSON hidden unless --all. (`status` also lists them.)'
+    model JSON hidden unless --all. ALSO lists the projections NOT generated yet, each with the
+    command that makes it: what is missing is as much a fact about the document as what is there,
+    and it is the half a caller cannot learn by looking. --json for both lists machine-readable,
+    which is what the drillui panel and an agent driving a reading list read. (`status` also lists them.)'
   offline_ok: true
   positionals:
   - name: pdf
@@ -91,6 +94,10 @@ commands:
     flag: --all
     type: flag
     help: include the giant model/ir JSON
+  - name: json
+    flag: --json
+    type: flag
+    help: machine-readable — built files PLUS the projections not generated yet, each with its command
   typed: true
 - name: size
   section: Introspection (fast, no extraction)
@@ -309,6 +316,7 @@ commands:
     flag: --pages
     help: N | N-M | all
   typed: true
+  done_when: file:{bibkey}.md
 - name: page
   section: Extraction
   summary: Single page text extraction
@@ -836,6 +844,7 @@ commands:
   typed: true
   requires:
   - model
+  done_when: file:{bibkey}.semantic.json
 - name: qr
   section: Introspection (fast, no extraction)
   summary: 'Scan QR codes & barcodes (zxing-cpp): GiroCode/EPC payment QR (creditor/IBAN/amount/reference)
@@ -1101,6 +1110,7 @@ commands:
   typed: true
   requires:
   - model
+  done_when: file:compare.html
 - name: snip
   section: Introspection (fast, no extraction)
   summary: 'OCR each equation/table crop → competing column. THE STATE MACHINE picks
@@ -2076,6 +2086,7 @@ commands:
   typed: true
   requires:
   - model
+  done_when: file:formula-report.html
 - name: inspect
   section: Introspection (fast, no extraction)
   summary: 'DevTools-style docmodel inspector HTML (<bibkey>.inspect.html): every DocObject as a
@@ -2106,6 +2117,7 @@ commands:
   - model
   - geometry
   - mathpix
+  done_when: file:{bibkey}.inspect.html
 - name: folder
   section: Introspection (fast, no extraction)
   summary: Build the full structure for every PDF in <dir> from existing
@@ -2149,6 +2161,7 @@ commands:
     help: 'write the inspectable generation stages (transclusion lookup / citations / bibliography / footnote
       + citation resolution) to <drill>/latex/stages/'
   typed: true
+  done_when: file:{bibkey}.tex
 - name: beamer
   section: Projection / export
   summary: 'PROJECT the docmodel to a LaTeX **beamer** slide deck (<drill>/latex/<bibkey>.beamer.tex) —
@@ -2175,6 +2188,7 @@ commands:
     help: compile the deck with xelatex and report the produced PDF (TWO xelatex passes, so each
       cite resolves against the bibitem labels the first pass writes to the .aux)
   typed: true
+  done_when: file:{bibkey}.beamer.tex
 - name: bracketrepair
   requires:
   - model
@@ -2426,6 +2440,7 @@ commands:
   - name: no_split
     flag: --no-split
     type: flag
+  done_when: file:{bibkey}.llm.txt
 - name: quantities
   section: Introspection (fast, no extraction)
   summary: 'Quantitative-layer report: quantities by kind (number/ratio/money/count/
@@ -3048,6 +3063,7 @@ commands:
     type: flag
     help: print only the latex, one per line (no JSON)
   typed: true
+  done_when: file:{bibkey}.formulas.json
 - name: docs
   accepts_combined: true
   section: Introspection (fast, no extraction)
@@ -3303,6 +3319,7 @@ commands:
     type: flag
     help: project the SEMANTIC GRAPH (entities/relations) not the docmodel — the commercial-doc form
   typed: true
+  done_when: file:{bibkey}.semantic.json
 - name: context
   accepts_combined: true
   section: Planning & automation
