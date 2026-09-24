@@ -306,6 +306,43 @@ function fileUriToPath(s: string): string {
   } catch { return s; }
 }
 
+// `cd` IS A ROOT CHANGE, and the bridge was not watching it.
+//
+// drillui offers `pwd` / `cd` / `ls`, so a reader who types
+// `cd ~/workspace/pdfdrill-library` reasonably expects the artifacts under it
+// to become reachable. They did not: `cd` lives entirely inside the chat REPL
+// (its cwd governs `ls` and relative `add`), while the bridge's ART_ROOTS are
+// fixed at startup. So every artifact link under the new directory 404'd with
+// a root list that did not mention it, and the only fix on offer was to edit a
+// config file and restart — for a directory the user had just navigated to.
+//
+// The bridge forwards every input line, so it can see the `cd` and apply the
+// same join the chat applies (`abspath(join(cwd, expanduser(arg)))`). The
+// tracked cwd starts where the chat's does, at the artifacts root.
+let SESSION_CWD = ART_ROOT;
+
+function noteCd(line: string): void {
+  const m = /^\s*:?cd\s+(.+?)\s*$/.exec(line);
+  if (!m) return;
+  const raw = m[1].replace(/^["']|["']$/g, "");
+  try {
+    const target = resolve(SESSION_CWD,
+                           raw.replace(/^~(?=$|\/)/, homedir()));
+    if (!existsSync(target)) return;             // the chat refuses it too
+    SESSION_CWD = target;
+    // The directory AND its parent, for the reason registerDocDir gives: in
+    // the self-contained layout artifacts are reported relative to the library
+    // ROOT, so `cd` into the library itself and into one doc folder must both
+    // work.
+    for (const d of [target, dirname(target)]) {
+      if (d && d !== sep && !ART_ROOTS.includes(d)) {
+        ART_ROOTS.push(d);
+        console.error(`  + serving cd dir: ${d}`);
+      }
+    }
+  } catch { /* a path we cannot resolve is simply not registered */ }
+}
+
 function registerDocDir(rawPath: string): void {
   const p = fileUriToPath(rawPath).replace(/^~(?=$|\/)/, homedir());
   if (/^https?:\/\//i.test(p)) return;            // a URL, not a local file
@@ -970,10 +1007,11 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
         return new Response(
           `${why}   [bridge ${BUILD_REV}]\n\npath as given: ${want}\n${aliasNote}` +
           `\nroots tried, in order:\n${tried}\n` +
+          `\nlibrary root in use: ${LIBRARY_ROOT ?? "(none — the alias is dead)"}\n` +
           `\nIf the document lives somewhere not listed above, the bridge cannot\n` +
           `see it. Point pdfdrill at it and restart the bridge (the roots are\n` +
           `read once, at startup):\n` +
-          `  pdfdrill config set library_root <dir>\n`,
+          `  pdfdrill config --library-root <dir>\n`,
           { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
       };
       if (!abs) return new Response("forbidden path", { status: 403 });
@@ -1192,6 +1230,7 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
           if (has) send(ws, { type: "viewer", url: "/viewer.html", open: false });
         }
         sess.lastInput = msg.data;                       // remember the verb (detect `pyramid`)
+        noteCd(msg.data);                                // `cd` widens what we serve
         // feed one line to the REPL; the trailing newline makes input() return
         sess.proc.stdin.write(msg.data + "\n");
         sess.proc.stdin.flush();
