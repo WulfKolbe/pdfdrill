@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="files-tree.sh 1.027">
+<meta name="author" content="Walter Moeller">
+<meta name="copyright" content="Copyright (C) 2026 Consulting-Netline Corporation / Moeller-IT">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Fehler</title>
+<style>
+:root, body.hell {
+  --grund: #d8dee6; --flaeche: #ffffff; --seiten: #eef2f6;
+  --rand: #4a5663; --rand-fein: #a9b4c0;
+  --schrift: #000000; --gedaempft: #333d49;
+  --akzent: #06336b; --akzent-bg: #cfe0f5;
+  --band: #b9c9da; --band-text: #000000;
+  --kopf: #0a141d; --fehlerkopf: #4a0f0c; --kopf-text: #ffffff;
+  --kopf-matt: #dde6ef; --kopf-zwei: #16283a;
+  --warn: #8a1e19; --warn-bg: #fbe3e1; --strich: 2px;
+}
+body.dunkel {
+  --grund: #05070a; --flaeche: #1b2029; --seiten: #12171e;
+  --rand: #7c8896; --rand-fein: #48525f;
+  --schrift: #ffffff; --gedaempft: #ccd6e2;
+  --akzent: #9fd0ff; --akzent-bg: #24344a;
+  --band: #2f3d4f; --band-text: #ffffff;
+  --kopf: #000205; --fehlerkopf: #1c0605; --kopf-text: #ffffff;
+  --kopf-matt: #dbe4ee; --kopf-zwei: #0d151f;
+  --warn: #ff9c94; --warn-bg: #2e1c1a; --strich: 2px;
+}
+body.kontrast {
+  --grund: #ffffff; --flaeche: #ffffff; --seiten: #ffffff;
+  --rand: #000000; --rand-fein: #000000;
+  --schrift: #000000; --gedaempft: #000000;
+  --akzent: #0000bb; --akzent-bg: #ffec80;
+  --band: #000000; --band-text: #ffffff;
+  --kopf: #000000; --fehlerkopf: #000000; --kopf-text: #ffffff;
+  --kopf-matt: #ffffff; --kopf-zwei: #000000;
+  --warn: #000000; --warn-bg: #ffec80; --strich: 3px;
+}
+body.invers {
+  --grund: #000000; --flaeche: #000000; --seiten: #000000;
+  --rand: #ffffff; --rand-fein: #ffffff;
+  --schrift: #ffffff; --gedaempft: #ffffff;
+  --akzent: #66d9ff; --akzent-bg: #003a4d;
+  --band: #ffffff; --band-text: #000000;
+  --kopf: #000000; --fehlerkopf: #000000; --kopf-text: #ffffff;
+  --kopf-matt: #ffffff; --kopf-zwei: #000000;
+  --warn: #ff8a80; --warn-bg: #2a0000; --strich: 3px;
+}
+body.gelb {
+  --grund: #000000; --flaeche: #0a0a00; --seiten: #000000;
+  --rand: #ffe500; --rand-fein: #8a7c00;
+  --schrift: #ffe500; --gedaempft: #ffe500;
+  --akzent: #66d9ff; --akzent-bg: #2a2600;
+  --band: #ffe500; --band-text: #000000;
+  --kopf: #000000; --fehlerkopf: #1a0000; --kopf-text: #ffe500;
+  --kopf-matt: #ffe500; --kopf-zwei: #0f0f00;
+  --warn: #ff8a80; --warn-bg: #2a0000; --strich: 3px;
+}
+body.papier {
+  --grund: #e3d8c0; --flaeche: #fbf5e9; --seiten: #f0e7d5;
+  --rand: #6b5836; --rand-fein: #c3b394;
+  --schrift: #1b1408; --gedaempft: #3f3327;
+  --akzent: #7a3b00; --akzent-bg: #f0dfc0;
+  --band: #d9c9a8; --band-text: #1b1408;
+  --kopf: #3b2a14; --fehlerkopf: #5a1c10; --kopf-text: #fbf5e9;
+  --kopf-matt: #efe3cc; --kopf-zwei: #4d3a1e;
+  --warn: #8a2b12; --warn-bg: #f6e0d5; --strich: 2px;
+}
+body.nacht {
+  --grund: #0c0d12; --flaeche: #171922; --seiten: #101219;
+  --rand: #8a7f6d; --rand-fein: #4a4438;
+  --schrift: #ffe9cf; --gedaempft: #e0cdb2;
+  --akzent: #ffb266; --akzent-bg: #3a2a18;
+  --band: #33291d; --band-text: #ffe9cf;
+  --kopf: #05060a; --fehlerkopf: #200a06; --kopf-text: #ffe9cf;
+  --kopf-matt: #f0dcc2; --kopf-zwei: #0d0f16;
+  --warn: #ffab91; --warn-bg: #2a1710; --strich: 2px;
+}
+body.druck {
+  --grund: #ffffff; --flaeche: #ffffff; --seiten: #ffffff;
+  --rand: #000000; --rand-fein: #777777;
+  --schrift: #000000; --gedaempft: #2b2b2b;
+  --akzent: #000000; --akzent-bg: #e6e6e6;
+  --band: #e6e6e6; --band-text: #000000;
+  --kopf: #ffffff; --fehlerkopf: #ffffff; --kopf-text: #000000;
+  --kopf-matt: #000000; --kopf-zwei: #f2f2f2;
+  --warn: #000000; --warn-bg: #e6e6e6; --strich: 1px;
+}
+* { box-sizing: border-box; }
+html { font-size: 16px; }
+body { margin: 0; font-family: "DejaVu Sans", Verdana, Arial, sans-serif;
+       font-size: 0.875rem; background: var(--grund); color: var(--schrift); }
+.kopf { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+        padding: 0.5rem 1rem; background: var(--fehlerkopf); color: var(--kopf-text);
+        border-bottom: var(--strich) solid var(--rand);
+        position: sticky; top: 0; z-index: 10; }
+.kopf .titel { font-size: 1.05rem; font-weight: bold; }
+.badge { display: inline-block; margin-left: 0.5rem; padding: 0.1rem 0.45rem;
+         border: 1px solid var(--kopf-matt); border-radius: 3px; font-size: 0.72rem;
+         font-weight: normal; color: var(--kopf-matt); }
+.kopf .suchfeld { flex: 1 1 18rem; }
+.fehlerknopf { display: inline-block; padding: 0.25rem 0.6rem; border-radius: 3px;
+  background: #98241e; color: #fff; text-decoration: none; font-size: 0.78rem;
+  font-weight: bold; border: 1px solid #ffffff; white-space: nowrap; }
+.fehlerknopf:hover { background: #741a15; }
+.neuknopf { display: inline-block; padding: 0.25rem 0.6rem; border-radius: 3px;
+  background: #14603a; color: #fff; text-decoration: none; font-size: 0.78rem;
+  font-weight: bold; border: 1px solid #ffffff; white-space: nowrap; }
+.neuknopf:hover { background: #0e492c; }
+.marke { display: inline-block; margin-left: 0.4rem; padding: 0 0.35rem;
+  border-radius: 3px; background: #14603a; color: #fff; font-size: 0.68rem;
+  font-weight: bold; vertical-align: 1px; }
+.marke.dup { background: #7a4a00; }
+.werkzeuge { display: flex; gap: 0.3rem; flex-wrap: wrap; align-items: center; }
+.zoom { display: inline-flex; gap: 0.15rem; }
+#btn-zoom-wert { min-width: 3.6rem; font-variant-numeric: tabular-nums; }
+button { font: inherit; font-size: 0.78rem; cursor: pointer; padding: 0.25rem 0.6rem;
+         background: var(--flaeche); color: var(--schrift);
+         border: 1px solid var(--rand); border-radius: 3px; }
+button:hover { border-color: var(--akzent); color: var(--akzent); }
+button:disabled { opacity: 0.55; cursor: default; }
+button:focus-visible, input:focus-visible, a:focus-visible {
+  outline: 2px solid var(--akzent); outline-offset: 1px; }
+::placeholder { color: var(--gedaempft); opacity: 1; }
+input[type="search"] { font: inherit; font-size: 0.82rem; width: 100%;
+         padding: 0.3rem 0.5rem; background: var(--flaeche); color: var(--schrift);
+         border: 1px solid var(--rand); border-radius: 3px; }
+.themafeld { position: relative; display: inline-block; }
+.themawahl { position: absolute; right: 0; top: calc(100% + 0.3rem); z-index: 20;
+  background: var(--flaeche); color: var(--schrift);
+  border: var(--strich) solid var(--rand); border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); min-width: 12rem; }
+.themawahl table { width: 100%; }
+.themawahl td { padding: 0.25rem 0.5rem; border-bottom: 1px solid var(--rand-fein);
+  white-space: nowrap; }
+.themawahl tr { cursor: pointer; }
+.themawahl tr:hover td { background: var(--akzent-bg); }
+.themawahl tr.aktiv td { font-weight: bold; }
+.tupfen { display: inline-block; width: 0.85rem; height: 0.85rem; margin-right: 0.15rem;
+  border: 1px solid var(--rand); vertical-align: -2px; }
+main { padding: 0.9rem 1rem 3rem; }
+.hinweis { background: var(--warn-bg); border: 1px solid var(--warn);
+           border-left-width: 5px; border-radius: 4px; padding: 0.55rem 0.8rem;
+           margin-bottom: 0.9rem; color: var(--warn); font-size: 0.85rem;
+           font-weight: bold; }
+.rahmen { background: var(--flaeche); border: var(--strich) solid var(--rand);
+          border-radius: 4px; overflow: hidden; }
+.kopfzeile { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap;
+             padding: 0.45rem 0.7rem; border-bottom: var(--strich) solid var(--rand);
+             background: var(--band); color: var(--band-text); }
+.zaehler { color: var(--band-text); font-size: 0.78rem; font-weight: bold; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 0.28rem 0.7rem; border-bottom: 1px solid var(--rand-fein);
+         vertical-align: top; }
+th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
+     color: var(--band-text); font-weight: bold; background: var(--band);
+     border-bottom: var(--strich) solid var(--rand); }
+tbody tr:nth-child(even) { background: rgba(74, 86, 99, 0.16); }
+tbody tr:last-child td { border-bottom: none; }
+td.klein { font-size: 0.78rem; color: var(--gedaempft); white-space: nowrap; }
+td.objekt { font-family: "DejaVu Sans Mono", monospace; font-size: 0.78rem;
+            word-break: break-all; }
+.leer { padding: 1.2rem; color: var(--gedaempft); font-style: italic; }
+.umfeld { margin-top: 1rem; font-size: 0.78rem; color: var(--gedaempft); }
+.umfeld div { padding: 0.1rem 0; }
+a { color: var(--akzent); }
+@media print { html { font-size: 16px !important; }
+               .kopf .werkzeuge, .kopf .suchfeld { display: none !important; }
+               body { background: #fff; } }
+</style>
+</head>
+<body class="hell">
+<header class="kopf">
+  <div class="titel">Fehler<span class="badge" id="badge"></span></div>
+  <div class="suchfeld"><input type="search" id="suche" data-i18n-ph="suche"></div>
+  <div class="werkzeuge">
+    <button id="btn-lang">EN</button>
+    <span class="zoom">
+      <button id="btn-zoom-minus">-</button>
+      <button id="btn-zoom-wert">100%</button>
+      <button id="btn-zoom-plus">+</button>
+    </span>
+      <span class="themafeld">
+        <button id="btn-thema" data-i18n="thema">Thema</button>
+        <div class="themawahl" id="themawahl" hidden>
+          <table><tbody id="themaliste"></tbody></table>
+        </div>
+      </span>
+    <button id="btn-druck" data-i18n="drucken">Drucken</button>
+  </div>
+</header>
+<main>
+  <div class="hinweis" id="hinweis"></div>
+  <div class="rahmen">
+    <div class="kopfzeile"><span class="zaehler" id="zaehler"></span></div>
+    <table>
+      <thead><tr>
+        <th data-i18n="zeit"></th><th data-i18n="bereich"></th>
+        <th data-i18n="objekt"></th><th data-i18n="meldung"></th>
+      </tr></thead>
+      <tbody id="koerper"></tbody>
+    </table>
+    <div class="leer" id="leer" hidden></div>
+  </div>
+  <div class="umfeld" id="umfeld"></div>
+</main>
+<script>
+const VERSION = "1.027";
+const COPYRIGHT = "Copyright (C) 2026 Consulting-Netline Corporation / Moeller-IT";
+const AUTOR = "Walter Moeller";
+const ERZEUGT = "2026-09-24 11:59:26";
+const QUELLE  = "/home/wkolbe/MX/PDFDRILL";
+const BAUM    = "/home/wkolbe/MX/PDFDRILL";
+const LISTE   = "files-tree.html";
+const THEMEN = [
+  { k: "hell",     f: ["#ffffff", "#06336b", "#b9c9da"] },
+  { k: "dunkel",   f: ["#1b2029", "#9fd0ff", "#2f3d4f"] },
+  { k: "kontrast", f: ["#ffffff", "#0000bb", "#000000"] },
+  { k: "invers",   f: ["#000000", "#66d9ff", "#ffffff"] },
+  { k: "gelb",     f: ["#000000", "#66d9ff", "#ffe500"] },
+  { k: "papier",   f: ["#fbf5e9", "#7a3b00", "#d9c9a8"] },
+  { k: "nacht",    f: ["#171922", "#ffb266", "#33291d"] },
+  { k: "druck",    f: ["#ffffff", "#000000", "#e6e6e6"] }
+];
+const FEHLER = [
+{t:"11:59:26",b:"Quelle",o:"/home/wkolbe/MX/PDFDRILL",m:"liegt im Zielbaum"},
+];
+
+const I18N = {
+  de: { titel: "Fehler", suche: "in den Meldungen suchen ...", zeit: "Zeit",
+        bereich: "Bereich", objekt: "Objekt", meldung: "Meldung",
+        eintraege: "Meldungen", eine: "Meldung", keine: "keine Treffer",
+        thema: "Thema", thema_hell: "Hell", thema_dunkel: "Dunkel",
+    thema_kontrast: "Kontrast", thema_invers: "Invers", thema_gelb: "Gelb auf Schwarz",
+    thema_papier: "Papier", thema_nacht: "Nacht", thema_druck: "Druck", drucken: "Drucken",
+        hinweis: "Der Lauf wurde nicht abgebrochen. Alles ausser den hier "
+               + "aufgef\u00fchrten Punkten wurde einsortiert.",
+        quelle: "Quelle", baum: "Zielbaum", erzeugt: "erzeugt",
+        liste: "zur Dateiliste", autor: "Autor" },
+  en: { titel: "Errors", suche: "search the messages ...", zeit: "Time",
+        bereich: "Area", objekt: "Object", meldung: "Message",
+        eintraege: "messages", eine: "message", keine: "no matches",
+        thema: "Theme", thema_hell: "Light", thema_dunkel: "Dark",
+    thema_kontrast: "Contrast", thema_invers: "Inverse", thema_gelb: "Yellow on black",
+    thema_papier: "Paper", thema_nacht: "Night", thema_druck: "Print", drucken: "Print",
+        hinweis: "The run was not aborted. Everything except the items listed "
+               + "here was filed.",
+        quelle: "source", baum: "tree", erzeugt: "generated",
+        liste: "to the file list", autor: "author" }
+};
+
+function merken(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* egal */ } }
+function gemerkt(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+let LANG = gemerkt("ft_lang") || "de";
+const T = (k) => I18N[LANG][k] || k;
+
+const koerper = document.getElementById("koerper");
+for (const f of FEHLER) {
+  const tr = document.createElement("tr");
+  tr.dataset.hay = (f.t + " " + f.b + " " + f.o + " " + f.m).toLowerCase();
+  const a = document.createElement("td"); a.className = "klein"; a.textContent = f.t;
+  const b = document.createElement("td"); b.className = "klein"; b.textContent = f.b;
+  const c = document.createElement("td"); c.className = "objekt"; c.textContent = f.o;
+  const d = document.createElement("td"); d.textContent = f.m;
+  tr.append(a, b, c, d);
+  koerper.appendChild(tr);
+}
+
+function filtern() {
+  const q = document.getElementById("suche").value.trim().toLowerCase();
+  let sichtbar = 0;
+  for (const tr of koerper.querySelectorAll("tr")) {
+    const treffer = !q || tr.dataset.hay.includes(q);
+    tr.hidden = !treffer;
+    if (treffer) sichtbar++;
+  }
+  document.getElementById("zaehler").textContent = sichtbar + " " +
+    (sichtbar === 1 ? T("eine") : T("eintraege")) +
+    (sichtbar !== FEHLER.length ? " (" + FEHLER.length + ")" : "");
+  document.getElementById("leer").hidden = sichtbar !== 0;
+  document.getElementById("leer").textContent = T("keine");
+}
+
+function sprache() {
+  document.documentElement.lang = LANG;
+  document.querySelector(".kopf .titel").firstChild.textContent = T("titel");
+  for (const e of document.querySelectorAll("[data-i18n]")) e.textContent = T(e.dataset.i18n);
+  for (const e of document.querySelectorAll("[data-i18n-ph]")) e.placeholder = T(e.dataset.i18nPh);
+  document.getElementById("btn-lang").textContent = LANG === "de" ? "EN" : "DE";
+  const zt = ZOOM_TITEL[LANG];
+  document.getElementById("btn-zoom-minus").title = zt[0];
+  document.getElementById("btn-zoom-wert").title = zt[1];
+  document.getElementById("btn-zoom-plus").title = zt[2];
+  document.getElementById("btn-thema").textContent = T("thema") + ": " + T("thema_" + THEMA);
+  themaListeBauen();
+  const sa = document.getElementById("btn-suchart");
+  if (sa) {
+    sa.textContent = T("suchart_" + SUCHART);
+    sa.title = T("suchart_" + SUCHART + "_hilfe");
+    sa.classList.toggle("aktiv", SUCHART !== "teil");
+    document.getElementById("suche-global").placeholder =
+      SUCHART === "teil" ? T("suche_alles")
+                         : (SUCHART === "muster" ? T("suche_muster") : T("suche_klang"));
+  }
+  document.getElementById("hinweis").textContent = T("hinweis");
+  const u = document.getElementById("umfeld");
+  u.innerHTML = "";
+  for (const [k, v] of [[T("quelle"), QUELLE], [T("baum"), BAUM], [T("erzeugt"), ERZEUGT]]) {
+    const d = document.createElement("div");
+    d.textContent = k + ": " + v;
+    u.appendChild(d);
+  }
+  const z = document.createElement("div");
+  const a = document.createElement("a");
+  a.href = LISTE; a.textContent = T("liste");
+  z.appendChild(a);
+  u.appendChild(z);
+  const c = document.createElement("div");
+  c.style.marginTop = "0.5rem";
+  c.textContent = COPYRIGHT + "  |  " + T("autor") + ": " + AUTOR;
+  u.appendChild(c);
+  filtern();
+}
+
+document.getElementById("btn-lang").addEventListener("click", () => {
+  LANG = LANG === "de" ? "en" : "de"; merken("ft_lang", LANG); sprache();
+});
+let THEMA = gemerkt("ft_thema") || "hell";
+if (!THEMEN.some((t) => t.k === THEMA)) THEMA = "hell";
+
+function themaSetzen(k) {
+  THEMA = k;
+  document.body.className = k;
+  merken("ft_thema", k);
+  sprache();
+}
+
+function themaListeBauen() {
+  const koerper = document.getElementById("themaliste");
+  koerper.innerHTML = "";
+  for (const t of THEMEN) {
+    const tr = document.createElement("tr");
+    tr.classList.toggle("aktiv", t.k === THEMA);
+    const td1 = document.createElement("td");
+    for (const farbe of t.f) {
+      const tupfen = document.createElement("span");
+      tupfen.className = "tupfen";
+      tupfen.style.background = farbe;
+      td1.appendChild(tupfen);
+    }
+    const td2 = document.createElement("td");
+    td2.textContent = T("thema_" + t.k) + (t.k === THEMA ? "  \u2713" : "");
+    tr.append(td1, td2);
+    tr.addEventListener("click", () => {
+      themaSetzen(t.k);
+      document.getElementById("themawahl").hidden = true;
+    });
+    koerper.appendChild(tr);
+  }
+}
+
+document.getElementById("btn-thema").addEventListener("click", (e) => {
+  const tafel = document.getElementById("themawahl");
+  tafel.hidden = !tafel.hidden;
+  e.stopPropagation();
+});
+document.addEventListener("click", (e) => {
+  const tafel = document.getElementById("themawahl");
+  if (!tafel.hidden && !tafel.contains(e.target)) tafel.hidden = true;
+});
+const ZOOM_MIN = 20, ZOOM_MAX = 180, ZOOM_SCHRITT = 10, ZOOM_MITTE = 100;
+const ZOOM_TITEL = {
+  de: ["kleiner", "zur\u00fcck auf 100%", "gr\u00f6\u00dfer"],
+  en: ["smaller", "back to 100%", "larger"]
+};
+let ZOOM = parseInt(gemerkt("ft_zoom") || String(ZOOM_MITTE), 10);
+if (isNaN(ZOOM)) ZOOM = ZOOM_MITTE;
+
+function zoom(neu) {
+  ZOOM = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.round(neu / ZOOM_SCHRITT) * ZOOM_SCHRITT));
+  document.documentElement.style.fontSize = (16 * ZOOM / 100).toFixed(2) + "px";
+  const w = document.getElementById("btn-zoom-wert");
+  w.textContent = ZOOM + "%";
+  document.getElementById("btn-zoom-minus").disabled = ZOOM <= ZOOM_MIN;
+  document.getElementById("btn-zoom-plus").disabled = ZOOM >= ZOOM_MAX;
+  merken("ft_zoom", String(ZOOM));
+}
+document.getElementById("btn-zoom-minus").addEventListener("click", () => zoom(ZOOM - ZOOM_SCHRITT));
+document.getElementById("btn-zoom-plus").addEventListener("click", () => zoom(ZOOM + ZOOM_SCHRITT));
+document.getElementById("btn-zoom-wert").addEventListener("click", () => zoom(ZOOM_MITTE));
+document.getElementById("btn-druck").addEventListener("click", () => window.print());
+document.getElementById("suche").addEventListener("input", filtern);
+
+document.body.className = THEMA;
+zoom(ZOOM);
+document.getElementById("badge").textContent = VERSION;
+sprache();
+</script>
+</body>
+</html>

@@ -11917,6 +11917,17 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     # standing (a bad --update path) or overwrites it with the merge.
     out_path.write_text(result, encoding="utf-8")
 
+    # 786 -- A REBUILD MUST NOT SILENTLY DISCARD A TRANSLATION. The tiddler
+    # translation cannot live on the model (the projector rebuilds transcluded
+    # paragraphs from the source stream by offset), so before 786 it lived only
+    # in the file this line just overwrote. A plain `tiddlers` therefore threw
+    # away work that cost money, said nothing, and only a paid `translate` put
+    # it back: BH1org_OCR lost its translation to a rebuild on 2026-08-29 and
+    # 689,340 characters were re-sent to DeepL to recover it. Re-applied here
+    # from the memory `translate` writes, by source-text hash, so prose the
+    # projection has since changed is left alone rather than overwritten.
+    _reapplied = _reapply_stored_translations(sc, key, out_path)
+
     # 651 re-review, finding 1 -- record the sidecar state HERE, right after
     # the file that state describes actually lands on disk, not after the
     # `--update` block below. The two early `return`s inside that block (a
@@ -12088,7 +12099,9 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     trans_note = _tiddler_translation_warning(
         TRANSLATED in sc.facts, sc.get_evidence("translated_lang"),
         json.loads(result))
-    return (f"Wrote {count} TiddlyWiki tiddlers to {rel}. Import into TiddlyWiki; "
+    _tr_note = (f" Restored {_reapplied} stored translation(s)."
+                if _reapplied else "")
+    return (f"Wrote {count} TiddlyWiki tiddlers to {rel}.{_tr_note} Import into TiddlyWiki; "
             f"diagram SVGs render via {{{{!!svg_tiddler}}}} "
             f"({'inline' if embed_svg else 'external _canonical_uri'}).{svg_note}"
             f"{integ_note}{placeholder_note}{span_note}{outside_note}{guard}"
@@ -12237,6 +12250,89 @@ def _translate_tiddler_file_inplace(path: Path, batch_fn, target_lang: str,
     return changed
 
 
+def _reapply_stored_translations(sc, key: str, tid_path: Path) -> int:
+    """Put the remembered translations back into a just-projected tiddler file.
+
+    Returns how many were restored (0 when the document was never translated,
+    which is the ordinary case and costs a single missing-file read).
+    """
+    from . import translation_memory as tm
+    # Defensive to the outermost call: restoring a translation is a courtesy on
+    # top of the projection, and a projection that already landed on disk must
+    # never be failed by it.
+    try:
+        entries = tm.load(sc.blob_dir, key)
+        if not entries:
+            return 0
+        tiddlers = json.loads(tid_path.read_text(encoding="utf-8"))
+        applied, _stale = tm.reapply(tiddlers, entries, _tiddler_field_for)
+        if applied:
+            tid_path.write_text(json.dumps(tiddlers, ensure_ascii=False),
+                                encoding="utf-8")
+        return applied
+    except Exception:                                # noqa: BLE001
+        return 0
+
+
+def _tiddler_field_for(t: dict) -> "str | None":
+    """The prose field of a tiddler, or None — the one definition both the
+    translator and the memory use, so they can never disagree about what a
+    translated tiddler is."""
+    return _translate_field_for(t)
+
+
+def _store_tiddler_translations(sc, key: str, tid_path: Path,
+                                target_lang: str, source_lang: "str | None") -> int:
+    """Persist the tiddler file's translations beside it. Never fatal."""
+    from . import translation_memory as tm
+    try:
+        tiddlers = json.loads(tid_path.read_text(encoding="utf-8"))
+        entries = tm.harvest(tiddlers, _tiddler_field_for)
+        if entries:
+            tm.save(sc.blob_dir, key, entries,
+                    target_lang=target_lang, source_lang=source_lang)
+        return len(entries)
+    except (OSError, json.JSONDecodeError, TypeError):
+        return 0
+
+
+def _rebuild_tiddlers_for_translation(pdf: Path, sc, key: str, tid_path: Path,
+                                      model_changed: int, force: bool) -> None:
+    """Rebuild the tiddler file only when there is a reason to.
+
+    A rebuild is needed when the model actually changed, when the file is
+    missing, or when it is older than the model it is projected from. Otherwise
+    the existing file is kept — and with it every `<field>_source`, which is
+    what lets the translator skip work already paid for.
+    """
+    from . import translation_memory as tm
+    model_path = Path(_model_path(sc))
+    stale = True
+    try:
+        stale = (not tid_path.is_file()
+                 or (model_path.is_file()
+                     and model_path.stat().st_mtime > tid_path.stat().st_mtime))
+    except OSError:
+        stale = True
+    if not (model_changed or stale or force):
+        return                                   # keep the translated file as is
+    remembered = tm.load(sc.blob_dir, key)
+    cmd_tiddlers(pdf, force=True)
+    if not remembered:
+        return
+    # 786 — a rebuild wipes the tiddler-level translation. Put it back from the
+    # memory instead of buying it again; a tiddler whose prose no longer hashes
+    # to what was translated is left alone rather than overwritten.
+    try:
+        tiddlers = json.loads(tid_path.read_text(encoding="utf-8"))
+        applied, _stale = tm.reapply(tiddlers, remembered, _tiddler_field_for)
+        if applied:
+            tid_path.write_text(json.dumps(tiddlers, ensure_ascii=False),
+                                encoding="utf-8")
+    except (OSError, json.JSONDecodeError, TypeError):
+        pass
+
+
 @_writes("translate")
 def cmd_translate(pdf: Path, target_lang: str = "EN-US",
                   source_lang: str | None = None, limit: int | None = None,
@@ -12293,13 +12389,21 @@ def cmd_translate(pdf: Path, target_lang: str = "EN-US",
             doc.meta["source_lang"] = source_lang.upper()
         save_model(model_path, doc)
 
-    # Regenerate the tiddler file from the model, then translate it IN PLACE.
-    # The TiddlyWiki projector rebuilds transcluded paragraphs from the immutable
-    # source stream BY OFFSET (to re-insert {{...||FO}} tokens), so the model's
-    # translated `text` doesn't reach them — the tiddler `text`/`caption` fields
-    # must be translated at the tiddler level (tokens already inserted). This is
-    # your original approach; the changed tiddler file is written in place.
-    cmd_tiddlers(pdf, force=True)
+    # The tiddler file is translated at TIDDLER level, not carried over from the
+    # model: the TiddlyWiki projector rebuilds transcluded paragraphs from the
+    # immutable source stream BY OFFSET (to re-insert {{...||FO}} tokens), so a
+    # translated `text` on the model never reaches them.
+    #
+    # 786 — BUT THE REBUILD MUST NOT BE UNCONDITIONAL. `cmd_tiddlers(force=True)`
+    # regenerates the file from the model, and a freshly projected tiddler has no
+    # `<field>_source`; the idempotence guard inside
+    # `_translate_tiddler_file_inplace` therefore could never fire, so every
+    # rerun re-translated the whole document at full price — 689,340 characters
+    # of BH1org_OCR, for prose already paid for once.
+    sc = Sidecar(pdf)
+    key = resolve_bibkey(pdf, None, sc)
+    tid_path = sc.blob_dir / f"{key}.tiddlers.json"
+    _rebuild_tiddlers_for_translation(pdf, sc, key, tid_path, changed, force)
     sc = Sidecar(pdf)
     key = resolve_bibkey(pdf, None, sc)
     tid_path = sc.blob_dir / f"{key}.tiddlers.json"
@@ -12308,6 +12412,9 @@ def cmd_translate(pdf: Path, target_lang: str = "EN-US",
             tid_path, deepl_client.translate_batch, target_lang, source_lang, force)
     except NetworkBlocked as e:
         return str(e)
+    # Whatever the file now holds — reapplied or freshly bought — is written
+    # somewhere a rebuild cannot reach, so the next `tiddlers` run costs nothing.
+    _store_tiddler_translations(sc, key, tid_path, target_lang, source_lang)
 
     projector = LLMCompactProjector(OperatorConfig(
         op="projector", classname="LLMCompactProjector",
