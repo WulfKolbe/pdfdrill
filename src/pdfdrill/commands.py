@@ -454,7 +454,15 @@ def apply_document_structure(doc) -> dict:
 # Keyless, geometry-only lines.json sources. None of them carries structure or
 # real math, so on a doc whose gold LaTeX is available they are the merge's
 # INPUT, never a substitute for it.
-_MERGEABLE_LINES_SOURCES = ("pdfminer", "pdfplumber", "tesseract")
+#: lines.json sources the merged route can take page geometry FROM. Each is
+#: a keyless lane that measures rectangles but types no structure, so the
+#: gold LaTeX source still has something to contribute. `visionocr` belongs
+#: here because its lines.json IS the pdfminer one with equations folded in
+#: — omitting it meant `visionocr` silently switched the merge off for good
+#: and no --force could bring it back (2609.24972: 463 objects -> 147, every
+#: Section, Table and Picture lost).
+_MERGEABLE_LINES_SOURCES = ("pdfminer", "pdfplumber", "tesseract",
+                            "visionocr")
 
 
 def _is_mathpix_lines(lines_path: Path) -> bool:
@@ -508,7 +516,9 @@ def _try_merged_build(pdf: Path, sc, key: str, model_path: Path,
         sc2.save()
         built += (f"\nMERGED: {stats['pages']} Page object(s), "
                   f"{stats['placed']} object(s) placed on a page "
-                  f"({stats.get('regions', 0)} with a rectangle, so `inspect` can "
+                  f"({stats.get('regions', 0)} with a matched rectangle, "
+                  f"{stats.get('interpolated', 0)} more boxed by reading-order "
+                  f"interpolation, so `inspect` can "
                   f"box them); structure post-pass linked {stats.get('children', 0)} "
                   f"child(ren) under {stats.get('sections', 0)} section(s) "
                   f"(needed for ||TAB/||PIC/||DIA/||LI transclusions).")
@@ -592,10 +602,15 @@ def merge_page_geometry(doc, lines_path: Path) -> dict:
         page_text.append(" ".join(parts))
         page_spans.append(spans)
         if pg.get("page") not in _existing_pages:
+            # The Page's own rectangle is the union of its lines — the text
+            # frame. The keyless line-ingest lane gives every Page one, so a
+            # merged model without it was the odd lane out and `inspect` drew
+            # no frame at all on the route that has the best structure.
             doc.add(DocObject(type="Page", props={
                 "page_number": pg.get("page"),
                 "page_width": pg.get("page_width"),
                 "page_height": pg.get("page_height"),
+                "region": _union_region(lines),
                 "added_by": "merge_page_geometry"}))
 
     def _find(text: str):
@@ -610,6 +625,10 @@ def merge_page_geometry(doc, lines_path: Path) -> dict:
         return None, None
 
     placed = regions = 0
+    #: object id -> (page, first line index, last line index) for every object
+    #: this run MATCHED. The interpolation pass below needs the verified spans,
+    #: not just the count, to know which lines are still unclaimed.
+    anchored: dict[str, tuple[int, int, int]] = {}
     for o in doc.objects.values():
         # Skip on REGION, not on page: an object placed by an earlier merge that
         # stored no rectangle is exactly what the upgrade exists to fix, and
@@ -630,13 +649,134 @@ def merge_page_geometry(doc, lines_path: Path) -> dict:
         # is its rectangle. Approximate by nature — same as the page match — but
         # derived from real geometry, never invented.
         end = at + len(_norm_probe(re.sub(r"\{\{[^}]*\}\}", " ", src)))
-        hit = [page_lines[pno - 1][li] for (a, b, li) in page_spans[pno - 1]
-               if a < end and b > at]
+        lis = [li for (a, b, li) in page_spans[pno - 1] if a < end and b > at]
+        hit = [page_lines[pno - 1][li] for li in lis]
         box = _union_region(hit)
         if box:
             o.props["region"] = box
             regions += 1
-    return {"pages": len(pages), "placed": placed, "regions": regions}
+        if lis:
+            anchored[o.id] = (pno, min(lis), max(lis))
+    interpolated = _interpolate_regions(doc, page_lines, anchored)
+    return {"pages": len(pages), "placed": placed, "regions": regions,
+            "interpolated": interpolated}
+
+
+#: Types whose place on the page may be INTERPOLATED between two matched
+#: neighbours. Block-level and visible only: an inline marker (`Citation`) or
+#: invisible markup (`LtxCommand`) must never consume a line, because the line
+#: it ate is the rectangle that belonged to the formula beside it.
+_INTERPOLATABLE = ("Formula", "Equation", "Table", "Picture", "Diagram",
+                   "Section", "Paragraph", "Algorithm", "CodeListing",
+                   "ListItem", "Abstract", "Caption")
+
+
+def _obj_surface(o) -> str:
+    """The text an object puts on the page — what its share of a line gap is
+    proportional to."""
+    p = o.props or {}
+    return str(p.get("text") or p.get("latex") or p.get("content")
+               or p.get("caption") or " ")
+
+
+def _fill_line_gap(objs: list, page_lines: list, flat: list,
+                   lo: int, hi: int) -> int:
+    """Split the unclaimed lines `[lo, hi]` among `objs`, in reading order.
+
+    Each object takes a share proportional to its surface text, so a two-line
+    formula between two paragraphs does not get the same slice as a twelve-line
+    table. A share that works out to nothing leaves that object unplaced — the
+    next one starts where it would have, so no line is invented and none is
+    handed out twice. An allocation never crosses a page break: the lines kept
+    are those on the page its first line is on.
+    """
+    span = hi - lo + 1
+    if span <= 0 or not objs:
+        return 0
+    weights = [max(1, len(_obj_surface(o))) for o in objs]
+    total = sum(weights)
+    added, start, cum = 0, lo, 0
+    for o, w in zip(objs, weights):
+        cum += w
+        end = min(lo + int(round(span * cum / total)) - 1, hi)
+        if end < start:
+            continue                       # no line left over for this object
+        page = flat[start][0]
+        hit = [page_lines[p - 1][li] for (p, li) in flat[start:end + 1]
+               if p == page]
+        box = _union_region(hit)
+        if box:
+            o.props["region"] = box
+            o.props["page"] = page
+            o.props["region_via"] = "interpolated"
+            added += 1
+        start = end + 1
+    return added
+
+
+def _interpolate_regions(doc, page_lines: list,
+                         anchored: dict[str, tuple[int, int, int]]) -> int:
+    """Box the objects that text matching structurally cannot reach.
+
+    `merge_page_geometry` places what it can MATCH, and what it can match is
+    prose. A Formula's source text is `\\frac{...}` and never matches the
+    rendered glyphs; a Picture has no text at all. So the objects a reader most
+    wants boxed are exactly the ones matching misses — 0 of 81 Formulas on
+    2609.24972, which is an `inspect` page showing a frame and nothing inside it.
+
+    Reading order supplies the constraint matching lacks. Every block object
+    carries `flow_index`, and each matched object carries a VERIFIED line span.
+    An unmatched object standing between matched neighbours A and B therefore
+    sits, on the page, between A's last line and B's first line — so the
+    unclaimed lines of that gap are its own.
+
+    Bounded, not invented. Nothing is placed outside the gap its neighbours
+    define; a run with no anchor on either side places nothing at all; and every
+    rectangle made here is stamped `region_via="interpolated"` so a reader can
+    tell it from a matched one. Idempotent: a second pass finds no anchors,
+    because everything it placed now carries a region.
+    """
+    flat: list[tuple[int, int]] = [
+        (pno, li)
+        for pno in range(1, len(page_lines) + 1)
+        for li in range(len(page_lines[pno - 1]))
+    ]
+    if not flat:
+        return 0
+    ordinal = {pl: k for k, pl in enumerate(flat)}
+
+    # An object already carrying a region from an earlier merge is NOT an
+    # anchor (its span is not known here) and must not be re-placed either.
+    blocks = [o for o in doc.objects.values()
+              if o.type in _INTERPOLATABLE
+              and (o.props or {}).get("flow_index") is not None
+              and (o.id in anchored or not (o.props or {}).get("region"))]
+    if not blocks:
+        return 0
+    blocks.sort(key=lambda o: o.props["flow_index"])
+
+    spans: list[tuple[int, int] | None] = []
+    for o in blocks:
+        a = anchored.get(o.id)
+        spans.append(None if a is None
+                     else (ordinal[(a[0], a[1])], ordinal[(a[0], a[2])]))
+    if not any(s is not None for s in spans):
+        return 0                            # nothing verified to measure from
+
+    added, prev_end, i, n = 0, -1, 0, len(blocks)
+    while i < n:
+        if spans[i] is not None:
+            prev_end = max(prev_end, spans[i][1])
+            i += 1
+            continue
+        j = i
+        while j < n and spans[j] is None:
+            j += 1
+        nxt = spans[j][0] if j < n else len(flat)
+        added += _fill_line_gap(blocks[i:j], page_lines, flat,
+                                prev_end + 1, nxt - 1)
+        i = j
+    return added
 
 
 def upgrade_object_regions(doc, lines_path: Path) -> int:
@@ -647,10 +787,16 @@ def upgrade_object_regions(doc, lines_path: Path) -> int:
     with nothing to draw. Idempotent — objects already carrying a region are
     skipped and no duplicate Page objects are created.
     """
-    before = sum(1 for o in doc.objects.values() if (o.props or {}).get("region"))
+    def _boxed() -> int:
+        # Page objects are CREATED by the merge, carrying their own frame. They
+        # never lacked a rectangle, so counting them here would report an
+        # upgrade that upgraded nothing.
+        return sum(1 for o in doc.objects.values()
+                   if o.type != "Page" and (o.props or {}).get("region"))
+
+    before = _boxed()
     merge_page_geometry(doc, lines_path)
-    after = sum(1 for o in doc.objects.values() if (o.props or {}).get("region"))
-    return after - before
+    return _boxed() - before
 
 
 def _norm_probe(text: str) -> str:

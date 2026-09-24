@@ -378,6 +378,13 @@ def collect_elements(model: dict, sidx: dict, *, with_blobs: bool = False):
             "type": obj["type"],
             "page": page,
             "bbox": bbox,  # MathPix points
+            # How that rectangle was arrived at. Absent means MEASURED — the
+            # object's own lines. "interpolated" means POSITIONED between two
+            # measured neighbours, which is what gives a Formula or a Picture a
+            # box at all (text matching cannot reach them). The inspector draws
+            # it dashed, because a reader deciding whether a box is wrong needs
+            # to know which of the two kinds it is looking at.
+            "via": pr.get("region_via"),
             "label": _short_label(obj, preview),
             "flow": flow_rank.get(obj["id"]),
             "realizations": [
@@ -785,6 +792,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .stage img{display:block;width:100%;height:auto}
 .overlay{position:absolute;inset:0;pointer-events:none}
 .box{position:absolute;pointer-events:auto;border:1px solid transparent;border-radius:2px}
+.box[data-via="interpolated"]{border-style:dashed}
 .box:hover{background:var(--hl);border-color:var(--accent)}
 .box.sel{background:var(--hl);border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .box.hl{background:var(--hl);border-color:var(--accent)}
@@ -1530,6 +1538,7 @@ function renderPage(){
     .sort((a,b)=>(b.bbox.w*b.bbox.h)-(a.bbox.w*a.bbox.h))
     .forEach(e=>{
     const d=el('div','box'); d.dataset.cat=IMAGE_CATS.has(e.type)?'image':'text';
+    if(e.via) d.dataset.via=e.via;
     const b=e.bbox;
     d.style.left=(100*b.x/W)+'%'; d.style.top=(100*b.y/H)+'%';
     d.style.width=(100*b.w/W)+'%'; d.style.height=(100*b.h/H)+'%';
