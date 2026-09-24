@@ -119,6 +119,9 @@ Introspection (fast, no extraction):
   pdfdrill skill [--emit EMIT] [--json] [--check] Emit/serve the bundled SKILL folder (--emit DIR | --json | --check)
   pdfdrill docs <pdf> [--titles]              ONE LINE per document in a session (title + bibkey) — the compact counterpart to bibtex; on a single doc, its title
 
+Build / extract:
+  pdfdrill glyphlines <pdf> [--force FORCE]   Read the PDF with pdf2mmd's glyph model and write a TYPED <stem>.lines.json — the docmodel every projection is built from. pdfdrill's own keyless reader emits TWO line types (text, math: 910/5 on 2609.24972), so the twenty modules that build Table, Diagram, CodeListing and Section from typed lines have nothing to work with and the keyless lane tops out at paragraphs; MathPix emits sixteen on a comparable paper and reaches 530 of 530 objects boxed. This hands the SAME pipeline a richer stream: code with its language (the monospace grid plus the drawn frame — the one reading pdf2mmd does better than MathPix), section_header with its level, equation (indent past the body margin), equation_number absorbed into its display, math, diagram (clustered vector art), text for everything not established. Nothing is guessed: an unmeasured line stays text. Then `model` ingests it as it ingests MathPix's and every projector — latex, tiddlers, markdown, report, compare — works unchanged. Free, keyless, offline; needs pdf2mmd ($PDF2MMD_HOME, default ~/pdf2mmd), whose patched pdfminer is not importable here. A MathPix lines.json is never overwritten without --force.
+
 Extraction:
   pdfdrill md <pdf> [--pages PAGES]           Full Markdown with math transclusions
   pdfdrill page <pdf> <n>                     Single page text extraction

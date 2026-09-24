@@ -478,6 +478,12 @@ def _do_fonts(args):
     return cmd_fonts(_pdf(args), force="--force" in args)
 
 
+def _do_glyphlines(args):
+    """`glyphlines` — a TYPED lines.json read with pdf2mmd's glyph model."""
+    from .commands import cmd_glyphlines
+    return cmd_glyphlines(_pdf(args), force="--force" in args)
+
+
 def _do_profile(args):
     """`profile` — what is on each page, and on what evidence (781o)."""
     from .commands import cmd_profile
@@ -2275,6 +2281,7 @@ HANDLERS = {
         "abstract": _do_abstract,
         "toc": _do_toc,
         "fonts": _do_fonts,
+        "glyphlines": _do_glyphlines,
         "profile": _do_profile,
         "docs": _do_docs,
         "breport": _do_breport,

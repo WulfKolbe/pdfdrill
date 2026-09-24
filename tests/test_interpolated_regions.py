@@ -197,3 +197,12 @@ def test_a_page_object_is_addressed_by_its_own_page_number():
     page_el = next(e for e in elements if e["type"] == "Page")
     assert page_el["page"] == 7, "an unaddressable box is never drawn"
     assert page_el["bbox"], "the page frame lost its rectangle"
+
+
+def test_pdf2mmd_lines_take_the_merged_route():
+    """pdf2mmd's reading is a keyless lane that measures rectangles and types
+    lines; the gold LaTeX source still has structure to add on top. Omitting
+    the name is not a missing feature but a silent downgrade — 782 is the
+    worked example."""
+    assert prefers_merged_route(lines_exists=True, lines_source="pdf2mmd",
+                                is_arxiv=True, mathpix=False)

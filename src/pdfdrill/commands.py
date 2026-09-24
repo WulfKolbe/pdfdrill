@@ -14,6 +14,7 @@ import contextlib
 import contextvars
 import json
 import re
+import tempfile
 import subprocess
 import time
 import sys
@@ -462,7 +463,7 @@ def apply_document_structure(doc) -> dict:
 #: and no --force could bring it back (2609.24972: 463 objects -> 147, every
 #: Section, Table and Picture lost).
 _MERGEABLE_LINES_SOURCES = ("pdfminer", "pdfplumber", "tesseract",
-                            "visionocr")
+                            "visionocr", "pdf2mmd")
 
 
 def _is_mathpix_lines(lines_path: Path) -> bool:
@@ -14291,6 +14292,109 @@ def cmd_profile(pdf: Path, pages: str | None = None, json_only: bool = False) ->
         lines.append(f"  A paid pass bills {n} page(s) for content on {carry}.")
     lines.append(f"  Written: {out.name}")
     return "\n".join(lines)
+
+
+# ------------------------------------------------------------- glyphlines
+#: The runner writes to a FILE, not to stdout. A lines.json for a long
+#: document is megabytes, and a pipe that large is the one failure mode a
+#: tool boundary adds over an import.
+_GLYPHLINES_RUNNER = r'''
+import json, sys
+sys.path.insert(0, sys.argv[1])
+import docmodel_six as dm, linesjson
+pages = dm.build(sys.argv[2])
+data = linesjson.emit(pages, doc_id=sys.argv[4])
+with open(sys.argv[3], "w", encoding="utf-8") as fh:
+    json.dump(data, fh)
+print(json.dumps({"pages": len(data["pages"]),
+                  "lines": sum(len(p["lines"]) for p in data["pages"])}))
+'''
+
+
+@_writes("glyphlines")
+def cmd_glyphlines(pdf: Path, force: bool = False) -> str:
+    """Read the PDF with pdf2mmd's glyph model and write a TYPED lines.json.
+
+    The model every projection is built on comes from a lines.json, and what
+    a lines.json can express is line TYPES. pdfdrill's own keyless reader
+    (`chars_to_lines`) emits two of them — `text` and `math` — so the twenty
+    modules in `docmodel/modules/` that build `Table`, `Diagram`,
+    `CodeListing`, `Section` from typed lines have nothing to work with, and
+    the keyless lane tops out at paragraphs. Measured on 2609.24972: `text`
+    910, `math` 5, against MathPix's sixteen types on a comparable paper
+    (`simple_cell` 164, `list_item` 59, `table_row` 49, `section_header` 17…)
+    and 530 of 530 objects boxed.
+
+    So this hands the SAME pipeline a richer stream: `code` with its language
+    (from the monospace grid and the drawn frame — the one reading pdf2mmd
+    does better than MathPix, 674/676), `section_header` with its level (a
+    font-size rank), `equation` (an indent past the body margin),
+    `equation_number` absorbed into its display, `math`, `diagram` (clustered
+    vector art), and `text` for everything not established. Nothing is
+    guessed: a line whose kind is not measured stays `text`.
+
+    Then `model` ingests it exactly as it ingests MathPix's, and every
+    projector — latex, tiddlers, markdown, report, compare — works unchanged,
+    because they read the Document, not the lines.
+
+    Free, keyless, offline. Needs pdf2mmd ($PDF2MMD_HOME, default ~/pdf2mmd):
+    its reading is a glyph model on a patched pdfminer and is not importable
+    here. A MathPix lines.json is never overwritten without --force — it is
+    the richest source and this is not a replacement for it.
+    """
+    home = _pdf2mmd_home()
+    py = home / ".pdfmm-venv" / "bin" / "python"
+    if not py.is_file():
+        return (f"pdf2mmd not found at {home} (set $PDF2MMD_HOME). "
+                f"`glyphlines` reads with pdf2mmd's glyph model, which lives "
+                f"on a patched pdfminer and is not importable here.")
+    lines_path = _lines_json_path(pdf)
+    if lines_path.exists() and not force:
+        src = str(_lines_json_source(lines_path) or "")
+        if _is_mathpix_lines(lines_path):
+            return (f"{lines_path.name} is MathPix output — the richest source "
+                    f"there is, and this would replace it. `glyphlines --force "
+                    f"{pdf.name}` if that is what you want.")
+        if src == "pdf2mmd":
+            return (f"{lines_path.name} already read by pdf2mmd. "
+                    f"`glyphlines --force {pdf.name}` to re-read.")
+
+    sc = Sidecar(pdf)
+    key = resolve_bibkey(pdf, None, sc)
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td) / "lines.json"
+        try:
+            r = subprocess.run(
+                [str(py), "-c", _GLYPHLINES_RUNNER, str(home), str(pdf),
+                 str(tmp), key],
+                capture_output=True, text=True, timeout=1800)
+        except subprocess.TimeoutExpired:
+            return f"glyphlines: pdf2mmd did not finish within 1800s on {pdf.name}."
+        if r.returncode != 0 or not tmp.is_file():
+            why = (r.stderr or "").strip().split("\n")[-1][:200]
+            return f"glyphlines: pdf2mmd could not read {pdf.name} — {why}"
+        data = json.loads(tmp.read_text(encoding="utf-8"))
+
+    n_lines = sum(len(p["lines"]) for p in data["pages"])
+    if n_lines < 2:
+        return (f"glyphlines: {pdf.name} yielded {n_lines} line(s) — no text "
+                f"layer to read. This lane never OCRs; use `ocr` or `mathpix`.")
+    from . import model_io as _mio
+    _mio._atomic_write(lines_path, json.dumps(data))
+    # A lines.json newer than the model is what makes `model` rebuild, so the
+    # next command picks this reading up without anyone passing --force.
+    counts: dict[str, int] = {}
+    for pg in data["pages"]:
+        for ln in pg["lines"]:
+            counts[ln["type"]] = counts.get(ln["type"], 0) + 1
+    sc.set_evidence("glyphlines", {"lines": n_lines, "types": counts})
+    sc.save()
+    shape = ", ".join(f"{k} {v}" for k, v in
+                      sorted(counts.items(), key=lambda kv: -kv[1]))
+    return (f"glyphlines: read {pdf.name} with pdf2mmd — {len(data['pages'])} "
+            f"page(s), {n_lines} typed line(s) ({shape}). Wrote "
+            f"{lines_path.name}. Next: `pdfdrill model {pdf.name}` builds the "
+            f"docmodel from it; every projection follows.")
 
 
 def cmd_fonts(pdf: Path, force: bool = False) -> str:
