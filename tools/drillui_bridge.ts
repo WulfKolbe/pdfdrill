@@ -827,14 +827,28 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
       // nested .drill/, names with spaces and parentheses — all measured), so
       // the next report of this needs the roots, not another guess.
       //
-      // LOCAL CLIENTS ONLY. The bridge binds 0.0.0.0 and absolute paths are
-      // more than a LAN visitor needs; they already get the file's bytes, but
-      // that is a link they were given, not a directory map.
+      // THE PERSON DRIVING THE BRIDGE IS OFTEN NOT ON IT. This diagnostic used
+      // to be withheld from every non-local client, which is precisely the
+      // operator working from a laptop against a bridge on another box — they
+      // got a bare "not found" for a file `inspect` had just written, and no
+      // way to see that it was the ROOTS that were wrong, not the file.
+      //
+      // Withholding it protected nothing. Any client this bridge serves can
+      // open a WebSocket session and run `pwd`, `ls`, `cd` and every pdfdrill
+      // command through it; the roots are not a secret from someone who
+      // already has that. `DRILLUI_NO_DIAG=1` restores the old behaviour for a
+      // bridge deliberately exposed to an audience that should not have it.
       const diag = (why: string) => {
-        if (!isLocalClient(peerIp(server, req))) return new Response(why, { status: 404 });
+        const quiet = !!process.env.DRILLUI_NO_DIAG
+                      && !isLocalClient(peerIp(server, req));
+        if (quiet) return new Response(why, { status: 404 });
         const tried = ART_ROOTS.map((r) => `  ${r}/${want}`).join("\n");
         return new Response(
-          `${why}\n\npath as given: ${want}\n\nroots tried, in order:\n${tried}\n`,
+          `${why}\n\npath as given: ${want}\n\nroots tried, in order:\n${tried}\n` +
+          `\nIf the document lives somewhere not listed above, the bridge cannot\n` +
+          `see it. Point pdfdrill at it and restart the bridge (the roots are\n` +
+          `read once, at startup):\n` +
+          `  pdfdrill config set library_root <dir>\n`,
           { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
       };
       if (!abs) return new Response("forbidden path", { status: 403 });
