@@ -1520,7 +1520,93 @@ def cmd_doctor() -> str:
         lines.append("  sudo apt-get install -y " + " ".join(seen))
     else:
         lines.append("All system tools present — every route is available.")
+    lines.append("")
+    lines.extend(_doctor_storage_and_gate())
     return "\n".join(lines)
+
+
+def _doctor_storage_and_gate() -> list[str]:
+    """Where pdfdrill will WRITE, and whether the build gate is open.
+
+    The two failure classes `doctor` could not see, and between them the most
+    common report from a second machine: "several errors, something about
+    permissions". Neither is a missing tool.
+
+    A checkout with no config resolves `download_dir` to ~/Downloads, and when
+    that does not exist, to the CURRENT WORKING DIRECTORY — which under drillui
+    is the repo itself. Everything then follows: the library becomes the repo,
+    the preflight marker is written into the repo, and if any of that is
+    read-only the gate can never be attested, so every build command answers
+    with a refusal that reads exactly like a permissions error.
+    """
+    import os
+    from . import config as cfg, preflight
+    out = ["Storage — where pdfdrill writes (config, then fallbacks):"]
+
+    cfg_path = None
+    try:
+        cfg_path = cfg.config_path() if hasattr(cfg, "config_path") else None
+    except Exception:                                    # noqa: BLE001
+        cfg_path = None
+    declared = {}
+    for name in ("library_root", "download_dir"):
+        try:
+            declared[name] = cfg.get(name)
+        except Exception:                                # noqa: BLE001
+            declared[name] = None
+    if cfg_path and Path(str(cfg_path)).is_file():
+        out.append(f"  config file      {cfg_path}")
+    else:
+        out.append("  config file      NONE — every path below is a fallback")
+
+    def _probe(label: str, path: Path, note: str) -> str:
+        try:
+            path = Path(path)
+            if not path.is_dir():
+                return f"  [MISS] {label:14} {path}  — does not exist ({note})"
+            probe = path / ".pdfdrill-write-probe"
+            probe.write_text("x", encoding="utf-8")
+            probe.unlink()
+            return f"  [OK  ] {label:14} {path}  ({note})"
+        except OSError as e:
+            return (f"  [DENY] {label:14} {path}  — NOT WRITABLE: "
+                    f"{e.__class__.__name__} ({note})")
+
+    try:
+        out.append(_probe("library_root", cfg.library_root(),
+                          "declared" if declared.get("library_root")
+                          else "fallback: download_dir"))
+        out.append(_probe("download_dir", cfg.download_dir(),
+                          "declared" if declared.get("download_dir")
+                          else "fallback: ~/Downloads, else the CWD"))
+        out.append(_probe("scratch_dir", cfg.scratch_dir(),
+                          "latex/tgz work, under download_dir"))
+    except Exception as e:                               # noqa: BLE001
+        out.append(f"  [ERR ] could not resolve the storage paths: {e}")
+    out.append(f"  cwd              {Path.cwd()}  "
+               f"(becomes the root when nothing else resolves)")
+
+    out.append("")
+    out.append("Build gate (preflight):")
+    if os.environ.get("PDFDRILL_NO_PREFLIGHT"):
+        out.append("  [OK  ] PDFDRILL_NO_PREFLIGHT is set — the gate is off for "
+                   "this process.")
+    else:
+        try:
+            marker = preflight._marker_path()
+            if preflight.is_attested():
+                out.append(f"  [OK  ] attested — marker at {marker}")
+            else:
+                out.append(f"  [GATE] NOT attested — every build/extract command "
+                           f"refuses until it is.")
+                out.append(f"         marker would be written to {marker}")
+                out.append(f"         fix: `pdfdrill preflight`, read SKILL.md to "
+                           f"its last line, `pdfdrill preflight --ack <TOKEN>`")
+                out.append(f"         or export PDFDRILL_NO_PREFLIGHT=1 (drillui: "
+                           f"set it before `bun run tools/drillui_bridge.ts`)")
+        except Exception as e:                           # noqa: BLE001
+            out.append(f"  [ERR ] could not read the gate state: {e}")
+    return out
 
 
 def cmd_config(action: str = "show", value: str | None = None) -> str:
