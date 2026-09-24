@@ -1068,19 +1068,108 @@ def _record_prior_bibkey(sc, model_path: Path, prior: str) -> None:
         pass
 
 
+_STOPWORDS = {"the", "a", "an", "of", "and", "or", "for", "to", "in", "on",
+              "with", "der", "die", "das", "und", "für", "fur", "von", "im",
+              "zur", "zum", "des", "dem", "den", "ein", "eine", "einer"}
+
+#: Titles a TOOL wrote, not an author. PowerPoint stamps "Folie1"/"Slide1"
+#: and Word "Microsoft Word - <filename>"; metadata that says one of these
+#: is not better than the filename it would replace, so the derivation
+#: abstains rather than minting `salvador2022folie1`.
+_TOOL_TITLE = re.compile(r"^(folie|slide|dia)\s*\d*$|^untitled|^document\d*$"
+                         r"|^microsoft word|^präsentation|^presentation\d*$"
+                         r"|^unbenannt|^chapter\s*\d*$|^short\d*$", re.I)
+
+
+def bibkey_from_metadata(pdf: Path) -> str:
+    """`surname2011ithandbuch` from the PDF's own Title/Author, or "".
+
+    781p — THE STEM IS NOT A NAME, AND SOMETIMES THE FILE KNOWS BETTER.
+
+    A Z-Library download is called
+    `IT-Handbuch für Systemelektroniker -in, Fachinformatiker -in (Heinrich
+    Hübscher, ...) (Z-Library)`, and that 118-character string became the
+    bibkey, every tiddler title and every artefact name, because the
+    precedence ended at the filename stem.
+
+    Measured over 394 library documents before building this: 79 (20%) have
+    a junky stem, 294 (75%) carry Title AND Author, and 39 -- HALF the junky
+    ones -- have both. So this fixes about half of them and no more, which
+    is why it only ever REPLACES a stem already judged junky, and why the
+    book that prompted it is in the other half: it carries no Title and no
+    Author at all, only a CreationDate.
+    """
+    try:
+        from . import probes
+        info = probes.pdfinfo_fields(Sidecar(pdf)) or {}
+    except Exception:                                       # noqa: BLE001
+        info = {}
+    if not info:
+        try:
+            out = subprocess.run(["pdfinfo", str(pdf)], capture_output=True,
+                                 text=True, timeout=20, errors="replace").stdout
+        except Exception:                                   # noqa: BLE001
+            return ""
+        info = dict(
+            (k.strip(), v.strip())
+            for k, _, v in (l.partition(":") for l in out.split("\n")) if k.strip())
+    title = (info.get("Title") or "").strip()
+    author = (info.get("Author") or "").strip()
+    if not title or not author or _TOOL_TITLE.match(title):
+        return ""
+    # The first author's SURNAME: "Hübscher, Heinrich" -> hübscher;
+    # "Heinrich Hübscher" -> hübscher.
+    first = re.split(r"[;,&]| and ", author)[0].strip()
+    surname = (first.split(",")[0] if "," in author.split(";")[0]
+               else first.split()[-1] if first.split() else "")
+    year = ""
+    for key in ("CreationDate", "ModDate"):
+        m = re.search(r"\b(19|20)\d{2}\b", info.get(key, "") or "")
+        if m:
+            year = m.group(0)
+            break
+    words = [w for w in re.findall(r"[A-Za-zÀ-ÿ0-9]+", title)
+             if w.lower() not in _STOPWORDS]
+    topic = "".join(words[:2]).lower()
+    # A SURNAME IS A NAME. `1090341263` has an Author field of digits, and
+    # `<digits><year><digits>` is not a better key than the stem it would
+    # replace -- it is just a different unreadable string.
+    if not re.match(r"^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'-]{1,}$", surname):
+        return ""
+    if not topic:
+        return ""
+    key = "".join(x for x in (surname.lower(), year, topic) if x)
+    key = re.sub(r"[^a-z0-9äöüßà-ÿ-]", "", key)
+    return key if len(key) >= 6 else ""
+
+
 def resolve_bibkey(pdf: Path, explicit: str | None = None,
                    sc: "Sidecar | None" = None) -> str:
     """Resolve the bibkey/tiddler-prefix for a PDF.
 
-    Precedence: explicit `--bibkey` > the key persisted in the sidecar (set by a
-    previous `model --bibkey`) > the filename stem. A clean stem (e.g. an arXiv
-    id `2004.05631v1`) is kept as-is; the caller can warn when it's junky.
+    Precedence: explicit `--bibkey` > the key persisted in the sidecar (set by
+    a previous `model --bibkey`) > a key DERIVED FROM THE PDF'S OWN METADATA
+    when the stem is junky > the filename stem. A clean stem (e.g. an arXiv id
+    `2004.05631v1`) is kept as-is.
+
+    The derived key is recorded on first use, so it cannot drift afterwards,
+    and a stem that is already clean is never touched.
     """
     if explicit:
         return _clean_name(explicit.strip())
     sc = sc or Sidecar(pdf)
     stored = sc.get_evidence("bibkey")
-    return _clean_name(stored or pdf.stem)
+    if stored:
+        return _clean_name(stored)
+    if _JUNK_STEM.search(pdf.stem):
+        derived = bibkey_from_metadata(pdf)
+        if derived:
+            try:
+                sc.set_evidence("bibkey", derived)
+            except Exception:                               # noqa: BLE001
+                pass
+            return _clean_name(derived)
+    return _clean_name(pdf.stem)
 
 
 def _clean_name(name: str) -> str:
@@ -13586,9 +13675,54 @@ def _format_links(links: list[dict] | None) -> str:
 # Introspection commands
 # ---------------------------------------------------------------------------
 
+#: 781p — WHAT A FILE CALLS ITSELF IS NOT WHAT IT IS.
+#:
+#: A failed download saved with a `.pdf` extension reads as a PDF with no
+#: pages and no text layer, which is indistinguishable from a scan — so
+#: `size` reported a 143-byte nginx "410 Gone" page as
+#:
+#:     0-page PDF, 0.0 MB, NO text layer — scanned, OCR required
+#:     (run `pdfdrill mathpix`)
+#:
+#: and recommended a PAID pass on an error page. The magic test already
+#: existed in `sources.looks_like_pdf_bytes`, used when DOWNLOADING; the
+#: reader never consulted it. One library folder held that file while its
+#: twin held the real 504-page book.
+_NOT_PDF_HINT = {
+    b"<html": "an HTML page", b"<!doc": "an HTML page", b"{": "JSON",
+    b"PK\x03\x04": "a zip archive", b"\x1f\x8b": "a gzip stream",
+    b"\x89PNG": "a PNG image", b"\xff\xd8\xff": "a JPEG image",
+}
+
+
+def _refuse_if_not_pdf(pdf: Path) -> "str | None":
+    """A sentence naming what the file actually is, or None if it is a PDF."""
+    try:
+        head = pdf.open("rb").read(1024)
+    except OSError:
+        return None
+    from .sources import looks_like_pdf_bytes
+    if looks_like_pdf_bytes(head):
+        return None
+    low = head[:5].lower()
+    what = next((v for k, v in _NOT_PDF_HINT.items() if low.startswith(k)),
+                "not a PDF")
+    size = pdf.stat().st_size
+    extra = ""
+    if b"404" in head or b"410" in head or b"Gone" in head or b"Not Found" in head:
+        extra = (" The body looks like an HTTP error page, so the download "
+                 "failed and left this behind.")
+    return (f"{pdf.name} is {what}, {size} bytes — not a PDF (no %PDF header)."
+            f"{extra} Nothing here to read; re-fetch the document.")
+
+
 def cmd_size(pdf: Path) -> str:
     """Run pdfinfo. Return one paragraph of metadata."""
     sc = Sidecar(pdf)
+
+    refused = _refuse_if_not_pdf(pdf)
+    if refused:
+        return refused
 
     if sc.has(SIZE_KNOWN):
         return _format_size(sc)
@@ -13930,7 +14064,7 @@ def _invalidate_font_caches(sc) -> None:
 _PROFILE_RUNNER = r'''
 import json, sys
 sys.path.insert(0, sys.argv[1])
-import docmodel_six as dm, profile as pr
+import docmodel_six as dm, pageprofile as pr
 pages = dm.build(sys.argv[2])
 out = {"pages": len(pages), "where": {}, "page_props": {}}
 for p in pages:
