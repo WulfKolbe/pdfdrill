@@ -138,6 +138,22 @@ same stamp arrives as SINGLE-CHARACTER lines (`'2'`, `'1'`, `'9'`, `'v'` on
 their own. The type does not fix that reader; grouping along the rotated axis
 would.
 
+**`authors`** — the author block and its affiliation.
+*Established by:* the run from the line after the `title` to the first heading
+on that page.
+*Abstains when the bound is missing:* a front matter with no heading after the
+title has no measurable end, and taking "the rest of the page" would swallow
+the paper's first section.
+
+**`abstract`** — the abstract body.
+*Established by:* the run from the line after a heading that READS as an
+abstract label, to the next heading. The label set is `_ABSTRACT_LABELS` —
+words a publisher actually prints, in the languages we have met, extended by
+adding one rather than by translating.
+*The label is not the abstract:* the heading stays `section_header`. A consumer
+that wants it gone can drop it; one that needs it back cannot invent it.
+*Abstains* with no closing heading, for the same reason `authors` does.
+
 ### Specified, not yet measured
 
 These are the types the 1107.2723 failures name. Each states the property that
@@ -172,10 +188,23 @@ indent repeated by its neighbours.
 *Contains:* `text` children — MathPix nests 185 such pairs on 1909.00741.
 
 **`barcode`** — a barcode, QR code or similar machine-readable block.
-*Would be established by:* a dense cluster of parallel rules of equal height
-within a small rectangle, or an image region whose decode succeeds. It carries
-no text of its own, so unlike `rotated_text` it is a GRAPHIC with a payload,
-and the payload is only known after a decoder runs.
+*Would be established by, in order of certainty:*
+1. **The content stream.** A barcode drawn by a PostScript library (BWIPP and
+   its kin) is a PROCEDURE CALL, and the payload is a literal string argument
+   to it — `(9781234567897) (includetext) /ean13 … exec`. `psstream.tokenize`
+   already reads operators and their operands, so where the call survives into
+   the PDF the payload is read exactly, not decoded. This is the only route
+   that returns the true value rather than a best guess, and the user has
+   offered a fixture produced this way.
+2. A dense cluster of parallel rules of equal height in a small rectangle —
+   establishes that a barcode IS there, says nothing about what it says.
+3. An image region whose decode succeeds.
+*The honest limit of route 1:* a PS-to-PDF step often flattens the procedure to
+vector paths, and then the call is gone and only 2 and 3 remain. So the route
+is checked, never assumed, and its absence is not evidence that the graphic is
+not a barcode.
+*It carries no text of its own,* so unlike `rotated_text` it is a GRAPHIC with
+a payload.
 *Why it matters here:* on the readers that group by baseline it currently
 arrives the same way rotated text does — as a column of single-character
 fragments — and it is the second half of the same report.
