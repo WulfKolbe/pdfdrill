@@ -2146,6 +2146,10 @@ commands:
     required: true
     help: PDF path, https URL, or bare arXiv id
   flags:
+  - name: no_transclude
+    flag: --no-transclude
+    type: flag
+    help: write every formula out where it stands, instead of transcluding it from the \Expr array (transclusion is MANDATORY in TiddlyWiki, NEVER applied in Markdown, and an option here)
   - name: force
     type: flag
     flag: --force

@@ -10810,7 +10810,7 @@ def _auto_bibliography(pdf: Path, sc, doc):
 
 @_writes("latex")
 def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
-              dump_stages: bool = False) -> str:
+              dump_stages: bool = False, transclude: bool = True) -> str:
     """PROJECT the drilled document to a self-contained, COMPILABLE LaTeX
     ENVIRONMENT folder — the LaTeX analog of `md`. OUTPUT direction.
 
@@ -10852,7 +10852,8 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
     from docops.projectors.latex import LaTeXProjector
     from docops.projectors import latex_pipeline as _pipe
     projector = LaTeXProjector(
-        OperatorConfig(op="projector", classname="LaTeXProjector"))
+        OperatorConfig(op="projector", classname="LaTeXProjector",
+                       params={"transclude": transclude}))
     tex = projector.project(doc)
     env_dir.mkdir(parents=True, exist_ok=True)
     main_tex = env_dir / f"{key}.tex"

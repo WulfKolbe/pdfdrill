@@ -1707,13 +1707,15 @@ def _do_latexbook(args):
 
 
 def _do_latex(args):
-    """pdfdrill latex <pdf> [--force] [--compile] [--dump-stages]"""
+    """pdfdrill latex <pdf> [--force] [--compile] [--dump-stages]
+    [--no-transclude]"""
     from .commands import cmd_latex
-    flags = ("--force", "--compile", "--dump-stages")
+    flags = ("--force", "--compile", "--dump-stages", "--no-transclude")
     pdf_args = [a for a in args if a not in flags]
     return cmd_latex(_pdf(pdf_args), force="--force" in args,
                      compile="--compile" in args,
-                     dump_stages="--dump-stages" in args)
+                     dump_stages="--dump-stages" in args,
+                     transclude="--no-transclude" not in args)
 
 
 def _do_beamer(args):

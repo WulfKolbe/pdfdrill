@@ -191,8 +191,13 @@ class LaTeXProjector(BaseProjector):
                   for o in doc.objects.values() if o.type == "Section"]
         self._level_shift = (min(levels) - 1) if levels else 0
         self._order, self._title_index = _pipe.formula_array(doc)
-        self._formula_preamble = _pipe.formula_preamble(
-            self._order, f"{key}.formulas.dat")
+        if not self.params.get("transclude", True):
+            # No references, so no array: a `filecontents` block naming formulas
+            # nothing cites is 5,000 lines of preamble for nothing.
+            self._title_index, self._formula_preamble = {}, ""
+        else:
+            self._formula_preamble = _pipe.formula_preamble(
+                self._order, f"{key}.formulas.dat")
         self._ref_map = _pipe.reference_map(doc)
         self._skip_ids = _pipe.reference_section_ids(doc) if self._ref_map else set()
         # 638 — pair every running-text footnote MARKER with its Footnote body.
@@ -683,7 +688,21 @@ class LaTeXProjector(BaseProjector):
     def _math_token(self, title: str) -> str | None:
         """The array lookup first (`\\Expr{i}` — one slot per distinct body);
         failing that the object's own LaTeX inline, so an unindexed formula is
-        still typeset rather than dropped."""
+        still typeset rather than dropped.
+
+        TRANSCLUSION IS A POLICY, AND IT DIFFERS BY PROJECTION. In TiddlyWiki it
+        is mandatory — the wiki IS a graph of transclusions and a formula that
+        is not one cannot be addressed. In Markdown it is never applied: the
+        point of a Markdown export is a file that reads as itself. LaTeX is the
+        one that goes both ways, so it is an option, and `--no-transclude`
+        writes every formula out where it stands.
+        """
+        if not self.params.get("transclude", True):
+            obj = self._by_title.get(title)
+            if obj is None:
+                return None
+            latex = _pipe.sanitize_math(str(obj.props.get("latex") or "").strip())
+            return f"${latex}$" if latex else None
         idx = getattr(self, "_title_index", {}).get(title)
         if idx is not None:
             return f"\\Expr{{{idx}}}"

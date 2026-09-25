@@ -645,7 +645,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 
 | Command | Returns |
 |---|---|
-| `pdfdrill latex <pdf> [--force] [--compile] [--dump-stages]` | PROJECT the docmodel to LaTeX (<drill>/latex/<bibkey>.tex) — the LaTeX analog of `md`; reads the unified Document, so the SOURCE that built it (MathPix/arXiv/tesseract/textscan) is IRRELEVANT. Resolves transclusion markers ({{id\|\|FO}}→$..$ by array lookup), emits cite commands, builds the bibliography from References (+ a .bib). Compile with XELATEX (not pdflatex — the model can carry raw Unicode ≥ ✓ → ℃); --compile runs it in TWO xelatex passes (so each cite resolves against the first pass's .aux), --dump-stages writes the inspectable stages. OUTPUT direction — for a source use `injectlatex`; for enriched LaTeX (glossary/index, ORKG) use `stex`/`scikgtex`. |
+| `pdfdrill latex <pdf> [--no-transclude] [--force] [--compile] [--dump-stages]` | PROJECT the docmodel to LaTeX (<drill>/latex/<bibkey>.tex) — the LaTeX analog of `md`; reads the unified Document, so the SOURCE that built it (MathPix/arXiv/tesseract/textscan) is IRRELEVANT. Resolves transclusion markers ({{id\|\|FO}}→$..$ by array lookup), emits cite commands, builds the bibliography from References (+ a .bib). Compile with XELATEX (not pdflatex — the model can carry raw Unicode ≥ ✓ → ℃); --compile runs it in TWO xelatex passes (so each cite resolves against the first pass's .aux), --dump-stages writes the inspectable stages. OUTPUT direction — for a source use `injectlatex`; for enriched LaTeX (glossary/index, ORKG) use `stex`/`scikgtex`. |
 | `pdfdrill beamer <pdf> [--force] [--compile]` | PROJECT the docmodel to a LaTeX **beamer** slide deck (<drill>/latex/<bibkey>.beamer.tex) — one frame per Section (allowframebreaks so long content auto-continues), a title + outline + References frame. Same source-agnostic docmodel projection as `latex` (transclusions, cite commands, lists all resolve), a deck instead of an article. Compile with XELATEX; --compile runs it in TWO passes (so each cite resolves against the first pass's .aux). |
 
 ### Analysis (needs a built model)
@@ -675,6 +675,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-ff974a05` before any build/extract command.
-DRILL-ff974a05
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-6a8bedf6` before any build/extract command.
+DRILL-6a8bedf6
 <!-- PREFLIGHT-TOKEN:END -->
