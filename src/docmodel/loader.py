@@ -35,6 +35,7 @@ DEFAULT_REGISTRY: dict[str, str] = {
     "CitationProcessor":           "docmodel.modules.citation",
     "TableProcessor":              "docmodel.modules.table",
     "SidenoteProcessor":           "docmodel.modules.sidenote",
+    "RotatedTextProcessor":        "docmodel.modules.rotated_text",
     "TocProcessor":                "docmodel.modules.toc",
     "AbstractProcessor":           "docmodel.modules.abstract",
     "DiagramProcessor":            "docmodel.modules.diagram",

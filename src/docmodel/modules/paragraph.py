@@ -30,6 +30,8 @@ from ..core import Document, DocObject, Realization
 # Lines that always break a paragraph but never contribute to it.
 _BREAK_TYPES = {
     "page_info", "section_header", "footnote",
+    # An arXiv stamp down the left margin is not a sentence in section 1.
+    "rotated_text",
     "table_of_contents_container", "table_of_contents_item",
     "table_of_contents_number", "table_of_contents_row",
     "table", "table_row", "table_column", "simple_cell", "complex_cell",

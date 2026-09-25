@@ -117,6 +117,27 @@ text children, which is how the two text columns of a paper become 18
 "Sidenote" objects whose bodies are ordinary prose (`1909.00741`, a MathPix
 model — the mis-reading is not ours and predates us).
 
+**`rotated_text`** — text set at an angle to the page: an arXiv stamp down the
+left margin, a spine title, a margin note.
+*Established by:* the glyphs' text matrix. `(a, b, c, d, e, f)` with `a` and
+`d` at zero is a quarter turn, and the sign of `b` decides which way. This is
+one of the few types that needs no language, no font ranking and no threshold —
+the matrix either is rotated or it is not.
+*Carries:* `rotation` in degrees, because a reader cropping the region needs it
+and cannot recover it from a rectangle. An angle that was not established is
+ABSENT, not `0` — `0` is a claim that the text is upright.
+*It is NOT prose.* `arXiv:1909.00741v1 [cs.MM] 2 Sep 2019` belongs to the
+archive, not to the paper, and typed `text` it arrived inside the running text
+of the section it sits beside.
+*MathPix has no name for this;* the name is ours and matches the property
+`pdfdrill profile` already reports (`rotated-text`).
+*Known defect elsewhere:* pdfdrill's own `chars_to_lines` groups by baseline,
+and a rotated run has a different baseline per glyph — so on that reader the
+same stamp arrives as SINGLE-CHARACTER lines (`'2'`, `'1'`, `'9'`, `'v'` on
+1909.00741), which become single-character paragraphs standing in a column of
+their own. The type does not fix that reader; grouping along the rotated axis
+would.
+
 ### Specified, not yet measured
 
 These are the types the 1107.2723 failures name. Each states the property that
@@ -149,6 +170,15 @@ June 2011` appears on all 16 pages of 1107.2723 and became 16 Paragraphs.
 *Would be established by:* a leading bullet or enumerator glyph, or a hanging
 indent repeated by its neighbours.
 *Contains:* `text` children — MathPix nests 185 such pairs on 1909.00741.
+
+**`barcode`** — a barcode, QR code or similar machine-readable block.
+*Would be established by:* a dense cluster of parallel rules of equal height
+within a small rectangle, or an image region whose decode succeeds. It carries
+no text of its own, so unlike `rotated_text` it is a GRAPHIC with a payload,
+and the payload is only known after a decoder runs.
+*Why it matters here:* on the readers that group by baseline it currently
+arrives the same way rotated text does — as a column of single-character
+fragments — and it is the second half of the same report.
 
 **`footnote`** — a note below a rule at the foot of a column.
 *Would be established by:* below the column's last body line, under a

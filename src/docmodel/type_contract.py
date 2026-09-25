@@ -27,6 +27,7 @@ INVENTORY = Path(__file__).with_name("corpus_types.json")
 #: type -> the module that reads it
 CLAIMED: dict[str, str] = {
     "text": "paragraph, list_items, citation",
+    "rotated_text": "rotated_text",
     "title": "page, paragraph, citation",
     "authors": "page",
     "abstract": "abstract, paragraph",

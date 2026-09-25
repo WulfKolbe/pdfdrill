@@ -30,6 +30,13 @@
     "procOrder": 5
   },
   {
+    "title": "RotatedTextProcessor",
+    "type": "application/python",
+    "classname": "RotatedTextProcessor",
+    "procOrder": 5,
+    "path": "docmodel/modules/rotated_text.py"
+  },
+  {
     "title": "TocProcessor",
     "type": "application/python",
     "classname": "TocProcessor",
