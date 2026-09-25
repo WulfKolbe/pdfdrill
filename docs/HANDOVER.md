@@ -152,6 +152,40 @@ until it is understood — the user's instruction of 2026-09-14.
 
 ---
 
+## Open — a silent partial conversion has no detector
+
+A MathPix conversion can return HTTP success with two thirds of the document
+missing, and nothing in the result says so. Measured on
+`20260620_Sach_Beitragsrechnung_999391621.pdf` (LVM, 3 pages), both through the
+API and by hand in the web app:
+
+| page | fonts | text layer (`pdftotext`) | in MathPix output |
+|---|---|---|---|
+| 1 | 11 x Type 3 | 2,183 chars | no |
+| 2 | 1 x Type 3 | 211 chars | no |
+| 3 | 2 x TrueType | 3,387 chars | yes |
+
+Exactly the Type-3 pages are dropped, deterministically — two identical runs
+give byte-identical output. 9 of 17 files from that source show the same shape,
+each yielding 3.4-3.9 KB and in every case only the final page. The Type 3
+fonts are embedded and carry ToUnicode maps, so nothing about the file is
+undecodable: poppler reads page 1 without difficulty and pdf2mmd reads 6,187
+glyphs across 91 lines with nothing deferred.
+
+`conserve` cannot see this. It checks the model against the projection it
+produces — both sides of a document that was already truncated before either
+existed. The missing check is PDF -> model, and its input is ALREADY ON DISK
+for every document: `probe-page-text.json`, written at acquisition, holds
+pdftotext's per-page character count. A page with a substantial text layer and
+no model content on it is the signature, and it is one comparison.
+
+What it must NOT be is a ratio over the whole document: page 3 alone is 57% of
+this file's characters, so a document-level check passes while two thirds of
+the invoice is gone. Per page, or it does not detect the case it exists for.
+
+Wire it where the cost lands: `mathpix` should refuse to report success, and
+`status` should carry it, rather than a reader discovering it in a projection.
+
 ## Next task
 
 - **LaTeX field promotion** — the user's decision of 2026-09-14, recorded in

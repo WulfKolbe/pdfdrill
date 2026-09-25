@@ -14579,9 +14579,9 @@ def cmd_profile(pdf: Path, pages: str | None = None, json_only: bool = False) ->
 _GLYPHLINES_RUNNER = r'''
 import json, sys
 sys.path.insert(0, sys.argv[1])
-import docmodel_six as dm, linesjson
+import docmodel_six as dm
 pages = dm.build(sys.argv[2])
-data = linesjson.emit(pages, doc_id=sys.argv[4])
+data = dm.to_lines_json(pages, doc_id=sys.argv[4])
 with open(sys.argv[3], "w", encoding="utf-8") as fh:
     json.dump(data, fh)
 print(json.dumps({"pages": len(data["pages"]),
@@ -14633,7 +14633,7 @@ def cmd_glyphlines(pdf: Path, force: bool = False) -> str:
             return (f"{lines_path.name} is MathPix output — the richest source "
                     f"there is, and this would replace it. `glyphlines --force "
                     f"{pdf.name}` if that is what you want.")
-        if src == "pdf2mmd":
+        if src.startswith("pdfminer-docmodel"):
             return (f"{lines_path.name} already read by pdf2mmd. "
                     f"`glyphlines --force {pdf.name}` to re-read.")
 
