@@ -98,6 +98,28 @@ class ParagraphProcessor(BaseModule):
                 flush()
                 continue
 
+            # 811 — a line the ListProcessor already folded into a ListItem is
+            # not prose. 248 broke the paragraph on the `list_item` CONTAINER,
+            # but a container's children are typed `text` — a prose type — so
+            # they kept contributing, and the list text ended up in the model
+            # twice: once as a ListItem, once inside a Paragraph. The stamp is
+            # set (procOrder 10, before this one at 13) only for containers
+            # whose content already holds the child's words, so nothing is lost.
+            if payload.get("_in_list_item"):
+                flush()
+                self.bump("lines_owned_by_a_list_item")
+                continue
+
+            # 811 — a `text` line HeaderProcessor promoted to a Section (a
+            # back-matter label, or a number-series gap its own document
+            # witnesses). Its type is still `text`, so without this it would be
+            # a heading AND a paragraph, and the heading would read as the first
+            # sentence of the prose beneath it.
+            if payload.get("_promoted_heading"):
+                flush()
+                self.bump("lines_promoted_to_a_heading")
+                continue
+
             text = payload.get("text_display") or payload.get("text") or ""
 
             # Defensive: text-typed lines may also delimit the abstract.

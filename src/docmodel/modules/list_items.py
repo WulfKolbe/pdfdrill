@@ -45,6 +45,54 @@ _LETTERED = re.compile(r"^([a-zA-Z][.)])\s+")
 _STRONG_BULLET = re.compile("[•‣◦⁃∙▪●○∙]")
 
 
+#: Headings that open a bibliography. The span ends at the NEXT heading, so a
+#: lettered list in an appendix after the references is still reachable.
+_BIB_HEADINGS = frozenset({"references", "bibliography", "reference list",
+                           "works cited", "literature", "literatur"})
+
+
+def _bibliography_span(stream) -> tuple:
+    """`(start, stop)` indices into `stream.anchors` covering the bibliography,
+    or `(len, len)` when the document has none.
+
+    The heading is the witness — typed by MathPix as `section_header`, or
+    promoted from a plain `text` line by HeaderProcessor (procOrder 8, before
+    this module at 10), which is how a document whose `References` MathPix typed
+    `text` still gets its bibliography recognised (811).
+    """
+    n = len(stream.anchors)
+    start = n
+
+    def _caption(pl) -> str:
+        kids = pl.get("children_ids") or []
+        if kids:
+            for a in stream.anchors:                     # child text, if any
+                c = stream.payload[a]
+                if c.get("id") == kids[0]:
+                    return str(c.get("text") or pl.get("text") or "")
+        return str(pl.get("text") or "")
+
+    def _is_heading(pl) -> bool:
+        return pl.get("type") == "section_header" or bool(pl.get("_promoted_heading"))
+
+    for i, a in enumerate(stream.anchors):
+        pl = stream.payload[a]
+        if not _is_heading(pl):
+            continue
+        cap = _caption(pl).strip().lower().rstrip(".:").strip()
+        if cap in _BIB_HEADINGS:
+            start = i
+            break
+    if start == n:
+        return (n, n)
+    stop = n
+    for j in range(start + 1, n):
+        if _is_heading(stream.payload[stream.anchors[j]]):
+            stop = j
+            break
+    return (start, stop)
+
+
 def _detect_marker(text: str) -> Optional[str]:
     for rx in (_BULLET, _NUMBERED, _LETTERED):
         m = rx.match(text)
@@ -97,6 +145,24 @@ class ListProcessor(BaseModule):
                 claimed.add(cid)
             if not content:
                 continue
+            # 811 — TELL THE PARAGRAPH PROCESSOR. `claimed` stops THIS module
+            # scanning a child twice, but ParagraphProcessor reads the stream
+            # for itself: 248 put the `list_item` CONTAINER in its break types
+            # and the children are typed `text`, which is a prose type, so every
+            # one of them also landed in a Paragraph. The list text then exists
+            # twice — as a ListItem and inside a paragraph — which is what a
+            # consumer sees as "list items duplicated inside paragraphs".
+            # Measured: 167,312 such lines in 899 of 1,500 documents.
+            #
+            # Stamped only for a container that PRODUCED content, and
+            # `_from_container` folds every text child into that content, so
+            # dropping them from the prose run loses nothing. Non-text children
+            # (math, equation_number, nested items) are break types already;
+            # stamping them changes nothing.
+            for cid in kids:
+                child = by_id.get(cid)
+                if child is not None:
+                    child["_in_list_item"] = True
             global_index += 1
             items.append({
                 "anchor": anchor,
@@ -110,11 +176,22 @@ class ListProcessor(BaseModule):
             })
 
         # ---- the lexical path, for lines no container claimed ---------------
-        for anchor in stream.anchors:
+        bib = _bibliography_span(stream)
+        for idx, anchor in enumerate(stream.anchors):
             payload = stream.payload[anchor]
             if payload.get("type") != "text":
                 continue
             if payload.get("id") in claimed:
+                continue
+            # 811 — NOT INSIDE THE BIBLIOGRAPHY. A reference entry begins with
+            # an author initial, and `_LETTERED` reads `D. Al-Jumeily, A.
+            # Hussain, H. Tawfik, J. Hind (Eds.), Proceedings of the 10th…` as
+            # a lettered list item with marker `D.`. Measured over the corpus's
+            # lines.json: 6,153 such lines in 442 of 1,500 documents. Only the
+            # LEXICAL path is suppressed — a list MathPix actually typed inside
+            # an appendix still becomes one through the container path above.
+            if bib[0] <= idx < bib[1]:
+                self.bump("lexical_items_refused_in_bibliography")
                 continue
             text = (payload.get("text") or "").strip()
             # One line may carry several bullets the OCR merged (no linefeed):

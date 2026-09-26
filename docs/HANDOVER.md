@@ -243,3 +243,37 @@ manifest describing a build that no longer existed.
 **Six subagent reports in one session had a central claim that failed on
 checking** — hence rule 19. Check the number before reading the sentence
 built on it, including your own.
+
+## Open: a ListItem's math is a widget where a Paragraph's is a transclusion (811)
+
+Reported by a consumer of `1-s2.0-S2590118425000565-main`: "list items carry raw
+`<$latex>` widgets instead of LaTeX". Measured on that document's tiddlers:
+
+| | n | `<$latex>` | `{{…||FO}}` |
+|---|---|---|---|
+| paragraph | 74 | 0 | 28 |
+| listitem | 106 | 40 | 0 |
+
+`pdfdrill tiddlers` says so itself in its integrity line — *Unreferenced
+(emitted, nothing points at them): 49 FO*. Those are the formulas the list items
+should be transcluding.
+
+This is a violated contract, not a preference: `src/docmodel/line_types.py`
+lists `list_item` among the PROSE types that host a transclusion, and the user's
+requirement of 2026-09-2x is that transclusion in TiddlyWiki is mandatory.
+
+**Cause.** `tiddlywiki.py:1514` routes Paragraphs through
+`_transclude_paragraph`; ListItems are emitted at ~1837 as
+`li.props.get("content", "")` — raw, with `mathdelims`' in-place widget still in
+it. Nothing else is wrong.
+
+**Why it is not a one-line change.** `subs_by_line` is keyed by LINE ANCHOR and
+holds `(offset, length, replacement)` with offsets into *that line's* text. A
+ListItem's `content` is `_from_container`'s JOIN of its children's texts, and its
+surface Realization spans only the container anchor (`start == end`), whose own
+text is empty. So the offsets need remapping onto the joined string — or the
+ListItem's realization needs to span its children, in which case
+`_transclude_paragraph` rebuilds the body from lines and re-introduces the
+marker text (`1. `) that `content` deliberately strips and the tiddler carries in
+its own `marker` field. Either route is a real change with its own regressions;
+both need measuring before and after.
