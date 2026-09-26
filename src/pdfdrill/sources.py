@@ -85,7 +85,21 @@ def existing_local_path(arg: str) -> Optional[Path]:
 KNOWN_HOSTS = {
     "arxiv.org": "arxiv",
     "export.arxiv.org": "arxiv",
+    # viXra, added 805 after fourteen library folders turned out to be its
+    # e-prints arriving as anonymous generic URLs. It is NOT arXiv with a
+    # different name and three differences matter downstream, each stated at
+    # the function that carries it: its ids collide with arXiv's pre-2015
+    # shape, its PDF URL requires the version, and it has no LaTeX source at
+    # all.
+    "vixra.org": "vixra",
 }
+
+#: Which archives serve the LaTeX SOURCE of a paper, not just a rendering.
+#: arXiv's e-print endpoint gives the author's .tex; viXra hosts only the PDF
+#: its author uploaded. A route that assumes symmetry here fetches a 404 and
+#: reports it as "no source found", which reads like a missing file rather than
+#: an archive that never had one.
+ARCHIVES_WITH_LATEX_SOURCE = frozenset({"arxiv"})
 
 
 def is_url(s: str) -> bool:
@@ -150,6 +164,15 @@ def parse_arxiv_id(s: str) -> Optional[str]:
     text = re.sub(r"\.pdf$", "", text, flags=re.I)
     m = _ARXIV_ANY.search(text)
     if not m:
+        return None
+    # 806 — THE SAME GATE `bare_arxiv_id` HAS. It was missing here, and this is
+    # the function `_augment_bibtex` falls back to when reading an id off a
+    # FILENAME. A viXra e-print named `1702.0234.pdf` therefore resolved as a
+    # pre-2015 arXiv id, arXiv zero-padded it, and the document was cited as
+    # "Preliminary Design Study of the Hollow Electron Lens for LHC" —
+    # a real paper, a different archive, and a bibliography that is simply
+    # wrong. Found by the viXra tests, not by reading the code.
+    if arxiv_id_shape_error(m.group(1)):
         return None
     return m.group(1)
 
@@ -230,6 +253,103 @@ def bare_arxiv_id(s: str) -> Optional[str]:
         return None                      # malformed: refuse, never zero-pad
     m = _BARE_ARXIV.fullmatch(text)
     return m.group(1) if m else None
+
+
+#: A viXra id is `YYMM.NNNN`, optionally versioned. That is arXiv's PRE-2015
+#: shape, so the two collide for every id after 1412 — which is why a BARE id is
+#: never read as viXra (see `parse_vixra_id`).
+_VIXRA_ID = r"\d{4}\.\d{4}(?:v\d+)?"
+_VIXRA_URL = re.compile(rf"vixra\.org/(?:abs|pdf)/({_VIXRA_ID})", re.I)
+
+
+def parse_vixra_id(s: str) -> Optional[str]:
+    """The viXra id from a viXra URL or an explicit `viXra:` token, else None.
+
+    A URL OR AN EXPLICIT PREFIX, NEVER A BARE ID. `2505.0100` is a well-formed
+    viXra id and an equally well-formed arXiv id of the pre-2015 era, and
+    nothing in the string says which archive is meant. Guessing would swap one
+    archive's paper for another's — the failure 804 exists to prevent — so a
+    bare id stays unresolved and the caller is told to give a URL.
+    """
+    if not isinstance(s, str) or not s.strip():
+        return None
+    text = re.sub(r"\.pdf$", "", s.strip(), flags=re.I)
+    m = _VIXRA_URL.search(text)
+    if m:
+        return m.group(1)
+    m = re.fullmatch(rf"vixra:\s*({_VIXRA_ID})", text, re.I)
+    return m.group(1) if m else None
+
+
+def vixra_urls(vixra_id: str) -> dict[str, str]:
+    """`abs` and `pdf` for a viXra id. There is no `eprint` key, deliberately.
+
+    THE PDF URL REQUIRES THE VERSION. Measured: `/pdf/1702.0234.pdf` answers
+    404 and `/pdf/1702.0234v1.pdf` answers 200. arXiv serves the unversioned
+    form and viXra does not, so an id with no version has no PDF URL until the
+    abs page names the current one — which is what `fetch_vixra_metadata`
+    returns as `pdf_url`.
+    """
+    # The abs page is UNVERSIONED — it lists every version of the record — so a
+    # versioned id keeps its version only for the PDF.
+    bare = re.sub(r"v\d+$", "", vixra_id)
+    out = {"abs": f"https://vixra.org/abs/{bare}"}
+    if re.search(r"v\d+$", vixra_id):
+        out["pdf"] = f"https://vixra.org/pdf/{vixra_id}.pdf"
+    return out
+
+
+def _vixra_category(html: str) -> str:
+    """The subject from the breadcrumb, e.g. `Algebra`."""
+    # `_strip_tags` removes markup and leaves ENTITIES: the breadcrumb reads
+    # `viXra.org &gt; Algebra &gt; viXra:1702.0234`, so it has to be unescaped
+    # before a `>` can be matched. The page title also contains `viXra.org` and
+    # no `>`, which is why the pattern needs both separators.
+    from html import unescape
+    flat = re.sub(r"\s+", " ", unescape(_strip_tags(html)))
+    m = re.search(r"viXra\.org\s*>\s*([^>]+?)\s*>", flat)
+    return m.group(1).strip() if m else ""
+
+
+def parse_vixra_abs_html(html: str) -> dict:
+    """title / authors / abstract / category / pdf_url from a viXra abs page."""
+    def one(pat: str, flags=re.S | re.I) -> str:
+        m = re.search(pat, html, flags)
+        return re.sub(r"\s+", " ", _strip_tags(m.group(1))).strip() if m else ""
+    authors = [re.sub(r"\s+", " ", a).strip() for a in
+               re.findall(r'href="/author/[^"]*"[^>]*>([^<]+)<', html, re.I)]
+    pdf = re.search(r'href="(/pdf/[^"]+\.pdf)"', html, re.I)
+    return {
+        "title": one(r'<div id="flow">.*?<h2[^>]*>(.*?)</h2>'),
+        "authors": authors,
+        "abstract": one(r'<div id="abstract"[^>]*>(.*?)</div>'),
+        # The category is in the BREADCRUMB (`viXra.org > Algebra >
+        # viXra:1702.0234`), which carries tags between its parts — so it is
+        # matched on the stripped text, not the markup.
+        "category": _vixra_category(html),
+        "pdf_url": f"https://vixra.org{pdf.group(1)}" if pdf else "",
+    }
+
+
+def fetch_vixra_metadata(vixra_id: str) -> dict:
+    """Free metadata from the viXra abs page, including the versioned PDF URL
+    that `vixra_urls` cannot know for an unversioned id."""
+    with net.urlopen(vixra_urls(vixra_id)["abs"], host="vixra.org") as r:
+        html = r.read().decode("utf-8", "replace")
+    meta = parse_vixra_abs_html(html)
+    meta["vixra_id"] = vixra_id
+    return meta
+
+
+def no_latex_source_reason(kind: str) -> Optional[str]:
+    """Why this archive cannot supply LaTeX, or None if it can."""
+    if not kind or kind in ARCHIVES_WITH_LATEX_SOURCE:
+        return None
+    if kind == "vixra":
+        return ("viXra hosts only the PDF its author uploaded — it has no "
+                "e-print endpoint and never had the .tex. The keyless math "
+                "route for such a document is `visionocr`, not `latex`.")
+    return f"{kind} is not known to serve LaTeX source."
 
 
 def arxiv_urls(arxiv_id: str) -> dict[str, str]:
@@ -646,6 +766,27 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
         return {"path": Path(arg), "source": None, "arxiv_id": None}
 
     kind = known_host(arg)
+    if kind == "vixra":
+        vid = parse_vixra_id(arg)
+        if not vid:
+            raise ValueError(
+                f"{arg!r} is a viXra URL but carries no id (expected e.g. "
+                f"vixra.org/abs/1702.0234 or vixra.org/pdf/1702.0234v1.pdf).")
+        # The abs page is the only place the CURRENT version is written, and the
+        # PDF URL needs it: `/pdf/1702.0234.pdf` is a 404. So an unversioned id
+        # costs one metadata request before the download; a versioned one does
+        # not need it.
+        pdf_url = vixra_urls(vid).get("pdf")
+        if not pdf_url:
+            pdf_url = fetch_vixra_metadata(vid).get("pdf_url") or ""
+            if not pdf_url:
+                raise ValueError(
+                    f"viXra {vid} has no PDF link on its abs page.")
+        dest = _doc_dest(dest_dir, f"{re.sub(r'[^0-9.v]', '_', vid)}.pdf")
+        if not (dest.exists() and dest.stat().st_size > 0):
+            _download_into_doc_folder(pdf_url, dest)
+        return {"path": dest, "source": "vixra", "arxiv_id": None,
+                "vixra_id": vid}
     if kind == "arxiv":
         arxiv_id = parse_arxiv_id(arg)
         if not arxiv_id:

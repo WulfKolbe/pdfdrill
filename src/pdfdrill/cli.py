@@ -277,6 +277,19 @@ def _pdf(args: list[str]) -> Path:
         p = info["path"]
         if not (p.exists() and p.stat().st_size > 0):
             raise FileNotFoundError(f"Download failed: {arg}")
+        if info.get("vixra_id"):
+            # Same shape as the arXiv branch below: the id and the kind, so
+            # `status`/`route` can say where a document came from instead of
+            # it arriving as an anonymous generic URL — which is how fourteen
+            # viXra e-prints were in the library unlabelled (805).
+            try:
+                from .sidecar import Sidecar
+                sc = Sidecar(p)
+                sc.set_evidence("source_vixra_id", info["vixra_id"])
+                sc.set_evidence("source_kind", "vixra")
+                sc.save()
+            except Exception:                   # noqa: BLE001
+                pass
         if info.get("arxiv_id"):
             try:
                 from .sidecar import Sidecar

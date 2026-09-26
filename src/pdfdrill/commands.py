@@ -17021,6 +17021,13 @@ def _isbn_from_sidecar(sc: "Sidecar") -> str:
     return ""
 
 
+def _vixra_year(vixra_id: str) -> str:
+    """The year from a viXra id's YYMM, the same reading `_arxiv_year` does.
+    viXra started in 2009, so a two-digit YY is unambiguous for this century."""
+    m = re.match(r"(\d{2})(\d{2})", str(vixra_id or ""))
+    return f"20{m.group(1)}" if m else ""
+
+
 def _augment_bibtex(bib: dict, pdf: Path, sc: "Sidecar") -> str:
     """Fill a pdfinfo-derived record from richer, FREE sources — the fix for an
     arXiv input giving `@misc{unknown2023}` (the embedded PDF metadata is empty,
@@ -17029,9 +17036,51 @@ def _augment_bibtex(bib: dict, pdf: Path, sc: "Sidecar") -> str:
     from .pdfinfo_layers import _make_citekey
     from . import sources
 
+    # viXra FIRST, because its ids collide with arXiv's pre-2015 shape: a
+    # recorded viXra id is a fact, and reading `1702.0234` off a stem as an
+    # arXiv id would fetch a different archive's paper (804). Only an id the
+    # acquisition RECORDED counts here — never one guessed from the filename.
+    vid = sc.get_evidence("source_vixra_id")
+    if vid:
+        meta = None
+        if sc.get_evidence("vixra_title") or sc.get_evidence("vixra_authors"):
+            meta = {"title": sc.get_evidence("vixra_title") or "",
+                    "authors": sc.get_evidence("vixra_authors") or [],
+                    "category": sc.get_evidence("vixra_category") or ""}
+        else:
+            try:
+                meta = sources.fetch_vixra_metadata(vid)
+                for k, ev in (("title", "vixra_title"),
+                              ("authors", "vixra_authors"),
+                              ("category", "vixra_category")):
+                    if meta.get(k):
+                        sc.set_evidence(ev, meta[k])
+            except Exception:                    # noqa: BLE001
+                meta = None
+        if meta:
+            if meta.get("title"):
+                bib["title"] = meta["title"]
+            if meta.get("authors"):
+                bib["author"] = " and ".join(meta["authors"])
+            # The same @misc shape arXiv gets, with viXra's own archivePrefix —
+            # so a bibliography says which archive, and a reader chasing the
+            # eprint lands on the right one.
+            bib["entry_type"] = "misc"
+            bib["eprint"] = vid
+            bib["archive_prefix"] = "viXra"
+            bib["primary_class"] = meta.get("category", "") or bib.get("primary_class", "")
+            bib["publisher"] = ""
+            bib["url"] = sources.vixra_urls(vid).get("abs", bib.get("url", ""))
+            if not bib.get("year"):
+                bib["year"] = _vixra_year(vid)
+        try:
+            bib["citekey"] = _make_citekey(bib)
+        except Exception:                        # noqa: BLE001
+            pass
+
     aid = (sc.get_evidence("source_arxiv_id")
            or sources.bare_arxiv_id(pdf.stem) or sources.parse_arxiv_id(pdf.stem))
-    if aid:
+    if aid and not vid:
         meta = None
         if sc.get_evidence("arxiv_title") or sc.get_evidence("arxiv_authors"):
             meta = {"title": sc.get_evidence("arxiv_title") or "",
