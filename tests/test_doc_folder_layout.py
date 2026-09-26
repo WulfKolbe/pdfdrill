@@ -166,3 +166,89 @@ def test_a_name_with_no_near_miss_offers_none(tmp_path, monkeypatch):
     monkeypatch.setattr(cfg, "library_root", lambda: tmp_path)
     assert "did you mean" not in cli._not_found_message("quantum.pdf",
                                                         tmp_path / "quantum.pdf")
+
+
+# --------------------------------------------------------------------------
+# The HOST belongs in the folder name — 807.
+# --------------------------------------------------------------------------
+
+def test_the_folder_stem_names_its_archive():
+    from pdfdrill.sources import archive_stem
+    assert archive_stem("arxiv", "2510.04618v1") == "arxiv.2510.04618v1"
+    assert archive_stem("vixra", "1702.0234v1") == "vixra.1702.0234v1"
+    assert archive_stem("arxiv", "math/0309136") == "arxiv.math_0309136"
+
+
+def _archive_doc(root, folder):
+    d = root / folder
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{folder}.pdf").write_bytes(b"%PDF-1.4\n")
+    return d / f"{folder}.pdf"
+
+
+def test_a_bare_id_still_finds_its_prefixed_folder(tmp_path):
+    """Nobody types `arxiv.2510.04618v1`. They type the id, off the paper."""
+    from pdfdrill.sources import library_pdf_for
+    want = _archive_doc(tmp_path, "arxiv.2510.04618v1")
+    for q in ("2510.04618v1", "arxiv.2510.04618v1", "2510.04618.pdf"):
+        assert library_pdf_for(q, tmp_path) == want, q
+
+
+def test_a_bare_id_finds_a_version_it_did_not_ask_for(tmp_path):
+    """An id in a citation rarely carries a version, and the folder always
+    does."""
+    from pdfdrill.sources import library_pdf_for
+    want = _archive_doc(tmp_path, "arxiv.2510.04618v1")
+    assert library_pdf_for("2510.04618", tmp_path) == want
+
+
+def test_an_id_with_a_dot_keeps_everything_after_it(tmp_path):
+    """`Path("2510.04618").stem` is `"2510"` — the id's own dot reads as an
+    extension. That silently truncated every dotted id; it went unnoticed only
+    because the unprefixed lookup matched first."""
+    from pdfdrill.sources import library_pdf_for
+    _archive_doc(tmp_path, "arxiv.2510")            # a decoy the bug would hit
+    want = _archive_doc(tmp_path, "arxiv.2510.04618v1")
+    assert library_pdf_for("2510.04618", tmp_path) == want
+
+
+def test_the_two_archives_do_not_shadow_each_other(tmp_path):
+    """`1702.0234` is a valid id in both. The prefix is what separates them,
+    and a bare query must not silently pick the other archive's paper."""
+    from pdfdrill.sources import library_pdf_for
+    vx = _archive_doc(tmp_path, "vixra.1702.0234v1")
+    assert library_pdf_for("vixra.1702.0234v1", tmp_path) == vx
+    ax = _archive_doc(tmp_path, "arxiv.1702.02340v1")
+    assert library_pdf_for("arxiv.1702.02340v1", tmp_path) == ax
+
+
+def test_the_arxiv_id_survives_a_reopen(tmp_path):
+    """THE ONE THAT NEARLY GOT AWAY. The arXiv id drives every FREE downstream
+    route — the e-print LaTeX, the abstract, the bibtex entry. With the host in
+    the name, `Path("arxiv.2510.04618v1.pdf").stem` is not a bare id, so reading
+    it with `bare_arxiv_id` alone returned None and a reopened paper would have
+    been pushed quietly off the free lanes onto OCR.
+    """
+    from pdfdrill import sources as S
+    pdf = _archive_doc(tmp_path, "arxiv.2510.04618v1")
+    info = S.resolve_input("2510.04618v1", dest_dir=tmp_path)
+    assert info["path"] == pdf
+    assert info["arxiv_id"] == "2510.04618v1"
+
+
+def test_a_vixra_folder_yields_no_arxiv_id(tmp_path):
+    """The prefix is load-bearing in both directions: a viXra document must not
+    hand an arXiv id to a route that would fetch the wrong archive."""
+    from pdfdrill import sources as S
+    _archive_doc(tmp_path, "vixra.1702.0234v1")
+    info = S.resolve_input("vixra.1702.0234v1", dest_dir=tmp_path)
+    assert info["arxiv_id"] is None
+
+
+def test_an_old_style_id_round_trips_through_the_filename(tmp_path):
+    """`math/0309136` cannot be a filename; `archive_stem` writes it with an
+    underscore and `archive_ident` reads the slash back."""
+    from pdfdrill.sources import archive_stem, archive_ident
+    stem = archive_stem("arxiv", "math/0309136")
+    assert stem == "arxiv.math_0309136"
+    assert archive_ident(stem) == ("arxiv", "math/0309136")

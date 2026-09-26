@@ -570,6 +570,63 @@ def _place_download(base: Path, tmp: Path, digest: str, reg: dict) -> Path:
     return hashed
 
 
+def archive_stem(kind: str, ident: str) -> str:
+    """The folder/file stem for a document from a known archive:
+    `arxiv.2510.04618v1`, `vixra.1702.0234v1`, `arxiv.math_0309136`.
+
+    THE HOST BELONGS IN THE NAME. A bare `1702.0234` names a viXra e-print and
+    a pre-2015 arXiv paper equally well, and fourteen folders in this library
+    were viXra while looking like arXiv (805). Worse, `_augment_bibtex` read an
+    id off a FILENAME and cited the wrong archive's paper (806). A name that
+    states its archive cannot be misread by a later command, by a reader, or by
+    a bibliography.
+
+    The separator is a DOT, not a slash or a colon: it survives a filename on
+    every filesystem, it survives a URL path segment, and it keeps the id's own
+    dot as the only other punctuation so the shape stays legible.
+    """
+    safe = re.sub(r"[^0-9A-Za-z.\-]", "_", str(ident or ""))
+    return f"{kind}.{safe}" if kind and safe else safe
+
+
+def _reopened_arxiv_id(pdf: Path) -> Optional[str]:
+    """The arXiv id of a REOPENED document, from its own name or its folder's.
+
+    `Path("arxiv.2510.04618v1.pdf").stem` is `arxiv.2510.04618v1`, which is not
+    a bare id — so reading it with `bare_arxiv_id` alone returns None and the
+    free e-print/abstract routes go dark on every reopened paper. Caught by a
+    test that asserts the id survives a reopen.
+    """
+    for name in (pdf.stem, pdf.parent.name):
+        hit = bare_arxiv_id(name)
+        if hit:
+            return hit
+        pair = archive_ident(re.sub(r"\.pdf$", "", name, flags=re.I))
+        if pair and pair[0] == "arxiv":
+            return pair[1]
+    return None
+
+
+def archive_ident(stem: str) -> Optional[tuple]:
+    """`("arxiv", "2510.04618v1")` from a prefixed stem, else None.
+
+    The inverse of `archive_stem`, and not optional: the arXiv id drives every
+    FREE downstream route — the e-print LaTeX, the abstract, the bibtex entry.
+    A reopened document whose folder is `arxiv.2510.04618v1` must still yield
+    that id, or the rename quietly moves papers off the free lanes and onto OCR.
+    Caught by a test that asserted the id survives a reopen.
+    """
+    if not isinstance(stem, str) or "." not in stem:
+        return None
+    kind, _, rest = stem.partition(".")
+    kind = kind.lower()
+    if kind not in set(KNOWN_HOSTS.values()) or not rest:
+        return None
+    # `math_0309136` was `math/0309136` before it became a filename.
+    return (kind, rest.replace("_", "/") if "_" in rest and "." not in rest
+            else rest)
+
+
 def _doc_dest(root: Path, filename: str) -> Path:
     """Place a DOWNLOAD in its self-contained doc folder: `root/<stem>/<filename>`
     (the library layout — the PDF lives inside its own folder next to its
@@ -681,7 +738,13 @@ def library_pdf_for(name: str, root: Path) -> "Path | None":
     """
     try:
         root = Path(root)
-        stem = Path(name).stem
+        # NOT `Path(name).stem`. An arXiv id's own dot reads as an extension —
+        # `Path("2510.04618").stem` is `"2510"` — so every dotted id lost
+        # everything after the dot. It went unnoticed while the unprefixed
+        # `root / name` branch matched first; the moment a host prefix has to
+        # be prepended to the stem, `arxiv.2510` finds nothing. Only a real
+        # `.pdf` suffix is stripped here.
+        stem = re.sub(r"\.pdf$", "", str(name), flags=re.I)
         for folder in (root / name, root / stem):
             hit = pdf_in_folder(folder)
             if hit is not None:
@@ -689,6 +752,23 @@ def library_pdf_for(name: str, root: Path) -> "Path | None":
         for cand in (root / name, root / f"{stem}.pdf"):
             if cand.is_file():
                 return cand
+        # THE HOST PREFIX MUST NOT COST THE BARE NAME. A download now lands in
+        # `arxiv.2510.04618v1/`, and nobody types that: they type the id, off
+        # the paper. So each known archive's prefix is tried, and then the same
+        # with a VERSION the user did not give — `2510.04618` has to find
+        # `arxiv.2510.04618v1`, because an id in a citation rarely carries one.
+        for kind in sorted(set(KNOWN_HOSTS.values())):
+            pref = f"{kind}."
+            hit = pdf_in_folder(root / f"{pref}{stem}")
+            if hit is not None:
+                return hit
+            if not re.search(r"v\d+$", stem):
+                cands = sorted(d for d in root.glob(f"{pref}{stem}v*")
+                               if d.is_dir())
+                for d in cands:                  # lowest version first
+                    hit = pdf_in_folder(d)
+                    if hit is not None:
+                        return hit
     except OSError:
         return None
     return None
@@ -741,11 +821,12 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
             folder = library_pdf_for(arg, dest_dir)
         if folder is not None:
             return {"path": folder, "source": None,
-                    "arxiv_id": bare_arxiv_id(folder.stem)}
+                    "arxiv_id": _reopened_arxiv_id(folder)}
         # otherwise a BARE arXiv id is downloaded as arXiv (the skill gotcha fix)
         arxiv_id = bare_arxiv_id(arg)
         if arxiv_id:
-            dest = _doc_dest(dest_dir, f"{arxiv_id.replace('/', '_')}.pdf")
+            dest = _doc_dest(dest_dir,
+                             f"{archive_stem('arxiv', arxiv_id)}.pdf")
             if not (dest.exists() and dest.stat().st_size > 0):
                 _download_into_doc_folder(arxiv_urls(arxiv_id)["pdf"], dest)
             return {"path": dest, "source": "arxiv", "arxiv_id": arxiv_id}
@@ -782,7 +863,7 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
             if not pdf_url:
                 raise ValueError(
                     f"viXra {vid} has no PDF link on its abs page.")
-        dest = _doc_dest(dest_dir, f"{re.sub(r'[^0-9.v]', '_', vid)}.pdf")
+        dest = _doc_dest(dest_dir, f"{archive_stem('vixra', vid)}.pdf")
         if not (dest.exists() and dest.stat().st_size > 0):
             _download_into_doc_folder(pdf_url, dest)
         return {"path": dest, "source": "vixra", "arxiv_id": None,
@@ -793,7 +874,7 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
             raise ValueError(
                 f"{arg!r} is an arXiv URL but carries no valid id "
                 f"(expected e.g. 2604.17042 or math/0309136). Check the id.")
-        dest = _doc_dest(dest_dir, f"{arxiv_id.replace('/', '_')}.pdf")
+        dest = _doc_dest(dest_dir, f"{archive_stem('arxiv', arxiv_id)}.pdf")
         if not (dest.exists() and dest.stat().st_size > 0):
             _download_into_doc_folder(arxiv_urls(arxiv_id)["pdf"], dest)
         return {"path": dest, "source": "arxiv", "arxiv_id": arxiv_id}

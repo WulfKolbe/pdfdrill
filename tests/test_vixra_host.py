@@ -208,7 +208,8 @@ class TestResolveInput:
         monkeypatch.setattr(S, "download", fake_dl)
         info = S.resolve_input("https://vixra.org/pdf/1702.0234v1.pdf", tmp_path)
         assert info["source"] == "vixra" and info["vixra_id"] == "1702.0234v1"
-        assert info["path"] == tmp_path / "1702.0234v1" / "1702.0234v1.pdf"
+        assert info["path"] == (tmp_path / "vixra.1702.0234v1"
+                        / "vixra.1702.0234v1.pdf")
         assert calls["meta"] == 0, "a versioned id needs no abs-page request"
         assert calls["dl"] == ["https://vixra.org/pdf/1702.0234v1.pdf"]
 

@@ -91,6 +91,9 @@ def test_bare_arxiv_id_is_strict_fullmatch():
     assert S.bare_arxiv_id("https://arxiv.org/abs/2510.11170") is None  # that's a URL
 
 
+# 807 — the folder/file stem now NAMES its archive (`arxiv.<id>`): a bare
+# `1702.0234` is a valid id at two archives, and fourteen library folders were
+# viXra while looking like arXiv. These assertions carry the new name.
 def test_resolve_bare_id_routes_to_arxiv(monkeypatch):
     # a bare id (no local file) is resolved as arXiv — downloads the PDF
     import tempfile
@@ -104,7 +107,7 @@ def test_resolve_bare_id_routes_to_arxiv(monkeypatch):
     with tempfile.TemporaryDirectory() as d:
         out = S.resolve_input("2510.11170v2", dest_dir=Path(d))
         assert out["source"] == "arxiv" and out["arxiv_id"] == "2510.11170v2"
-        assert out["path"].name == "2510.11170v2.pdf" and out["path"].exists()
+        assert out["path"].name == "arxiv.2510.11170v2.pdf" and out["path"].exists()
         assert "e-print" not in calls["url"] and "pdf/2510.11170v2" in calls["url"]
 
 
@@ -164,10 +167,10 @@ def test_bare_id_not_hijacked_by_same_named_doc_folder(monkeypatch):
     monkeypatch.setattr(S, "download", fake_download)
     with tempfile.TemporaryDirectory() as d:
         dd = Path(d)
-        # first resolve creates the doc folder <dd>/2509.26251v2/2509.26251v2.pdf
+        # first resolve creates <dd>/arxiv.2509.26251v2/arxiv.2509.26251v2.pdf
         out1 = S.resolve_input("2509.26251v2", dest_dir=dd)
-        assert out1["path"].is_file() and out1["path"].name == "2509.26251v2.pdf"
-        assert out1["path"].parent.name == "2509.26251v2"
+        assert out1["path"].is_file() and out1["path"].name == "arxiv.2509.26251v2.pdf"
+        assert out1["path"].parent.name == "arxiv.2509.26251v2"
         # re-resolve from a cwd that CONTAINS the id-named folder: it must not be
         # mistaken for a local file — still resolves to the PDF inside it
         monkeypatch.chdir(dd)

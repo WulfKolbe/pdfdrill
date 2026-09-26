@@ -45,7 +45,7 @@ def test_resolve_input_defaults_to_config_download_dir(monkeypatch):
         # no dest_dir → must use the configured download dir, in a per-doc folder
         info = S.resolve_input("2305.04710")
         assert info["arxiv_id"] == "2305.04710"
-        assert Path(info["path"]).parent == dl / "2305.04710"   # self-contained folder
+        assert Path(info["path"]).parent == dl / "arxiv.2305.04710"   # self-contained folder
         assert Path(info["path"]).parent.parent == dl           # under the config dir
         assert calls["n"] == 1
 
