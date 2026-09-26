@@ -197,9 +197,23 @@ def arxiv_id_shape_error(s: str) -> Optional[str]:
         era = ("up to 1412 ids have FOUR digits after the dot"
                if want == 4 else
                "from 1501 on ids have FIVE digits after the dot")
-        return (f"{s!r} cannot be an arXiv id: {era}, and this has "
-                f"{len(num)}. arXiv would not refuse it — it ZERO-PADS, and "
-                f"serves a different paper. Check the id against its listing.")
+        msg = (f"{s!r} cannot be an arXiv id: {era}, and this has "
+               f"{len(num)}. arXiv would not refuse it — it ZERO-PADS, and "
+               f"serves a different paper.")
+        # A FOUR-DIGIT ID AFTER 2015 IS PROBABLY NOT A TYPO. viXra numbers
+        # every year `YYMM.NNNN`, which is arXiv's PRE-2015 shape, so the two
+        # schemes collide for exactly these ids. 14 folders in this library are
+        # viXra e-prints named correctly for their source — checked against
+        # vixra.org, titles matching — and telling their owner to "check the
+        # id" would be advice about the wrong archive.
+        if want == 5 and len(num) == 4:
+            msg += (" If it is a viXra id, this shape is CORRECT there and "
+                    "wrong only for arXiv: pdfdrill has no viXra route, so "
+                    "pass the URL (https://vixra.org/pdf/<id>.pdf) or a local "
+                    "file instead of a bare id.")
+        else:
+            msg += " Check the id against its listing."
+        return msg
     return None
 
 

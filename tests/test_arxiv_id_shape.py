@@ -68,3 +68,27 @@ def test_a_url_carrying_a_malformed_id_is_not_silently_fixed():
     """`parse_arxiv_id` reads any spelling, including a URL. A URL is not a
     licence to zero-pad either."""
     assert parse_arxiv_id("https://arxiv.org/abs/2609.24972") == "2609.24972"
+
+
+def test_a_four_digit_id_after_2015_names_vixra():
+    """A FOUR-DIGIT ID AFTER 2015 IS PROBABLY NOT A TYPO. viXra numbers every
+    year `YYMM.NNNN`, which is arXiv's PRE-2015 shape, so the two schemes
+    collide for exactly these ids.
+
+    Fourteen folders in the measured library are viXra e-prints named correctly
+    for their source — verified against vixra.org, titles matching, including
+    `1506.0005` "A New Method for High-Resolution Frequency Measurements" and
+    `2306.0024` "Location and Radius of a Triangle's Incircle Via Geometric
+    Algebra". Telling their owner to "check the id" is advice about the wrong
+    archive.
+    """
+    err = arxiv_id_shape_error("2505.0100v1")
+    assert "viXra" in err and "vixra.org" in err
+    assert "no viXra route" in err
+
+
+def test_the_other_direction_is_still_read_as_a_typo():
+    """Five digits BEFORE 2015 has no second archive behind it."""
+    err = arxiv_id_shape_error("1412.12345")
+    assert "viXra" not in err
+    assert "Check the id against its listing." in err
