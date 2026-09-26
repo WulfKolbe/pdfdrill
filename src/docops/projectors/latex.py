@@ -190,6 +190,10 @@ class LaTeXProjector(BaseProjector):
         levels = [int(o.props.get("level", 1) or 1)
                   for o in doc.objects.values() if o.type == "Section"]
         self._level_shift = (min(levels) - 1) if levels else 0
+        # the object list the figure numbering and label-uniqueness check read
+        self._all_objects = list(doc.objects.values())
+        self._fig_ords = None
+        self._refnum_counts = None
         self._order, self._title_index = _pipe.formula_array(doc)
         if not self.params.get("transclude", True):
             # No references, so no array: a `filecontents` block naming formulas
@@ -685,6 +689,115 @@ class LaTeXProjector(BaseProjector):
             "PARA": block, "ABS": block, "PROOF": block, "TOC": block,
         }
 
+    def _figure_env(self, obj, cap: str) -> str:
+        """A real `figure` environment — graphic, caption, label.
+
+        THIS USED TO BE A COMMENT. `% figure p12: Delta life span over time…`
+        is legible and useless: the caption is not in a float, so it cannot be
+        `\\ref`ed, hyperref has nothing to link to, and a reader following an
+        internal link gets no hover text. The user's requirement is exactly
+        that — the caption belongs INSIDE the environment, not beside it as a
+        paragraph — because a link that carries a caption can show it.
+
+        The graphic is the crop the crop layer already fetched
+        (`report-crops/<title>.jpg`), referenced RELATIVELY: the compile runs
+        with the document folder as cwd, so a relative path resolves.
+        `\\includegraphics` is emitted ONLY when the file is there — naming a
+        missing file fails the whole compile, and a captioned float with no
+        graphic still labels and still references.
+        """
+        p = obj.props or {}
+        parts = ["\\begin{figure}[htbp]", "  \\centering"]
+        img = self._crop_path(obj)
+        if img:
+            parts.append("  \\includegraphics[width=\\linewidth]{%s}" % img)
+        else:
+            parts.append("  %% no local crop for this figure (page %s)"
+                         % p.get("page"))
+        # A `\\label` INSIDE A FLOAT WITH NO `\\caption` IS WRONG: the caption is
+        # what steps the figure counter, so a label without one silently refers
+        # to whatever counter moved last — usually the enclosing section. It
+        # compiles, and every `\\ref` to it points somewhere else. So the label
+        # goes with the caption or not at all.
+        if cap:
+            parts.append("  \\caption{%s}" % cap)
+            lab = self._figure_label(obj)
+            if lab:
+                parts.append("  \\label{%s}" % lab)
+        parts.append("\\end{figure}")
+        return "\n".join(parts)
+
+    def _crop_path(self, obj) -> str:
+        """`report-crops/<tiddler title>.jpg` when that file exists, else "".
+
+        The name comes from `tiddlywiki.title_for`, which is THE place a title
+        is built — the crop layer wrote the file under that name, and computing
+        it a second way here is how two spellings drift apart.
+        """
+        base = self.params.get("crops_dir")
+        if not base:
+            return ""
+        try:
+            from pathlib import Path as _P
+            from .tiddlywiki import title_for
+            n = self._figure_number(obj)
+            if n is None:
+                return ""
+            title = title_for(str((obj.props or {}).get("bibkey") or ""),
+                              obj.type, n)
+            rel = "%s/%s.jpg" % (self.params.get("crops_base", "report-crops"),
+                                 title)
+            return rel if (_P(str(base)) / f"{title}.jpg").is_file() else ""
+        except Exception:                                # noqa: BLE001
+            return ""
+
+    def _figure_number(self, obj) -> "int | None":
+        """This object's 1-based ordinal among its own type, in flow order —
+        the numbering the crop filenames were written with."""
+        key = ("_fig_ord", obj.type)
+        cache = getattr(self, "_fig_ords", None)
+        if cache is None:
+            cache = self._fig_ords = {}
+        if key not in cache:
+            same = [o for o in self._figure_scope() if o.type == obj.type]
+            same.sort(key=lambda o: ((o.props or {}).get("flow_index", 0), o.id))
+            cache[key] = {o.id: i + 1 for i, o in enumerate(same)}
+        return cache[key].get(obj.id)
+
+    def _figure_scope(self) -> list:
+        """Every object in the document — the scope the figure numbering and the
+        label-uniqueness check are computed over.
+
+        NOT named `_doc_objects`: the projector already carries a dict by that
+        name, and shadowing it with a method turned every figure into
+        `TypeError: 'dict' object is not callable`.
+        """
+        return list(getattr(self, "_all_objects", []) or [])
+
+    def _figure_label(self, obj) -> str:
+        """`fig:8` when the document's own numbering gives one and it is
+        unique, else `fig:<object id>`.
+
+        A readable label is the point — an LLM writing `\\ref{fig:8}` needs to
+        be able to guess it — but a duplicate label makes every reference to it
+        resolve to whichever came last, silently. So readability is preferred
+        and uniqueness is checked.
+        """
+        p = obj.props or {}
+        ref = str(p.get("refnum") or "").strip()
+        pre = "tab" if obj.type == "Table" else "fig"
+        if ref:
+            seen = getattr(self, "_refnum_counts", None)
+            if seen is None:
+                seen = self._refnum_counts = {}
+                for o in self._figure_scope():
+                    r = str((o.props or {}).get("refnum") or "").strip()
+                    if r and o.type in ("Picture", "Diagram", "Table"):
+                        seen[(o.type, r)] = seen.get((o.type, r), 0) + 1
+            if seen.get((obj.type, ref), 0) == 1:
+                return f"{pre}:{ref}"
+        return f"{pre}:{obj.id}"
+
     def _math_token(self, title: str) -> str | None:
         """The array lookup first (`\\Expr{i}` — one slot per distinct body);
         failing that the object's own LaTeX inline, so an unindexed formula is
@@ -955,7 +1068,7 @@ class LaTeXProjector(BaseProjector):
             # runs on the RAW caption, same order as every other caller
             # (before `_escape_text`, so a citekey is never re-escaped).
             cap = _escape_text(self._cite(obj, str(p.get("caption") or "").strip()))
-            return f"% figure p{p.get('page')}" + (f": {cap}" if cap else "")
+            return self._figure_env(obj, cap)
         if t == "ListItem":
             # a lone ListItem (not part of a run) — still needs an environment
             return self._render_list([obj])

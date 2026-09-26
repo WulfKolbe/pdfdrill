@@ -508,8 +508,8 @@ def test_the_beamer_abstract_still_cites_when_the_reference_exists():
 
 def _diagram_doc(caption: str, cite: tuple[str, str] | None, ref_key: str,
                  ref_number: int | None):
-    """A Diagram with no `latex_code`, so `_render` falls back to the
-    `% figure pN: {caption}` comment — the class 640 measured on Steerable
+    """A Diagram with no `latex_code`, so `_render` falls back to a `figure`
+    ENVIRONMENT carrying the caption — the class 640 measured on Steerable
     (`Adelson's checkerboard illusion [29]`, MathPix's own `\\caption{…}`,
     never scanned because its line type is `diagram`, not `text`/`title`)."""
     doc = Document()
@@ -551,21 +551,30 @@ def test_a_diagram_caption_citation_is_not_rewritten_by_the_number_map():
     res = cite_res.resolve(doc)
     assert res.counts["cite_without_reference"] == 1, res.counts
     tex = _tex(doc)
-    assert "% figure p1: Illusion (compare also [5])." in tex, tex
+    # 810 — the caption now lives in `\\caption{…}` inside a `figure`
+    # environment rather than a `%` comment. The point of this test is
+    # unchanged: an unresolvable `[5]` stays literal and never becomes a
+    # `\\cite` to whichever Reference happens to be numbered 5.
+    assert "\\caption{Illusion (compare also [5]).}" in tex, tex
     assert "Realname2001" not in _body(tex), _body(tex)
 
 
-def test_a_diagram_caption_citation_becomes_a_cite_in_the_comment():
+def test_a_diagram_caption_citation_becomes_a_cite_in_the_caption():
     """The other half — closes 640's DIAGRAM class: a caption citation whose
-    Reference exists reaches the `.tex`, even though it prints inside a `%`
-    comment rather than the body (`Picture`/`Diagram` is in `CITED_TEXT_TYPES`
-    for exactly this)."""
+    Reference exists reaches the `.tex` (`Picture`/`Diagram` is in
+    `CITED_TEXT_TYPES` for exactly this).
+
+    810 moved the caption from a `%` comment into `\\caption{…}` inside a
+    `figure` environment, so that it can be `\\ref`ed and hyperref can link to
+    it. The citation substitution is unchanged; only its container is.
+    """
     doc = _diagram_doc("Illusion (compare also [29]).", ("Adelson2006", "[29]"),
                        "Adelson2006", 29)
     res = cite_res.resolve(doc)
     assert res.counts["cite_without_reference"] == 0, res.counts
     tex = _tex(doc)
-    assert "% figure p1: Illusion (compare also \\cite{Adelson2006})." in tex, tex
+    assert "\\caption{Illusion (compare also \\cite{Adelson2006}).}" in tex, tex
+    assert "\\begin{figure}" in tex, tex
     assert "[29]" not in tex, tex
 
 

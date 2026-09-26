@@ -56,6 +56,46 @@ def _extract_code(text: str):
 
 
 class DiagramProcessor(BaseModule):
+    @staticmethod
+    def _adjacent_label_caption(stream, anchor) -> str:
+        """The caption from a `figure_label` line NEXT TO this diagram, or "".
+
+        253 established that a `figure_label` CHILD is the figure's own text —
+        an axis label, a legend entry — and not its caption; all 49 in that
+        corpus read that way, and the finding stands.
+
+        This is the case it did not cover. On
+        1-s2.0-S2590118425000565-main page 12 the `figure_label` is a SIBLING,
+        not a child: MathPix emits the diagram and the caption as two lines
+        under the same `column`, so the child loop never sees it, and the line
+        was claimed by nothing at all. Its text is
+        `Fig. 8. Delta life span over time for considered topologies…`, which
+        PARSES as a caption label — a kind and a number — where an axis label
+        does not. That parse is the discriminator 253 lacked, so this narrows
+        the rule rather than overturning it.
+
+        Bounded twice: only the IMMEDIATE neighbour in stream order, and only
+        on the SAME page. A `figure_label` further away belongs to another
+        figure, and a caption that has to be searched for is a guess.
+        """
+        anchors = list(stream.anchors)
+        try:
+            i = anchors.index(anchor)
+        except ValueError:
+            return ""
+        here = stream.payload[anchor].get("_page")
+        for j in (i + 1, i - 1):                 # below first: the usual place
+            if not (0 <= j < len(anchors)):
+                continue
+            cand = stream.payload[anchors[j]]
+            if cand.get("type") != "figure_label" or cand.get("_page") != here:
+                continue
+            txt = (cand.get("text_display") or cand.get("text") or "").strip()
+            kind, refnum, body = parse_caption(txt)
+            if kind and refnum and body.strip():
+                return txt
+        return ""
+
     def find_items(self, doc: Document) -> list[dict[str, Any]]:
         if self.LINES_STREAM not in doc.streams:
             return []
@@ -89,6 +129,8 @@ class DiagramProcessor(BaseModule):
             # label. The Markdown `![]()` form carries no caption.
             text = payload.get("text_display") or payload.get("text") or ""
             caption = extract_figure_caption(text)
+            if not caption.strip():
+                caption = self._adjacent_label_caption(stream, anchor)
             latex_code = "\n".join(latex_parts).strip()
             # A diagram whose body is a fenced code block is a source-code
             # listing, not a TikZ/table graphic: keep the code, drop latex_code

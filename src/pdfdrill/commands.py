@@ -10965,7 +10965,11 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
     from docops.projectors import latex_pipeline as _pipe
     projector = LaTeXProjector(
         OperatorConfig(op="projector", classname="LaTeXProjector",
-                       params={"transclude": transclude}))
+                       params={"transclude": transclude,
+                               # the crop layer's output, so a figure can carry
+                               # `\includegraphics` instead of a comment
+                               "crops_dir": str(sc.blob_dir / "report-crops"),
+                               "crops_base": "report-crops"}))
     tex = projector.project(doc)
     env_dir.mkdir(parents=True, exist_ok=True)
     main_tex = env_dir / f"{key}.tex"
