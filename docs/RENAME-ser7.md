@@ -6,20 +6,40 @@ and the planner (audit A4).
 
 ## Run it
 
+The paths on ser7 are not the paths here, so let the script find them:
+
 ```bash
-cd ~/workspace/PDFDRILL          # wherever the checkout lives on ser7
+cd <wherever the checkout lives on ser7>
 git pull
-PDFDRILL_NO_PREFLIGHT=1 ./pdfdrill relocate --library ~/workspace/pdfdrill-library
+./tools/rename-library-hosts.sh                 # dry run — prints the plan, moves nothing
+./tools/rename-library-hosts.sh --apply         # asks before it moves anything
 ```
 
-That is a **dry run** — it prints the plan and moves nothing. Read it, then:
+It resolves the checkout from its own location and the library from
+`$PDFDRILL_LIBRARY`, then `pdfdrill config`, then the usual places — and prints
+both before doing anything, so you can see what it picked. Name it explicitly
+when you have several:
 
 ```bash
-PDFDRILL_NO_PREFLIGHT=1 ./pdfdrill relocate --library ~/workspace/pdfdrill-library --apply
+./tools/rename-library-hosts.sh ~/workspace/pdfdrill-library --apply
 ```
 
-Stop the drillui bridge first if it is serving that library, or a request
-mid-rename gets a 404 for a folder that is moving under it.
+**A named path never falls back.** If you name a library that does not exist —
+a typo, or a stale `$PDFDRILL_LIBRARY` — the script stops. It does not search
+on, because searching on is how a rename lands on a *different* library,
+hundreds of folders deep, with no error.
+
+The script also refuses to `--apply` while something is listening on `:8787`
+(pass `--yes` to override): a rename pulls a folder out from under the drillui
+bridge, which then 404s on a path that was valid a second ago.
+
+The capability itself is `pdfdrill relocate` — the script only locates paths.
+Straight to the command, if you prefer:
+
+```bash
+PDFDRILL_NO_PREFLIGHT=1 ./pdfdrill relocate --library <path>            # dry run
+PDFDRILL_NO_PREFLIGHT=1 ./pdfdrill relocate --library <path> --apply
+```
 
 ## What it changes
 

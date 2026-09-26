@@ -192,3 +192,59 @@ def test_cmd_relocate_no_prefix_opts_out(tmp_path):
     out = cmd_relocate([], library=str(tmp_path), apply=True, no_prefix=True)
     assert "HOST PREFIX" not in out
     assert (tmp_path / "2510.04618").is_dir()
+
+
+# ── the ops wrapper (tools/rename-library-hosts.sh) ──────────────────────────
+
+_SCRIPT = Path(__file__).resolve().parents[1] / "tools" / "rename-library-hosts.sh"
+
+
+def _run(*args, **kw):
+    import subprocess
+    return subprocess.run(["bash", str(_SCRIPT), *args], capture_output=True,
+                          text=True, timeout=120, **kw)
+
+
+def test_the_wrapper_is_executable_and_self_documenting():
+    assert _SCRIPT.exists()
+    out = _run("--help")
+    assert "pdfdrill relocate" in out.stdout
+
+
+@pytest.mark.parametrize("via", ["argument", "env"])
+def test_a_NAMED_library_that_is_missing_refuses_instead_of_searching_on(
+        tmp_path, via, monkeypatch):
+    """The dangerous one. Searching on from a path the user typed means a typo,
+    or a stale $PDFDRILL_LIBRARY, silently renames a DIFFERENT library — on the
+    wrong machine's copy, hundreds of folders deep, with no error. Found by
+    running the script with a nonexistent path and watching it rename this
+    machine's library instead."""
+    import os
+    missing = str(tmp_path / "does-not-exist")
+    env = dict(os.environ)
+    if via == "argument":
+        r = _run(missing, env=env)
+    else:
+        env["PDFDRILL_LIBRARY"] = missing
+        r = _run(env=env)
+    assert r.returncode == 1
+    assert "does not exist" in r.stderr
+    assert "renames the wrong library" in r.stderr
+
+
+def test_a_directory_that_is_not_a_library_is_refused(tmp_path):
+    r = _run(str(tmp_path))
+    assert r.returncode == 1
+    assert "not a pdfdrill library" in r.stderr
+
+
+def test_the_wrapper_renames_a_library_at_any_path(tmp_path):
+    """The whole point: a machine whose library is not where this one's is."""
+    lib = tmp_path / "srv" / "data" / "my-library"
+    for stem in ("2510.04618", "1702.0234"):
+        (lib / stem).mkdir(parents=True)
+        (lib / stem / f"{stem}.pdf").write_bytes(b"%PDF")
+    r = _run(str(lib), "--apply", "--yes")
+    assert r.returncode == 0, r.stderr
+    assert (lib / "arxiv.2510.04618" / "arxiv.2510.04618.pdf").exists()
+    assert (lib / "vixra.1702.0234" / "vixra.1702.0234.pdf").exists()
