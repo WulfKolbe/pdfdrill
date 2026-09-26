@@ -667,9 +667,26 @@ def merge_page_geometry(doc, lines_path: Path) -> dict:
 #: neighbours. Block-level and visible only: an inline marker (`Citation`) or
 #: invisible markup (`LtxCommand`) must never consume a line, because the line
 #: it ate is the rectangle that belonged to the formula beside it.
-_INTERPOLATABLE = ("Formula", "Equation", "Table", "Picture", "Diagram",
+_INTERPOLATABLE = ("Formula", "Equation",
                    "Section", "Paragraph", "Algorithm", "CodeListing",
                    "ListItem", "Abstract", "Caption")
+
+#: A FLOAT IS NOT WHERE ITS SOURCE SAYS IT IS. `\begin{table}` and
+#: `\begin{figure}` are placed by LaTeX, not by the author: the object can land
+#: on another page entirely, so reading order says nothing about its rectangle.
+#: Interpolating one produces a box on whatever prose happened to fill the gap.
+#:
+#: Measured on 2510.04618 page 8: the Table's interpolated box (y 434-488) held
+#: its caption plus FOUR LINES OF RUNNING PROSE — `"GT labels" indicates
+#: whether…`, `With GT labels, ACE achieves…` — and not the tabular grid at all,
+#: while the Paragraph beneath it started mid-sentence at `tion outcomes),`.
+#: No box overlapped another, so an overlap check saw nothing wrong.
+#:
+#: A float's rectangle comes from a MEASUREMENT or not at all: the drawn rules
+#: and the caption (pdf2mmd's `table_regions`), or the crop a source lane
+#: records. No box is worse to look at and better to trust than a wrong one,
+#: because a wrong one cannot be detected downstream.
+_FLOAT_TYPES = ("Table", "Picture", "Diagram", "Figure", "Chart")
 
 
 def _obj_surface(o) -> str:
@@ -678,6 +695,66 @@ def _obj_surface(o) -> str:
     p = o.props or {}
     return str(p.get("text") or p.get("latex") or p.get("content")
                or p.get("caption") or " ")
+
+
+def _drop_leading_caption(lines: list) -> list:
+    """Drop caption lines from the FRONT of an interpolated allotment.
+
+    A caption belongs to its float, not to whatever prose follows it in reading
+    order. With floats no longer interpolated, the gap where a table sat fell to
+    the next Paragraph — and its box began on `Table 2: Results on Financial
+    Analysis Benchmark…`, which is the second half of the same complaint.
+
+    `docmodel.modules._captions.parse_caption` already knows a caption line from
+    running prose (`As shown in Table 2, ACE delivers…` parses as neither a kind
+    nor a number), so this reuses it rather than growing a second matcher.
+    """
+    from docmodel.modules._captions import parse_caption
+    out = list(lines)
+    while out:
+        text = str(out[0].get("text_display") or out[0].get("text") or "")
+        try:
+            kind, num, _body = parse_caption(text)
+        except Exception:                        # noqa: BLE001
+            break
+        if not (kind and num):
+            break
+        out.pop(0)
+    return out
+
+
+def _until_paragraph_break(lines: list) -> list:
+    """The leading run of `lines` up to the first paragraph break.
+
+    A break is a vertical gap wider than 1.8x the run's own modal leading —
+    measured from the lines in hand, not assumed, because a table's rows and a
+    body paragraph's lines are set at different spacings on the same page.
+    Fewer than three lines cannot establish a leading, so they are returned
+    whole rather than cut on a guess.
+    """
+    if len(lines) < 3:
+        return lines
+    tops, gaps = [], []
+    for ln in lines:
+        r = ln.get("region") or {}
+        y, h = r.get("top_left_y"), r.get("height")
+        if y is None:
+            return lines                   # no geometry: nothing to measure
+        tops.append((float(y), float(h or 0)))
+    for (y0, h0), (y1, _h1) in zip(tops, tops[1:]):
+        gaps.append(y1 - (y0 + h0))
+    positive = [round(g, 1) for g in gaps if g > -1.0]
+    if not positive:
+        return lines
+    lead = max(set(positive), key=positive.count)
+    limit = 1.8 * max(lead, 1.0) if lead > 0 else 1.8 * max(
+        (t[1] for t in tops), default=10.0)
+    out = [lines[0]]
+    for g, ln in zip(gaps, lines[1:]):
+        if g > limit:
+            break
+        out.append(ln)
+    return out
 
 
 def _fill_line_gap(objs: list, page_lines: list, flat: list,
@@ -705,6 +782,13 @@ def _fill_line_gap(objs: list, page_lines: list, flat: list,
         page = flat[start][0]
         hit = [page_lines[p - 1][li] for (p, li) in flat[start:end + 1]
                if p == page]
+        # AND IT STOPS AT A PARAGRAPH BREAK. Proportional allotment walks
+        # straight through a blank line: on 2510.04618 page 8 one Paragraph's
+        # box ran from `tion outcomes),` (the tail of its predecessor) across a
+        # 21pt gap — twice the 11pt leading, which is a paragraph boundary — and
+        # on into `Analysis: Finance Benchmark`, the run-in heading of the NEXT
+        # paragraph. One box, three paragraphs, starting mid-word.
+        hit = _until_paragraph_break(_drop_leading_caption(hit))
         box = _union_region(hit)
         if box:
             o.props["region"] = box

@@ -206,3 +206,64 @@ def test_pdf2mmd_lines_take_the_merged_route():
     worked example."""
     assert prefers_merged_route(lines_exists=True, lines_source="pdf2mmd",
                                 is_arxiv=True, mathpix=False)
+
+
+class TestFloatsAndCaptions:
+    """Reported from the inspector on 2510.04618 page 8 — 808.
+
+    The Table's interpolated box (y 434-488) held its caption plus FOUR LINES OF
+    RUNNING PROSE and not the tabular grid at all, while the Paragraph beneath
+    it began mid-sentence at `tion outcomes),` and ran across a 21pt gap — twice
+    the 11pt leading — into `Analysis: Finance Benchmark`, the run-in heading of
+    the NEXT paragraph. One box, three paragraphs, starting mid-word.
+
+    No box overlapped another, so an overlap check saw nothing wrong. The
+    measurement that showed it was reading the LINES inside each box.
+    """
+
+    def test_a_float_is_never_interpolated(self):
+        """`\\begin{table}` is placed by LaTeX, not by the author: the object can
+        land on another page, so reading order says nothing about its rectangle.
+        A float's box comes from a measurement or not at all."""
+        from pdfdrill.commands import _INTERPOLATABLE, _FLOAT_TYPES
+        for t in _FLOAT_TYPES:
+            assert t not in _INTERPOLATABLE, t
+        assert "Table" in _FLOAT_TYPES and "Picture" in _FLOAT_TYPES
+
+    def test_an_allotment_stops_at_a_paragraph_break(self):
+        from pdfdrill.commands import _until_paragraph_break
+        def ln(y, h=10.0):
+            return {"region": {"top_left_y": y, "height": h}, "text": "x"}
+        # four lines at an 11pt leading, then a 25pt gap, then two more
+        run = [ln(100), ln(121), ln(142), ln(163), ln(210), ln(231)]
+        assert len(_until_paragraph_break(run)) == 4
+
+    def test_a_uniform_run_is_never_cut(self):
+        from pdfdrill.commands import _until_paragraph_break
+        run = [{"region": {"top_left_y": 100 + 21 * i, "height": 10.0},
+                "text": "x"} for i in range(6)]
+        assert len(_until_paragraph_break(run)) == 6
+
+    def test_too_few_lines_to_measure_a_leading_are_kept_whole(self):
+        from pdfdrill.commands import _until_paragraph_break
+        run = [{"region": {"top_left_y": 100, "height": 10.0}, "text": "a"},
+               {"region": {"top_left_y": 400, "height": 10.0}, "text": "b"}]
+        assert len(_until_paragraph_break(run)) == 2
+
+    def test_a_leading_caption_is_not_part_of_the_paragraph(self):
+        """With floats no longer interpolated, the gap where a table sat fell to
+        the next Paragraph — whose box then began on `Table 2: Results on
+        Financial Analysis Benchmark…`."""
+        from pdfdrill.commands import _drop_leading_caption
+        run = [{"text": "Table 2: Results on Financial Analysis Benchmark."},
+               {"text": "“GT labels” indicates whether ground-truth labels are"},
+               {"text": "With GT labels, ACE achieves consistent improvements"}]
+        assert len(_drop_leading_caption(run)) == 2
+
+    def test_running_prose_that_mentions_a_table_is_kept(self):
+        """`As shown in Table 2, ACE delivers…` is a sentence. Dropping it would
+        delete prose from the document."""
+        from pdfdrill.commands import _drop_leading_caption
+        run = [{"text": "As shown in Table 2, ACE delivers strong improvements"},
+               {"text": "on financial analysis benchmarks."}]
+        assert len(_drop_leading_caption(run)) == 2

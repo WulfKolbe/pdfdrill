@@ -209,9 +209,20 @@ a payload.
 arrives the same way rotated text does — as a column of single-character
 fragments — and it is the second half of the same report.
 
-**`footnote`** — a note below a rule at the foot of a column.
-*Would be established by:* below the column's last body line, under a
-horizontal rule, at a size below body.
+**`footnote`** — the note at the foot of a column. ESTABLISHED (808).
+*Established by:* the line sits below the lowest body-size line **in its
+column**, and its type size is smaller than the page's modal body size.
+*The rule this entry originally demanded is not there.* 2510.04618 draws no
+footnote separator — its only rules are the table's, 300pt higher — so a rule
+corroborates and is never the evidence. Two things had to be measured rather
+than assumed: PER COLUMN, because on a two-column paper the left column's
+footnote is not below the right column's last body line (1909.00741 has four and
+yielded zero); and the body line's TOP, not its bottom, because the line reader
+merges rows and the lowest body line on 2510.04618 page 8 is 28pt tall with its
+bottom ABOVE the footnote.
+*Tested after `caption`,* because a figure at the foot of a page puts its
+caption below the last body line at a smaller size too, and a caption has a
+label.
 
 **`figure_label`** / **`caption`** — a figure's number and its caption.
 *Would be established by:* a line beginning with a figure/table label in the
@@ -224,6 +235,27 @@ on one paper and we emit none.
 `_cell_split` for the unruled case.
 *Nesting is the point:* a table whose cells are not addressable is a rectangle,
 not a table, and cannot project to `tabular`.
+
+## Floats are not placed by reading order
+
+`Table`, `Picture`, `Diagram`, `Figure`, `Chart`. LaTeX places these, not the
+author: the object can land on another page entirely, so its position in the
+text says nothing about its rectangle. Interpolating one produces a box on
+whatever prose happened to fill the gap — measured on 2510.04618 page 8, the
+Table's box held its caption plus four lines of running prose and not the
+tabular grid at all.
+
+No box is worse to look at and better to trust than a wrong one, because a
+wrong one cannot be detected downstream: not one of those boxes overlapped
+another, so an overlap check saw nothing. The measurement that showed it was
+reading the LINES inside each box.
+
+A float's rectangle therefore comes from a measurement or not at all — the drawn
+rules and the caption (`table_regions`), or a crop a source lane recorded.
+
+And a caption belongs to its float, not to the prose that follows it: with
+floats no longer interpolated, the gap where a table sat fell to the next
+paragraph, whose box then began on `Table 2: Results on…`.
 
 ## Containment
 
