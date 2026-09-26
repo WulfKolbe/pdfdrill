@@ -821,10 +821,25 @@ def _interpolate_regions(doc, page_lines: list,
     tell it from a matched one. Idempotent: a second pass finds no anchors,
     because everything it placed now carries a region.
     """
+    # A CONTAINER LINE IS NOT A LINE OF THE PAGE. MathPix emits a `column`, a
+    # `table`, a `table_row` as a record with NO TEXT and `children_ids` — a
+    # box around the lines that do carry text. Its rectangle covers a whole
+    # column, so any object allotted one inherits a column-sized box.
+    #
+    # Measured on 1-s2.0-S2590118425000565-main: 28 container lines, and 5
+    # INLINE FORMULAS boxed as entire text columns because interpolation handed
+    # them one. Recognised structurally — empty text plus children — rather
+    # than by a list of type names, so a container type we have not met yet is
+    # excluded too.
+    def _is_container(ln: dict) -> bool:
+        return (not str(ln.get("text") or ln.get("text_display") or "").strip()
+                and bool(ln.get("children_ids")))
+
     flat: list[tuple[int, int]] = [
         (pno, li)
         for pno in range(1, len(page_lines) + 1)
         for li in range(len(page_lines[pno - 1]))
+        if not _is_container(page_lines[pno - 1][li])
     ]
     if not flat:
         return 0
@@ -5280,7 +5295,8 @@ def model_ledger(pdf: Path) -> str:
 @_writes("model")
 def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
               force_discard_translation: bool = False,
-              force_discard_enrichments: bool = False) -> str:
+              force_discard_enrichments: bool = False,
+              no_source: bool = False) -> str:
     """Build the unified docmodel Document from MathPix lines.json.
 
     Auto-chains `mathpix` if the lines.json isn't there yet. Writes the
@@ -5372,7 +5388,14 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
     # gate: nesting it under that gate meant it was skipped as soon as its OWN
     # geometry output existed, so every rebuild silently produced a structureless
     # model (287 objects -> 48 on 2209.00445v3).
-    if prefers_merged_route(lines_exists=lines_path.exists(),
+    # `--no-source` SUPPRESSES THE AUTHOR-SOURCE LANES. On arXiv, `model`
+    # prefers the gold LaTeX e-print — better structure, and the right default.
+    # But it means the LINE TYPES never become objects: the source supplies
+    # Section/Table/Formula and the classifier's reading is only consulted for
+    # geometry. To see what the reader itself produces — to compare readers, or
+    # to measure a change to one — the source has to be out of the way, and
+    # renaming the file to hide its id is a trick, not a flag.
+    if not no_source and prefers_merged_route(lines_exists=lines_path.exists(),
                             lines_source=_lines_json_source(lines_path)
                             if lines_path.exists() else "",
                             is_arxiv=bool(_arxiv_id_for(pdf, sc)),
@@ -5400,13 +5423,18 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
             wrote_born_digital = _write_born_digital_lines(pdf)
             # MathPix may now have appeared (a key), or the source may only have
             # become reachable once the text layer existed — retry the merge.
-            if wrote_born_digital and _arxiv_id_for(pdf, sc):
+            if wrote_born_digital and not no_source and _arxiv_id_for(pdf, sc):
                 built = _try_merged_build(pdf, sc, key, model_path, lines_path)
                 if built:
                     return built
             if not wrote_born_digital:
                 # 3) No text layer → a genuine SCAN. arXiv gold e-print if cached
                 #    (content, no geometry), else tesseract OCR.
+                # A SCAN with no text layer and no source left is the one
+                # case `--no-source` cannot help: there would be nothing to
+                # build from at all. So the flag is honoured everywhere the
+                # lines.json is a real alternative, and ignored here, where
+                # refusing would just produce no model.
                 built = _build_arxiv_source_model(pdf, sc, key, model_path)
                 if built:
                     return built

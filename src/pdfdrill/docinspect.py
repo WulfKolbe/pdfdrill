@@ -1545,6 +1545,13 @@ function drawBlobs(canvas, sx, sy){
    "Infinity%" — CSS drops it and every box vanishes without a word. Say so
    instead: a view that draws nothing must not look like a model that contains
    nothing. */
+/* THE PAGE FRAME IS NOT DRAWN (`e.type!=='Page'` in renderPage). 783 gave a
+   merged Page a rectangle so the two lanes would agree, and on a model with one
+   box it was the only thing visible — which read as progress. On a model with
+   two hundred it is a rectangle around everything: it catches every stray hover
+   and tells the reader nothing the page itself does not. The Page element stays
+   in the tree, selectable, with its region in the record; it is simply not
+   painted over the content. */
 function noScale(stage,wrap,pn){
   const warn=el('div');
   warn.style.cssText='position:absolute;left:0;top:0;padding:6px 10px;'
@@ -1566,7 +1573,7 @@ function renderPage(){
    * when the user was pointing at the picture inside it. Ordering by area
    * descending puts the smallest, most specific box on top, which is what a
    * click should hit. */
-  EL.filter(e=>e.page===curPage && e.bbox)
+  EL.filter(e=>e.page===curPage && e.bbox && e.type!=='Page')   // no page frame
     .slice()
     .sort((a,b)=>(b.bbox.w*b.bbox.h)-(a.bbox.w*a.bbox.h))
     .forEach(e=>{

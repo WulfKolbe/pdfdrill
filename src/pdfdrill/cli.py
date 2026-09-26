@@ -962,7 +962,7 @@ def _opt(args, name):
 
 def _do_model(args):
     """pdfdrill model <pdf> [--bibkey KEY] [--force] [--ledger]
-    [--force-discard-translation] [--force-discard-enrichments]
+    [--force-discard-translation] [--force-discard-enrichments] [--no-source]
 
     431 — BOTH overrides are wired here. `force_discard_translation` was a
     parameter of cmd_model that no CLI path could set, so the refusal it
@@ -973,7 +973,7 @@ def _do_model(args):
     from .commands import cmd_model, model_ledger
     bibkey, args = _opt(args, "--bibkey")
     flags = ("--force", "--force-discard-translation",
-             "--force-discard-enrichments", "--ledger")
+             "--force-discard-enrichments", "--ledger", "--no-source")
     pdf_args = [a for a in args if a not in flags]
     # 634 fix round 1 — `--ledger` is READ-ONLY and is routed BEFORE
     # `cmd_model`, so the `@_writes` document lock is never taken (a read must
@@ -985,7 +985,8 @@ def _do_model(args):
     return cmd_model(
         _pdf(pdf_args), force="--force" in args, bibkey=bibkey,
         force_discard_translation="--force-discard-translation" in args,
-        force_discard_enrichments="--force-discard-enrichments" in args)
+        force_discard_enrichments="--force-discard-enrichments" in args,
+        no_source="--no-source" in args)
 
 
 def _do_compare(args):

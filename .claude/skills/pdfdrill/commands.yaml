@@ -1079,6 +1079,10 @@ commands:
     required: true
     help: PDF path, https URL, or bare arXiv id
   flags:
+  - name: no_source
+    flag: --no-source
+    type: flag
+    help: build from the lines.json ALONE — suppress the gold author-LaTeX (arXiv e-print) lanes, so the reader's own line types become objects instead of the source supplying the structure. For comparing readers or measuring a change to one; the default (source preferred) gives the better model.
   - name: bibkey
     type: str
     flag: --bibkey

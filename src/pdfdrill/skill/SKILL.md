@@ -507,7 +507,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill extractimages <pdf> [--pages PAGES] [--all-formats]` | Extract embedded raster image BYTES to files (pdfimages); tiny masks/decorative <1KB filtered |
 | `pdfdrill tables <pdf> [--pages PAGES]` | Extract tables KEYLESS offline (pdfplumber extract_tables) → tables.json + tables.md; --pages N-M |
 | `pdfdrill eqblobs <pdf> [--pages PAGES] [--dpi DPI] [--fuse]` | KEYLESS page geometry: display-math REGIONS + per-page details (skew, body column, line count, columns) via connected-component blobs. Pure geometry — no OCR, no network, no key; it reports WHERE ink sits, never what it says. --fuse attaches regions to model Equation objects that have none (a source-built arXiv model carries gold LaTeX but no page geometry) |
-| `pdfdrill model <pdf> [--bibkey BIBKEY] [--ledger]` | Build unified docmodel from lines.json. No lines.json → MathPix (if key) → arXiv LaTeX source (arXiv) → born-digital text layer (pdfplumber, FREE/fast) → tesseract OCR (scans only). --bibkey KEY sets the tiddler prefix (persisted) |
+| `pdfdrill model <pdf> [--no-source] [--bibkey BIBKEY] [--ledger]` | Build unified docmodel from lines.json. No lines.json → MathPix (if key) → arXiv LaTeX source (arXiv) → born-digital text layer (pdfplumber, FREE/fast) → tesseract OCR (scans only). --bibkey KEY sets the tiddler prefix (persisted) |
 | `pdfdrill compare <pdf>` | LaTeX \| KaTeX \| MathPix-image comparison HTML (auto-chains model) |
 | `pdfdrill snip <pdf> [--image IMAGE] [--page PAGE] [--rect RECT] [--limit LIMIT] [--force] [--gemma] [--provider PROVIDER]` | OCR each equation/table crop → competing column. THE STATE MACHINE picks the provider (vision_router: MathPix when keyed — native promptless OCR — else the cheap Gemma-4 vision route on Novita); --gemma/--provider remain explicit overrides. --limit N _(network)_ |
 | `pdfdrill candidates <pdf> [--provider PROVIDER] [--limit LIMIT] [--out OUT]` | Export equation crops as a manifest for an LLM to read; --provider P --limit N |
@@ -675,6 +675,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-6a8bedf6` before any build/extract command.
-DRILL-6a8bedf6
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-15ea839b` before any build/extract command.
+DRILL-15ea839b
 <!-- PREFLIGHT-TOKEN:END -->
