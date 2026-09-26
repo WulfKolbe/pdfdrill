@@ -167,3 +167,51 @@ Two ways to satisfy it, with different costs:
 
 B is in place. A is the one that actually satisfies R4 and needs a decision
 before it is built.
+
+
+---
+
+## 816 — resolved, and two more found on the way
+
+**F1 is fixed.** `src/docops/projectors/markdown.py` is the Markdown projector
+that did not exist. Images are LINKS, local crop first
+(`<crops_base>/<title>.jpg`), `crops_base` may be a URL so the same Markdown
+reads against a server; tables come from the Table's `cells` GRID; there are no
+transclusions and no appendix. Titles come from `tiddlywiki.title_for`, which is
+THE one place a title is built — formatting them here would be a second scheme
+and the crop files are named by the first.
+
+`cmd_md` now prefers, in order: a genuine MathPix `.md`, **the model**, the text
+layer. `_md_from_latex_source` no longer projects with `LLMCompactProjector`.
+Measured on 1-s2.0-S2590118425000565-main: **18 crop links, all 18 resolving on
+disk, 36 table rows, 0 transclusions** — against 0 images and 0 tables before.
+
+### F8 — `_serve_mathpix_md` was reading pdfdrill's own output
+
+`_write_md` writes `<blob_dir>/<bibkey>.md` and `_serve_mathpix_md` reads
+`<pdf.parent>/<stem>.md`. In the **self-contained layout those are the same
+file**: `blob_dir` IS the doc folder and bibkey IS the stem. The rule ("prefer
+the user's MathPix markdown over the text-layer engine") was written for the
+legacy layout, where MathPix's file sat beside the PDF and pdfdrill's blobs lived
+in `<pdf>.pdf.drill/`; the 2026-07-14 self-contained migration collapsed the two
+into one folder and nothing noticed.
+
+So `md` read back whatever pdfdrill last wrote and announced it as *"Markdown
+from MathPix OCR (N words)"*. On BH1org_OCR that file was the LLM-compact
+bi-layer `translate` had put there. Fixed by asking the `md` layer, which already
+records who wrote it: a blob this sidecar wrote with a non-`mathpix` source is
+not MathPix's markdown.
+
+### F9 — `meta["title"]` holds the whole `\title{}` block
+
+On 1-s2.0-S2590118425000565-main it is 200 characters: the title, then the
+author list, then the affiliation, ORCID markup and all. A model-level defect,
+not a projector one — the projector takes the first line and is otherwise
+faithful, which is why the YAML front matter still shows the author names on
+that document. Whoever sets `meta["title"]` from a MathPix `\title{}` line keeps
+the `\\`-separated author block with it.
+
+**Still open:** F6 (the TiddlyWiki projector rebuilds prose from the line stream
+by offset, so a translated model prop never reaches it — same offset model as
+the ListItem-transclusion item in `docs/HANDOVER.md`) and F7
+(`_TRANSLATE_FIELD` vs `_TRANSLATE_MODEL_FIELD`, no `listitem`).

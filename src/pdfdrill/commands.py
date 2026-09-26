@@ -16792,6 +16792,19 @@ def _serve_mathpix_md(pdf: Path, sc: "Sidecar", *, scanned: bool = True) -> str 
     mathpix_md = pdf.parent / f"{pdf.stem}.md"
     if not (mathpix_md.exists() and mathpix_md.stat().st_size > 0):
         return None
+    # 816 — NOT OUR OWN OUTPUT. In the self-contained layout this path and
+    # `_write_md`'s target are THE SAME FILE (`<library>/<stem>/<stem>.md`):
+    # the rule was written for the legacy layout, where MathPix's markdown sat
+    # beside the PDF and pdfdrill's blobs lived in `<pdf>.pdf.drill/`, and the
+    # 2026-07-14 self-contained migration collapsed the two into one folder.
+    # So this read back whatever pdfdrill last wrote and announced it as
+    # "Markdown from MathPix" — including, on BH1org_OCR, the LLM-compact
+    # bi-layer `translate` had written there. The `md` layer already records who
+    # wrote it, so ask.
+    layer = (sc.get_layer("md") or {}) if hasattr(sc, "get_layer") else {}
+    if (layer.get("blob") == mathpix_md.name
+            and str(layer.get("source") or "") not in ("", "mathpix")):
+        return None
     md_text = mathpix_md.read_text(encoding="utf-8")
     why = ("scanned (no text layer)" if scanned
            else "born-digital, but the MathPix markdown you generated is preferred "
@@ -16833,24 +16846,65 @@ def _md_from_latex_source(pdf: Path, sc: "Sidecar") -> "str | None":
         cmd_bibliography(pdf)                 # references + linked citations (gold)
         sc = Sidecar(pdf)
 
-    from docops.projectors.llm_compact import LLMCompactProjector
-    from docops.base import OperatorConfig
-    from docops import transclusion_render as _tr
+    # 816 — THE MARKDOWN PROJECTOR, not the LLM one. This used to project with
+    # `LLMCompactProjector` and then gloss its markers with
+    # `transclusion_render`: a token-economical form that drops images and
+    # tables by design and ends with an appendix of every formula, the body
+    # referring into it. A reader who asked for Markdown got an LLM prompt.
+    # See docs/superpowers/specs/2026-09-26-projection-audit.md F1.
     doc = load_model(_model_path(sc))
-    md = LLMCompactProjector(OperatorConfig(
-        op="projector", classname="LLMCompactProjector")).project(doc)
-
-    def _lk(title, template):                 # citation transclusion → the citekey
-        if template == "CIT":
-            mm = re.search(r"_REF_(.+)$", title)
-            return mm.group(1) if mm else None
-        return None
-    md = _tr.render(md, "typed_gloss", _lk)
-
+    md = _project_markdown(sc, doc)
     return (f"Markdown from the author's LaTeX source ({len(md.split())} words) — "
             f"no OCR/text-layer, so NO line-break hyphenation, an isolated "
             f"`## Abstract`, and the bibliography are included."
             + _write_md(pdf, sc, md, source="latex"))
+
+
+def _project_markdown(sc: "Sidecar", doc) -> str:
+    """The docmodel as Markdown — headings, prose, IMAGES and TABLES.
+
+    The crop parameters are the point: an image is a LINK, and the link is
+    `<crops_base>/<title>.jpg` when that file is on disk. `crops_base` may be a
+    URL, so the same Markdown reads against a server — which is what the user's
+    Markdown editor follows.
+    """
+    from docops.base import OperatorConfig
+    from docops.projectors.markdown import MarkdownProjector
+    return MarkdownProjector(OperatorConfig(
+        op="projector", classname="MarkdownProjector",
+        params={"crops_dir": str(sc.blob_dir / "report-crops"),
+                "crops_base": "report-crops"})).project(doc)
+
+
+def _md_from_model(pdf: Path, sc: "Sidecar") -> "str | None":
+    """Markdown projected from the unified model, or None when there is none.
+
+    Preferred over the text-layer engine whenever a model exists, because the
+    model is the only source that HAS the figures and tables: the engine reads a
+    flat text layer and can state neither. This is the route that answers "the
+    translation does not show any images or tables".
+    """
+    model_path = _model_path(sc)
+    if not (sc.has(MODEL_BUILT) and model_path.exists()):
+        return None
+    # A GENUINE MathPix markdown still wins: it is real Markdown written from
+    # the same OCR, with its own images and tables. Only pdfdrill's own previous
+    # output is overtaken here.
+    layer = (sc.get_layer("md") or {}) if hasattr(sc, "get_layer") else {}
+    if str(layer.get("source") or "") == "mathpix":
+        return None
+    doc = load_model(model_path)
+    md = _project_markdown(sc, doc)
+    if not md.strip():
+        return None
+    import re as _re
+    imgs = len(_re.findall(r"!\[[^\]]*\]\([^)]+\)", md))
+    rows = len(_re.findall(r"^\s*\|.*\|\s*$", md, _re.M))
+    return (f"Markdown from the unified model ({len(md.split())} words, "
+            f"{imgs} image link(s), {rows} table row(s)) — images link to "
+            f"`report-crops/<title>.jpg`; point `crops_base` at a URL to read "
+            f"them from a server."
+            + _write_md(pdf, sc, md, source="model"))
 
 
 @_writes("md")
@@ -16864,6 +16918,15 @@ def cmd_md(pdf: Path, pages: str | None = None) -> str:
         latex_md = _md_from_latex_source(pdf, sc)
         if latex_md is not None:
             return latex_md
+        sc = Sidecar(pdf)
+        # 816 — THEN THE MODEL, before the text layer. The model is the only
+        # source that HAS the document's figures and tables; the text-layer
+        # engine reads a flat character stream and can state neither. MathPix's
+        # own `.md` still wins below, because it is real Markdown written from
+        # the same OCR.
+        model_md = _md_from_model(pdf, sc)
+        if model_md is not None:
+            return model_md
         sc = Sidecar(pdf)
 
     if not sc.has(SIZE_KNOWN):
