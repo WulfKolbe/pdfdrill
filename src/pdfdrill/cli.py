@@ -296,6 +296,13 @@ def _pdf(args: list[str]) -> Path:
         fixed = sources.existing_local_path(arg)
         if fixed is not None:
             return _probe_on_acquire(fixed)
+        # A MALFORMED arXiv ID must say so. `bare_arxiv_id` refuses it, which
+        # stops the wrong paper being fetched, and without this the refusal
+        # arrives as "Not found" — true, and silent about the one-character
+        # typo that caused it.
+        shape = sources.arxiv_id_shape_error(arg)
+        if shape:
+            raise FileNotFoundError(shape)
         # An EMPTY doc folder is what a download that failed leaves behind.
         # "Not found" about a name the user can see a directory for is the
         # least useful true answer available — name the folder instead.

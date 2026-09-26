@@ -157,6 +157,52 @@ def parse_arxiv_id(s: str) -> Optional[str]:
 _BARE_ARXIV = re.compile(rf"(?:arxiv:)?({_ARXIV_NEW}|{_ARXIV_OLD})$", re.I)
 
 
+def arxiv_id_shape_error(s: str) -> Optional[str]:
+    r"""Why this new-style arXiv id cannot be right, or None if it can.
+
+    THE SCHEME CHANGED, AND ARXIV IS LENIENT ABOUT IT. Identifiers ran
+    `YYMM.NNNN` from 0704 to 1412 and `YYMM.NNNNN` from 1501 on. A regex of
+    `\d{4}\.\d{4,5}` accepts both for any month, so a TRUNCATED modern id
+    passes — and arXiv's server does not refuse it, it ZERO-PADS it:
+
+        asked for  2609.2497   -> served 2609.02497
+                                  "RINSE: Robust Target-Time Normality …"
+        wanted     2609.24972  -> "RRSI: Regularized Recursive Self-Improvement …"
+
+    One dropped character, a different real paper, no error anywhere, and a
+    folder whose name states an id its contents do not have. That is the worst
+    shape a download failure can take, because every later command believes the
+    name.
+
+    Checked, not guessed: the digit count is a function of the date printed in
+    the id itself.
+    """
+    if not s:
+        return None
+    text = re.sub(r"\.pdf$", "", s.strip(), flags=re.I)
+    text = re.sub(r"^arxiv:", "", text, flags=re.I)
+    m = re.fullmatch(r"(\d{4})\.(\d{3,6})(v\d+)?", text)
+    if not m:
+        return None                      # not new-style: nothing to say here
+    yymm, num = m.group(1), m.group(2)
+    mm = int(yymm[2:])
+    if not (1 <= mm <= 12):
+        return (f"{s!r} is not an arXiv id: {yymm} has month {yymm[2:]}, "
+                f"and an id's first four digits are YYMM.")
+    if int(yymm) < 704:
+        return (f"{s!r} is not an arXiv id: the YYMM.NNNN scheme starts at "
+                f"0704 (April 2007).")
+    want = 4 if int(yymm) <= 1412 else 5
+    if len(num) != want:
+        era = ("up to 1412 ids have FOUR digits after the dot"
+               if want == 4 else
+               "from 1501 on ids have FIVE digits after the dot")
+        return (f"{s!r} cannot be an arXiv id: {era}, and this has "
+                f"{len(num)}. arXiv would not refuse it — it ZERO-PADS, and "
+                f"serves a different paper. Check the id against its listing.")
+    return None
+
+
 def bare_arxiv_id(s: str) -> Optional[str]:
     """The arXiv id IFF the WHOLE argument is a bare id (optionally `arXiv:`-
     prefixed, with a trailing `.pdf` allowed) — NOT a URL and NOT an id merely
@@ -166,6 +212,8 @@ def bare_arxiv_id(s: str) -> Optional[str]:
     if not s or is_url(s):
         return None
     text = re.sub(r"\.pdf$", "", s.strip(), flags=re.I)
+    if arxiv_id_shape_error(text):
+        return None                      # malformed: refuse, never zero-pad
     m = _BARE_ARXIV.fullmatch(text)
     return m.group(1) if m else None
 
