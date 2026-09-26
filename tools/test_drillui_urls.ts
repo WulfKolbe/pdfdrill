@@ -127,6 +127,41 @@ const htmlSrc = readFileSync(join(HERE, "drillui_term.html"), "utf8");
 ok("html: scanArtifacts uses the Open…in bracket capture",
    htmlSrc.includes('"\\\\bOpen\\\\s+(.+?\\\\." + EXT'));
 
+// --- a lead-in EARLIER on the line must not swallow the words before the path ---
+// "Wrote 216 TiddlyWiki tiddlers to Clutter.pdf.drill/…" anchored on "Wrote" and
+// linked "216 TiddlyWiki tiddlers to Clutter.pdf.drill/…" (a bridge 404). The
+// helper is taken FROM the page, not mirrored, so the two cannot drift.
+const helperSrc = /_leadInCandidates\(path\)\{([\s\S]*?)\n  \},/.exec(htmlSrc);
+ok("html: _leadInCandidates present", !!helperSrc);
+const leadInCandidates = new Function("path", helperSrc ? helperSrc[1] : "return [path];") as
+  (p: string) => string[];
+const drillRe = () => new RegExp(
+  "(?:->|→|\\bto|\\bwrote(?:\\s+to)?|\\bstored(?:\\s+(?:at|in))?)\\s+" +
+  "([^\\n:→]*?\\.drill\\/[^\\n:→]*?\\.(html|svg|pdf|md|json|txt|tex|log))(?!\\.[a-z])(?=[\\s.,;)]|$)", "gi");
+ok("html: rule 1b lead-ins are whole words",
+   htmlSrc.includes('"(?:->|→|\\\\bto|\\\\bwrote(?:\\\\s+to)?|\\\\bstored'));
+const pick = (line: string, exists: (p: string) => boolean) => {
+  const m = drillRe().exec(line)!;
+  const c = leadInCandidates(m[1]);
+  return c.find(exists) ?? c[c.length - 1];
+};
+const clutter = "Wrote 216 TiddlyWiki tiddlers to Clutter.pdf.drill/Clutter.tiddlers.json. Import into TiddlyWiki;";
+ok("Clutter: the path after the LAST lead-in is a candidate",
+   leadInCandidates(drillRe().exec(clutter)![1]).includes("Clutter.pdf.drill/Clutter.tiddlers.json"));
+ok("Clutter: resolves to the file that exists",
+   pick(clutter, p => p === "Clutter.pdf.drill/Clutter.tiddlers.json")
+     === "Clutter.pdf.drill/Clutter.tiddlers.json");
+ok("Clutter: with no bridge answer, falls back to the shortest cut",
+   pick(clutter, () => false) === "Clutter.pdf.drill/Clutter.tiddlers.json");
+const book = "Wrote 12 tiddlers to Introduction to Algebra.pdf.drill/x.tiddlers.json.";
+ok("a title containing ' to ' resolves whole when that file exists",
+   pick(book, p => p === "Introduction to Algebra.pdf.drill/x.tiddlers.json")
+     === "Introduction to Algebra.pdf.drill/x.tiddlers.json");
+ok("no inner lead-in → a single candidate (no probing)",
+   leadInCandidates("my summary.md.drill/my summary.tables.json").length === 1);
+ok("'to' inside a word is not a lead-in",
+   drillRe().exec("see photo x.pdf.drill/a.md") === null);
+
 // --- bridge: recover an UNQUOTED doc path the shell split on spaces/umlauts ----
 import { existsSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";

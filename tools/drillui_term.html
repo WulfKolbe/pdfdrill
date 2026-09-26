@@ -880,10 +880,21 @@ const app = {
     //   path (the "LaTeX → …​.tex" 404) — the engine then re-anchors on the LAST
     //   → before the real path. A local .drill path never contains `:`/`→`;
     //   spaced PDF names still work (they contain neither).
+    // The lead-in that STARTS the match is the earliest one on the line, not
+    // necessarily the one before the path: "Wrote 216 TiddlyWiki tiddlers to
+    // Clutter.pdf.drill/Clutter.tiddlers.json" anchors on "Wrote" and captured
+    // "216 TiddlyWiki tiddlers to Clutter.pdf.drill/…" — a 404. Cutting at the
+    // LAST inner lead-in instead breaks "to Introduction to Algebra.pdf.drill/…",
+    // a real book title. The text cannot decide between them; the file system
+    // can, so every cut is a candidate and the bridge is asked which one exists.
     const drill = new RegExp(
-      "(?:->|→|to|wrote(?:\\s+to)?|stored(?:\\s+(?:at|in))?)\\s+" +
+      "(?:->|→|\\bto|\\bwrote(?:\\s+to)?|\\bstored(?:\\s+(?:at|in))?)\\s+" +
       "([^\\n:→]*?\\.drill\\/[^\\n:→]*?\\." + EXT + ")(?!\\.[a-z])(?=[\\s.,;)]|$)", "gi");
-    while ((m = drill.exec(text)) !== null) add(m[1], m[2]);
+    while ((m = drill.exec(text)) !== null){
+      const cands = this._leadInCandidates(m[1]);
+      if (cands.length === 1) add(m[1], m[2]);
+      else this._addFirstExisting(cands, m[2]);
+    }
     // 2. path-like tokens (no spaces) anywhere in the prose. REQUIRE a directory
     //    component (the `/)+` — at least one slash): pdfdrill's own artifacts are
     //    always folder-qualified (`<stem>/tables.html`, `<pdf>.drill/report.html`
@@ -896,6 +907,41 @@ const app = {
       "(?<![\\w/])((?:[\\w.+~@%-]+\\/)+[\\w.+~@%-]+\\." + EXT + ")\\b(?!\\.[a-z])", "gi");
     while ((m = re.exec(text)) !== null) add(m[1], m[2]);
     if (added) this.renderArtifacts();
+  },
+
+  /* Every reading of a lead-in capture, longest first: the whole capture, then
+     the rest after each inner lead-in word ("… tiddlers to X.pdf.drill/y.json"
+     → "X.pdf.drill/y.json"). Pure, so the test can hold it to the letter. */
+  _leadInCandidates(path){
+    const out = [path];
+    const inner = /(?:^|\s)(?:->|→|to|wrote(?:\s+to)?|stored(?:\s+(?:at|in))?)\s+/gi;
+    let m;
+    while ((m = inner.exec(path)) !== null){
+      const rest = path.slice(m.index + m[0].length);
+      if (rest.includes(".drill/") && !out.includes(rest)) out.push(rest);
+    }
+    return out;
+  },
+
+  /* Ask the bridge which candidate exists and list only that one. A fragment
+     rule 2 already listed (the no-space tail of a spaced name) is dropped once
+     the full path is known. Nothing exists yet → the SHORTEST cut, because
+     pdfdrill's prose puts the path straight after its last "to". */
+  async _addFirstExisting(cands, ext){
+    let pick = cands[cands.length - 1];
+    for (const c of cands){
+      try {
+        const r = await fetch(this.artifactUrl(c), { method: "HEAD" });
+        if (r.ok){ pick = c; break; }
+      } catch (e) { break; }                      // no bridge: keep the fallback
+    }
+    if (this._isInternalArtifact(pick)) return;
+    for (const have of [...this.artifacts.keys()])
+      if (have !== pick && (pick.endsWith("/" + have) || pick.endsWith(" " + have)))
+        this.artifacts.delete(have);
+    if (!this.artifacts.has(pick))
+      this.artifacts.set(pick, { path: pick, ext: ext.toLowerCase() });
+    this.renderArtifacts();
   },
 
   /* 544 — read an INSPECT.txt line by line. Each line is a whole absolute
