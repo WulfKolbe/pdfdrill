@@ -498,15 +498,17 @@ def _do_make(args):
 
 
 def _do_relocate(args):
-    """pdfdrill relocate <pdf|dir> … [--apply] [--library DIR] — migrate legacy
-    scattered drills into the self-contained library layout. Dry-run by default."""
+    """pdfdrill relocate [<pdf|dir> …] [--apply] [--library DIR] [--no-prefix] —
+    bring a library to the canonical layout: scattered drills into
+    `<library>/<stem>/`, then the host into the folder name. Dry-run by default."""
     from .commands import cmd_relocate
 
     apply = "--apply" in args
+    no_prefix = "--no-prefix" in args
     library = None
     rest = []
     i = 0
-    args = [a for a in args if a != "--apply"]
+    args = [a for a in args if a not in ("--apply", "--no-prefix")]
     while i < len(args):
         if args[i] == "--library" and i + 1 < len(args):
             library = args[i + 1]
@@ -514,10 +516,15 @@ def _do_relocate(args):
             continue
         rest.append(args[i])
         i += 1
-    if not rest:
-        from . import config as cfg
-        rest = [str(cfg.library_root())]      # default: scan the library root itself
-    return cmd_relocate(rest, library=library, apply=apply)
+    # NO DEFAULT PATH. This used to fall back to the library root, and a
+    # recursive scan of an already-migrated library offers up 8,460 PDFs that
+    # are not documents — 7,353 of them artifacts inside other docs' folders,
+    # every `report.pdf` among them "relocating" into a single
+    # `<library>/report/` on top of the last; of the rest, 598 sit in
+    # `lstgold/`, which is provenance-recorded and not to be moved at all.
+    # Migration 1 runs where the user points it; with no paths, only
+    # migration 2 (the host prefix), which works on doc folders by name.
+    return cmd_relocate(rest, library=library, apply=apply, no_prefix=no_prefix)
 
 
 def _do_doctor(args):

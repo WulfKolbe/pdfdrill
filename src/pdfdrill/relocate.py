@@ -89,13 +89,40 @@ def apply_relocation(pdf: str | Path, library: str | Path) -> tuple[int, int]:
     return (moved, skipped)
 
 
+def _inside_a_doc_folder(pdf: Path, root: Path) -> bool:
+    """True when `pdf` lies anywhere INSIDE an already-migrated doc folder.
+
+    A migrated folder is full of PDFs that are not documents: `report.pdf`,
+    `evidence-equation.pdf`, `residuals.pdf`, the rendered crops. Judging them
+    one at a time by `parent.name == stem` calls every one of them a legacy
+    scattered drill — and "relocating" them collapses hundreds of different
+    documents' artifacts into a single `<library>/report/`, each overwriting
+    the last. Measured on this library: of 8,460 PDFs whose parent is not named
+    after them, **7,353 are artifacts inside someone else's doc folder** — and
+    `relocate --apply` over the library root would have moved every one.
+
+    The containing folder is the unit, not the file. An ancestor holding
+    `<its own name>.pdf` IS a doc folder, and everything below it is its
+    property.
+    """
+    for anc in pdf.parents:
+        if anc == root or root not in anc.parents:
+            break                                   # at or above the library
+        if (anc / f"{anc.name}.pdf").exists():
+            return True
+    return False
+
+
 def find_docs(root: str | Path) -> list[Path]:
     """Every legacy PDF under `root` that is NOT already self-contained — i.e.
-    PDFs whose parent folder isn't named after them. Recursive."""
+    PDFs whose parent folder isn't named after them AND which do not live
+    inside some other document's folder. Recursive."""
     root = Path(root).resolve()
     out: list[Path] = []
     for pdf in sorted(root.rglob("*.pdf")):
         if pdf.parent.name == pdf.stem:
             continue                                # already migrated
+        if _inside_a_doc_folder(pdf, root):
+            continue                                # an artifact, not a document
         out.append(pdf)
     return out

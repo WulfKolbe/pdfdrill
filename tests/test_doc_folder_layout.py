@@ -252,3 +252,25 @@ def test_an_old_style_id_round_trips_through_the_filename(tmp_path):
     stem = archive_stem("arxiv", "math/0309136")
     assert stem == "arxiv.math_0309136"
     assert archive_ident(stem) == ("arxiv", "math/0309136")
+
+
+def test_find_docs_never_mistakes_an_artifact_for_a_document(tmp_path):
+    """A migrated doc folder is full of PDFs that are not documents — report.pdf,
+    evidence-*.pdf, residuals.pdf. Called legacy drills, they all "relocate"
+    into one <library>/report/ and overwrite each other. Measured: 400+ of them
+    in this library the day the documented default (no paths = the library root)
+    was wired up."""
+    from pdfdrill import relocate as R
+    lib = tmp_path
+    doc = lib / "2510.04618"
+    (doc / "inspect").mkdir(parents=True)
+    (doc / "2510.04618.pdf").write_bytes(b"%PDF")          # the document
+    (doc / "report.pdf").write_bytes(b"%PDF")              # an artifact
+    (doc / "evidence-equation.pdf").write_bytes(b"%PDF")   # an artifact
+    (doc / "inspect" / "residuals.pdf").write_bytes(b"%PDF")
+    legacy = lib / "loose" / "paper.pdf"                   # a real legacy drill
+    legacy.parent.mkdir()
+    legacy.write_bytes(b"%PDF")
+
+    found = R.find_docs(lib)
+    assert found == [legacy.resolve()]

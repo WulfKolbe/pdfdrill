@@ -56,15 +56,21 @@ commands:
   typed: true
 - name: relocate
   section: Introspection (fast, no extraction)
-  summary: 'Migrate legacy scattered drills into the self-contained library layout: <library>/<stem>/
-    holding the PDF + every X.* sibling + the flattened X.pdf.drill/ blobs (X.pdf.drill.json → X.drill.json).
-    Dry-run by default; --apply moves. Collision-safe + idempotent.'
+  summary: 'Bring a library to the canonical layout, in two migrations. (1) scattered → folder:
+    <library>/<stem>/ holding the PDF + every X.* sibling + the flattened X.pdf.drill/ blobs
+    (X.pdf.drill.json → X.drill.json). (2) id → host.id: <library>/1702.0234/ becomes
+    vixra.1702.0234/, the files inside renamed with it and pdfdrill-downloads.json repointed —
+    a bare id names a viXra e-print and a pre-2015 arXiv paper equally well (805/806). The archive
+    comes from the id SHAPE first (arithmetic), then the download URL, then the sidecar last
+    (it is derived, and nine sidecars here name the wrong archive); unprovable ids are skipped,
+    never guessed. --no-prefix runs only (1). Dry-run by default; --apply moves.
+    Collision-safe + idempotent.'
   offline_ok: true
   positionals:
   - name: paths
     type: str
     required: false
-    help: PDF(s) and/or dir(s) to scan for legacy drills (default the library root)
+    help: PDF(s) and/or dir(s) to scan for legacy drills (with none, only migration 2 runs)
   flags:
   - name: apply
     flag: --apply
@@ -74,6 +80,10 @@ commands:
     flag: --library
     type: flag
     help: target library root (default config library_root)
+  - name: no_prefix
+    flag: --no-prefix
+    type: flag
+    help: skip migration (2) — leave folder names as bare ids
   typed: true
 - name: artifacts
   section: Introspection (fast, no extraction)

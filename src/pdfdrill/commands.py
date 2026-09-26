@@ -1764,20 +1764,38 @@ def cmd_config(action: str = "show", value: str | None = None) -> str:
     ])
 
 
-def cmd_relocate(paths, library=None, apply=False) -> str:
-    """Migrate legacy scattered drills into the self-contained library layout —
-    `<library>/<stem>/` holding the PDF + every `X.*` sibling + the flattened
-    `X.pdf.drill/` blobs, with `X.pdf.drill.json` renamed `X.drill.json`.
+def cmd_relocate(paths, library=None, apply=False, no_prefix=False) -> str:
+    """Bring a library to the canonical layout, in two migrations:
+
+    1. **scattered → folder** — `<library>/<stem>/` holding the PDF + every
+       `X.*` sibling + the flattened `X.pdf.drill/` blobs, with
+       `X.pdf.drill.json` renamed `X.drill.json`.
+    2. **id → host.id** — `<library>/1702.0234/` → `<library>/vixra.1702.0234/`,
+       the files inside renamed with it and the download registry repointed.
+       A bare id names a viXra e-print and a pre-2015 arXiv paper equally well;
+       fourteen folders here were viXra while looking like arXiv (805) and one
+       got cited as the wrong archive's paper (806). `--no-prefix` skips it.
 
     `paths` may be individual PDFs and/or directories (scanned recursively for
-    legacy PDFs). Dry-run by default — prints the plan; pass `apply=True` to move.
-    Collision-safe (never overwrites) and idempotent (already-migrated docs are
-    skipped). See docs/superpowers/specs/2026-07-14-self-contained-doc-folders.md.
+    legacy PDFs); with none, only migration 2 runs. Dry-run by default —
+    prints the plan; pass `apply=True` to move. Collision-safe (never
+    overwrites) and idempotent (a migrated doc is skipped). See
+    docs/superpowers/specs/2026-07-14-self-contained-doc-folders.md.
     """
     from . import config as cfg
     from . import relocate as R
     lib = Path(library).expanduser() if library else cfg.library_root()
 
+    # NO DEFAULT PATH, deliberately. The help once promised "default the library
+    # root" and the code never did it; wiring it up showed why. The library root
+    # is ALREADY migrated, and a recursive scan of it offers up 8,460 PDFs that
+    # are not documents: 7,353 artifacts inside other docs' folders (each
+    # folder's own `report.pdf`, `evidence-*.pdf`, `residuals.pdf` — all
+    # "relocating" into one `<library>/report/` on top of each other), and of
+    # the 1,107 left, 598 in `lstgold/` (provenance-recorded, not to be
+    # redistributed, let alone moved), the datikz fixtures and `out/`.
+    # Phase 1 runs where the user points it; with no paths only phase 2,
+    # which works on doc folders by name and cannot touch anything else.
     pdfs: list[Path] = []
     for raw in (paths or []):
         p = Path(raw).expanduser()
@@ -1790,12 +1808,12 @@ def cmd_relocate(paths, library=None, apply=False) -> str:
     seen: set = set()
     pdfs = [p for p in pdfs if not (p in seen or seen.add(p))]
 
-    if not pdfs:
-        return (f"No legacy scattered drills to relocate (library: {lib}).\n"
-                "A doc is 'migrated' when it lives at <library>/<stem>/<stem>.pdf.")
-
     lines = [f"{'RELOCATE' if apply else 'PLAN (dry-run — pass --apply to move)'} "
              f"→ library: {lib}", ""]
+    if not pdfs:
+        lines.append("No scattered drills named — migration 1 skipped. "
+                     "(Point it at a directory to scan: `relocate <dir>`.)")
+        lines.append("")
     tot_moved = tot_skipped = 0
     for pdf in pdfs:
         plan = R.plan_relocation(pdf, lib)
@@ -1810,16 +1828,99 @@ def cmd_relocate(paths, library=None, apply=False) -> str:
             note = f"    moved {moved}" + (f", skipped {skipped} (already present)"
                                            if skipped else "")
             lines.append(note)
-    lines.append("")
+    if pdfs:
+        lines.append("")
+        if apply:
+            lines.append(f"Done: {len(pdfs)} doc(s), {tot_moved} files moved"
+                         + (f", {tot_skipped} skipped." if tot_skipped else "."))
+        else:
+            lines.append(f"{len(pdfs)} doc(s) would be relocated. "
+                         "Re-run with `--apply` to move them.")
+
+    if not no_prefix:
+        lines.extend(_host_prefix_migration(lib, apply))
     if apply:
-        lines.append(f"Done: {len(pdfs)} doc(s), {tot_moved} files moved"
-                     + (f", {tot_skipped} skipped." if tot_skipped else "."))
         lines.append("Tip: set `library_root` in your config so new downloads land "
                      "here too — `pdfdrill config --library-root <dir>`.")
-    else:
-        lines.append(f"{len(pdfs)} doc(s) would be relocated. "
-                     "Re-run with `--apply` to move them.")
     return "\n".join(lines)
+
+
+def _host_prefix_migration(lib: Path, apply: bool) -> list:
+    """`relocate` phase 2 — the host into the folder name. See archive_rename."""
+    from . import archive_rename as AR
+    from . import download_registry as DR
+
+    folders = AR.find_folders(lib)
+    if not folders:
+        return ["", "Host prefix: every archive folder already names its host."]
+
+    registry = DR.load(lib)
+    plans = [pl for pl in (AR.plan_rename(f, registry) for f in folders) if pl]
+    renames = [pl for pl in plans if isinstance(pl, AR.Rename)]
+    skips = [pl for pl in plans if isinstance(pl, AR.Skip)]
+    clashing = [pl for pl in renames if not pl.ok]
+    doable = [pl for pl in renames if pl.ok]
+
+    by_kind: dict = {}
+    for pl in doable:
+        by_kind.setdefault(pl.kind, []).append(pl)
+    out = ["", f"HOST PREFIX — {len(doable)} folder(s) to rename "
+               + ", ".join(f"{k}: {len(v)}" for k, v in sorted(by_kind.items()))]
+    for pl in doable[:8]:
+        out.append(f"  • {pl.stem}/  →  {pl.new_stem}/   "
+                   f"({len(pl.moves)} file(s), via {pl.via})")
+    if len(doable) > 8:
+        out.append(f"  … and {len(doable) - 8} more")
+
+    disagree = [pl for pl in doable if pl.bibtex_disagrees]
+    if disagree:
+        out.append("")
+        out.append(f"  {len(disagree)} of these carry a sidecar bibtex naming the "
+                   "OTHER archive (the 806 defect, written before it was fixed).")
+        out.append("  The shape decides — it is arithmetic about the id space — "
+                   "and the entry is wrong, not the name:")
+        for pl in disagree[:5]:
+            out.append(f"    {pl.new_stem}  (bibtex says the other archive) "
+                       f"— fix with `pdfdrill bibtex {pl.new_stem} --force`")
+        if len(disagree) > 5:
+            out.append(f"    … and {len(disagree) - 5} more")
+
+    if skips:
+        out.append("")
+        out.append(f"  {len(skips)} SKIPPED — archive not provable, never guessed:")
+        for pl in skips[:10]:
+            out.append(f"    {pl.stem}/  — {pl.reason}")
+    if clashing:
+        out.append("")
+        out.append(f"  {len(clashing)} REFUSED — the target name is taken; "
+                   "nothing moves for these:")
+        for pl in clashing[:10]:
+            out.append(f"    {pl.stem}/  →  {pl.new_stem}/  "
+                       f"(exists: {pl.collisions[0]})")
+
+    if not apply:
+        out.append("")
+        out.append("  Dry run — re-run with `--apply` to rename.")
+        return out
+
+    moved = renamed = 0
+    for pl in doable:
+        try:
+            moved += AR.apply_rename(pl)
+            renamed += 1
+        except OSError as exc:
+            out.append(f"    ! {pl.stem}: {exc}")
+    touched = AR.rewrite_registry(registry, doable)
+    if touched:
+        DR.save(lib, registry)
+    out.append("")
+    out.append(f"  Renamed {renamed} folder(s), {moved} file(s); "
+               f"{touched} download-registry entr(ies) repointed.")
+    if renamed:
+        out.append("  A built model still carries the OLD bibkey inside it — "
+                   "`pdfdrill model <doc> --force` refreshes it when you next "
+                   "need a projection.")
+    return out
 
 
 _ARTIFACT_EXTS = (".html", ".htm", ".json", ".md", ".svg", ".pdf", ".txt",
