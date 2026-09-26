@@ -12636,23 +12636,46 @@ def _rebuild_tiddlers_for_translation(pdf: Path, sc, key: str, tid_path: Path,
                      and model_path.stat().st_mtime > tid_path.stat().st_mtime))
     except OSError:
         stale = True
-    if not (model_changed or stale or force):
-        return                                   # keep the translated file as is
     remembered = tm.load(sc.blob_dir, key)
+    if not (model_changed or stale or force):
+        # 815 — REAPPLY EVEN WHEN NO REBUILD IS NEEDED. This used to return
+        # here, and that is exactly the state `cmd_tiddlers` leaves behind: it
+        # rewrites the file from the model, so the file is NEWER than the model
+        # (`stale` False) and nothing changed (`model_changed` 0) — while the
+        # prose has just reverted to the source language, because the TiddlyWiki
+        # projector rebuilds it from the immutable line stream. So `tiddlers`
+        # told the user to "re-run `pdfdrill translate` to restore it", and
+        # re-running returned here without restoring anything. A closed loop
+        # whose advice could not work.
+        _reapply_from_memory(tid_path, remembered)
+        return
     cmd_tiddlers(pdf, force=True)
     if not remembered:
         return
     # 786 — a rebuild wipes the tiddler-level translation. Put it back from the
     # memory instead of buying it again; a tiddler whose prose no longer hashes
     # to what was translated is left alone rather than overwritten.
+    _reapply_from_memory(tid_path, remembered)
+
+
+def _reapply_from_memory(tid_path: Path, remembered) -> int:
+    """Put the remembered translations back into the tiddler file. Never fatal.
+
+    A tiddler whose prose no longer hashes to what was translated is left alone
+    rather than overwritten.
+    """
+    if not remembered:
+        return 0
+    from . import translation_memory as tm
     try:
         tiddlers = json.loads(tid_path.read_text(encoding="utf-8"))
         applied, _stale = tm.reapply(tiddlers, remembered, _tiddler_field_for)
         if applied:
             tid_path.write_text(json.dumps(tiddlers, ensure_ascii=False),
                                 encoding="utf-8")
+        return applied
     except (OSError, json.JSONDecodeError, TypeError):
-        pass
+        return 0
 
 
 @_writes("translate")
@@ -12679,6 +12702,14 @@ def cmd_translate(pdf: Path, target_lang: str = "EN-US",
 
     sc = Sidecar(pdf)
     key = resolve_bibkey(pdf, None, sc)
+    # 815 — CHECK THE LANGUAGES FIRST. `--from CN` (DeepL's Chinese code is ZH)
+    # used to reach DeepL, come back 400, have its error message discarded by the
+    # client, and be reported as a successful translation with every string
+    # unchanged. Refusing here costs nothing and cannot be mistaken for success.
+    for code, is_target in ((target_lang, True), (source_lang, False)):
+        why = deepl_client.check_lang(code or "", target=is_target)
+        if why:
+            return why
     if not deepl_client.available():
         return ("DeepL unavailable: set DEEPL_API_KEY in the environment or .env "
                 "(https://www.deepl.com/your-account/keys), then rerun "
@@ -12700,6 +12731,8 @@ def cmd_translate(pdf: Path, target_lang: str = "EN-US",
             doc, deepl_client.translate_batch, target_lang, source_lang, limit, force)
     except NetworkBlocked as e:
         return str(e)
+    except deepl_client.DeepLError as e:
+        return f"{e}\nNothing was translated and nothing was written."
 
     # Persist the translated model in place (only if it changed), then re-project.
     if changed:
@@ -12734,16 +12767,33 @@ def cmd_translate(pdf: Path, target_lang: str = "EN-US",
             tid_path, deepl_client.translate_batch, target_lang, source_lang, force)
     except NetworkBlocked as e:
         return str(e)
+    except deepl_client.DeepLError as e:
+        return (f"{e}\nThe model was translated ({changed} object(s)) but the "
+                f"tiddler file was not.")
     # Whatever the file now holds — reapplied or freshly bought — is written
     # somewhere a rebuild cannot reach, so the next `tiddlers` run costs nothing.
     _store_tiddler_translations(sc, key, tid_path, target_lang, source_lang)
 
+    # 815 — THE BI-LAYER GETS ITS OWN NAME, and no longer overwrites the
+    # canonical Markdown.
+    #
+    # This wrote `LLMCompactProjector` output straight to `<bibkey>.md` with a
+    # bare `write_text`, which is wrong twice over. FORMAT: llm_compact is the
+    # token-economical LLM form — it drops images and tables and ends with an
+    # appendix of every inline formula and display equation (`**F58** (1x):`,
+    # `### Display equations`), the body referring INTO that appendix. Measured
+    # on 60cfff3d1e0c8: 0 images, 0 tables, 63 F-entries, 8 E-entries. A reader
+    # asked for Markdown and got an LLM prompt. BOOKKEEPING: `_write_md` is the
+    # documented single writer for `<bibkey>.md` — it sets the `md` layer
+    # (`words`, `source`, `built_at`) and MD_BUILT, and `fetch`/`toc`/`abstract`/
+    # `render` all read through it. Bypassing it left the layer describing a
+    # file that no longer existed as described.
     projector = LLMCompactProjector(OperatorConfig(
         op="projector", classname="LLMCompactProjector",
         params={"bilayer": True, "source_lang": (source_lang or "").upper(),
                 "target_lang": target_lang.upper()}))
     md_text = projector.project(doc)
-    md_path = sc.blob_dir / f"{key}.md"
+    md_path = sc.blob_dir / f"{key}.bilayer.md"
     md_path.write_text(md_text, encoding="utf-8")
 
     sc.set_evidence("translated_lang", target_lang.upper())
@@ -12758,12 +12808,26 @@ def cmd_translate(pdf: Path, target_lang: str = "EN-US",
     sc.save()
     tid_rel = tid_path.relative_to(sc.pdf_path.parent)
     md_rel = md_path.relative_to(sc.pdf_path.parent)
-    return (f"Translated to {target_lang.upper()} via DeepL (in place; original kept "
-            f"under <field>_source).\n"
+    # 815 — SAY WHICH IT WAS. The old wording announced "Translated to EN-US via
+    # DeepL" whatever happened, including a run that translated nothing and made
+    # no paid call, which is what the user saw twice in a row while chasing a
+    # wrong language code. A count of zero is not a translation.
+    if not (changed or tid_changed):
+        return (f"Nothing to translate for {pdf.name} — every prose object and "
+                f"tiddler already carries a `<field>_source` backup for "
+                f"{target_lang.upper()}. No DeepL call was made, nothing was "
+                f"charged, and no file changed.\n"
+                f"  `--force` re-translates at full price; "
+                f"`pdfdrill fetch {pdf.name} md` reads what is already there.")
+    head = (f"Translated to {target_lang.upper()} via DeepL (in place; original "
+            f"kept under <field>_source).")
+    return (f"{head}\n"
+            f"  • model: {changed} prose object(s)\n"
             f"  • tiddlers: {tid_rel} — {tid_changed} tiddler(s), translated text in "
             f"the `text` field\n"
-            f"  • markdown: {md_rel} — {changed} object(s), bi-layer (translation + "
-            f"hidden source, CSS/JS toggle)")
+            f"  • bi-layer: {md_rel} — translation + hidden source (CSS/JS toggle). "
+            f"This is the LLM-compact form: no images, no tables, an appendix of "
+            f"every formula. The canonical Markdown `{key}.md` is NOT overwritten.")
 
 
 # ---------------------------------------------------------------------------

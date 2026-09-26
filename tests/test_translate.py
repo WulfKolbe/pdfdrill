@@ -39,13 +39,32 @@ def test_translate_batch_order_and_empty_passthrough(monkeypatch):
     assert out == ["Good morning.", "", "The result."]
 
 
-def test_translate_batch_http_error_returns_originals(monkeypatch):
+def test_translate_batch_http_error_raises_with_deepls_message(monkeypatch):
+    """815 — THIS CONTRACT WAS REVERSED, deliberately.
+
+    It used to assert that an HTTPError returns the ORIGINAL texts, "graceful"
+    so a batch never aborts. Graceful is the wrong word for it: the caller
+    cannot distinguish a refused paid request from a translated one, so
+    `translate --from CN` (DeepL's Chinese code is ZH) got a 400, every string
+    came back unchanged, and the command printed "Translated to EN-US via
+    DeepL" — twice. The handler even read DeepL's own error message into a local
+    variable and dropped it.
+
+    Nothing is lost by raising: a request DeepL refuses translates nothing and
+    is charged for nothing, and the caller decides what to do. Note the failure
+    in `test_translate_is_not_fooled_by_a_materialised_source_field` below — 95
+    of 105 paragraphs left German while the command reported success — is the
+    same class, and invisible failure is what both have in common.
+    """
     monkeypatch.setattr(deepl_client, "get", lambda *a, **k: "KEY")
     def boom(req, timeout=None, host=None):
         raise urllib.error.HTTPError("u", 456, "Quota", {}, io.BytesIO(b"quota exceeded"))
     monkeypatch.setattr(net, "urlopen", boom)
-    src = ["Hallo", "Welt"]
-    assert deepl_client.translate_batch(src, "EN-US", "DE") == src   # graceful
+    try:
+        deepl_client.translate_batch(["Hallo", "Welt"], "EN-US", "DE")
+        assert False, "a refused request must not look like a translated one"
+    except deepl_client.DeepLError as e:
+        assert "456" in str(e) and "quota exceeded" in str(e)
 
 
 def test_translate_batch_networkblocked_propagates(monkeypatch):
@@ -130,7 +149,7 @@ if __name__ == "__main__":
             for o, n, v in reversed(self._u): setattr(o, n, v)
             self._u = []
     fns = [test_translate_batch_order_and_empty_passthrough,
-           test_translate_batch_http_error_returns_originals,
+           test_translate_batch_http_error_raises_with_deepls_message,
            test_translate_batch_networkblocked_propagates,
            test_field_mapping, test_translate_model_prose_inplace,
            test_translate_tiddler_file_inplace]
