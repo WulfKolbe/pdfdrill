@@ -79,7 +79,7 @@ _DEFAULT_PREAMBLE = (
     # amsmath/symb/fonts + bm (\bm), mathtools, xcolor/url (leaked commands),
     # booktabs/multirow (tables) — the packages a projected paper commonly needs.
     "\\usepackage{amsmath,amssymb,amsfonts,mathtools,bm}\n"
-    "\\usepackage{graphicx,booktabs,multirow,xcolor,url,hyperref}\n"
+    "\\usepackage{graphicx,booktabs,multirow,longtable,xcolor,url,hyperref}\n"
     # 781m — `listings`, for the CodeListing branch. Declared here rather
     # than conditionally: a listing that reaches the .tex without its
     # package does not render badly, it FAILS TO COMPILE, and the preamble
@@ -99,6 +99,50 @@ def _escape_text(s: str) -> str:
     s = re.sub(r"(?<!\\)_", r"\\_", s)
     s = re.sub(r"(?<!\\)~", r"\\textasciitilde{}", s)
     return s
+
+
+#: A LaTeX environment inside a table cell. Measured: 2,107 of 555,053 corpus
+#: cells (0.38%) carry one — usually `lstlisting`, which cannot appear in a
+#: tabular cell at all without an `lrbox` (MathPix wraps them exactly so).
+_CELL_ENV = re.compile(r"\\begin\{([A-Za-z*]+)\}(.*?)\\end\{\1\}", re.S)
+
+
+def _cell_tex(text: str) -> str:
+    r"""One table cell's LaTeX.
+
+    Three things a cell must survive, each measured over 555,053 corpus cells:
+
+    * MATHEMATICS — 24.5% of cells contain `\(…\)` or `$…$`. `_escape_text`
+      leaves `$ \ { } ^` alone for exactly this reason, so the maths passes
+      through and the specials that would break a tabular (`& % # _ ~`) do not.
+    * A BARE `&` — 0.32% of cells. Unescaped it is a column separator, so the
+      row silently gains a column and the table stops compiling. `_escape_text`
+      escapes it.
+    * A `\\` — 0.37% of cells. Inside a cell it is a ROW break, so one cell
+      would split the row in two. It becomes a space: a line break inside a cell
+      needs a `p{}` column and `\newline`, and guessing which cell wanted one is
+      how a table gains rows the document does not have.
+
+    An ENVIRONMENT (0.38%) is unwrapped to its contents. `lstlisting` in a
+    tabular cell requires an `lrbox` saved before the table begins — real, and
+    not this change: unwrapping keeps the words, which beats losing the cell or
+    failing the compile.
+    """
+    t = (text or "").strip()
+    if not t:
+        return ""
+    t = _CELL_ENV.sub(lambda m: m.group(2).strip(), t)
+    # A MARKDOWN IMAGE is not LaTeX. MathPix writes `![](https://cdn.mathpix
+    # .com/…)` inside a cell's text, and that CDN is retired — so emitting it as
+    # `\includegraphics` would name a URL xelatex cannot fetch and fail the whole
+    # compile, while leaving it verbatim prints the URL as prose. The words
+    # around it are kept; the link is dropped, and the image is still in the
+    # document as the Table's own crop.
+    t = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", t)
+    t = _escape_text(t)
+    t = re.sub(r"\\\\", " ", t)                  # a row break inside a cell
+    t = re.sub(r"\s*\n\s*", " ", t)
+    return _balance_braces(t.strip())
 
 
 def _balance_braces(s: str) -> str:
@@ -689,6 +733,211 @@ class LaTeXProjector(BaseProjector):
             "PARA": block, "ABS": block, "PROOF": block, "TOC": block,
         }
 
+    # ---------------------------------------------------------------- tables
+    #: Above this many rows a `tabular` cannot be set: it does not break across
+    #: pages, so the rows past the bottom margin are simply lost. Measured over
+    #: 300 corpus models: 1,442 of 6,844 gridded tables (21%) exceed it, the
+    #: largest having 211 rows. Those become `longtable`, which breaks and can
+    #: repeat its header.
+    _LONG_ROWS = 30
+
+    #: Above this many columns, equal `p{}` shares beat `l`: `l` columns are as
+    #: wide as their widest cell and 27 of them (the corpus maximum) run off the
+    #: page with nothing to wrap. 1,326 of 6,844 tables (19%) exceed it.
+    _WIDE_COLS = 6
+
+    #: A column whose longest cell exceeds this is set as `p{}` so its text
+    #: wraps. Cell text is median 8 characters and p90 48, so this affects the
+    #: long tail rather than the common case.
+    _WRAP_CHARS = 60
+
+    def _tabular(self, obj) -> str:
+        r"""A real table from the object's `cells` GRID, or "" when it has none.
+
+        819 — the gap this closes: 94% of Table objects carry no `latex_code`,
+        and those became `\begin{verbatim}`. A verbatim block cannot be
+        `\ref`ed, its columns are whitespace, and its 24.5%-of-cells worth of
+        mathematics is printed as literal source.
+
+        Better LaTeX than the input, deliberately, and these are the three ways:
+        `booktabs` rules rather than `|l|l|` (vertical rules are what MathPix
+        emits and what booktabs exists to discourage); a `\caption` AND a
+        `\label`, so the table can be referenced — MathPix's own .tex has zero
+        `\label` in it; and `longtable` for a table taller than a page, which
+        `tabular` silently truncates.
+        """
+        p = obj.props or {}
+        cells = p.get("cells")
+        if not isinstance(cells, list) or not cells:
+            return ""
+        grid, spans = self._grid(cells, p)
+        if not grid:
+            return ""
+        n_cols = len(grid[0])
+        rows = self._rows_tex(grid, spans, n_cols)
+        if not rows:
+            return ""
+        # 819 — THE COLUMN COUNT COMES FROM THE ROWS, not from `n_cols`. A row
+        # whose spans sum to MORE than the declared width is fatal: xelatex
+        # answers "Extra alignment tab has been changed to \cr" and the whole
+        # document stops, not just the table. Measured over 6,326 gridded
+        # corpus tables, 74 (1.2%) had a row disagreeing with `n_cols` —
+        # `1511.08771` has one summing to 9 where the props say 1. Widening the
+        # spec to the widest row makes an over-full row impossible by
+        # construction; an UNDER-full row is legal LaTeX (the trailing cells are
+        # simply empty), so nothing has to be invented to pad it.
+        widest = max((self._row_width(r) for r in rows), default=n_cols)
+        if widest > n_cols:
+            # The grid's own rows are only `len(grid[0])` wide, so widening the
+            # count without widening the ROWS made `_colspec` index past the end
+            # — IndexError on 1511.08771, found by projecting all 6,326 gridded
+            # corpus tables rather than by reading.
+            for row in grid:
+                row.extend([None] * (widest - len(row)))
+            n_cols = widest
+        spec = self._colspec(grid, n_cols)
+        # Last line of defence: a table that would not compile must not be
+        # emitted at all. The `raw_text` verbatim dump is worse output and a
+        # document that builds, and the caller falls back to it.
+        if not self._sound(rows, n_cols):
+            return ""
+        cap = _escape_text((p.get("caption") or "").strip())
+        lab = self._figure_label(obj)
+        long = len(grid) > self._LONG_ROWS
+        head, body = rows[0], rows[1:]
+
+        if long:
+            # A longtable IS the float — it must not be wrapped in `table`, and
+            # its caption goes inside. `\endhead` repeats the header on every
+            # page after the first, which is the reason to prefer it.
+            out = [f"\\begin{{longtable}}{{{spec}}}"]
+            if cap:
+                out.append(f"  \\caption{{{cap}}}\\label{{{lab}}}\\\\")
+            out += ["  \\toprule", f"  {head} \\\\", "  \\midrule",
+                    "  \\endfirsthead", "  \\toprule", f"  {head} \\\\",
+                    "  \\midrule", "  \\endhead", "  \\bottomrule",
+                    "  \\endfoot"]
+            out += [f"  {r} \\\\" for r in body]
+            out.append("\\end{longtable}")
+            return "\n".join(out)
+
+        out = ["\\begin{table}[htbp]", "  \\centering"]
+        if cap:
+            out.append(f"  \\caption{{{cap}}}")
+        # A `\label` with no `\caption` refers to whatever counter last stepped
+        # (the same rule `_figure_env` follows), so it only goes where one is.
+        if cap:
+            out.append(f"  \\label{{{lab}}}")
+        out += [f"  \\begin{{tabular}}{{{spec}}}", "    \\toprule",
+                f"    {head} \\\\", "    \\midrule"]
+        out += [f"    {r} \\\\" for r in body]
+        out += ["    \\bottomrule", "  \\end{tabular}", "\\end{table}"]
+        return "\n".join(out)
+
+    @staticmethod
+    def _row_width(row_tex: str) -> int:
+        r"""Columns a rendered row accounts for; a `\multicolumn{k}` counts k."""
+        w = 0
+        for entry in re.split(r"(?<!\\)&", row_tex):
+            m = re.search(r"\\multicolumn\{(\d+)\}", entry)
+            w += int(m.group(1)) if m else 1
+        return w
+
+    def _sound(self, rows: list, n_cols: int) -> bool:
+        r"""Would this compile? Over-full rows and stray braces say no.
+
+        Checked rather than assumed, because the cost of being wrong is not a
+        bad table — it is `Emergency stop` and a document with no PDF at all.
+        """
+        for r in rows:
+            if self._row_width(r) > n_cols:
+                return False
+        blob = "".join(rows)
+        return blob.count("{") == blob.count("}")
+
+    @staticmethod
+    def _grid(cells: list, props: dict):
+        """(grid of cell text, {(row, col): (row_span, col_span)}).
+
+        A position covered by a span holds None, so `_rows_tex` can tell "empty
+        cell" from "not a cell at all" — writing the spanned text again would
+        state a value the table does not have.
+        """
+        n_rows = int(props.get("n_rows") or 0)
+        n_cols = int(props.get("n_cols") or 0)
+        for c in cells:
+            if isinstance(c, dict):
+                n_rows = max(n_rows, int(c.get("row") or 0) + 1)
+                n_cols = max(n_cols, int(c.get("col") or 0) + 1)
+        if not (n_rows and n_cols):
+            return [], {}
+        grid = [[None] * n_cols for _ in range(n_rows)]
+        spans: dict = {}
+        for c in cells:
+            if not isinstance(c, dict):
+                continue
+            r, k = int(c.get("row") or 0), int(c.get("col") or 0)
+            if not (0 <= r < n_rows and 0 <= k < n_cols):
+                continue
+            rs = max(1, int(c.get("row_span") or 1))
+            ks = max(1, int(c.get("col_span") or 1))
+            grid[r][k] = _cell_tex(str(c.get("text") or ""))
+            if rs > 1 or ks > 1:
+                spans[(r, k)] = (rs, ks)
+        return grid, spans
+
+    def _colspec(self, grid: list, n_cols: int) -> str:
+        r"""The column specification: `l` for a short column, `p{}` for a long
+        one, equal `p{}` shares once there are more columns than fit.
+
+        No vertical rules: `booktabs` is loaded and they are what it exists to
+        discourage — and they are what MathPix emits (`|l|l|`).
+        """
+        if n_cols > self._WIDE_COLS:
+            share = (r"\dimexpr(\linewidth-%d\tabcolsep)/%d\relax"
+                     % (2 * n_cols, n_cols))
+            return "".join(f"p{{{share}}}" for _ in range(n_cols))
+        out = []
+        for k in range(n_cols):
+            widest = max((len(row[k] or "") for row in grid), default=0)
+            out.append("p{0.35\\linewidth}" if widest > self._WRAP_CHARS else "l")
+        return "".join(out)
+
+    def _rows_tex(self, grid: list, spans: dict, n_cols: int) -> list:
+        r"""One `&`-joined string per row, with `\multicolumn` / `\multirow`."""
+        covered: set = set()
+        for (r, k), (rs, ks) in spans.items():
+            for dr in range(rs):
+                for dk in range(ks):
+                    if (dr or dk):
+                        covered.add((r + dr, k + dk))
+        out = []
+        for r, row in enumerate(grid):
+            parts = []
+            k = 0
+            while k < n_cols:
+                if (r, k) in covered:
+                    # A column covered by a `\multicolumn` to its left is not
+                    # written at all; one covered by a `\multirow` above still
+                    # needs its `&`, so an empty cell is emitted.
+                    if any((r, k) in covered and (rr, k) in spans
+                           and spans[(rr, k)][0] > 1 for rr in range(r)):
+                        parts.append("")
+                        k += 1
+                        continue
+                    k += 1
+                    continue
+                txt = row[k] or ""
+                rs, ks = spans.get((r, k), (1, 1))
+                if ks > 1:
+                    txt = f"\\multicolumn{{{ks}}}{{l}}{{{txt}}}"
+                if rs > 1:
+                    txt = f"\\multirow{{{rs}}}{{*}}{{{txt}}}"
+                parts.append(txt)
+                k += 1
+            out.append(" & ".join(parts))
+        return out
+
     def _figure_env(self, obj, cap: str) -> str:
         """A real `figure` environment — graphic, caption, label.
 
@@ -1001,6 +1250,15 @@ class LaTeXProjector(BaseProjector):
                 # a tabular can carry `\citep{…}` (undefined here) — normalise to
                 # `\cite`; keep the table's own `&`/`\\` untouched.
                 return _pipe.normalize_cite_commands(code)
+            # 819 — BUILD THE TABLE FROM ITS GRID. Only 438 of 7,323 Table
+            # objects carry `latex_code`; the other 6,848 (94%) fell to the
+            # `verbatim` dump below, which is why MathPix's own .tex emits 3
+            # `tabular` on 1-s2.0-S2590118425000565-main and ours emitted 0.
+            # A verbatim block is not a table: it cannot be referenced, its
+            # columns are whitespace, and its mathematics is literal source.
+            built = self._tabular(obj)
+            if built:
+                return built
             raw = (p.get("raw_text") or "").strip()
             return f"% table p{p.get('page')}\n\\begin{{verbatim}}\n{raw}\n\\end{{verbatim}}" if raw else ""
         if t == "CodeListing":

@@ -215,3 +215,64 @@ the `\\`-separated author block with it.
 by offset, so a translated model prop never reaches it — same offset model as
 the ListItem-transclusion item in `docs/HANDOVER.md`) and F7
 (`_TRANSLATE_FIELD` vs `_TRANSLATE_MODEL_FIELD`, no `listitem`).
+
+---
+
+## 819 — the LaTeX table gap, closed
+
+The gap 818 measured: MathPix's own `.tex` emits 3 `\begin{tabular}` on
+1-s2.0-S2590118425000565-main and ours emitted **0**, with 3 `\begin{verbatim}`
+instead. Cause: `latex.py`'s Table branch emits `props["latex_code"]` when
+present and dumps `raw_text` into `verbatim` otherwise — and only **438 of 7,323**
+Table objects carry `latex_code`. The other **6,848 (94%)** were verbatim dumps.
+A verbatim block cannot be `\ref`ed, its columns are whitespace, and its
+mathematics prints as literal source.
+
+Tables are now built from the Table's `cells` grid — the same grid the Markdown
+projector reads (816). Measured over 6,326 gridded corpus tables:
+
+| | |
+|---|---|
+| projected to a real table | 6,324 |
+| `longtable` (>30 rows, a `tabular` cannot break a page) | 1,427 |
+| equal `p{}` shares (>6 columns) | 1,213 |
+| carrying `\multicolumn` / `\multirow` | 2,273 |
+| refused → falls back to verbatim | **2** |
+| fatal (over-full row or crash) | **0** |
+
+On the reported document: 3 `tabular`, 0 `verbatim`, and it **compiles**
+(xelatex, 2 passes, PDF produced).
+
+Better LaTeX than the input, in three specific ways: `booktabs` rules instead of
+the `|l|l|` MathPix emits (vertical rules are what booktabs exists to
+discourage); a `\caption` **and** a `\label`, so a table can be referenced —
+MathPix's `.tex` has zero `\label` in it; and `longtable` for the 21% of tables
+taller than a page, which `tabular` silently truncates.
+
+### Two things the corpus run found that reading did not
+
+- **An over-full row is fatal, and 74 tables had one.** A row whose spans sum to
+  more than the declared width gives `Extra alignment tab has been changed to
+  \cr` — which stops the whole document, not the table. `n_cols` now comes from
+  the widest ROW rather than from `props` (`1511.08771` has a row summing to 9
+  where its props say 1). An under-full row is left alone: that is legal LaTeX,
+  and padding it would state values the document does not have.
+- **Widening the count without widening the rows crashed** (`IndexError` on
+  1511.08771). Found by projecting all 6,326, not by inspection.
+
+And a guard, because the cost of being wrong here is not a bad table but
+`Emergency stop` and no PDF at all: `_sound()` checks the built rows and refuses
+to emit anything that would not compile, leaving the caller to fall back.
+
+### Left open, deliberately
+
+- **A table's caption is not on the Table object.** Only 196 of 7,765 have one,
+  so almost no table gets a `\label` — and the internal link is the win over
+  MathPix. MathPix types the label as a bare `text` line reading exactly
+  `Table 1`, with the caption prose on the following lines (the same shape as the
+  `figure_label` work in 810). That is a docmodel change in the table module, not
+  a LaTeX one, and it is the next step for tables.
+- **A markdown image link leaks into LaTeX prose.** `![](https://cdn.mathpix
+  .com/…)` survives into an `lstlisting` body and into a `\bibitem` (an author
+  photo in a reference). It compiles but prints markdown noise. `_cell_tex`
+  strips it inside a table cell; the prose and bibliography paths do not.
