@@ -230,3 +230,81 @@ def test_no_kind_set_lists_a_kind_the_pattern_cannot_produce():
     assert C.TABLE_KINDS <= producible, C.TABLE_KINDS - producible
     assert C.FIGURE_KINDS <= producible, C.FIGURE_KINDS - producible
     assert not (C.TABLE_KINDS & C.FIGURE_KINDS)
+
+
+# ── 819c — a caption the reader NAMED, and a float with no grid ──────────────
+
+def test_a_stated_caption_id_outranks_adjacency():
+    """pdf2mmd names a table's caption outright via `caption_id` — a
+    measurement, not an adjacency guess — and it was ignored: the pdf2mmd lane
+    produced 0 captions and 0 `\\label` on four papers whose lines.json states
+    one per table."""
+    tabs = _doc_with_table([
+        {"id": "cap", "type": "caption",
+         "text": "Table 1: Post-search accuracy per benchmark."},
+        {"type": "table", "text": "t", "children_ids": ["c1"],
+         "caption_id": "cap"},
+        {"id": "c1", "type": "simple_cell", "text": "a", "cell_row": 0,
+         "cell_column": 0},
+    ])
+    assert tabs[0].props["caption"] == "Table 1: Post-search accuracy per benchmark."
+    assert tabs[0].props["refnum"] == "1"
+
+
+def test_a_stated_caption_wins_over_a_different_adjacent_one():
+    tabs = _doc_with_table([
+        {"id": "cap", "type": "caption", "text": "Table 9: the stated one."},
+        {"type": "figure_label", "text": "Table 1: the adjacent one."},
+        {"type": "table", "text": "t", "children_ids": ["c1"],
+         "caption_id": "cap"},
+        {"id": "c1", "type": "simple_cell", "text": "a", "cell_row": 0,
+         "cell_column": 0},
+    ])
+    assert "stated one" in tabs[0].props["caption"]
+
+
+def test_a_missing_caption_id_falls_back_to_adjacency():
+    tabs = _doc_with_table([
+        {"type": "figure_label", "text": "Table 1: the adjacent one."},
+        {"type": "table", "text": "t", "children_ids": ["c1"],
+         "caption_id": "nope"},
+        {"id": "c1", "type": "simple_cell", "text": "a", "cell_row": 0,
+         "cell_column": 0},
+    ])
+    assert "adjacent one" in tabs[0].props["caption"]
+
+
+def test_a_captioned_table_with_no_grid_still_labels():
+    r"""The rule `_figure_env` already follows for a figure with no crop: the
+    caption is content and the `\label` is a reference target, and neither
+    depends on the body being there. pdf2mmd's Table objects carry a caption and
+    NO `cells` (its table container holds rows, not cells), so all 24 tables of
+    one paper emitted nothing at all — caption and label included."""
+    from docmodel.core import Document, DocObject
+    from docops.base import OperatorConfig
+    from docops.projectors.latex import LaTeXProjector
+    doc = Document()
+    doc.meta["bibkey"] = "doc"
+    obj = DocObject(type="Table", props={"caption": "Table 4: Best-of-5.",
+                                         "refnum": "4", "page": 10})
+    doc.add(obj)
+    pr = LaTeXProjector(OperatorConfig(op="projector", classname="LaTeXProjector"))
+    pr._all_objects = [obj]
+    out = pr._captioned_float(obj)
+    assert "\\begin{table}" in out
+    assert "\\caption{Table 4: Best-of-5.}" in out
+    assert "\\label{tab:4}" in out
+    assert "no cell grid measured" in out
+
+
+def test_a_table_with_neither_caption_nor_grid_emits_nothing():
+    from docmodel.core import Document, DocObject
+    from docops.base import OperatorConfig
+    from docops.projectors.latex import LaTeXProjector
+    doc = Document()
+    doc.meta["bibkey"] = "doc"
+    obj = DocObject(type="Table", props={"page": 3})
+    doc.add(obj)
+    pr = LaTeXProjector(OperatorConfig(op="projector", classname="LaTeXProjector"))
+    pr._all_objects = [obj]
+    assert pr._captioned_float(obj) == ""

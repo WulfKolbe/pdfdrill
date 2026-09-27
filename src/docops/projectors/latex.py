@@ -751,6 +751,26 @@ class LaTeXProjector(BaseProjector):
     #: long tail rather than the common case.
     _WRAP_CHARS = 60
 
+    def _captioned_float(self, obj) -> str:
+        r"""A `table` float carrying only its caption and `\label`.
+
+        For a Table with no cell grid and no raw text: there is no body to set,
+        but the caption is content and the label is a reference target. Emitting
+        nothing loses both.
+        """
+        p = obj.props or {}
+        cap = _escape_text((p.get("caption") or "").strip())
+        if not cap:
+            return ""
+        return "\n".join([
+            "\\begin{table}[htbp]",
+            "  \\centering",
+            f"  %% no cell grid measured for this table (page {p.get('page')})",
+            f"  \\caption{{{cap}}}",
+            f"  \\label{{{self._figure_label(obj)}}}",
+            "\\end{table}",
+        ])
+
     def _tabular(self, obj) -> str:
         r"""A real table from the object's `cells` GRID, or "" when it has none.
 
@@ -1260,7 +1280,18 @@ class LaTeXProjector(BaseProjector):
             if built:
                 return built
             raw = (p.get("raw_text") or "").strip()
-            return f"% table p{p.get('page')}\n\\begin{{verbatim}}\n{raw}\n\\end{{verbatim}}" if raw else ""
+            if raw:
+                return (f"% table p{p.get('page')}\n\\begin{{verbatim}}\n{raw}\n"
+                        f"\\end{{verbatim}}")
+            # 819c — A CAPTIONED FLOAT WITH NO GRID STILL LABELS. The same rule
+            # `_figure_env` follows for a figure whose crop is missing: the
+            # caption is content and the `\label` is the internal link, and
+            # neither depends on the body being there. Measured on the pdf2mmd
+            # lane: its Table objects carry a caption (named outright by
+            # `caption_id`) and NO `cells`, because pdf2mmd's table container
+            # holds rows rather than cells — so all 24 tables of one paper
+            # emitted nothing at all, caption and label included.
+            return self._captioned_float(obj)
         if t == "CodeListing":
             # 781m — NOT IMPLEMENTED, AND THIS IS THE SPEC FOR WHEN IT IS.
             #

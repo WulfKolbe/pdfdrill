@@ -34,6 +34,27 @@ _CELL_COORD_KEYS = ("cell_row", "cell_column", "cell_row_span", "cell_col_span",
                     "region")
 
 
+def _stated_caption(payload: dict, by_id: dict) -> str:
+    r"""The caption the READER named, via `caption_id`, or "".
+
+    819c — pdf2mmd's `_add_table_containers` names a table's caption outright
+    ("`caption_id` rather than nesting the caption as a child, because a caption
+    is printed ABOVE the table in most styles and BELOW in others, and a tree
+    that makes it a child has to pick one"). That is a MEASUREMENT, not an
+    adjacency guess, so it outranks `adjacent_label_caption` wherever it exists
+    — and it was ignored: the pdf2mmd lane produced 0 captions and 0 `\label`
+    on four papers whose lines.json states one per table.
+
+    MathPix has no equivalent field, so this simply does not fire there and the
+    adjacency rule stays the only route for it.
+    """
+    cid = payload.get("caption_id")
+    if not cid:
+        return ""
+    cap = by_id.get(cid) or {}
+    return str(cap.get("text") or cap.get("text_display") or "").strip()
+
+
 class TableProcessor(BaseModule):
     def find_items(self, doc: Document) -> list[dict[str, Any]]:
         if self.LINES_STREAM not in doc.streams:
@@ -73,8 +94,10 @@ class TableProcessor(BaseModule):
                 #
                 # `TABLE_KINDS` is the guard: without it a `Fig. 8.` caption
                 # beside a table would become the table's own.
-                "caption": adjacent_label_caption(
-                    stream, anchor, kinds=TABLE_KINDS, allow_bare=True),
+                "caption": (_stated_caption(payload, by_id)
+                            or adjacent_label_caption(
+                                stream, anchor, kinds=TABLE_KINDS,
+                                allow_bare=True)),
             })
         return items
 
