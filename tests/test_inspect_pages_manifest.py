@@ -55,3 +55,53 @@ def test_inspect_writes_it():
            / "src" / "pdfdrill" / "commands.py").read_text()
     body = src.split("def _inspect_pages_dir(", 1)[1].split("\ndef ", 1)[0]
     assert "_write_pages_manifest" in body
+
+
+# ── 820 — the manifest is also the library-wide crop index ───────────────────
+
+def test_the_manifest_indexes_the_image_ids_and_the_coordinate_space(tmp_path):
+    """A library-wide crop server needs (image_id -> page) and the coordinate
+    space `scale()` divides by. Measured over 400 corpus documents: 12,742
+    distinct image_ids, ZERO collisions — so an id already identifies
+    (document, page) and one server can hold the whole library with NO url
+    changing. Reading 747 small manifests is instant; reading 1,494 lines.json,
+    some of them 10 MB, took minutes."""
+    import json as _json
+    doc = tmp_path / "arxiv.2609.12039"
+    (doc / "inspect" / "pages").mkdir(parents=True)
+    (doc / "arxiv.2609.12039.pdf").write_bytes(b"%PDF")
+    (doc / "inspect" / "pages" / "p1.png").write_bytes(b"x")
+    (doc / "arxiv.2609.12039.lines.json").write_text(_json.dumps({"pages": [
+        {"page": 1, "image_id": "bfbc5ae4-01",
+         "page_width": 2125, "page_height": 2750, "lines": []},
+        {"page": 2, "image_id": "bfbc5ae4-02",
+         "page_width": 2125, "page_height": 2750, "lines": []},
+    ]}))
+    _write_pages_manifest(doc / "inspect" / "pages",
+                          doc / "arxiv.2609.12039.pdf", 400)
+    got = json.loads((doc / "inspect" / "pages" / "manifest.json").read_text())
+    assert got["image_ids"] == {"bfbc5ae4-01": 1, "bfbc5ae4-02": 2}
+    assert got["coord"] == [2125, 2750]
+
+
+def test_no_lines_json_means_no_index_and_no_crash(tmp_path):
+    """The keyless case: a document with no lines.json has no MathPix-shaped crop
+    URLs to resolve either, so there is nothing to index."""
+    doc = tmp_path / "plain"
+    (doc / "inspect" / "pages").mkdir(parents=True)
+    (doc / "plain.pdf").write_bytes(b"%PDF")
+    (doc / "inspect" / "pages" / "p1.png").write_bytes(b"x")
+    _write_pages_manifest(doc / "inspect" / "pages", doc / "plain.pdf", 400)
+    got = json.loads((doc / "inspect" / "pages" / "manifest.json").read_text())
+    assert "image_ids" not in got and "coord" not in got
+    assert got["document"] == "plain"
+
+
+def test_a_corrupt_lines_json_does_not_fail_the_inspect_build(tmp_path):
+    doc = tmp_path / "broken"
+    (doc / "inspect" / "pages").mkdir(parents=True)
+    (doc / "broken.pdf").write_bytes(b"%PDF")
+    (doc / "inspect" / "pages" / "p1.png").write_bytes(b"x")
+    (doc / "broken.lines.json").write_text('{"pages": [ TRUNCATED')
+    _write_pages_manifest(doc / "inspect" / "pages", doc / "broken.pdf", 400)
+    assert (doc / "inspect" / "pages" / "manifest.json").is_file()

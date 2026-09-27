@@ -10440,7 +10440,7 @@ def _inspect_pages_dir(pdf: Path, sc: "Sidecar", pages: str | None,
 
 
 def _write_pages_manifest(out: Path, pdf: Path, dpi: int) -> None:
-    """Name the document these page images were rendered from.
+    """Name the document these page images were rendered from, and index them.
 
     819e — the crop servers (`pdf2mmd/inspectserver.py`,
     `tools/imageserver/mathpix_server.py`) check this before serving anything,
@@ -10451,21 +10451,71 @@ def _write_pages_manifest(out: Path, pdf: Path, dpi: int) -> None:
     opened with a warning telling the user to re-run pdf2mmd — for pages
     pdfdrill had rendered.
 
-    Shape is theirs (`document`/`dpi`/`pages`), and `document` is the PDF stem
-    because that is what the server compares against the `--pages`/`--lines`
-    arguments. Never fatal: a missing manifest costs a warning, and failing the
-    inspect build over one would be worse.
+    820 — AND IT IS THE INDEX A LIBRARY-WIDE CROP SERVER NEEDS. `inspectserver`
+    was built to test one document and serves one: a second document means a
+    second process on a second port. It does not have to. Measured over 400
+    corpus documents: 12,742 distinct `image_id`s and ZERO collisions, because a
+    MathPix id is a per-conversion UUID plus a page number and pdf2mmd's carries
+    the stem — so an id already identifies (document, page) library-wide, and a
+    server that can look one up serves every document WITHOUT ANY URL CHANGING.
+
+    Two fields make that lookup O(1) and keep the server out of the 10 MB
+    lines.json at request time:
+
+      `image_ids`  {image_id: page}
+      `coord`      [width, height] of the lines.json coordinate space, which is
+                   what `scale()` divides the image dimensions by
+
+    Written by whoever rendered the pages, which is the only place that knows
+    both. Rewritten on every `inspect` run, so a regenerated lines.json cannot
+    leave it stale. Never fatal: a missing manifest costs a warning, and failing
+    the inspect build over one would be worse.
     """
     try:
         # `p*.png` also matches the `page-<NNNN>.png` originals this folder
         # keeps beside the aliases, so it counted every page twice (38 for a
         # 19-page paper). The aliases are what a server serves.
         n = len([q for q in out.glob("p[0-9]*.png")])
-        (out / "manifest.json").write_text(
-            json.dumps({"document": pdf.stem, "dpi": int(dpi), "pages": n}),
-            encoding="utf-8")
+        man = {"document": pdf.stem, "dpi": int(dpi), "pages": n}
+        ids, coord = _lines_image_index(pdf)
+        if ids:
+            man["image_ids"] = ids
+        if coord:
+            man["coord"] = list(coord)
+        (out / "manifest.json").write_text(json.dumps(man), encoding="utf-8")
     except OSError:
         pass
+
+
+def _lines_image_index(pdf: Path) -> tuple:
+    """({image_id: page}, (coord_w, coord_h)) from the doc's lines.json.
+
+    ({}, None) when there is none, which is the keyless case: a document with no
+    lines.json has no MathPix-shaped crop URLs to resolve either, so there is
+    nothing to index.
+    """
+    path = _lines_json_path(pdf)
+    if not path.is_file():
+        return {}, None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}, None
+    ids: dict = {}
+    coord = None
+    for pg in (data.get("pages") or []):
+        if not isinstance(pg, dict):
+            continue
+        num = pg.get("page")
+        img = pg.get("image_id")
+        if img and isinstance(num, int):
+            ids[str(img)] = num
+        if coord is None:
+            w, h = pg.get("page_width"), pg.get("page_height")
+            if isinstance(w, (int, float)) and isinstance(h, (int, float)) \
+                    and w > 0 and h > 0:
+                coord = (int(w), int(h))
+    return ids, coord
 
 
 @_writes("inspect")
