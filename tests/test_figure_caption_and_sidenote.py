@@ -77,30 +77,50 @@ class TestTheSiblingCaption:
         and that stands. This is the case it did not cover: on page 12 the label
         is a SIBLING under the same `column`, so the child loop never saw it and
         the line was claimed by nothing."""
-        from docmodel.modules.diagram import DiagramProcessor as D
+        # 819b — promoted out of DiagramProcessor into the shared `_captions`
+        # so the TABLE module uses the same rule instead of a second detector
+        # ("One authority, no second detector" — line_types.caption_anchors).
+        # The assertions below are 810's, unchanged.
+        from docmodel.modules._captions import FIGURE_KINDS as _FK
+        from docmodel.modules._captions import adjacent_label_caption as _alc
         st = self._stream("Fig. 8. Delta life span over time for considered topologies.")
-        assert "Delta life span" in D._adjacent_label_caption(st, "d")
+        assert "Delta life span" in _alc(st, "d", kinds=_FK)
 
     def test_an_axis_label_is_not_a_caption(self):
         """The parse is the discriminator 253 lacked: an axis label carries no
         kind and no number."""
-        from docmodel.modules.diagram import DiagramProcessor as D
+        # 819b — promoted out of DiagramProcessor into the shared `_captions`
+        # so the TABLE module uses the same rule instead of a second detector
+        # ("One authority, no second detector" — line_types.caption_anchors).
+        # The assertions below are 810's, unchanged.
+        from docmodel.modules._captions import FIGURE_KINDS as _FK
+        from docmodel.modules._captions import adjacent_label_caption as _alc
         st = self._stream("time (s)")
-        assert D._adjacent_label_caption(st, "d") == ""
+        assert _alc(st, "d", kinds=_FK) == ""
 
     def test_a_label_on_another_page_is_not_taken(self):
-        from docmodel.modules.diagram import DiagramProcessor as D
+        # 819b — promoted out of DiagramProcessor into the shared `_captions`
+        # so the TABLE module uses the same rule instead of a second detector
+        # ("One authority, no second detector" — line_types.caption_anchors).
+        # The assertions below are 810's, unchanged.
+        from docmodel.modules._captions import FIGURE_KINDS as _FK
+        from docmodel.modules._captions import adjacent_label_caption as _alc
         st = _Stream([
             {"id": "d", "type": "diagram", "_page": 12, "text": "",
              "text_display": "", "children_ids": []},
             {"id": "f", "type": "figure_label", "_page": 13,
              "text": "Fig. 9. Something else.", "text_display": "Fig. 9. Something else."},
         ])
-        assert D._adjacent_label_caption(st, "d") == ""
+        assert _alc(st, "d", kinds=_FK) == ""
 
     def test_only_the_immediate_neighbour_counts(self):
         """A caption that has to be searched for is a guess."""
-        from docmodel.modules.diagram import DiagramProcessor as D
+        # 819b — promoted out of DiagramProcessor into the shared `_captions`
+        # so the TABLE module uses the same rule instead of a second detector
+        # ("One authority, no second detector" — line_types.caption_anchors).
+        # The assertions below are 810's, unchanged.
+        from docmodel.modules._captions import FIGURE_KINDS as _FK
+        from docmodel.modules._captions import adjacent_label_caption as _alc
         st = _Stream([
             {"id": "d", "type": "diagram", "_page": 12, "text": "",
              "text_display": "", "children_ids": []},
@@ -108,4 +128,4 @@ class TestTheSiblingCaption:
             {"id": "f", "type": "figure_label", "_page": 12,
              "text": "Fig. 8. Too far away.", "text_display": "Fig. 8. Too far away."},
         ])
-        assert D._adjacent_label_caption(st, "d") == ""
+        assert _alc(st, "d", kinds=_FK) == ""

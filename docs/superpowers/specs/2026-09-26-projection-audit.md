@@ -276,3 +276,61 @@ to emit anything that would not compile, leaving the caller to fall back.
   .com/…)` survives into an `lstlisting` body and into a `\bibitem` (an author
   photo in a reference). It compiles but prints markdown noise. `_cell_tex`
   strips it inside a table cell; the prose and bibliography paths do not.
+
+## 819b — the table caption, so a table gets a `\label`
+
+`table.py` had **no caption handling at all** — 187 lines, zero mentions — so
+only 196 of 7,765 Table objects carried one and almost no table could be
+`\ref`ed. The internal link is the thing MathPix's own `.tex` has none of, so
+without a caption the LaTeX table work of 819 delivered half its point.
+
+**No third detector.** `line_types.caption_anchors` states the principle —
+*"One authority, no second detector"* — so `_adjacent_label_caption`, written for
+figures in 810, was promoted out of `diagram.py` into the shared `_captions.py`
+as `adjacent_label_caption(stream, anchor, kinds=…, allow_bare=…)`. Both modules
+call it; 810's assertions are unchanged and still pin the figure behaviour.
+
+Two shapes, both measured:
+
+| shape | measured |
+|---|---|
+| a `figure_label` line immediately beside the table | 5,166 of 6,789 `table` lines have a labelled neighbour; 5,168 are `figure_label` |
+| a BARE label (`Table 2`) with the body on the next line | 95 such lines in 29 documents; the `Table 2` / `Description…` / table arrangement 54 times in 12 |
+
+**Result over the whole library: 1,797 of 11,357 `table` lines gain a caption
+and a refnum — and therefore a readable `\label{tab:N}` — in 287 documents, with
+0 captions of a non-table kind.** On the reported document, Tables 2 and 3 now
+carry `\label{tab:2}` / `\label{tab:3}`, and it compiles.
+
+### Three guards, each load-bearing
+
+- **`kinds`.** Without it a `Fig. 8.` caption sitting beside a table becomes the
+  table's own. `diagram.py` accepted ANY kind before this; it now passes
+  `FIGURE_KINDS` and the table module passes `TABLE_KINDS`.
+- **The parse into kind + number.** 253 found that a `figure_label` is often the
+  float's OWN text (an axis label, a legend entry); the parse is the
+  discriminator, and it is why an UNLABELLED caption is refused even though
+  4,422 of them sit next to a table. Without a label there is nothing to tell a
+  caption from an axis label, and a caption that has to be guessed is a guess.
+- **Distance.** The immediate neighbour, or the label-one-further-out
+  arrangement, on the same page. Nothing is searched for.
+
+### Two defects found while measuring the gap between 76% and 15.8%
+
+- **`parse_caption` rejected Roman numerals.** 14 corpus `figure_label` lines
+  read `Table I. Power rating of different components`, and they parsed as no
+  label at all, so those tables lost their captions.
+- **`TABLE_KINDS` listed kinds the pattern could never produce.** Two of its
+  three entries (`Tab`, `Tafel`) were absent from `_LABEL`, so they were dead.
+  The kind list is now named once and both sets are drawn from it, with a test
+  asserting every member is producible.
+
+### Why not 76%
+
+4,422 `figure_label` lines beside a table carry a caption with **no label**
+(`Comparison of the Lorentz matrixes in the special case…`), and 1,034 have a
+`complex_cell` immediately above (the caption is elsewhere). Claiming the
+unlabelled ones would mean claiming axis labels too. 15.8% is the honest figure
+for a rule that does not guess; raising it needs a different kind of evidence
+(the caption's own geometry — a line centred under a float, at the float's
+width), not a looser pattern.
