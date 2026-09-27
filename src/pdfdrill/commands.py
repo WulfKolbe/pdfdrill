@@ -18677,7 +18677,18 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
         # uri for a table. Doing it here as well as in `cdncrops` costs one
         # cached-file stat per row when the layer has already run, and means a
         # report built without it still has its Scan column.
-        r_ok, r_cached, r_skip = rt.render_crops(tiddlers, crops, pdf)
+        # 821 — FIGURES TOO, not only tables. `render_crops` was already
+        # parameterised by `kinds` and called with the default `("_TAB",)`, so
+        # every Picture and Diagram waited on the CDN — and the LaTeX projector
+        # emits `\\includegraphics` only for a crop that is ON DISK, because
+        # naming a missing file fails the whole compile. Measured on four
+        # Krentsel papers: MathPix's own .tex carried 42 `\\includegraphics`
+        # and ours carried 0. Across 160 corpus documents, 13,968 `_PIC` and
+        # 976 `_DIA` tiddlers carry a region, so the picture is recoverable
+        # from the PDF with no network at all — and unlike a CDN crop it
+        # cannot expire.
+        r_ok, r_cached, r_skip = rt.render_crops(
+            tiddlers, crops, pdf, kinds=("_TAB", "_PIC", "_DIA"))
         crop_note = f"crops: {ok} fetched, {cached} cached, {failed} failed"
         if r_ok or r_cached or r_skip:
             crop_note += (f"; tables {r_ok} rendered, {r_cached} cached, "
@@ -19260,15 +19271,31 @@ def cmd_cdncrops(pdf: Path) -> str:
     # table (0 of 351 TAB tiddlers across the 21 published documents), so the
     # Scan column of the Tables section was empty in every row of every
     # document. The region is on the tiddler; the picture comes from the PDF.
-    r_ok, r_cached, r_skip = rt.render_crops(tiddlers, crops, pdf)
-    n_tab = sum(1 for t in tiddlers if "_TAB" in t.get("title", ""))
+    # 821 — FIGURES TOO, not only tables. `render_crops` was already
+    # parameterised by `kinds` and called with the default `("_TAB",)`, so
+    # every Picture and Diagram waited on the CDN — and the LaTeX projector
+    # emits `\\includegraphics` only for a crop that is ON DISK, because
+    # naming a missing file fails the whole compile. Measured on four
+    # Krentsel papers: MathPix's own .tex carried 42 `\\includegraphics`
+    # and ours carried 0. Across 160 corpus documents, 13,968 `_PIC` and
+    # 976 `_DIA` tiddlers carry a region, so the picture is recoverable
+    # from the PDF with no network at all — and unlike a CDN crop it
+    # cannot expire.
+    r_ok, r_cached, r_skip = rt.render_crops(
+        tiddlers, crops, pdf, kinds=("_TAB", "_PIC", "_DIA"))
+    # 821 — COUNT WHAT IS ACTUALLY RENDERED. This counted `_TAB` only and said
+    # "of N table crops", which became a false statement the moment figures were
+    # rendered too: three Diagram crops reported as table crops.
+    n_local = sum(1 for t in tiddlers
+                  if any(k in t.get("title", "")
+                         for k in ("_TAB", "_PIC", "_DIA")))
     n_cdn = sum(1 for t in tiddlers if "_EQ" in t.get("title", "")
                 and str(t.get("canonical_uri", "")).startswith("http"))
     local = ""
-    if n_tab:
+    if n_local:
         local = (f"; {r_ok} rendered, {r_cached} cached, {r_skip} skipped of "
-                 f"{n_tab} table crops (local, from the PDF — MathPix records "
-                 f"no crop uri for a table)")
+                 f"{n_local} table/figure crops (local, from the PDF — MathPix "
+                 f"records no crop uri for a table, and a CDN crop expires)")
     if n_cdn == 0:
         # 461 — say what the local half did even here. A keyless model still
         # has table regions, and "nothing to fetch" used to mean "nothing

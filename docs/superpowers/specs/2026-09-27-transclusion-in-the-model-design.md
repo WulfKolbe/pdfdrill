@@ -344,3 +344,44 @@ The user has flagged that details remain. Recorded here so they are not lost:
 - How a glossary entry is CHOSEN (a repeated term is not automatically a
   glossary term).
 - Whether the symbol table is per-document or per-corpus.
+
+## 12. Translation and the LaTeX main file (recorded 2026-09-27)
+
+Three constraints stated while the LaTeX projections were being improved. None is
+implemented; they are written down because each changes what the segment work
+above has to produce.
+
+**A translation may need its OWN main file.** *"If we have translations this might
+lead to different LaTeX main files."* A translated document is not the source
+document with different words in it: it repaginates, so its floats land
+elsewhere; its TOC is regenerated (§10); and a reader may want both languages
+side by side. So `<bibkey>.tex` cannot be the only name. The natural shape —
+consistent with 815's `<bibkey>.bilayer.md` — is `<bibkey>.<LANG>.tex` beside it,
+sharing the `.bib`, the `.dat` transclusion array and the crops, which are all
+language-independent. The transclusion array is what makes that cheap: the
+mathematics is defined once and referenced by index, so two language main files
+reference the same array rather than duplicating it.
+
+**A complex table is not translated, for now.** Its cells are structure as much
+as prose — a spanned header, a unit row, a numeric column — and `_TRANSLATE_
+MODEL_FIELD` already translates only a Table's `caption`, never its cells. That
+is the correct behaviour and it should stay explicit rather than accidental: the
+segment contract gives a Table's caption segments and leaves `cells` alone.
+"Complex" needs a measured definition before anything relaxes this; the obvious
+candidate is the span count, which 819 measured (4,237 of 555,053 cells carry
+one).
+
+**Grammar corrects what it can prove, and nothing else.** *"If the translation
+creates some errors, we should check what the grammatic can detect and correct
+without user intervention."* The distinction that matters is between an error a
+grammar can PROVE and one it can only suspect. Provable, from the structure
+rather than from the language: a segment count that changed across the round trip
+(a ref lost or duplicated), a `ref` whose target object no longer exists, an
+unbalanced `\(`/`\)` or brace in a translated span, a `\cite` key absent from the
+`.bib`, a `\ref` with no matching `\label`. Each of those is checkable without
+reading the text and each has exactly one right correction, so each can be fixed
+without asking. Everything else — agreement, case, word order, a term translated
+two ways in two places — is a suspicion, and belongs in a report the user reads,
+not in an automatic edit. `src/semantic/` and `src/vocabnet/` are where the
+second kind will live, and §11's separation holds: what to extract stays apart
+from how to project it.

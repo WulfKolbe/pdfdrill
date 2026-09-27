@@ -2918,7 +2918,15 @@ def _save_crop_geometry(path: Path, geom: dict) -> None:
 
 def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,
                  kinds=("_TAB",), dpi: int = 400, trim: bool = True):
-    r"""Crop the scan for every region-bearing tiddler WITHOUT a CDN uri (461).
+    r"""Crop the scan for every region-bearing tiddler with NO CROP ON DISK.
+
+    821 — the title of this used to say "WITHOUT a CDN uri", and that was the
+    condition: a uri meant "the CDN has it" and the row was skipped. MathPix crop
+    URLs EXPIRE (measured 2026-09-27: a months-old conversion answers HTTP 500
+    while two recent ones answer 200), so a tiddler whose fetch failed was
+    skipped here too and ended with no crop at all — its region on the tiddler
+    and the PDF right there. The condition is now whether the FILE is missing,
+    which makes this the fallback the CDN needs rather than its alternative.
 
     `download_crops` filters for `_EQ` or `_TAB` and then skips anything whose
     `canonical_uri` is not http. Across the 21 published documents that is
@@ -2990,10 +2998,17 @@ def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,
         title = t.get("title", "")
         if not any(k in title for k in kinds):
             continue
-        if str(t.get("canonical_uri", "")).startswith("http"):
-            continue          # the CDN has it; download_crops owns that row
         f = dest / f"{title}.jpg"
         have = f.is_file() and f.stat().st_size > 500
+        if have and str(t.get("canonical_uri", "")).startswith("http"):
+            continue          # the CDN supplied it; download_crops owns that row
+        # 821 — A URI IS NOT A PICTURE. This used to skip on the uri alone
+        # ("the CDN has it"), and MathPix crop URLs EXPIRE: measured 2026-09-27,
+        # a months-old conversion answers HTTP 500 while two recent ones answer
+        # 200. So a tiddler whose CDN fetch failed was skipped here too and
+        # ended up with no crop at all, when its region was on the tiddler the
+        # whole time and the PDF was right there. The true condition is whether
+        # the FILE is missing, so this is now the fallback the CDN needs.
         try:
             page = int(t.get("page"))
             box = (int(t["top_left_x"]), int(t["top_left_y"]),

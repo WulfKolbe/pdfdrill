@@ -130,11 +130,44 @@ def test_a_row_with_no_region_is_skipped(patched, tmp_path):
     assert (ok, skipped) == (0, 1)
 
 
-def test_a_row_the_cdn_already_serves_is_left_to_download_crops(patched, tmp_path):
+def test_a_row_the_cdn_already_SERVED_is_left_to_download_crops(patched, tmp_path):
+    """The division of labour is unchanged where the CDN actually delivered: a
+    row with a uri AND a file on disk is `download_crops`' row, not this one."""
+    (tmp_path / "crops").mkdir()
+    (tmp_path / "crops" / "d_TAB_001.jpg").write_bytes(b"x" * 900)
     ok, cached, skipped = rt.render_crops(
         [_tid("d_TAB_001", uri="https://cdn.mathpix.com/cropped/x-003.jpg")],
         tmp_path / "crops", tmp_path / "d.pdf")
     assert (ok, cached, skipped) == (0, 0, 0)
+    assert not _FakeImage.calls
+
+
+def test_a_uri_is_not_a_picture(patched, tmp_path):
+    """821 — THIS CONTRACT IS REVERSED, deliberately.
+
+    It used to assert that a row with a uri renders NOTHING, on the reasoning
+    "the CDN has it". MathPix crop URLs expire — measured 2026-09-27, a
+    months-old conversion answers HTTP 500 while two recent ones answer 200 — so
+    a row whose fetch failed was skipped here too and ended with no crop at all,
+    its region on the tiddler and the PDF right there. The condition is whether
+    the FILE is missing, which makes this the CDN's fallback rather than its
+    alternative.
+    """
+    ok, cached, skipped = rt.render_crops(
+        [_tid("d_TAB_001", uri="https://cdn.mathpix.com/cropped/x-003.jpg")],
+        tmp_path / "crops", tmp_path / "d.pdf")
+    assert (ok, cached, skipped) == (1, 0, 0)
+
+
+def test_figures_are_rendered_when_asked_for(patched, tmp_path):
+    """`kinds` was always a parameter and every caller used the default
+    `("_TAB",)`, so 13,968 `_PIC` and 976 `_DIA` region-bearing tiddlers across
+    160 corpus documents waited on a CDN that may have expired."""
+    ok, _c, _s = rt.render_crops(
+        [_tid("d_PIC_0001"), _tid("d_DIA_0001"), _tid("d_TAB_001")],
+        tmp_path / "crops", tmp_path / "d.pdf",
+        kinds=("_TAB", "_PIC", "_DIA"))
+    assert ok == 3
 
 
 def test_only_the_pages_actually_needed_are_rasterized(patched, tmp_path):
