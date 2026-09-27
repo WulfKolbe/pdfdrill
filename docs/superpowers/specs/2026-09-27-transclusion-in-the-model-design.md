@@ -248,3 +248,99 @@ rather than new machinery:
 
 Step 4 is the gate. If the TiddlyWiki output is not byte-identical, the segment
 builder is wrong and nothing later is trustworthy.
+
+## 9. LaTeX without transclusions — the comparison artifact
+
+> *"The transclusions in LaTeX must be optional, there must be a version that can
+> be compared to MathPix output. … We need real LaTeX, but I think MathPix might
+> use our ideas later if we demonstrate the value of these and the correct
+> function."*
+
+**Already optional.** `cmd_latex(..., transclude: bool = True)` and
+`--no-transclude` exist today. The flag is not new work; what is new is treating
+the no-transclude form as a FIRST-CLASS artifact — the one that can be put beside
+MathPix's own `.tex` and compared line for line. The transcluded form is the
+better document; the flat form is the evidence that it is.
+
+**The baseline is MathPix's own `.tex`**, which ships in `<stem>.tex.zip`
+alongside its image crops. (This is also why that file is never author gold — it
+is MathPix's output. As a comparison target it is exactly right.) Note the crops
+are IN the zip, so a document with a `.tex.zip` does not depend on the retired
+CDN at all.
+
+### Measured, 1-s2.0-S2590118425000565-main
+
+| feature | MathPix `.tex` | pdfdrill `latex` today | target |
+|---|---|---|---|
+| `\section{` | **0** | **11** | keep |
+| `\cite` | 0 | 67 | keep |
+| `\bibitem` / `thebibliography` | 0 | 73 | → real `.bib` (stage 02) |
+| `\label{` | 0 | 8 | one per referenced object |
+| `\ref{` | 0 | **0** | from `FREF`/`EQ`/`TAB`/`PIC` refs |
+| `\begin{tabular}` | **3** | **0** | **a gap — MathPix wins** |
+| `\includegraphics` | 14 | 11 | reach parity |
+| `\tableofcontents` | 0 | 0 | derived, not translated |
+| `\newacronym` / glossary | 0 | 0 | stage 03 |
+| symbol table | 0 | 0 | from the `FO` `.dat` array |
+| bytes | 93210 | 97223 | — |
+
+**MathPix emits no sectioning at all** — its `.tex` is flat text with mathematics,
+loading `hyperref` and then using not one internal link. That is the value
+argument, and it is a measurement rather than a claim.
+
+**Two honest gaps, both to be closed before any demonstration:**
+
+1. **We emit 0 `tabular` and MathPix emits 3.** The LaTeX projector does not
+   write tables at all. The Markdown projector now reads the Table's `cells`
+   grid (816); the LaTeX projector must read the same grid. Nothing in this
+   design is needed for it — it is a straightforward omission, and it should be
+   fixed first, because a comparison we lose on tables is not a demonstration.
+2. **`\Expr{` is 0 in our current output.** The transclusion array
+   (`latex_pipeline` stage 00) is wired but produced nothing on this document,
+   because a MathPix-lane model's paragraph text carries no markers unless
+   `materialize_transclusions` has run. Under this design segments make that
+   unconditional — which is a reason to build it, and a thing to verify rather
+   than assume.
+
+## 10. The table of contents is derived, never translated
+
+> *"for example that Mathpix translate the TOC is nonsense"*
+
+Agreed, and **pdfdrill does the same thing**: `_TRANSLATE_MODEL_FIELD` carries
+`"Toc": "text"`, so a Toc object's text is sent to DeepL like any prose.
+
+It is nonsense for two independent reasons, and both are arguments for real
+LaTeX rather than for a better translation:
+
+- **A TOC is derived, not written.** In real LaTeX it is `\tableofcontents`,
+  generated from the section headings at compile time. Translating the stored TOC
+  text produces entries that are translated *separately from the headings they
+  name*, so the two disagree — the same phrase rendered twice by two DeepL calls.
+  Translate the `Section` captions (which this design already does) and the TOC
+  follows for free, by construction, and cannot disagree.
+- **Its page numbers are wrong the moment anything is translated.** German runs
+  longer than English; the document repaginates. A translated TOC carries the
+  SOURCE document's page numbers, which is worse than no TOC.
+
+**Decision:** `Toc` leaves `_TRANSLATE_MODEL_FIELD`, and the LaTeX projector
+emits `\tableofcontents`. The stored Toc object remains — it is a faithful record
+of what the source document printed, and `cmd_toc` reads it — but it is not
+prose to be translated, and it is not the TOC of the output.
+
+The same reasoning applies to **page numbers, headers and footers**, which is
+why the user named them: they are properties of a *layout*, not of a text. They
+are already pinned (no `Page` row in `_TRANSLATE_MODEL_FIELD`), and this design
+keeps them as the fixed points that make re-alignment possible.
+
+## 11. Still to discuss
+
+The user has flagged that details remain. Recorded here so they are not lost:
+
+- Which LaTeX class and preamble the output targets (MathPix uses
+  `article, 10pt, xelatex`; a book-length document such as BH1org_OCR is not an
+  `article`).
+- Whether the no-transclude form should be byte-comparable to MathPix's `.tex`
+  or merely feature-comparable.
+- How a glossary entry is CHOSEN (a repeated term is not automatically a
+  glossary term).
+- Whether the symbol table is per-document or per-corpus.
