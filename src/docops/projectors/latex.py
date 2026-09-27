@@ -133,11 +133,12 @@ def _cell_tex(text: str) -> str:
         return ""
     t = _CELL_ENV.sub(lambda m: m.group(2).strip(), t)
     # A MARKDOWN IMAGE is not LaTeX. MathPix writes `![](https://cdn.mathpix
-    # .com/…)` inside a cell's text, and that CDN is retired — so emitting it as
-    # `\includegraphics` would name a URL xelatex cannot fetch and fail the whole
-    # compile, while leaving it verbatim prints the URL as prose. The words
-    # around it are kept; the link is dropped, and the image is still in the
-    # document as the Table's own crop.
+    # .com/…)` inside a cell's text, and `\includegraphics` cannot take a URL at
+    # all — xelatex needs a local file, so emitting it fails the whole compile
+    # whether or not the URL resolves (and a `cdn_url` expires: 2026-09-27, 500
+    # for a months-old conversion and 200 for two recent ones). Leaving it
+    # verbatim prints the URL as prose. The words around it are kept; the link is
+    # dropped, and the image is still in the document as the Table's own crop.
     t = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", t)
     t = _escape_text(t)
     t = re.sub(r"\\\\", " ", t)                  # a row break inside a cell

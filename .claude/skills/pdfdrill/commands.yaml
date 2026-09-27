@@ -313,7 +313,11 @@ commands:
   typed: true
 - name: md
   section: Extraction
-  summary: Full Markdown with math transclusions
+  summary: 'Markdown from the unified model — headings, prose, IMAGES as links and TABLES as pipe
+    tables, no transclusions (R3). Prefers a genuine MathPix .md, then the model, then the text
+    layer. --image-base points MathPix-shaped crop URLs at a local crop server
+    (pdf2mmd/inspectserver.py or tools/imageserver/mathpix_server.py) so a figure with no fetched
+    crop still resolves in a Markdown reader.'
   offline_ok: true
   positionals:
   - name: pdf
@@ -325,6 +329,10 @@ commands:
     type: pages
     flag: --pages
     help: N | N-M | all
+  - name: image_base
+    type: str
+    flag: --image-base
+    help: 'origin serving MathPix-shaped crops (http://localhost:8791)'
   typed: true
   done_when: file:{bibkey}.md
 - name: page
@@ -2126,6 +2134,10 @@ commands:
     type: flag
     flag: --no-images
     help: boxes-only, skip page rasterization
+  - name: image_base
+    type: str
+    flag: --image-base
+    help: 'origin serving MathPix-shaped crops (http://localhost:8791) instead of embedded pages'
   typed: true
   requires:
   - model

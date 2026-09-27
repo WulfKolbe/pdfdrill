@@ -19,14 +19,20 @@ The rules this projector exists to satisfy, as the user stated them:
     we have some example with crop links at the server for these, that was the
     intended function".
 
-IMAGE LINKS — LOCAL CROP FIRST, and this is not a preference. MathPix retired
-the crop CDN: every `cdn_url` in every model on disk answers HTTP 500, so a
-document whose images are CDN links renders as nothing at all. The bytes are not
-lost — the crop layer fetched them into `report-crops/<title>.jpg`, one per
-object, named after the TIDDLER TITLE (5,227 of them for BH1org_OCR). So the
-link is `<crops_base>/<title>.jpg`, and `crops_base` may be a URL, which is how
-the same Markdown is read against a server instead of a folder. `cdn_url` is
-still used when no crop exists, because a link that might work beats no link.
+IMAGE LINKS — LOCAL CROP FIRST, and this is not a preference. A MathPix
+`cdn_url` is PERISHABLE: measured 2026-09-27, BH1org_OCR (converted months ago)
+answers HTTP 500 while 1-s2.0-S2590118425000565-main (16 Sep) and
+arxiv.2609.12039 (today) both answer 200. (An earlier note here said the CDN was
+retired and every `cdn_url` answered 500; that was measured on BH1org_OCR alone
+and is true only of expired crops.) A local file does not expire, which is the
+reason for the order.
+
+The crop layer fetches them into `report-crops/<title>.jpg`, one per object,
+named after the TIDDLER TITLE (5,227 of them for BH1org_OCR). So the link is
+`<crops_base>/<title>.jpg`, and `crops_base` may be a URL, which is how the same
+Markdown is read against a server instead of a folder. `cdn_url` is still used
+when no crop exists — it may well work — and `image_base` rebases it onto a local
+crop server when it does not (see `_rebase`).
 
 The titles come from `tiddlywiki.title_for`, which is documented as THE one
 place a title is built. Formatting them here would be a second scheme, and the
@@ -120,6 +126,8 @@ class MarkdownProjector(BaseProjector):
                       emitted, because a link to a file that is not there is the
                       failure this replaces.
       ``front_matter``  YAML front matter (default True).
+      ``image_base``  origin that resolves MathPix-shaped crop URLs, e.g.
+                      ``http://localhost:8791``. See `_image_link`.
     """
 
     def project(self, doc) -> str:
@@ -358,16 +366,40 @@ class MarkdownProjector(BaseProjector):
     def _image_link(self, obj) -> str:
         """The image URL for an object — local crop first, then `cdn_url`.
 
-        The order is forced by measurement, not taste: MathPix retired the crop
-        CDN and every `cdn_url` on disk answers HTTP 500, so preferring it shows
-        a broken image where a working file exists. `crops_base` may be a URL,
-        which is how the same Markdown reads against a server.
+        The order is forced by measurement, not taste: a `cdn_url` EXPIRES
+        (2026-09-27: 500 for a months-old conversion, 200 for two recent ones),
+        so preferring it risks a broken image where a permanent local file sits.
+        `crops_base` may be a URL, which is how the same Markdown reads against
+        a server.
         """
         title = self._titles.get(obj.id, "")
         if title and self._crop_exists(title):
             base = str(self.params.get("crops_base", "report-crops")).rstrip("/")
             return f"{base}/{title}.jpg"
-        return str(obj.props.get("cdn_url") or "")
+        return self._rebase(str(obj.props.get("cdn_url") or ""))
+
+    def _rebase(self, url: str) -> str:
+        """Point a MathPix crop URL at `image_base` instead of the retired CDN.
+
+        819d — the URLs are not wasted, they are UNRESOLVED. A `cdn_url` is
+        `https://cdn.mathpix.com/cropped/<image_id>.jpg?height=H&width=W&
+        top_left_y=Y&top_left_x=X`, and that is EXACTLY the route
+        `pdf2mmd/inspectserver.py` and `tools/imageserver/mathpix_server.py`
+        serve — deliberately, so "any Mathpix-syntax Markdown works against
+        either". Swapping the host is the whole fix: verified against a real
+        dead `cdn_url` from 2609.12039, HTTP 200, 168 KB, and the crop's aspect
+        ratio matches the request exactly (834/571 = 1334/914).
+
+        This beats fetching crops, because nothing has to be stored: the server
+        cuts the rectangle out of the page PNG `inspect` already wrote. It also
+        beats the images inside MathPix's `.tex.zip`, whose names are opaque
+        hashes tied to nothing — where a crop URL carries its own rectangle.
+        """
+        base = str(self.params.get("image_base") or "").rstrip("/")
+        if not (base and url):
+            return url
+        m = re.match(r"https?://[^/]+(/cropped/.*)$", url)
+        return f"{base}{m.group(1)}" if m else url
 
     def _crop_exists(self, title: str) -> bool:
         """Checked on disk, never assumed — with no `crops_dir` there is no

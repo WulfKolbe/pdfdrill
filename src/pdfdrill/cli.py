@@ -862,14 +862,17 @@ def _do_rasterize(args):
 
 
 def _do_inspect(args):
-    """pdfdrill inspect <pdf> [--pages N|N-M|all] [--dpi 120] [--no-images] [--force]"""
+    """pdfdrill inspect <pdf> [--pages N|N-M|all] [--dpi 120] [--no-images]
+    [--force] [--image-base URL]"""
     from .commands import cmd_inspect
     pages, args = _opt(args, "--pages")
     dpi, args = _opt(args, "--dpi")
+    image_base, args = _opt(args, "--image-base")
     flags = ("--no-images", "--force")
     pdf_args = [a for a in args if a not in flags]
     return cmd_inspect(_pdf(pdf_args), pages=pages, dpi=int(dpi) if dpi else 120,
-                       images="--no-images" not in args, force="--force" in args)
+                       images="--no-images" not in args, force="--force" in args,
+                       image_base=image_base)
 
 
 def _do_attachments(args):
@@ -1858,18 +1861,17 @@ def _do_ingest(args):
 
 
 def _do_md(args):
+    """pdfdrill md <pdf> [--pages N|N-M|all] [--image-base URL]
+
+    819d — `--image-base` was added to the manifest and to `cmd_md` and this
+    handler still parsed only `--pages`, so the flag fell into `pdf_args` and was
+    silently ignored: the run reported success and the links were unchanged. An
+    unparsed flag is the same class of silent no-op as `--from CN` (815).
+    """
     from .commands import cmd_md
-    pages = None
-    pdf_args = []
-    i = 0
-    while i < len(args):
-        if args[i] == "--pages" and i + 1 < len(args):
-            pages = args[i + 1]
-            i += 2
-        else:
-            pdf_args.append(args[i])
-            i += 1
-    return cmd_md(_pdf(pdf_args), pages)
+    pages, args = _opt(args, "--pages")
+    image_base, args = _opt(args, "--image-base")
+    return cmd_md(_pdf(args), pages, image_base=image_base)
 
 
 def _do_page(args):

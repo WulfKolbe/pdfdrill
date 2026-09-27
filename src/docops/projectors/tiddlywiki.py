@@ -2326,12 +2326,20 @@ class TiddlyWikiProjector(BaseProjector):
     def _uri(self, url: str, title: str = "") -> str:
         """The image reference a tiddler should carry.
 
-        LOCAL CROP FIRST. MathPix retired the crop CDN and every `cdn_url` in
-        every model now answers HTTP 500, so a tiddler pointing at one renders
-        as its equation number and nothing else. The bytes are not lost: the
-        crop layer fetched them long ago into `report-crops/<title>.jpg` — 5,226
-        of them for BH1org_OCR, one per EQ and FO tiddler, named after the
-        tiddler itself. So the reference is rewritten to that file.
+        LOCAL CROP FIRST, because a `cdn_url` is PERISHABLE. Measured
+        2026-09-27: BH1org_OCR, converted months ago, answers HTTP 500 — which is
+        where this note was first written, and it said "MathPix retired the crop
+        CDN and every `cdn_url` in every model now answers 500". That is too
+        strong: 1-s2.0-S2590118425000565-main (16 Sep) and arxiv.2609.12039
+        (today) both answer 200. Crops expire; the CDN is alive. A tiddler
+        pointing at an EXPIRED one renders as its equation number and nothing
+        else, and a local file never expires — which is the whole reason for the
+        order.
+
+        The bytes are not lost: the crop layer fetched them long ago into
+        `report-crops/<title>.jpg` — 5,226 of them for BH1org_OCR, one per EQ and
+        FO tiddler, named after the tiddler itself. So the reference is rewritten
+        to that file.
 
         A FILE REFERENCE, never base64. A data: URI for 5,226 crops would add
         hundreds of megabytes to a JSON array that is already 5 MB, and

@@ -10441,7 +10441,7 @@ def _inspect_pages_dir(pdf: Path, sc: "Sidecar", pages: str | None,
 @_writes("inspect")
 def cmd_inspect(pdf: Path, pages: str | None = None, embed: bool = True,
                 dpi: int = 120, src_dpi: int = 400, images: bool = True,
-                force: bool = False) -> str:
+                force: bool = False, image_base: str | None = None) -> str:
     """Build a DevTools-style docmodel inspector HTML (`<bibkey>.inspect.html`).
 
     A second lens on the same model the OpenSeadragon viewer shows: every
@@ -10485,6 +10485,12 @@ def cmd_inspect(pdf: Path, pages: str | None = None, embed: bool = True,
             str(model_path), out=str(out_path),
             tiddlers=str(tiddlers) if tiddlers.exists() else None,
             pages_dir=str(pages_dir) if pages_dir else None,
+            # 819d — `docinspect` has supported `--image-base` since it was
+            # written ("a mathpix_server.py origin"), and `pdfdrill inspect`
+            # could not pass it: the flag was reachable only by running the
+            # module directly, which is the audit-A4 pattern applied to a
+            # module CLI instead of a tools/ script.
+            image_base=image_base or None,
             embed=embed, embed_dpi=dpi, src_dpi=src_dpi, title=bibkey,
             page_filter=page_filter,
             # B4: the merged ink tree, when `pdfdrill inktree` has run. None
@@ -16860,7 +16866,7 @@ def _md_from_latex_source(pdf: Path, sc: "Sidecar") -> "str | None":
             + _write_md(pdf, sc, md, source="latex"))
 
 
-def _project_markdown(sc: "Sidecar", doc) -> str:
+def _project_markdown(sc: "Sidecar", doc, image_base: str | None = None) -> str:
     """The docmodel as Markdown — headings, prose, IMAGES and TABLES.
 
     The crop parameters are the point: an image is a LINK, and the link is
@@ -16873,10 +16879,15 @@ def _project_markdown(sc: "Sidecar", doc) -> str:
     return MarkdownProjector(OperatorConfig(
         op="projector", classname="MarkdownProjector",
         params={"crops_dir": str(sc.blob_dir / "report-crops"),
-                "crops_base": "report-crops"})).project(doc)
+                "crops_base": "report-crops",
+                # 819d — an origin that resolves MathPix-shaped crop URLs, so a
+                # figure with no fetched crop still has a working link. See
+                # MarkdownProjector._rebase.
+                "image_base": image_base or ""})).project(doc)
 
 
-def _md_from_model(pdf: Path, sc: "Sidecar") -> "str | None":
+def _md_from_model(pdf: Path, sc: "Sidecar",
+                   image_base: str | None = None) -> "str | None":
     """Markdown projected from the unified model, or None when there is none.
 
     Preferred over the text-layer engine whenever a model exists, because the
@@ -16894,7 +16905,7 @@ def _md_from_model(pdf: Path, sc: "Sidecar") -> "str | None":
     if str(layer.get("source") or "") == "mathpix":
         return None
     doc = load_model(model_path)
-    md = _project_markdown(sc, doc)
+    md = _project_markdown(sc, doc, image_base)
     if not md.strip():
         return None
     import re as _re
@@ -16908,7 +16919,8 @@ def _md_from_model(pdf: Path, sc: "Sidecar") -> "str | None":
 
 
 @_writes("md")
-def cmd_md(pdf: Path, pages: str | None = None) -> str:
+def cmd_md(pdf: Path, pages: str | None = None,
+           image_base: str | None = None) -> str:
     """Build Markdown. Prefers the author's LaTeX (arXiv/source) — clean, no
     hyphenation, isolated abstract, bibliography — else the PDF text-layer."""
     sc = Sidecar(pdf)
@@ -16924,7 +16936,7 @@ def cmd_md(pdf: Path, pages: str | None = None) -> str:
         # engine reads a flat character stream and can state neither. MathPix's
         # own `.md` still wins below, because it is real Markdown written from
         # the same OCR.
-        model_md = _md_from_model(pdf, sc)
+        model_md = _md_from_model(pdf, sc, image_base)
         if model_md is not None:
             return model_md
         sc = Sidecar(pdf)

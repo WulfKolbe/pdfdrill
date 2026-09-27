@@ -274,3 +274,71 @@ def test_a_real_document_gets_images_tables_and_no_transclusions():
     assert "<$latex" not in out
     assert not [ln for ln in out.split("\n")
                 if ln.strip() and not ln.strip().strip("}")]
+
+
+# ── 819d — image_base: rebasing a MathPix crop URL onto a local server ───────
+
+def test_image_base_rebases_a_mathpix_crop_url(tmp_path):
+    """A `cdn_url` is `/cropped/<id>.jpg?height=H&width=W&top_left_y=Y&
+    top_left_x=X`, which is EXACTLY the route pdf2mmd's `inspectserver.py` and
+    `tools/imageserver/mathpix_server.py` serve — deliberately, "so any
+    Mathpix-syntax Markdown works against either". Swapping the host is the whole
+    fix, and it needs nothing stored: the server cuts the rectangle out of the
+    page PNG `inspect` already wrote."""
+    cdn = ("https://cdn.mathpix.com/cropped/bfbc5ae4-01.jpg"
+           "?height=571&width=834&top_left_y=694&top_left_x=1104")
+    doc = _doc(DocObject(type="Picture", props={"cdn_url": cdn}))
+    out = _md(doc, image_base="http://localhost:8791")
+    assert ("http://localhost:8791/cropped/bfbc5ae4-01.jpg"
+            "?height=571&width=834&top_left_y=694&top_left_x=1104") in out
+    assert "cdn.mathpix.com" not in out
+
+
+def test_image_base_keeps_the_whole_query_because_it_is_the_rectangle():
+    """The query IS the crop rectangle. Dropping it would ask the server for a
+    whole page where a region was meant."""
+    from docops.projectors.markdown import MarkdownProjector
+    pr = MarkdownProjector(OperatorConfig(
+        op="projector", classname="MarkdownProjector",
+        params={"image_base": "http://h:1"}))
+    got = pr._rebase("https://cdn.mathpix.com/cropped/x.jpg?height=1&width=2"
+                     "&top_left_y=3&top_left_x=4")
+    assert got.endswith("?height=1&width=2&top_left_y=3&top_left_x=4")
+
+
+def test_a_local_crop_still_wins_over_a_rebased_url(tmp_path):
+    """A local file cannot expire; a crop URL can (measured 2026-09-27: 500 for
+    a months-old conversion, 200 for two recent ones)."""
+    (tmp_path / "doc_PIC_0001.jpg").write_bytes(b"x")
+    doc = _doc(DocObject(type="Picture",
+                         props={"cdn_url": "https://cdn.mathpix.com/cropped/x.jpg?height=1"}))
+    out = _md(doc, crops_dir=str(tmp_path), image_base="http://localhost:8791")
+    assert "report-crops/doc_PIC_0001.jpg" in out
+    assert "localhost" not in out
+
+
+def test_no_image_base_leaves_the_url_alone():
+    cdn = "https://cdn.mathpix.com/cropped/x.jpg?height=1"
+    doc = _doc(DocObject(type="Picture", props={"cdn_url": cdn}))
+    assert cdn in _md(doc)
+
+
+def test_a_non_mathpix_url_is_not_rebased():
+    from docops.projectors.markdown import MarkdownProjector
+    pr = MarkdownProjector(OperatorConfig(
+        op="projector", classname="MarkdownProjector",
+        params={"image_base": "http://h:1"}))
+    assert pr._rebase("https://example.org/figure.png") == "https://example.org/figure.png"
+
+
+def test_the_cli_handler_actually_parses_image_base():
+    """It was added to the manifest and to `cmd_md`, and `_do_md` still parsed
+    only `--pages` — so the flag fell into the PDF args and was silently ignored,
+    the run reporting success with the links unchanged. Same class of silent
+    no-op as `--from CN` (815)."""
+    src = (Path(__file__).resolve().parents[1]
+           / "src" / "pdfdrill" / "cli.py").read_text()
+    for fn in ("_do_md", "_do_inspect"):
+        body = src.split(f"def {fn}(", 1)[1].split("\ndef ", 1)[0]
+        assert "--image-base" in body, f"{fn} does not parse --image-base"
+        assert "image_base=image_base" in body, f"{fn} does not pass it on"
