@@ -10435,7 +10435,37 @@ def _inspect_pages_dir(pdf: Path, sc: "Sidecar", pages: str | None,
         except OSError:
             import shutil as _sh
             _sh.copyfile(img, target)
+    _write_pages_manifest(out, pdf, src_dpi)
     return out, src_dpi
+
+
+def _write_pages_manifest(out: Path, pdf: Path, dpi: int) -> None:
+    """Name the document these page images were rendered from.
+
+    819e — the crop servers (`pdf2mmd/inspectserver.py`,
+    `tools/imageserver/mathpix_server.py`) check this before serving anything,
+    because "page images used to share one folder across documents, so a crop
+    could show a figure from an entirely different book under the right
+    caption". `pdf2mmd.sh` writes it; `pdfdrill inspect` is the OTHER renderer of
+    the same folder and did not, so the check could never run and every session
+    opened with a warning telling the user to re-run pdf2mmd — for pages
+    pdfdrill had rendered.
+
+    Shape is theirs (`document`/`dpi`/`pages`), and `document` is the PDF stem
+    because that is what the server compares against the `--pages`/`--lines`
+    arguments. Never fatal: a missing manifest costs a warning, and failing the
+    inspect build over one would be worse.
+    """
+    try:
+        # `p*.png` also matches the `page-<NNNN>.png` originals this folder
+        # keeps beside the aliases, so it counted every page twice (38 for a
+        # 19-page paper). The aliases are what a server serves.
+        n = len([q for q in out.glob("p[0-9]*.png")])
+        (out / "manifest.json").write_text(
+            json.dumps({"document": pdf.stem, "dpi": int(dpi), "pages": n}),
+            encoding="utf-8")
+    except OSError:
+        pass
 
 
 @_writes("inspect")
