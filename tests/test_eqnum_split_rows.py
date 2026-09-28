@@ -86,13 +86,19 @@ def test_two_numbered_rows_become_two_equations():
 def test_each_row_gets_its_own_crop_band():
     eqs = _build(_page(BH3FR_P108, [("(25)", 327), ("(26)", 513)]))
     # cut at the midpoint between the two numbers, not into equal halves
-    assert eqs[0].props["region"]["top_left_y"] == 286.0
-    assert eqs[0].props["region"]["height"] == 134.0
-    assert eqs[1].props["region"]["top_left_y"] == 420.0
-    assert eqs[1].props["region"]["height"] == 182.0
+    assert eqs[0].props["region"]["top_left_y"] == 286
+    assert eqs[0].props["region"]["height"] == 134
+    assert eqs[1].props["region"]["top_left_y"] == 420
+    assert eqs[1].props["region"]["height"] == 182
     # the bands tile the block exactly, with no gap and no overlap
     assert (eqs[0].props["region"]["height"]
-            + eqs[1].props["region"]["height"]) == 316.0
+            + eqs[1].props["region"]["height"]) == 316
+    # integer pixels, like every other region: the pipeline reads a region
+    # back with `int(...)` on a stringified tiddler field, and "286.0" raises
+    # there while "286" does not — which cost these two rows their scan crop.
+    for e in eqs:
+        assert isinstance(e.props["region"]["top_left_y"], int)
+        assert isinstance(e.props["region"]["height"], int)
     assert [e.props["split_index"] for e in eqs] == [0, 1]
     assert [e.props["split_count"] for e in eqs] == [2, 2]
 
@@ -169,6 +175,6 @@ def test_bands_stay_inside_the_block():
     bands = number_bands(
         {"top_left_x": 0, "top_left_y": 100, "width": 10, "height": 100},
         [110.0, 150.0, 190.0])
-    assert bands[0]["top_left_y"] == 100.0
-    assert bands[-1]["top_left_y"] + bands[-1]["height"] == 200.0
+    assert bands[0]["top_left_y"] == 100
+    assert bands[-1]["top_left_y"] + bands[-1]["height"] == 200
     assert all(b["height"] >= 0 for b in bands)

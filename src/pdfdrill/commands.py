@@ -18687,8 +18687,16 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
         # 976 `_DIA` tiddlers carry a region, so the picture is recoverable
         # from the PDF with no network at all — and unlike a CDN crop it
         # cannot expire.
+        # 824 — KINDS_ALL, not a hand-kept tuple. `render_crops` skips any
+        # tiddler whose crop file already exists, so naming `_EQ` here costs
+        # nothing while the CDN works and is the only thing that works when it
+        # stops: BH3FR's conversion now answers HTTP 500 for every one of its
+        # 325 equation crops, and with `_EQ` absent the Scan column of a
+        # months-old document could never be rebuilt. `reports/crops.py`
+        # already passed KINDS_ALL; these two sites had drifted from it.
+        from .reports.crops import KINDS_ALL as _CROP_KINDS
         r_ok, r_cached, r_skip = rt.render_crops(
-            tiddlers, crops, pdf, kinds=("_TAB", "_PIC", "_DIA"))
+            tiddlers, crops, pdf, kinds=_CROP_KINDS)
         crop_note = f"crops: {ok} fetched, {cached} cached, {failed} failed"
         if r_ok or r_cached or r_skip:
             crop_note += (f"; tables {r_ok} rendered, {r_cached} cached, "
@@ -19281,8 +19289,9 @@ def cmd_cdncrops(pdf: Path) -> str:
     # 976 `_DIA` tiddlers carry a region, so the picture is recoverable
     # from the PDF with no network at all — and unlike a CDN crop it
     # cannot expire.
+    from .reports.crops import KINDS_ALL as _CROP_KINDS   # 824 — see above
     r_ok, r_cached, r_skip = rt.render_crops(
-        tiddlers, crops, pdf, kinds=("_TAB", "_PIC", "_DIA"))
+        tiddlers, crops, pdf, kinds=_CROP_KINDS)
     # 821 — COUNT WHAT IS ACTUALLY RENDERED. This counted `_TAB` only and said
     # "of N table crops", which became a false statement the moment figures were
     # rendered too: three Diagram crops reported as table crops.

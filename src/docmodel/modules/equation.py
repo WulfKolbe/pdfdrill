@@ -254,17 +254,25 @@ def number_bands(region: dict, ys: list) -> list[dict]:
     row's centre, so the numbers are the only evidence on the page for where
     one row ends and the next begins.
     """
-    top = region.get("top_left_y") or 0
-    height = region.get("height") or 0
+    top = int(region.get("top_left_y") or 0)
+    height = int(region.get("height") or 0)
     edges = [float(top)]
     for a, b in zip(ys, ys[1:]):
         edges.append(min(max((a + b) / 2.0, edges[-1]), top + height))
     edges.append(float(top + height))
+    # INTEGER PIXELS, like every other region in the corpus. A MathPix region
+    # is a pixel box and the whole pipeline reads it back with `int(...)` on a
+    # STRINGIFIED field: a tiddler carrying "286.0" raises `invalid literal for
+    # int()` where "675" does not, and `render_crops` counts that as a skipped
+    # row — so the two rows this change exists to recover were the only two in
+    # BH3FR's report with no scan beside them. Rounding the EDGES and taking
+    # differences keeps the bands tiling the block exactly.
+    cuts = [int(round(e)) for e in edges]
     out = []
-    for lo, hi in zip(edges, edges[1:]):
+    for lo, hi in zip(cuts, cuts[1:]):
         band = dict(region)
         band["top_left_y"] = lo
-        band["height"] = max(hi - lo, 0.0)
+        band["height"] = max(hi - lo, 0)
         out.append(band)
     return out
 

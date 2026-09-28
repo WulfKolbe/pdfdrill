@@ -19,16 +19,29 @@ def test_render_crops_covers_figures_not_only_tables():
     160 corpus documents, 13,968 `_PIC` and 976 `_DIA` tiddlers carry a region —
     recoverable from the PDF with no network, and unlike a CDN crop it cannot
     expire."""
+    from pdfdrill.reports.crops import KINDS_ALL
+
+    # 824 — the RESOLVED kinds, not the literals. This used to grep each call
+    # site for `"_PIC"` and `"_DIA"`, which tested the spelling rather than the
+    # coverage: passing the generated `KINDS_ALL` widens the kinds further
+    # (it adds `_EQ` and `_FO`) and removed the literals, so the letter of the
+    # assertion failed while its intent was more satisfied than before.
+    # KINDS_ALL is built from the title scheme's own prefixes, so a kind added
+    # there is covered here without anyone editing a tuple.
+    assert {"_PIC", "_DIA", "_TAB"} <= set(KINDS_ALL), KINDS_ALL
+
     src = (Path(__file__).resolve().parents[1]
            / "src" / "pdfdrill" / "commands.py").read_text()
-    calls = [ln for ln in src.split("\n") if "rt.render_crops(" in ln]
+    lines = src.split("\n")
+    calls = [ln for ln in lines if "rt.render_crops(" in ln]
     assert calls, "render_crops is no longer called"
-    # every call site must widen the kinds
-    for i, ln in enumerate(src.split("\n")):
+    for i, ln in enumerate(lines):
         if "rt.render_crops(" not in ln:
             continue
-        window = "\n".join(src.split("\n")[i:i + 3])
-        assert '"_PIC"' in window and '"_DIA"' in window, window
+        window = "\n".join(lines[i:i + 3])
+        covers = ('"_PIC"' in window and '"_DIA"' in window) or "_CROP_KINDS" in window
+        assert covers, ("this call site renders neither figures nor the full "
+                        f"kind set:\n{window}")
 
 
 def test_a_uri_is_not_a_picture():
