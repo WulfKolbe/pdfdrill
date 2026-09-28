@@ -103,9 +103,38 @@ def sanitize_math(latex: str) -> str:
     latex = _MATH_UNICODE_RE.sub(lambda m: _MATH_UNICODE[m.group(0)], latex)
     latex = _LEAKED_MATH_ENV.sub(" ", latex)      # drop leaked list/float envs
     latex = _strip_math_delimiters(latex)         # unwrap \[…\] / $…$ / …
+    latex = _drop_dangling_backslash(latex)
     if latex.lstrip().startswith("["):
         latex = "{}" + latex
     return latex
+
+
+def _drop_dangling_backslash(latex: str) -> str:
+    r"""Remove a trailing backslash that would escape the CLOSING delimiter.
+
+    822 — the worst kind of defect: one character, and it takes the rest of the
+    document with it. A Formula whose body is `52-\` is wrapped by the projector
+    as `${body}$` and comes out `$52-\$` — the closing `$` is escaped, the span
+    never closes, and every error after it is a consequence. Measured on
+    2605.23109: this single formula accounted for 120 of the file's 215
+    xelatex errors, and bisecting the document was the only way to find it,
+    because TeX reports the failure wherever the runaway finally collides with
+    something — 800 lines later, inside a longtable that compiles perfectly on
+    its own.
+
+    `balance_math` cannot catch it: it counts `(?<!\\)\$`, and the delimiter
+    here is added AFTER it runs, by the caller wrapping the body.
+
+    An odd number of trailing backslashes is always wrong at the end of a
+    formula — `\\` is a line break and legal, a lone `\` is a truncation — so
+    this is a defect a reader can prove without understanding the mathematics,
+    and it has exactly one correction.
+    """
+    body = latex.rstrip()
+    n = len(body) - len(body.rstrip("\\"))
+    if n % 2:
+        body = body[:-1]
+    return body
 
 
 # DISPLAY-only math environments — invalid inside inline math (`\ensuremath`,
@@ -441,19 +470,39 @@ def normalize_cite_commands(text: str) -> str:
 _MATH_SPAN = re.compile(r"(\$\$.*?\$\$|\\\[.*?\\\]|\$[^$]*\$|\\\(.*?\\\))", re.DOTALL)
 
 
+#: What each text-mode special becomes. `^` and `~` do NOT take a bare
+#: backslash: `\\^` is the circumflex ACCENT and wants an argument, so `x\\^2`
+#: sets a circumflex over the 2 or fails outright.
+_PROSE_ESCAPES = {"#": "\\#", "%": "\\%", "&": "\\&", "_": "\\_",
+                  "^": "\\textasciicircum{}", "~": "\\textasciitilde{}"}
+_PROSE_SPECIALS = re.compile(r"(?<!\\)([#%&_^~])")
+
+
 def escape_prose_specials(text: str) -> str:
-    """Escape `#`, `%`, `&` in the NON-math parts of prose — each is illegal in
-    text mode and never needed literally here (a bare `%` comments the rest of the
-    line; `C#` / `R&D` error). IDEMPOTENT (`(?<!\\\\)`), and math spans (`$…$`,
-    `\\(…\\)`) are left untouched so subscripts / alignment survive. `_ ^ { } $ \\`
-    are deliberately NOT escaped (they carry the model's inline LaTeX)."""
+    r"""Escape the text-mode specials in the NON-math parts of prose.
+
+    Each is illegal in text mode and never needed literally here: a bare `%`
+    comments out the rest of the line, `C#` and `R&D` error. IDEMPOTENT
+    (`(?<!\)`), and math spans (`$…$`, `\(…\)`, `\[…\]`) are left untouched so
+    subscripts and alignment survive. `{ } $ \` are still NOT escaped — they are
+    the structure the model's inline LaTeX is made of.
+
+    822 — `_` WAS ON THAT EXEMPT LIST AND SHOULD NOT HAVE BEEN. The reasoning
+    was that it "carries the model's inline LaTeX", but a subscript outside a
+    math span is already an error: `_` in text mode is `Missing $ inserted`
+    whatever we do, and leaving it bare loses the character too. What prose
+    actually holds is CODE IDENTIFIERS — `read_inc`, `all_less_than` in
+    2605.23109 — and a reader compiling that file by hand met 46 of these
+    errors. Escaping turns an error into the underscore the author wrote.
+
+    Safe in that order because `balance_math` runs FIRST: an unclosed `\(` is
+    closed before this sees it, so a span meant as math is protected as math
+    rather than escaped as text.
+    """
     parts = _MATH_SPAN.split(text)
     for i in range(0, len(parts), 2):             # even indices = non-math text
-        seg = parts[i]
-        seg = re.sub(r"(?<!\\)#", r"\\#", seg)
-        seg = re.sub(r"(?<!\\)%", r"\\%", seg)
-        seg = re.sub(r"(?<!\\)&", r"\\&", seg)
-        parts[i] = seg
+        parts[i] = _PROSE_SPECIALS.sub(
+            lambda m: _PROSE_ESCAPES[m.group(1)], parts[i])
     return "".join(parts)
 
 

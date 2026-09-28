@@ -28,7 +28,9 @@ MODEL = "sonar"
 _BIBTEX_BLOCK = re.compile(r"```(?:bibtex)?\s*([\s\S]*?)```", re.I)
 _BIBTEX_FALLBACK = re.compile(r"(@\w+\{[\s\S]*?\n\})")
 _CIT_SECTION = re.compile(r"Citations?:\s*((?:- .+\n*)+)", re.I)
-_FIELD = r"{0}\s*=\s*[{{\"]([^}}\"]*)[}}\"]"
+#: The OPENING of a BibTeX field: `title = {` or `title = "`. Where it ENDS is
+#: not a regex's business — see `bibtex_field`.
+_FIELD_OPEN = r"(?<![A-Za-z]){0}\s*=\s*([{{\"])"
 
 
 def _api_key() -> str:
@@ -93,13 +95,60 @@ def parse_response(output: str) -> dict:
     return {"bibtex": bibtex, "citations": citations}
 
 
+def bibtex_field(bibtex: str, name: str) -> str:
+    r"""One BibTeX field's value, read to its MATCHING close.
+
+    822 — this was `[^}"]*`, which stops at the first `}` whatever it means, and
+    a BibTeX title is full of braces: `{MIRAGE}` protects capitalisation, and a
+    title carrying LaTeX carries `$\{$…$\}$`. Measured on arXiv 2607.22944, the
+    bibtex held
+
+        title={$\{$MIRAGE$\}$: Mitigating $\{$Conflict-Based$\}$ Cache Attacks…}
+
+    and the extracted title was `$\{$MIRAGE$\` — cut inside an escape, leaving
+    an odd number of `$`. Emitted into `thebibliography` that opens a math span
+    which never closes, so every following `\bibitem` is "\item invalid in math
+    mode": 60 xelatex errors from one truncated field, in a file that otherwise
+    compiles clean.
+
+    Same defect as 811's caption truncation (`\section{...}` read with
+    `[^}]*`) and 822's own `_CELL_ENV`. A brace-delimited value needs a walk,
+    not a character class.
+    """
+    m = re.search(_FIELD_OPEN.format(re.escape(name)), bibtex, re.I)
+    if not m:
+        return ""
+    opener = m.group(1)
+    i = m.end()
+    if opener == '"':
+        j = bibtex.find('"', i)
+        return bibtex[i:j] if j != -1 else bibtex[i:]
+    depth = 1
+    out = []
+    while i < len(bibtex):
+        ch = bibtex[i]
+        if ch == "\\" and i + 1 < len(bibtex):
+            out.append(bibtex[i:i + 2])       # an escaped brace is a LITERAL
+            i += 2
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return "".join(out)
+        out.append(ch)
+        i += 1
+    return "".join(out)                        # unterminated: keep what there is
+
+
 def parse_bibtex_fields(bibtex: str) -> dict:
     """Pull author/year/title (and entry_type) out of a BibTeX string."""
     fields: dict[str, str] = {}
     for name in ("author", "year", "title", "journal", "booktitle", "doi"):
-        m = re.search(_FIELD.format(name), bibtex, re.I)
-        if m:
-            fields[name] = m.group(1).strip()
+        got = bibtex_field(bibtex, name).strip()
+        if got:
+            fields[name] = got
     et = re.match(r"\s*@(\w+)\s*\{", bibtex)
     if et:
         fields["entry_type"] = et.group(1).lower()

@@ -80,6 +80,13 @@ _DEFAULT_PREAMBLE = (
     # booktabs/multirow (tables) — the packages a projected paper commonly needs.
     "\\usepackage{amsmath,amssymb,amsfonts,mathtools,bm}\n"
     "\\usepackage{graphicx,booktabs,multirow,longtable,xcolor,url,hyperref}\n"
+    # 822 — THE CROP PATH RESOLVES FROM EITHER DIRECTORY. The .tex is
+    # written to `<doc>/latex/` and names `report-crops/…`, which is
+    # relative to `<doc>/`: pdfdrill's own compile works only because it
+    # sets cwd there, and a reader opening the file in its own folder gets
+    # a missing graphic. `./` covers the first, `../` the second, so the
+    # same file compiles from both and neither path is wrong.
+    "\\graphicspath{{./}{../}}\n"
     # 781m — `listings`, for the CodeListing branch. Declared here rather
     # than conditionally: a listing that reaches the .tex without its
     # package does not render badly, it FAILS TO COMPILE, and the preamble
@@ -104,7 +111,19 @@ def _escape_text(s: str) -> str:
 #: A LaTeX environment inside a table cell. Measured: 2,107 of 555,053 corpus
 #: cells (0.38%) carry one — usually `lstlisting`, which cannot appear in a
 #: tabular cell at all without an `lrbox` (MathPix wraps them exactly so).
-_CELL_ENV = re.compile(r"\\begin\{([A-Za-z*]+)\}(.*?)\\end\{\1\}", re.S)
+#: An environment inside a table cell, WITH its optional argument and any
+#: column spec. 822 — matching only `\begin{env}` left those behind: a cell
+#: holding `\begin{tabular}[t]{l}…\end{tabular}` unwrapped to `[t]{l} …`, and
+#: `[t]{l}` in a cell is four characters of literal noise at best.
+_CELL_ENV = re.compile(
+    r"\\begin\{([A-Za-z*]+)\}\s*(?:\[[^\]]*\])?\s*(?:\{[^{}]*\})?"
+    r"(.*?)\\end\{\1\}", re.S)
+
+
+#: A `\begin{env}` or `\end{env}` left over after the balanced pairs are
+#: unwrapped — one whose partner is in another cell, or absent.
+_UNPAIRED_ENV = re.compile(
+    r"\\(?:begin|end)\{[A-Za-z*]+\}\s*(?:\[[^\]]*\])?\s*(?:\{[^{}]*\})?")
 
 
 def _cell_tex(text: str) -> str:
@@ -132,6 +151,23 @@ def _cell_tex(text: str) -> str:
     if not t:
         return ""
     t = _CELL_ENV.sub(lambda m: m.group(2).strip(), t)
+    # AN ENVIRONMENT THE CELL CANNOT CLOSE MUST NOT BE EMITTED. The pair above
+    # unwraps a balanced one; what is left is a `\begin` whose `\end` is in
+    # another cell or nowhere. Inside a tabular that is catastrophic rather than
+    # untidy: an unterminated `\begin{lstlisting}` swallows every following `&`
+    # and `\\`, so the table stops being a table. Measured on 2605.23109 — one
+    # such cell produced 51 `Missing }` and 49 `Missing \cr`, 100 of the file's
+    # 119 remaining errors, and the damage surfaced 500 lines later.
+    #
+    # A `lstlisting` in a tabular cell needs an `lrbox` saved before the table
+    # begins (which is what MathPix emits); that is real work and not this
+    # change. Keeping the words and dropping the wrapper loses the monospacing
+    # and keeps the document.
+    t = _UNPAIRED_ENV.sub(" ", t)
+    # `\item` outside a list environment is an error, and unwrapping an
+    # `itemize`/`description` above leaves its items behind. Measured on
+    # 2605.23109: `\item[] \(…\) \item[] \(…\)` inside a longtable cell.
+    t = re.sub(r"\\item\s*(?:\[[^\]]*\])?\s*", " ", t)
     # A MARKDOWN IMAGE is not LaTeX. MathPix writes `![](https://cdn.mathpix
     # .com/…)` inside a cell's text, and `\includegraphics` cannot take a URL at
     # all — xelatex needs a local file, so emitting it fails the whole compile
@@ -140,7 +176,14 @@ def _cell_tex(text: str) -> str:
     # verbatim prints the URL as prose. The words around it are kept; the link is
     # dropped, and the image is still in the document as the Table's own crop.
     t = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", t)
-    t = _escape_text(t)
+    # 822 — OUTSIDE MATH ONLY, and through the ONE prose escaper. This called
+    # `_escape_text`, which escapes `_` wherever it stands — and 24.5% of
+    # corpus cells contain mathematics, so `\(\mathbb{I}_{R Y W}^{*}\)` came
+    # out with `\_`: a literal underscore where a subscript belonged, wrong
+    # silently rather than broken loudly. A second escaper was written here
+    # first and deleted: `escape_prose_specials` already splits on math spans
+    # and is where the rule belongs.
+    t = _pipe.escape_prose_specials(t)
     t = re.sub(r"\\\\", " ", t)                  # a row break inside a cell
     t = re.sub(r"\s*\n\s*", " ", t)
     return _balance_braces(t.strip())

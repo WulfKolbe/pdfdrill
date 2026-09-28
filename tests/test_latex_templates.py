@@ -104,9 +104,17 @@ def test_materialised_footnote_and_citation_project_to_real_latex():
 
 
 def test_no_literal_placeholder_survives_the_projection():
+    r"""822 — the check is for a TRANSCLUSION MARKER, not for the two characters
+    it happens to start with. A bare `"{{" not in out` also forbids
+    `\graphicspath{{./}{../}}`, which is ordinary LaTeX and is now in the
+    preamble so a crop path resolves whether the file is compiled from the doc
+    folder or from `latex/`. The marker is what must not survive: `{{…||TPL}}`.
+    """
     out, _ = _project(_doc())
     assert not PLACEHOLDER.findall(out), PLACEHOLDER.findall(out)
-    assert "{{" not in out and "||" not in out
+    assert "||" not in out
+    import re as _re
+    assert not _re.findall(r"\{\{[^{}]*\|\|", out)
 
 
 def test_a_marked_footnote_body_is_printed_once_not_twice():
