@@ -12764,6 +12764,73 @@ def _reapply_from_memory(tid_path: Path, remembered) -> int:
         return 0
 
 
+@_writes("adopttranslation")
+def cmd_adopttranslation(pdf: Path, source: str | None = None,
+                         dry_run: bool = False) -> str:
+    """Adopt the translated prose of an OLDER model of this same document.
+
+    825 — `translate` writes the target language in place over each prose
+    object's `text`, so rebuilding the model reverts it and the only record is
+    an older model file. This copies that text back without a paid call.
+
+    The two builds share no object ids and no stream anchors (both are minted
+    per build) and prose objects carry no region, so the join is
+    `(type, page, from_line_index, to_line_index)` — offsets into the SAME
+    lines.json, stable by construction. Only keys occurring exactly once on
+    each side are adopted; a structural pass that changed the object set
+    legitimately leaves objects with nothing to copy, and those stay in the
+    source language and are counted.
+    """
+    from .model_io import load_model, save_model
+    from .translation_restore import restore
+
+    if not source:
+        return ("`--from <model.docmodel.json>` is required: name the older "
+                "model to adopt the translation from.")
+    src = Path(source).expanduser()
+    if not src.exists():
+        return f"No such model: {src}"
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+    if src.resolve() == model_path.resolve():
+        return ("Refusing to adopt a model into itself — `--from` names this "
+                "document's own current model.")
+
+    doc = load_model(model_path)
+    stats = restore(doc, src)
+    if not stats["lang"]:
+        return (f"{src.name} records no `translated_lang`: it is not a "
+                f"translated model, and nothing was changed.")
+    left = ", ".join(f"{n} {t}" for t, n in sorted(stats["skipped"].items()))
+    if dry_run:
+        return (f"Would adopt {stats['restored']} translated object(s) "
+                f"({stats['lang']}) from {src.name} [sha256 "
+                f"{stats['sha256'][:12]}]; {stats['unchanged']} already "
+                f"identical" + (f"; no counterpart for {left}" if left else "")
+                + ". Nothing was written (--dry-run).")
+
+    save_model(model_path, doc)
+    sc.set_evidence("translated_lang", stats["lang"])
+    sc.set_evidence("translated_count", stats["restored"])
+    sc.set_evidence("translation_restored_sha256", stats["sha256"])
+    prev = ",".join(sorted(sc.facts - {TRANSLATED})) or "INIT"
+    sc.add_fact(TRANSLATED)
+    sc.log_transition("adopttranslation", prev, TRANSLATED,
+                      detail=f"{stats['restored']} objects from {src.name}")
+    sc.save()
+    return (f"Adopted {stats['restored']} translated object(s) "
+            f"({stats['lang']}) from {src.name} [sha256 "
+            f"{stats['sha256'][:12]}]; {stats['unchanged']} were already "
+            f"identical"
+            + (f". No counterpart in this build for {left} — left in the "
+               f"source language" if left else "")
+            + ". The model records the sha256 it came from, because this text "
+              "was not produced by a translation call against THIS model.")
+
+
 @_writes("translate")
 def cmd_translate(pdf: Path, target_lang: str = "EN-US",
                   source_lang: str | None = None, limit: int | None = None,

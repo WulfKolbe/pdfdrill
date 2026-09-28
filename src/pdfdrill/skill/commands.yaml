@@ -1462,6 +1462,35 @@ commands:
   - model
   flags:
   - *id001
+- name: adopttranslation
+  section: Introspection (fast, no extraction)
+  summary: 'Adopt the translated prose of an OLDER model of this same document
+    (--from M.docmodel.json): `translate` writes the target language IN PLACE over
+    each prose object''s text, so rebuilding the model reverts it and the only record
+    is an older model file. Joins on (type, page, from_line_index, to_line_index) --
+    offsets into the SAME lines.json, stable across builds where object ids and stream
+    anchors are not. Adopts only keys occurring exactly once on each side; objects a
+    later structural pass created have nothing to copy and stay in the source language,
+    counted. Records the sha256 of the file it came from, because this text was not
+    produced by a translation call against THIS model. No DeepL key, no network.'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  requires:
+  - model
+  flags:
+  - name: source
+    type: str
+    flag: --from
+    help: the older model to adopt the translation from
+  - name: dry_run
+    type: flag
+    flag: --dry-run
+    help: report what would be adopted; write nothing
 - name: bibliography
   section: Introspection (fast, no extraction)
   summary: Parse the References section into Reference nodes (citekey/author/year/text)

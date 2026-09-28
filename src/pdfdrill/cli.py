@@ -1136,6 +1136,15 @@ def _do_relearn(args):
     return cmd_relearn(_pdf(args))
 
 
+def _do_adopttranslation(args):
+    """pdfdrill adopttranslation <pdf> --from MODEL [--dry-run]"""
+    from .commands import cmd_adopttranslation
+    source, args = _opt(args, "--from")
+    pdf_args = [a for a in args if a != "--dry-run"]
+    return cmd_adopttranslation(_pdf(pdf_args), source=source,
+                                dry_run="--dry-run" in args)
+
+
 def _do_eqnums(args):
     """pdfdrill eqnums <pdf> [--force]"""
     from .commands import cmd_eqnums
@@ -2451,6 +2460,7 @@ HANDLERS = {
         "escalate": _do_escalate,
         "relearn": _do_relearn,
         "eqnums": _do_eqnums,
+        "adopttranslation": _do_adopttranslation,
         "bibliography": _do_bibliography,
         "bibsource": _do_bibsource,
         "bibfetch": _do_bibfetch,

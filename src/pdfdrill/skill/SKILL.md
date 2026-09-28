@@ -526,6 +526,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill escalate <pdf> [--limit LIMIT]` | Phase-3: export flagged equations for a second LLM reading; --limit N |
 | `pdfdrill relearn <pdf>` | Phase-3: re-score after ingest; report resolved vs still-flagged |
 | `pdfdrill eqnums <pdf> [--force]` | Fuse equation numbers ("(N)") from margin geometry for \|\|FO/\|\|FREF transclusion |
+| `pdfdrill adopttranslation <pdf> [--from SOURCE] [--dry-run]` | Adopt the translated prose of an OLDER model of this same document (--from M.docmodel.json): `translate` writes the target language IN PLACE over each prose object's text, so rebuilding the model reverts it and the only record is an older model file. Joins on (type, page, from_line_index, to_line_index) -- offsets into the SAME lines.json, stable across builds where object ids and stream anchors are not. Adopts only keys occurring exactly once on each side; objects a later structural pass created have nothing to copy and stay in the source language, counted. Records the sha256 of the file it came from, because this text was not produced by a translation call against THIS model. No DeepL key, no network. |
 | `pdfdrill bibliography <pdf> [--force]` | Parse the References section into Reference nodes (citekey/author/year/text) |
 | `pdfdrill bibsource <pdf> [--bib BIB] [--bbl BBL] [--force]` | Ingest the author's GOLD bibliography (--bbl file.bbl + --bib file.bib): alpha label↔citekey↔fields, links in-text citations by label. No API. |
 | `pdfdrill bibfetch <pdf> [--limit LIMIT] [--force]` | Enrich References with full BibTeX via Perplexity SONAR; --limit N (needs PERPLEXITY_API_KEY) _(network)_ |
@@ -675,6 +676,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-2e409ec5` before any build/extract command.
-DRILL-2e409ec5
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-a5217d57` before any build/extract command.
+DRILL-a5217d57
 <!-- PREFLIGHT-TOKEN:END -->
