@@ -172,6 +172,103 @@ def absorbed_equation_number(latex: str) -> tuple[str, str]:
     return m.group("num"), (body[:cut].rstrip() + delim)
 
 
+#: Environments whose ROWS are separate numbered equations. `cases`, `split`
+#: and `multline` are deliberately absent: each is ONE equation set over
+#: several lines, and splitting one would invent equations the book never
+#: printed.
+_MULTI_EQ_ENVS = frozenset({
+    "aligned", "align", "align*", "alignat", "alignat*",
+    "gather", "gathered", "gather*", "eqnarray", "eqnarray*",
+})
+_ENV_OPEN = re.compile(r"\\begin\{([A-Za-z*]+)\}")
+_CMD_NAME = re.compile(r"[A-Za-z]+")
+#: An alignment point that is real, not the escaped literal `\&`.
+_LIVE_AMP = re.compile(r"(?<!\\)&")
+
+
+def alignment_rows(latex: str) -> list[str]:
+    r"""The rows of a multi-equation alignment, or `[]` when it is not one.
+
+    Splits on `\\` at environment depth 0 ONLY. A `\\` inside a nested
+    `array`, `matrix` or `cases` is that environment's own row break and
+    belongs to the formula; cutting there would take a matrix apart.
+    """
+    m = _ENV_OPEN.search(latex or "")
+    if not m or m.group(1) not in _MULTI_EQ_ENVS:
+        return []
+    end = latex.rfind("\\end{%s}" % m.group(1))
+    if end <= m.end():
+        return []
+    body = latex[m.end():end]
+    rows: list[str] = []
+    cur: list[str] = []
+    depth = i = 0
+    while i < len(body):
+        if body[i] != "\\":
+            cur.append(body[i])
+            i += 1
+            continue
+        if body.startswith("\\\\", i):
+            if depth:
+                cur.append("\\\\")
+            else:
+                rows.append("".join(cur))
+                cur = []
+            i += 2
+            continue
+        cmd = _CMD_NAME.match(body, i + 1)
+        if not cmd:                       # an escaped character: \& \{ \%
+            cur.append(body[i:i + 2])
+            i += 2
+            continue
+        if cmd.group(0) == "begin":
+            depth += 1
+        elif cmd.group(0) == "end":
+            depth -= 1
+        cur.append(body[i:cmd.end()])
+        i = cmd.end()
+    rows.append("".join(cur))
+    return [r.strip() for r in rows if r.strip()]
+
+
+def standalone_row(row: str) -> str:
+    r"""One alignment row as a formula in its own right.
+
+    The leading `&` was the alignment point against its neighbours and means
+    nothing alone. An `&` still inside the row DOES mean something, and outside
+    an alignment environment it is a fatal `Misplaced alignment tab`, so such a
+    row keeps a one-row `aligned` around it.
+    """
+    r = re.sub(r"^&\s*", "", row.strip())
+    if _LIVE_AMP.search(r):
+        return "\\begin{aligned} %s \\end{aligned}" % r
+    return r
+
+
+def number_bands(region: dict, ys: list) -> list[dict]:
+    """Divide a block's box into one band per number.
+
+    Cut at the MIDPOINT between consecutive number y-centres rather than into
+    equal parts: the rows of an alignment are not equally tall (a fraction is
+    twice a bare identifier), and the publisher sets each number on its own
+    row's centre, so the numbers are the only evidence on the page for where
+    one row ends and the next begins.
+    """
+    top = region.get("top_left_y") or 0
+    height = region.get("height") or 0
+    edges = [float(top)]
+    for a, b in zip(ys, ys[1:]):
+        edges.append(min(max((a + b) / 2.0, edges[-1]), top + height))
+    edges.append(float(top + height))
+    out = []
+    for lo, hi in zip(edges, edges[1:]):
+        band = dict(region)
+        band["top_left_y"] = lo
+        band["height"] = max(hi - lo, 0.0)
+        out.append(band)
+    return out
+
+
 class EquationProcessor(BaseModule):
     #: 249 — BOTH, and "equation" is not dead. It occurs ZERO times in the
     #: 3,998,456 MathPix line objects of the corpus, which is why out/245
@@ -196,19 +293,35 @@ class EquationProcessor(BaseModule):
         # its `equation_number` lines, so a +-N stream-index window only catches
         # the first equation per page (this left 12/13 equations of arXiv
         # 2312.11532 unnumbered, incl. eq 9, when running `model` alone).
-        refnum_by_anchor = self._match_equation_numbers(anchors, stream)
+        # 823 — the SPLIT is planned first, because it consumes numbers the
+        # greedy pairing below would otherwise hand to a neighbour. One MathPix
+        # `math` line can hold several separately-numbered rows; before this,
+        # each line took at most ONE number, which dropped 4,826 printed
+        # numbers across 307 of 1,506 documents (9.8% of every number the
+        # corpus prints) and, worse, left the surviving equation carrying the
+        # other rows' formulae under its own label. BH3FR p108 is the shape:
+        # `\begin{aligned} & r=… \\ & m=… \end{aligned}` with (25) at
+        # y=327 and (26) at y=513 — (25) vanished and (26) claimed both rows.
+        splits = self._split_plan(anchors, stream)
+        consumed = {na for rows in splits.values() for (_t, na, _r, _g) in rows}
+        refnum_by_anchor = self._match_equation_numbers(
+            anchors, stream, skip_eq=set(splits), skip_num=consumed)
 
         items: list[dict[str, Any]] = []
         for i, anchor in enumerate(anchors):
             payload = stream.payload[anchor]
             if payload.get("type") not in self.EQ_TYPES:
                 continue
+            if anchor in splits:
+                items.extend(self._split_items(anchor, payload, splits[anchor]))
+                continue
             paired = refnum_by_anchor.get(anchor)
             refnum, refnum_anchor = paired if paired else ("", None)
             if not refnum:
                 refnum = self._refnum_near(
                     anchors, stream, i,
-                    used={n for n, _a in refnum_by_anchor.values()})
+                    used={n for n, _a in refnum_by_anchor.values()}
+                        | {t for rows in splits.values() for (t, _a, _r, _g) in rows})
             latex_raw = payload.get("text_display") or payload.get("text") or ""
             # 254 — last resort: the number MathPix swept into the maths.
             absorbed = ""
@@ -240,7 +353,91 @@ class EquationProcessor(BaseModule):
             })
         return items
 
-    def _match_equation_numbers(self, anchors, stream) -> dict:
+    def _split_plan(self, anchors, stream) -> dict:
+        """Which math lines hold more than one numbered equation.
+
+        A line splits only when the evidence is unambiguous: the numbers lie
+        INSIDE its own box (not merely near it), its LaTeX is a multi-equation
+        alignment, and it has exactly as many rows as there are numbers. Any
+        other count is left to the greedy pairing exactly as before and
+        counted, because a guess about which row a number belongs to is the
+        misattribution this change exists to remove.
+
+        Returns {equation_anchor: [(number, number_anchor_id, row, region)]}.
+        """
+        def box(p):
+            r = p.get("region") or {}
+            top = r.get("top_left_y")
+            if top is None:
+                return None
+            return float(top), float(top) + float(r.get("height") or 0)
+
+        eqs: dict = {}
+        nums: dict = {}
+        for a in anchors:
+            p = stream.payload[a]
+            b = box(p)
+            if b is None:
+                continue
+            pg = p.get("_page")
+            if p.get("type") in self.EQ_TYPES:
+                eqs.setdefault(pg, []).append((b, a, p))
+            elif p.get("type") == "equation_number":
+                t = normalize_equation_number(p.get("text") or p.get("text_display"))
+                if t:
+                    nums.setdefault(pg, []).append(
+                        ((b[0] + b[1]) / 2.0, t, getattr(a, "id", a)))
+
+        plan: dict = {}
+        for pg, here in eqs.items():
+            for (y0, y1), a, p in here:
+                inside = sorted(n for n in nums.get(pg, []) if y0 <= n[0] <= y1)
+                if len(inside) < 2:
+                    continue
+                latex = _normalize_latex(
+                    p.get("text_display") or p.get("text") or "")
+                rows = alignment_rows(latex)
+                if len(rows) != len(inside):
+                    self.bump("equation_number_blocks_unsplit")
+                    continue
+                bands = number_bands(p.get("region") or {},
+                                     [n[0] for n in inside])
+                plan[a] = [(t, na, standalone_row(row), band)
+                           for (_y, t, na), row, band
+                           in zip(inside, rows, bands)]
+                self.bump("equations_split")
+                self.bump("equation_numbers_recovered_by_split", len(inside) - 1)
+        return plan
+
+    def _split_items(self, anchor, payload, rows) -> list:
+        """One item per numbered row of a split block.
+
+        Every row surfaces on the SAME line anchor — a Realization is
+        many-to-one, so this needs no change to the line stream and the block
+        stays addressable as the one thing MathPix actually emitted.
+        """
+        out = []
+        for k, (num, num_anchor, row, region) in enumerate(rows):
+            out.append({
+                "anchor": anchor,
+                "page": payload.get("_page"),
+                "image_id": payload.get("_image_id"),
+                "region": region,
+                "refnum": num,
+                "refnum_anchor": num_anchor,
+                "refnum_source": "line",
+                "latex_raw": row,
+                "latex": _normalize_latex(row),
+                "confidence": payload.get("confidence"),
+                "confidence_rate": payload.get("confidence_rate"),
+                "split_index": k,
+                "split_count": len(rows),
+            })
+        return out
+
+    def _match_equation_numbers(self, anchors, stream,
+                                skip_eq=frozenset(),
+                                skip_num=frozenset()) -> dict:
         """Pair each math/equation line with the same-page `equation_number`
         line whose region y-center is closest (greedy nearest-pair, each number
         used once). Returns {equation_anchor: ("N", number_anchor)}.
@@ -264,10 +461,12 @@ class EquationProcessor(BaseModule):
                 continue
             pg = p.get("_page")
             if p.get("type") in self.EQ_TYPES:
+                if a in skip_eq:          # 823 — already split, row by row
+                    continue
                 eqs_by_page.setdefault(pg, []).append((yc, a))
             elif p.get("type") == "equation_number":
                 t = normalize_equation_number(p.get("text") or p.get("text_display"))
-                if t:
+                if t and getattr(a, "id", a) not in skip_num:
                     # the anchor's ID (a string): props are serialised to JSON,
                     # and an Anchor object round-trips as its repr, which then
                     # matches nothing.
@@ -330,6 +529,11 @@ class EquationProcessor(BaseModule):
                 "region": item["region"],
                 "confidence": item.get("confidence"),
                 "confidence_rate": item.get("confidence_rate"),
+                # 823 — this equation is one row of a block MathPix emitted as
+                # a single line. A reader comparing against the scan needs to
+                # know that its crop is a BAND of a taller box, not the box.
+                "split_index": item.get("split_index"),
+                "split_count": item.get("split_count"),
                 # source-aware crop: MathPix pixels via cdn.mathpix.com, or OUR
                 # local pyramid in PDF points (pdfminer/DRILLPDFse) — never mixed.
                 "cdn_url": image_ref(item["image_id"], item["region"],

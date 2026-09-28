@@ -48,68 +48,68 @@ one. A copy no reader is named for is not an audit trail, it is weight.
 | prop | objects | on types | written by | read by |
 |---|---:|---|---|---|
 | `bibkey` | 2,130,740 | 24 types | pdfdrill model, pdfdrill clean, pdfdrill injectlatex | `pdfdrill/blocks.py`, `pdfdrill/commands.py`, `pdfdrill/heading_cleanup.py` +1 |
-| `text` | 1,230,496 | 6 types | pdfdrill model, pdfdrill clean, pdfdrill injectlatex | `docops/mutators/dehyphenate.py`, `docops/mutators/promote_cleaned.py`, `docops/projectors/beamer.py` +15 |
-| `flow_index` | 1,146,347 | 17 types | pdfdrill model, pdfdrill clean, pdfdrill injectlatex | `docmodel/modules/document_flow.py`, `docmodel/modules/document_structure.py`, `docops/projectors/common.py` +18 |
+| `text` | 1,230,496 | 6 types | pdfdrill model, pdfdrill clean, pdfdrill injectlatex | `docops/conserve.py`, `docops/mutators/dehyphenate.py`, `docops/mutators/promote_cleaned.py` +19 |
+| `flow_index` | 1,146,347 | 17 types | pdfdrill model, pdfdrill clean, pdfdrill injectlatex | `docmodel/modules/document_flow.py`, `docmodel/modules/document_structure.py`, `docops/projectors/common.py` +20 |
 | `parent_section` | 1,102,145 | 14 types | pdfdrill model, pdfdrill clean, pdfdrill injectlatex | `docmodel/modules/document_structure.py`, `docops/projectors/latex_pipeline.py`, `docops/projectors/scikgtex.py` +10 |
-| `page` | 1,099,528 | 18 types | pdfdrill model, pdfdrill links, pdfdrill bibliography, pdfdrill clean, pdfdrill injectlatex | `docops/projectors/comparison_html.py`, `docops/projectors/formula_report.py`, `docops/projectors/tiddlywiki.py` +11 |
+| `page` | 1,099,528 | 18 types | pdfdrill model, pdfdrill links, pdfdrill bibliography, pdfdrill clean, pdfdrill injectlatex | `docmodel/footnote_extent.py`, `docops/conserve.py`, `docops/projectors/comparison_html.py` +15 |
 | `next_in_flow` | 1,041,723 | 12 types | pdfdrill model | `docmodel/modules/document_flow.py` |
 | `prev_in_flow` | 1,041,717 | 12 types | pdfdrill model | `docmodel/modules/document_flow.py` |
-| `latex` | 643,364 | Equation, Formula | pdfdrill model, pdfdrill injectlatex | `docops/projectors/comparison_html.py`, `docops/projectors/distill_reader.py`, `docops/projectors/formula_report.py` +16 |
+| `latex` | 643,364 | Equation, Formula | pdfdrill model, pdfdrill injectlatex | `docops/projectors/comparison_html.py`, `docops/projectors/distill_reader.py`, `docops/projectors/footnotes.py` +19 |
 | `display` | 523,358 | Formula | pdfdrill model, pdfdrill injectlatex | `docops/projectors/tiddlywiki.py` |
 | `from_line_index` | 303,318 | Paragraph | pdfdrill model | **—** provenance: which lines.json rows built this Paragraph. Written for traceability, consulted by hand. (mentioned in 2 files) |
 | `num_lines` | 303,318 | Paragraph | pdfdrill model | **—** provenance: how many source lines the Paragraph spans. (mentioned in 2 files) |
 | `paragraph_index` | 303,318 | Paragraph | pdfdrill model | **—** provenance: the Paragraph's ordinal, written for traceability. (mentioned in 2 files) |
 | `to_line_index` | 303,318 | Paragraph | pdfdrill model | **—** provenance: as above, the last row. (mentioned in 2 files) |
 | `kind` | 295,305 | 6 types | pdfdrill model, pdfdrill links, pdfdrill clean, pdfdrill injectlatex | `docops/projectors/formula_report.py`, `docops/projectors/tiddlywiki.py`, `pdfdrill/annotations.py` +3 |
-| `region` | 220,008 | 13 types | pdfdrill model, pdfdrill clean | `docmodel/modules/table.py`, `docops/projectors/tiddlywiki.py`, `mathgold/floor.py` +7 |
+| `region` | 220,008 | 13 types | pdfdrill model, pdfdrill clean | `docmodel/modules/rotated_text.py`, `docmodel/modules/table.py`, `docops/projectors/tiddlywiki.py` +8 |
 | `image_id` | 202,933 | Diagram, Equation, Page | pdfdrill model | `docops/projectors/tiddlywiki.py` |
-| `refnum` | 171,259 | 6 types | pdfdrill model, pdfdrill clean | `docops/projectors/common.py`, `docops/projectors/distill_reader.py`, `docops/projectors/formula_report.py` +6 |
-| `cdn_url` | 136,967 | Diagram, Equation | pdfdrill model | `docmodel/modules/diagram.py`, `docmodel/modules/equation.py`, `docops/projectors/comparison_html.py` +5 |
+| `refnum` | 171,259 | 6 types | pdfdrill model, pdfdrill clean | `docmodel/footnote_extent.py`, `docmodel/modules/table.py`, `docops/projectors/common.py` +11 |
+| `cdn_url` | 136,967 | Diagram, Equation | pdfdrill model | `docmodel/modules/diagram.py`, `docmodel/modules/equation.py`, `docops/projectors/comparison_html.py` +6 |
 | `latex_raw` | 112,066 | Equation | pdfdrill model | **—** GAP: the maths BEFORE normalisation, 112,066 objects. Kept so a normalisation defect is recoverable, and nothing has ever recovered one. (mentioned in 3 files) |
 | `refnum_anchor` | 99,814 | Equation | pdfdrill model | `pdfdrill/eqnums.py` |
 | `confidence` | 98,556 | Equation | pdfdrill model | `docmodel/modules/table.py`, `docops/projectors/tiddlywiki.py`, `pdfdrill/refine.py` |
 | `confidence_rate` | 98,556 | Equation | pdfdrill model | `docops/projectors/tiddlywiki.py` |
-| `content` | 76,396 | Footnote, ListItem, Sidenote | pdfdrill model, pdfdrill clean, pdfdrill injectlatex | `docops/projectors/distill_reader.py`, `docops/projectors/latex.py`, `docops/projectors/scikgtex.py` +7 |
-| `page_height` | 72,722 | Page | pdfdrill model | **—** geometry: page dimensions in MathPix pixels; the crop path uses region and image_id instead. (mentioned in 11 files) |
-| `page_number` | 72,722 | Page | pdfdrill model | `docops/projectors/tiddlywiki.py`, `pdfdrill/annotations.py`, `pdfdrill/commands.py` +1 |
+| `content` | 76,396 | Footnote, ListItem, Sidenote | pdfdrill model, pdfdrill clean, pdfdrill injectlatex | `docops/projectors/distill_reader.py`, `docops/projectors/footnotes.py`, `docops/projectors/latex.py` +10 |
+| `page_height` | 72,722 | Page | pdfdrill model | **—** geometry: page dimensions in MathPix pixels; the crop path uses region and image_id instead. (mentioned in 12 files) |
+| `page_number` | 72,722 | Page | pdfdrill model | `docops/conserve.py`, `docops/projectors/tiddlywiki.py`, `pdfdrill/annotations.py` +2 |
 | `page_width` | 72,722 | Page | pdfdrill model | **—** geometry: page width in MathPix pixels; the crop path uses region and image_id instead. (mentioned in 10 files) |
 | `is_blank` | 65,966 | Page | pdfdrill model | `docops/projectors/tiddlywiki.py` |
 | `languages_detected` | 65,966 | Page | pdfdrill model | **—** GAP: MathPix's script detection, 65,966 pages. Nothing consults it, including the routing that decides a vision lane. (mentioned in 2 files) |
-| `citekey` | 65,189 | Citation, Reference | pdfdrill model, pdfdrill links, pdfdrill bibliography, pdfdrill injectlatex | `docmodel/modules/citation.py`, `docops/projectors/distill_reader.py`, `docops/projectors/latex_pipeline.py` +7 |
+| `citekey` | 65,189 | Citation, Reference | pdfdrill model, pdfdrill links, pdfdrill bibliography, pdfdrill injectlatex | `docmodel/modules/citation.py`, `docops/projectors/citations.py`, `docops/projectors/distill_reader.py` +9 |
 | `line_index` | 62,329 | ListItem, Section | pdfdrill model | `pdfdrill/blocks.py`, `pdfdrill/commands.py` |
-| `caption` | 59,291 | 4 types | pdfdrill model, pdfdrill clean, pdfdrill injectlatex | `docops/projectors/beamer.py`, `docops/projectors/distill_reader.py`, `docops/projectors/formula_report.py` +14 |
+| `caption` | 59,291 | 4 types | pdfdrill model, pdfdrill clean, pdfdrill injectlatex | `docmodel/modules/table.py`, `docops/projectors/beamer.py`, `docops/projectors/distill_reader.py` +17 |
 | `list_index` | 53,285 | ListItem | pdfdrill model | **—** provenance: the item's ordinal, written by ListProcessor. (mentioned in 2 files) |
-| `marker` | 53,285 | ListItem | pdfdrill model | `docops/nlp_stanza.py`, `docops/projectors/latex.py`, `docops/projectors/tiddlywiki.py` +2 |
-| `added_by` | 46,709 | 9 types | pdfdrill model, pdfdrill bibliography, pdfdrill clean, pdfdrill injectlatex | `docmodel/modules/citation.py`, `docops/projectors/distill_reader.py`, `pdfdrill/bibliography.py` +1 |
-| `latex_original` | 41,665 | 4 types | pdfdrill injectlatex | `docops/projectors/llm_compact.py`, `docops/projectors/tiddlywiki.py`, `mathlayer/annotate.py` +2 |
+| `marker` | 53,285 | ListItem | pdfdrill model | `docops/nlp_stanza.py`, `docops/projectors/latex.py`, `docops/projectors/markdown.py` +3 |
+| `added_by` | 46,709 | 9 types | pdfdrill model, pdfdrill bibliography, pdfdrill clean, pdfdrill injectlatex | `docmodel/ledger.py`, `docmodel/modules/citation.py`, `docops/projectors/distill_reader.py` +2 |
+| `latex_original` | 41,665 | 4 types | pdfdrill injectlatex | `docops/projectors/llm_compact.py`, `docops/projectors/markdown.py`, `docops/projectors/tiddlywiki.py` +3 |
 | `latex_code` | 29,571 | Diagram, LtxCommand, Table | pdfdrill model, pdfdrill injectlatex | `docops/projectors/distill_reader.py`, `docops/projectors/formula_report.py`, `docops/projectors/llm_text.py` +3 |
-| `number` | 26,546 | 4 types | pdfdrill model, pdfdrill bibliography, pdfdrill injectlatex | `docmodel/modules/citation.py`, `docops/projectors/distill_reader.py`, `docops/projectors/latex_pipeline.py` +3 |
+| `number` | 26,546 | 4 types | pdfdrill model, pdfdrill bibliography, pdfdrill injectlatex | `docmodel/modules/citation.py`, `docops/projectors/distill_reader.py`, `docops/projectors/footnotes.py` +4 |
 | `raw_text` | 26,156 | Reference, Table | pdfdrill bibliography | `docops/projectors/distill_reader.py`, `docops/projectors/llm_text.py`, `docops/projectors/tiddlywiki.py` +2 |
 | `code` | 24,901 | Diagram | pdfdrill model | `docops/projectors/distill_reader.py`, `docops/projectors/formula_report.py`, `docops/projectors/llm_text.py` +1 |
-| `language` | 24,901 | Diagram | pdfdrill model | `docops/projectors/distill_reader.py`, `docops/projectors/formula_report.py`, `docops/projectors/llm_text.py` +1 |
+| `language` | 24,901 | Diagram | pdfdrill model | `docops/projectors/distill_reader.py`, `docops/projectors/formula_report.py`, `docops/projectors/llm_text.py` +2 |
 | `subtype` | 24,901 | Diagram | pdfdrill model | `docops/projectors/distill_reader.py`, `docops/projectors/formula_report.py`, `docops/projectors/llm_text.py` +1 |
 | `style` | 22,120 | Citation | pdfdrill bibliography, pdfdrill injectlatex | **—** GAP: a Section's detected heading style, 22,120 objects. 259 set levels from font_size and never looked at this. (mentioned in 5 files) |
 | `from_line_type` | 17,343 | Picture | pdfdrill model | `docops/projectors/tiddlywiki.py` |
 | `url` | 17,343 | Picture | pdfdrill model | `docops/projectors/tiddlywiki.py`, `semantic/build.py` |
 | `author` | 17,319 | Citation, Reference | pdfdrill bibliography, pdfdrill refine | `docops/projectors/tiddlywiki.py`, `pdfdrill/commands.py` |
 | `year` | 17,319 | Citation, Reference | pdfdrill bibliography | `docops/projectors/tiddlywiki.py`, `pdfdrill/commands.py`, `semantic/build.py` |
-| `level` | 15,846 | Section | pdfdrill model, pdfdrill clean, pdfdrill injectlatex | `docmodel/modules/document_structure.py`, `docops/projectors/beamer.py`, `docops/projectors/distill_reader.py` +3 |
+| `level` | 15,846 | Section | pdfdrill model, pdfdrill clean, pdfdrill injectlatex | `docmodel/modules/document_structure.py`, `docops/projectors/beamer.py`, `docops/projectors/distill_reader.py` +4 |
 | `entry_type` | 14,987 | Reference | pdfdrill bibliography | `docops/projectors/tiddlywiki.py` |
 | `ref_source` | 14,974 | Reference | pdfdrill model, pdfdrill bibliography | `docops/projectors/tiddlywiki.py`, `pdfdrill/bibliography.py`, `pdfdrill/commands.py` |
 | `label` | 13,461 | 4 types | pdfdrill bibliography, pdfdrill injectlatex | `docops/projectors/tiddlywiki.py`, `pdfdrill/bibliography.py`, `pdfdrill/commands.py` |
 | `section_number` | 13,027 | Section | pdfdrill model | `docmodel/modules/document_structure.py`, `docops/projectors/tiddlywiki.py`, `pdfdrill/commands.py` +1 |
 | `mathpix_text` | 11,119 | Table | pdfdrill model | `docmodel/modules/table.py`, `docops/projectors/tiddlywiki.py`, `pdfdrill/commands.py` |
-| `cells` | 10,874 | Table | — | `docops/projectors/distill_reader.py` |
+| `cells` | 10,874 | Table | — | `docops/projectors/distill_reader.py`, `docops/projectors/markdown.py` |
 | `columns` | 10,874 | Table | — | `docops/projectors/distill_reader.py` |
 | `header_rows` | 10,874 | Table | — | `docops/projectors/distill_reader.py` |
-| `n_cols` | 10,874 | Table | — | `docops/projectors/distill_reader.py` |
-| `n_rows` | 10,874 | Table | — | `docops/projectors/distill_reader.py` |
+| `n_cols` | 10,874 | Table | — | `docops/projectors/distill_reader.py`, `docops/projectors/latex.py`, `docops/projectors/markdown.py` |
+| `n_rows` | 10,874 | Table | — | `docops/projectors/distill_reader.py`, `docops/projectors/latex.py`, `docops/projectors/markdown.py` |
 | `numeric` | 10,695 | Citation | pdfdrill bibliography | **—** GAP: whether a table cell holds a number, 10,695 cells. No projector formats on it. (mentioned in 2 files) |
 | `env` | 10,638 | 4 types | pdfdrill injectlatex | `pdfdrill/commands.py` |
 | `title` | 9,904 | 5 types | pdfdrill clean, pdfdrill injectlatex | `docops/projectors/distill_reader.py`, `docops/projectors/llm_text.py`, `docops/projectors/okf.py` +5 |
 | `cmd` | 9,044 | Section | pdfdrill model | `docops/projectors/tiddlywiki.py` |
 | `numbered` | 7,940 | Equation | pdfdrill injectlatex | **—** redundant: equation_number is non-empty exactly when this is true. (mentioned in 5 files) |
-| `anchor_marker` | 7,239 | Footnote | pdfdrill model, pdfdrill clean | `docops/projectors/tiddlywiki.py` |
+| `anchor_marker` | 7,239 | Footnote | pdfdrill model, pdfdrill clean | `docops/projectors/footnotes.py`, `docops/projectors/tiddlywiki.py` |
 | `next_sibling` | 7,034 | Section | pdfdrill model | `docmodel/modules/document_structure.py` |
 | `prev_sibling` | 7,034 | Section | pdfdrill model | `docmodel/modules/document_structure.py` |
 | `heading_residual_cleaned` | 6,692 | Paragraph | pdfdrill clean | `docops/projectors/tiddlywiki.py`, `pdfdrill/heading_cleanup.py` |
@@ -118,7 +118,7 @@ one. A copy no reader is named for is not an audit trail, it is weight.
 | `detected_by` | 3,391 | ListItem | pdfdrill model | **—** provenance: typed vs lexical list detection (248), written to make the 248 change auditable. (mentioned in 2 files) |
 | `bibtex` | 1,955 | Reference | pdfdrill bibliography | `docops/projectors/latex_pipeline.py`, `docops/projectors/tiddlywiki.py`, `pdfdrill/bibliography.py` +1 |
 | `statement` | 1,889 | Proof, Theorem | pdfdrill injectlatex | `docops/projectors/tiddlywiki.py`, `pdfdrill/lean_export.py` |
-| `text_source` | 1,760 | Paragraph | pdfdrill clean | **—** the text BEFORE translation. Read by `has_translation` through a tuple of prose keys, not by name — and a rebuild reverts it (275). (mentioned in 4 files) |
+| `text_source` | 1,760 | Paragraph | pdfdrill clean | **—** the text BEFORE translation. Read by `has_translation` through a tuple of prose keys, not by name — and a rebuild reverts it (275). (mentioned in 5 files) |
 | `printed_title` | 1,458 | Theorem | pdfdrill injectlatex | `docops/projectors/tiddlywiki.py` |
 | `starred` | 1,458 | Theorem | pdfdrill injectlatex | **—** provenance: whether the sectioning command was starred. (mentioned in 2 files) |
 | `edit_source` | 1,400 | Equation, Formula | — | `pdfdrill/commands.py` |
@@ -135,7 +135,7 @@ one. A copy no reader is named for is not an audit trail, it is weight.
 | `of_label` | 431 | Proof | pdfdrill injectlatex | **—** provenance: the label a Proof proves; proof_of carries the id that is actually used. (mentioned in 2 files) |
 | `proof_id` | 430 | Theorem | pdfdrill injectlatex | `docops/projectors/tiddlywiki.py` |
 | `proof_of` | 430 | Proof | pdfdrill injectlatex | `docops/projectors/tiddlywiki.py`, `pdfdrill/latex_source.py` |
-| `content_source` | 362 | Footnote, ListItem, Sidenote | — | **—** the content BEFORE translation, for objects whose body is `content`. Same tuple-membership access as text_source. (mentioned in 2 files) |
+| `content_source` | 362 | Footnote, ListItem, Sidenote | — | **—** the content BEFORE translation, for objects whose body is `content`. Same tuple-membership access as text_source. (mentioned in 3 files) |
 | `spoken` | 333 | Equation, Formula | — | `docops/projectors/tiddlywiki.py`, `pdfdrill/commands.py` |
 | `spoken_by` | 333 | Equation, Formula | — | `pdfdrill/commands.py` |
 | `anchor_text` | 254 | Link | pdfdrill links | **—** GAP: a Link's visible text, 254 objects. `links` reports URLs; nothing reads the anchor. (mentioned in 4 files) |
@@ -149,7 +149,7 @@ one. A copy no reader is named for is not an audit trail, it is weight.
 | `entries` | 154 | Toc | pdfdrill model | `pdfdrill/commands.py` |
 | `bibfetched` | 86 | Reference | — | `pdfdrill/commands.py` |
 | `citations` | 86 | Reference | — | `docops/projectors/tiddlywiki.py`, `pdfdrill/commands.py` |
-| `caption_source` | 80 | Diagram, Picture, Section | — | **—** the caption BEFORE translation. Tuple-membership access. (mentioned in 2 files) |
+| `caption_source` | 80 | Diagram, Picture, Section | — | **—** the caption BEFORE translation. Tuple-membership access. (mentioned in 3 files) |
 | `stub` | 52 | Reference | pdfdrill model | `docmodel/modules/citation.py`, `docops/projectors/tiddlywiki.py`, `pdfdrill/bibliography.py` +1 |
 | `latex_fragment` | 51 | MathTail | — | **—** GAP: a partial maths value carried for reassembly, 51 objects. No reassembly pass exists. (mentioned in 2 files) |
 | `position` | 51 | MathTail | — | **—** GAP: positional hint recorded with a fragment. (mentioned in 3 files) |

@@ -1,7 +1,7 @@
 {
  "_provenance": {
   "method": "regex over src/**/*.py: readers are props.get(\"x\") or props[\"x\"]; writers are props[\"x\"]= and keys of a props={...} literal. A prop reached through a VARIABLE key is invisible to this scan and is not claimed either way.",
-  "files": 331,
+  "files": 351,
   "task": "290"
  },
  "readers": {
@@ -10,12 +10,14 @@
    "pdfdrill/commands.py"
   ],
   "added_by": [
+   "docmodel/ledger.py",
    "docmodel/modules/citation.py",
    "docops/projectors/distill_reader.py",
    "pdfdrill/bibliography.py",
    "pdfdrill/commands.py"
   ],
   "anchor_marker": [
+   "docops/projectors/footnotes.py",
    "docops/projectors/tiddlywiki.py"
   ],
   "approx": [
@@ -44,11 +46,14 @@
    "docops/projectors/tiddlywiki.py"
   ],
   "caption": [
+   "docmodel/modules/table.py",
    "docops/projectors/beamer.py",
    "docops/projectors/distill_reader.py",
    "docops/projectors/formula_report.py",
+   "docops/projectors/latex.py",
    "docops/projectors/latex_pipeline.py",
    "docops/projectors/llm_text.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/scikgtex.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/bibliography.py",
@@ -69,24 +74,29 @@
    "docops/projectors/distill_reader.py",
    "docops/projectors/formula_report.py",
    "docops/projectors/llm_text.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/commands.py"
   ],
   "cells": [
-   "docops/projectors/distill_reader.py"
+   "docops/projectors/distill_reader.py",
+   "docops/projectors/markdown.py"
   ],
   "citations": [
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/commands.py"
   ],
   "cited_reference_id": [
+   "docops/projectors/citations.py",
    "pdfdrill/bibliography.py",
    "semantic/build.py",
    "semantic/gaps.py"
   ],
   "citekey": [
    "docmodel/modules/citation.py",
+   "docops/projectors/citations.py",
    "docops/projectors/distill_reader.py",
+   "docops/projectors/latex.py",
    "docops/projectors/latex_pipeline.py",
    "docops/projectors/scikgtex.py",
    "docops/projectors/tiddlywiki.py",
@@ -121,12 +131,15 @@
   ],
   "content": [
    "docops/projectors/distill_reader.py",
+   "docops/projectors/footnotes.py",
    "docops/projectors/latex.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/scikgtex.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/bibliography.py",
    "pdfdrill/blocks.py",
    "pdfdrill/commands.py",
+   "pdfdrill/heading_cleanup.py",
    "pdfdrill/identifiers.py",
    "semantic/claims.py",
    "semantic/concepts.py"
@@ -184,6 +197,9 @@
    "pdfdrill/eqnums.py",
    "semantic/build.py"
   ],
+  "filled_by": [
+   "pdfdrill/heading_cleanup.py"
+  ],
   "first_line_index": [
    "docops/projectors/tiddlywiki.py"
   ],
@@ -192,9 +208,11 @@
    "docmodel/modules/document_structure.py",
    "docops/projectors/common.py",
    "docops/projectors/distill_reader.py",
+   "docops/projectors/footnotes.py",
    "docops/projectors/formula_report.py",
    "docops/projectors/latex_pipeline.py",
    "docops/projectors/llm_text.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/scikgtex.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/commands.py",
@@ -213,6 +231,10 @@
   "font_emphasis": [
    "pdfdrill/commands.py",
    "pdfdrill/pdfminer_layer.py"
+  ],
+  "footnote_extracted": [
+   "docops/projectors/tiddlywiki.py",
+   "pdfdrill/heading_cleanup.py"
   ],
   "from_line_type": [
    "docops/projectors/tiddlywiki.py"
@@ -255,15 +277,19 @@
    "docops/projectors/distill_reader.py",
    "docops/projectors/formula_report.py",
    "docops/projectors/llm_text.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/tiddlywiki.py"
   ],
   "latex": [
    "docops/projectors/comparison_html.py",
    "docops/projectors/distill_reader.py",
+   "docops/projectors/footnotes.py",
    "docops/projectors/formula_report.py",
+   "docops/projectors/latex.py",
    "docops/projectors/latex_pipeline.py",
    "docops/projectors/llm_compact.py",
    "docops/projectors/llm_text.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/tiddlywiki.py",
    "mathlayer/annotate.py",
    "mathlayer/operators.py",
@@ -294,6 +320,7 @@
   ],
   "latex_original": [
    "docops/projectors/llm_compact.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/tiddlywiki.py",
    "mathlayer/annotate.py",
    "pdfdrill/commands.py",
@@ -314,13 +341,18 @@
    "pdfdrill/lean_export.py"
   ],
   "length": [
-   "docops/projectors/tiddlywiki.py"
+   "docops/conserve.py",
+   "docops/projectors/citations.py",
+   "docops/projectors/tiddlywiki.py",
+   "pdfdrill/bibliography.py",
+   "pdfdrill/heading_cleanup.py"
   ],
   "level": [
    "docmodel/modules/document_structure.py",
    "docops/projectors/beamer.py",
    "docops/projectors/distill_reader.py",
    "docops/projectors/latex.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/tiddlywiki.py",
    "semantic/build.py"
   ],
@@ -337,6 +369,7 @@
   "marker": [
    "docops/nlp_stanza.py",
    "docops/projectors/latex.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/blocks.py",
    "pdfdrill/commands.py"
@@ -371,10 +404,14 @@
    "pdfdrill/merge_latex.py"
   ],
   "n_cols": [
-   "docops/projectors/distill_reader.py"
+   "docops/projectors/distill_reader.py",
+   "docops/projectors/latex.py",
+   "docops/projectors/markdown.py"
   ],
   "n_rows": [
-   "docops/projectors/distill_reader.py"
+   "docops/projectors/distill_reader.py",
+   "docops/projectors/latex.py",
+   "docops/projectors/markdown.py"
   ],
   "name": [
    "docops/projectors/okf.py"
@@ -393,20 +430,29 @@
   "number": [
    "docmodel/modules/citation.py",
    "docops/projectors/distill_reader.py",
+   "docops/projectors/footnotes.py",
    "docops/projectors/latex_pipeline.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/bibliography.py",
    "semantic/gaps.py"
   ],
   "offset": [
-   "docops/projectors/tiddlywiki.py"
+   "docops/conserve.py",
+   "docops/projectors/citations.py",
+   "docops/projectors/tiddlywiki.py",
+   "pdfdrill/bibliography.py",
+   "pdfdrill/heading_cleanup.py"
   ],
   "original": [
    "pdfdrill/nodes/math_assembler.py"
   ],
   "page": [
+   "docmodel/footnote_extent.py",
+   "docops/conserve.py",
    "docops/projectors/comparison_html.py",
+   "docops/projectors/footnotes.py",
    "docops/projectors/formula_report.py",
+   "docops/projectors/latex.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/bibliography.py",
    "pdfdrill/commands.py",
@@ -424,6 +470,7 @@
    "pdfdrill/image_model.py"
   ],
   "page_number": [
+   "docops/conserve.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/annotations.py",
    "pdfdrill/commands.py",
@@ -501,10 +548,15 @@
    "semantic/gaps.py"
   ],
   "refnum": [
+   "docmodel/footnote_extent.py",
+   "docmodel/modules/table.py",
    "docops/projectors/common.py",
    "docops/projectors/distill_reader.py",
+   "docops/projectors/footnotes.py",
    "docops/projectors/formula_report.py",
+   "docops/projectors/latex.py",
    "docops/projectors/llm_text.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/commands.py",
    "pdfdrill/eqnums.py",
@@ -515,6 +567,7 @@
    "pdfdrill/eqnums.py"
   ],
   "region": [
+   "docmodel/modules/rotated_text.py",
    "docmodel/modules/table.py",
    "docops/projectors/tiddlywiki.py",
    "mathgold/floor.py",
@@ -528,6 +581,12 @@
   ],
   "region_source": [
    "pdfdrill/commands.py"
+  ],
+  "region_via": [
+   "pdfdrill/commands.py"
+  ],
+  "rotation": [
+   "docmodel/modules/rotated_text.py"
   ],
   "score": [
    "docops/projectors/comparison_html.py",
@@ -544,6 +603,10 @@
   ],
   "source_line": [
    "docops/projectors/tiddlywiki.py"
+  ],
+  "split_index": [
+   "docmodel/modules/footnote.py",
+   "pdfdrill/heading_cleanup.py"
   ],
   "spoken": [
    "docops/projectors/tiddlywiki.py",
@@ -593,14 +656,22 @@
   "svg_skipped": [
    "pdfdrill/commands.py"
   ],
+  "tail_unassigned": [
+   "docmodel/modules/footnote.py",
+   "pdfdrill/heading_cleanup.py"
+  ],
   "text": [
+   "docops/conserve.py",
    "docops/mutators/dehyphenate.py",
    "docops/mutators/promote_cleaned.py",
    "docops/projectors/beamer.py",
    "docops/projectors/distill_reader.py",
+   "docops/projectors/footnotes.py",
    "docops/projectors/latex.py",
+   "docops/projectors/latex_pipeline.py",
    "docops/projectors/llm_compact.py",
    "docops/projectors/llm_text.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/scikgtex.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/bibliography.py",
@@ -747,6 +818,7 @@
    "docmodel/modules/diagram.py",
    "docmodel/modules/header.py",
    "docmodel/modules/picture.py",
+   "docmodel/modules/table.py",
    "pdfdrill/commands.py",
    "pdfdrill/heading_cleanup.py",
    "pdfdrill/latex_source.py",
@@ -889,6 +961,9 @@
   "file": [
    "pdfdrill/latex_source.py"
   ],
+  "filled_by": [
+   "pdfdrill/heading_cleanup.py"
+  ],
   "first_section_id": [
    "docmodel/modules/document_structure.py"
   ],
@@ -912,6 +987,9 @@
    "docmodel/modules/header.py",
    "pdfdrill/nodes/emphasis_detector.py",
    "pdfdrill/nodes/lines_paragraphs.py"
+  ],
+  "footnote_extracted": [
+   "pdfdrill/heading_cleanup.py"
   ],
   "from_line_index": [
    "docmodel/modules/paragraph.py"
@@ -1033,7 +1111,8 @@
   "length": [
    "docmodel/modules/citation.py",
    "docmodel/modules/formula.py",
-   "pdfdrill/bibliography.py"
+   "pdfdrill/bibliography.py",
+   "pdfdrill/heading_cleanup.py"
   ],
   "level": [
    "docmodel/modules/header.py",
@@ -1113,6 +1192,7 @@
   ],
   "number": [
    "docmodel/modules/citation.py",
+   "docops/projectors/footnotes.py",
    "pdfdrill/bibliography.py",
    "pdfdrill/commands.py",
    "pdfdrill/eqnums.py",
@@ -1132,7 +1212,8 @@
   "offset": [
    "docmodel/modules/citation.py",
    "docmodel/modules/formula.py",
-   "pdfdrill/bibliography.py"
+   "pdfdrill/bibliography.py",
+   "pdfdrill/heading_cleanup.py"
   ],
   "options": [
    "pdfdrill/latex_source.py"
@@ -1253,6 +1334,7 @@
    "docmodel/modules/equation.py",
    "docmodel/modules/footnote.py",
    "docmodel/modules/picture.py",
+   "docmodel/modules/table.py",
    "pdfdrill/commands.py",
    "pdfdrill/eqnums.py",
    "pdfdrill/heading_cleanup.py"
@@ -1264,6 +1346,7 @@
    "docmodel/modules/diagram.py",
    "docmodel/modules/equation.py",
    "docmodel/modules/picture.py",
+   "docmodel/modules/rotated_text.py",
    "docmodel/modules/table.py",
    "pdfdrill/commands.py",
    "pdfdrill/heading_cleanup.py",
@@ -1272,8 +1355,14 @@
   "region_source": [
    "pdfdrill/commands.py"
   ],
+  "region_via": [
+   "pdfdrill/commands.py"
+  ],
   "resolved": [
    "pdfdrill/latex_source.py"
+  ],
+  "rotation": [
+   "docmodel/modules/rotated_text.py"
   ],
   "rows": [
    "docmodel/modules/toc.py"
@@ -1299,6 +1388,14 @@
   ],
   "source_object": [
    "pdfdrill/commands.py"
+  ],
+  "split_count": [
+   "docmodel/modules/equation.py"
+  ],
+  "split_index": [
+   "docmodel/modules/equation.py",
+   "docmodel/modules/footnote.py",
+   "pdfdrill/heading_cleanup.py"
   ],
   "spoken": [
    "pdfdrill/commands.py"
@@ -1337,6 +1434,10 @@
   ],
   "svg_skipped": [
    "pdfdrill/commands.py"
+  ],
+  "tail_unassigned": [
+   "docmodel/modules/footnote.py",
+   "pdfdrill/heading_cleanup.py"
   ],
   "target_url": [
    "docmodel/modules/equation.py"
@@ -1429,6 +1530,7 @@
  },
  "mentions": {
   "added_by": [
+   "docmodel/ledger.py",
    "docmodel/modules/citation.py",
    "docops/projectors/distill_reader.py",
    "pdfdrill/bibliography.py",
@@ -1439,6 +1541,7 @@
   ],
   "anchor_marker": [
    "docmodel/modules/footnote.py",
+   "docops/projectors/footnotes.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/heading_cleanup.py"
   ],
@@ -1457,6 +1560,7 @@
    "passes/builtin.py",
    "pdfdrill/author_source.py",
    "pdfdrill/bibliography.py",
+   "pdfdrill/bracketrepair.py",
    "pdfdrill/changereq.py",
    "pdfdrill/cli.py",
    "pdfdrill/commands.py",
@@ -1496,9 +1600,11 @@
    "docmodel/modules/page.py",
    "docmodel/modules/paragraph.py",
    "docmodel/modules/picture.py",
+   "docmodel/modules/rotated_text.py",
    "docmodel/modules/sidenote.py",
    "docmodel/modules/table.py",
    "docmodel/modules/toc.py",
+   "docops/conserve.py",
    "docops/projectors/comparison_html.py",
    "docops/projectors/distill_reader.py",
    "docops/projectors/formula_report.py",
@@ -1506,11 +1612,13 @@
    "docops/projectors/latex_pipeline.py",
    "docops/projectors/llm_compact.py",
    "docops/projectors/llm_text.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/okf.py",
    "docops/projectors/plaintext.py",
    "docops/projectors/scikgtex.py",
    "docops/projectors/tiddlywiki.py",
    "passes/builtin.py",
+   "pdfdrill/archive_rename.py",
    "pdfdrill/bibliography.py",
    "pdfdrill/blocks.py",
    "pdfdrill/commands.py",
@@ -1529,6 +1637,7 @@
    "pdfdrill/renamefolder.py",
    "pdfdrill/repo_publish.py",
    "pdfdrill/report_tex.py",
+   "pdfdrill/reports/gate.py",
    "pdfdrill/tidpath.py",
    "semantic/aggregate.py",
    "semantic/build.py",
@@ -1544,6 +1653,7 @@
    "docops/projectors/scikgtex.py",
    "docops/projectors/tiddlywiki.py",
    "passes/builtin.py",
+   "pdfdrill/archive_rename.py",
    "pdfdrill/bibliography.py",
    "pdfdrill/cli.py",
    "pdfdrill/commands.py",
@@ -1560,11 +1670,15 @@
    "docmodel/algorithm.py",
    "docmodel/codelisting.py",
    "docmodel/core.py",
+   "docmodel/line_types.py",
+   "docmodel/modules/_captions.py",
    "docmodel/modules/diagram.py",
    "docmodel/modules/header.py",
    "docmodel/modules/paragraph.py",
    "docmodel/modules/picture.py",
+   "docmodel/modules/table.py",
    "docmodel/type_contract.py",
+   "docops/conserve.py",
    "docops/nlp_stanza.py",
    "docops/projectors/beamer.py",
    "docops/projectors/compressed_tiddlers.py",
@@ -1574,6 +1688,7 @@
    "docops/projectors/latex_pipeline.py",
    "docops/projectors/llm_compact.py",
    "docops/projectors/llm_text.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/okf.py",
    "docops/projectors/plaintext.py",
    "docops/projectors/scikgtex.py",
@@ -1595,6 +1710,7 @@
    "pdfdrill/projection.py",
    "pdfdrill/reccontext.py",
    "pdfdrill/report_tex.py",
+   "pdfdrill/reports/from_document.py",
    "pdfdrill/retrieve.py",
    "pdfdrill/texgraphics.py",
    "semantic/build.py",
@@ -1606,6 +1722,7 @@
   ],
   "caption_source": [
    "docmodel/prop_contract.py",
+   "docops/projectors/tiddlywiki.py",
    "pdfdrill/classify.py"
   ],
   "cdn_url": [
@@ -1615,6 +1732,7 @@
    "docops/projectors/distill_reader.py",
    "docops/projectors/formula_report.py",
    "docops/projectors/llm_text.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/commands.py",
    "pdfdrill/docinspect.py",
@@ -1623,6 +1741,8 @@
   ],
   "cells": [
    "docops/projectors/distill_reader.py",
+   "docops/projectors/latex.py",
+   "docops/projectors/markdown.py",
    "pdfdrill/commands.py",
    "pdfdrill/docinspect.py",
    "pdfdrill/ink_crosscheck.py",
@@ -1630,6 +1750,7 @@
    "pdfdrill/pdf_reading.py"
   ],
   "citations": [
+   "docops/projectors/citations.py",
    "docops/projectors/okf.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/commands.py",
@@ -1641,8 +1762,12 @@
   ],
   "citekey": [
    "docmodel/modules/citation.py",
+   "docops/conserve.py",
+   "docops/projectors/citations.py",
    "docops/projectors/compressed_tiddlers.py",
    "docops/projectors/distill_reader.py",
+   "docops/projectors/footnotes.py",
+   "docops/projectors/latex.py",
    "docops/projectors/latex_pipeline.py",
    "docops/projectors/okf.py",
    "docops/projectors/scikgtex.py",
@@ -1677,6 +1802,7 @@
    "docmodel/type_contract.py",
    "docops/projectors/distill_reader.py",
    "docops/projectors/formula_report.py",
+   "docops/projectors/latex.py",
    "docops/projectors/llm_compact.py",
    "docops/projectors/llm_text.py",
    "docops/projectors/plaintext.py",
@@ -1689,6 +1815,7 @@
    "pdfdrill/markdown_source.py",
    "pdfdrill/regionink.py",
    "pdfdrill/report_tex.py",
+   "pdfdrill/reports/from_document.py",
    "pdfdrill/reports/residuals.py",
    "pdfdrill/reports/rows.py",
    "semantic/compiler.py",
@@ -1748,10 +1875,13 @@
    "docmodel/modules/footnote.py",
    "docmodel/modules/list_items.py",
    "docmodel/modules/sidenote.py",
+   "docops/conserve.py",
    "docops/nlp_stanza.py",
    "docops/projectors/distill_reader.py",
+   "docops/projectors/footnotes.py",
    "docops/projectors/latex.py",
    "docops/projectors/llm_compact.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/plaintext.py",
    "docops/projectors/scikgtex.py",
    "docops/projectors/tiddlywiki.py",
@@ -1778,6 +1908,7 @@
   ],
   "content_source": [
    "docmodel/prop_contract.py",
+   "docops/projectors/tiddlywiki.py",
    "pdfdrill/classify.py"
   ],
   "context": [
@@ -1828,7 +1959,8 @@
    "pdfdrill/crossref.py",
    "pdfdrill/figpair.py",
    "pdfdrill/notation.py",
-   "pdfdrill/sectionpath.py"
+   "pdfdrill/sectionpath.py",
+   "pdfdrill/translation_memory.py"
   ],
   "entry_type": [
    "docops/projectors/okf.py",
@@ -1853,6 +1985,7 @@
    "pdfdrill/commands.py"
   ],
   "equation_number": [
+   "docmodel/line_types.py",
    "docmodel/modules/equation.py",
    "docmodel/modules/paragraph.py",
    "docmodel/type_contract.py",
@@ -1880,9 +2013,12 @@
    "docops/mutators/stanza_nlp.py",
    "docops/projectors/common.py",
    "docops/projectors/distill_reader.py",
+   "docops/projectors/footnotes.py",
    "docops/projectors/formula_report.py",
+   "docops/projectors/latex.py",
    "docops/projectors/latex_pipeline.py",
    "docops/projectors/llm_text.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/scikgtex.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/commands.py",
@@ -1925,6 +2061,7 @@
    "docmodel/modules/page.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/author_source.py",
+   "pdfdrill/commands.py",
    "pdfdrill/docinspect.py",
    "pdfdrill/docpack.py",
    "pdfdrill/ocr_lines.py"
@@ -1945,6 +2082,7 @@
   ],
   "kind": [
    "docmodel/core.py",
+   "docmodel/line_types.py",
    "docmodel/modules/diagram.py",
    "docmodel/modules/paragraph.py",
    "docmodel/modules/picture.py",
@@ -2021,13 +2159,16 @@
    "docmodel/modules/diagram.py",
    "docops/projectors/distill_reader.py",
    "docops/projectors/formula_report.py",
+   "docops/projectors/latex.py",
    "docops/projectors/llm_compact.py",
    "docops/projectors/llm_text.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/okf.py",
    "docops/projectors/plaintext.py",
    "docops/projectors/tiddlywiki.py",
    "features/__init__.py",
-   "pdfdrill/commands.py"
+   "pdfdrill/commands.py",
+   "pdfdrill/reports/from_document.py"
   ],
   "languages_detected": [
    "docmodel/modules/page.py",
@@ -2036,14 +2177,17 @@
   "latex": [
    "docmodel/modules/equation.py",
    "docmodel/modules/formula.py",
+   "docops/conserve.py",
    "docops/projectors/comparison_html.py",
    "docops/projectors/compressed_tiddlers.py",
    "docops/projectors/distill_reader.py",
+   "docops/projectors/footnotes.py",
    "docops/projectors/formula_report.py",
    "docops/projectors/latex.py",
    "docops/projectors/latex_pipeline.py",
    "docops/projectors/llm_compact.py",
    "docops/projectors/llm_text.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/okf.py",
    "docops/projectors/plaintext.py",
    "docops/projectors/tiddlywiki.py",
@@ -2118,6 +2262,7 @@
   ],
   "latex_original": [
    "docops/projectors/llm_compact.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/tiddlywiki.py",
    "mathlayer/annotate.py",
    "pdfdrill/classify.py",
@@ -2156,6 +2301,7 @@
    "docops/projectors/distill_reader.py",
    "docops/projectors/latex.py",
    "docops/projectors/llm_compact.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/okf.py",
    "docops/projectors/plaintext.py",
    "docops/projectors/tiddlywiki.py",
@@ -2197,6 +2343,7 @@
    "docops/nlp_stanza.py",
    "docops/projectors/latex.py",
    "docops/projectors/llm_compact.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/plaintext.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/blocks.py",
@@ -2211,6 +2358,8 @@
   ],
   "n_cols": [
    "docops/projectors/distill_reader.py",
+   "docops/projectors/latex.py",
+   "docops/projectors/markdown.py",
    "pdfdrill/commands.py",
    "pdfdrill/docinspect.py",
    "pdfdrill/ink_crosscheck.py",
@@ -2219,6 +2368,8 @@
   ],
   "n_rows": [
    "docops/projectors/distill_reader.py",
+   "docops/projectors/latex.py",
+   "docops/projectors/markdown.py",
    "pdfdrill/commands.py",
    "pdfdrill/docinspect.py",
    "pdfdrill/ink_crosscheck.py",
@@ -2237,6 +2388,7 @@
    "pdfdrill/docpack.py",
    "pdfdrill/eqcrop.py",
    "pdfdrill/font_image_layers.py",
+   "pdfdrill/glyphcensus.py",
    "pdfdrill/latex_source.py",
    "pdfdrill/links_layer.py",
    "pdfdrill/mathqc.py",
@@ -2286,6 +2438,7 @@
   "number": [
    "docmodel/modules/citation.py",
    "docops/projectors/distill_reader.py",
+   "docops/projectors/footnotes.py",
    "docops/projectors/latex_pipeline.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/bibliography.py",
@@ -2323,6 +2476,8 @@
   ],
   "page": [
    "docmodel/core.py",
+   "docmodel/footnote_extent.py",
+   "docmodel/ledger.py",
    "docmodel/modules/abstract.py",
    "docmodel/modules/citation.py",
    "docmodel/modules/code_listing.py",
@@ -2335,11 +2490,14 @@
    "docmodel/modules/page.py",
    "docmodel/modules/paragraph.py",
    "docmodel/modules/picture.py",
+   "docmodel/modules/rotated_text.py",
    "docmodel/modules/sidenote.py",
    "docmodel/modules/table.py",
    "docmodel/type_contract.py",
+   "docops/conserve.py",
    "docops/mutators/stanza_nlp.py",
    "docops/projectors/comparison_html.py",
+   "docops/projectors/footnotes.py",
    "docops/projectors/formula_report.py",
    "docops/projectors/latex.py",
    "docops/projectors/llm_compact.py",
@@ -2423,14 +2581,17 @@
    "pdfdrill/image_model.py",
    "pdfdrill/ocr_lines.py",
    "pdfdrill/pdfimg_locate.py",
-   "pdfdrill/rectoverso.py"
+   "pdfdrill/rectoverso.py",
+   "pdfdrill/refine.py"
   ],
   "page_number": [
    "docmodel/modules/page.py",
+   "docops/conserve.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/annotations.py",
    "pdfdrill/chars_to_lines.py",
    "pdfdrill/commands.py",
+   "pdfdrill/docinspect.py",
    "pdfdrill/font_image_layers.py",
    "pdfdrill/nodes/poppler.py",
    "pdfdrill/pdfminer_layer.py",
@@ -2507,6 +2668,7 @@
   ],
   "raw_text": [
    "docmodel/modules/table.py",
+   "docops/conserve.py",
    "docops/projectors/distill_reader.py",
    "docops/projectors/latex.py",
    "docops/projectors/latex_pipeline.py",
@@ -2532,16 +2694,21 @@
    "pdfdrill/docinspect.py"
   ],
   "refnum": [
+   "docmodel/footnote_extent.py",
    "docmodel/modules/diagram.py",
    "docmodel/modules/equation.py",
    "docmodel/modules/footnote.py",
    "docmodel/modules/picture.py",
+   "docmodel/modules/table.py",
    "docops/projectors/common.py",
    "docops/projectors/compressed_tiddlers.py",
    "docops/projectors/distill_reader.py",
+   "docops/projectors/footnotes.py",
    "docops/projectors/formula_report.py",
+   "docops/projectors/latex.py",
    "docops/projectors/llm_compact.py",
    "docops/projectors/llm_text.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/okf.py",
    "docops/projectors/plaintext.py",
    "docops/projectors/tiddlywiki.py",
@@ -2565,6 +2732,8 @@
    "docmodel/modules/equation.py",
    "docmodel/modules/paragraph.py",
    "docmodel/modules/picture.py",
+   "docmodel/modules/rotated_text.py",
+   "docmodel/modules/sidenote.py",
    "docmodel/modules/table.py",
    "docmodel/type_contract.py",
    "docops/projectors/tiddlywiki.py",
@@ -2593,6 +2762,7 @@
    "pdfdrill/refine.py",
    "pdfdrill/report_tex.py",
    "pdfdrill/reports/from_document.py",
+   "pdfdrill/reports/marks.py",
    "pdfdrill/table_structure.py",
    "pdfdrill/texgraphics.py",
    "semantic/attribution.py",
@@ -2643,10 +2813,18 @@
    "pdfdrill/latex_source.py"
   ],
   "statement": [
+   "docops/conserve.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/continuity_scorer.py",
    "pdfdrill/latex_source.py",
    "pdfdrill/lean_export.py"
+  ],
+  "stub": [
+   "docmodel/modules/citation.py",
+   "docops/projectors/latex_pipeline.py",
+   "docops/projectors/tiddlywiki.py",
+   "pdfdrill/bibliography.py",
+   "pdfdrill/commands.py"
   ],
   "style": [
    "docmodel/prop_contract.py",
@@ -2671,6 +2849,7 @@
    "passes/builtin.py",
    "pdfdrill/commands.py",
    "pdfdrill/nodes/reference_detector.py",
+   "pdfdrill/reports/from_document.py",
    "semantic/bundles.py",
    "semantic/entity.py",
    "semantic/layers/sqlite_view.py"
@@ -2693,6 +2872,8 @@
    "pdfdrill/commands.py"
   ],
   "text": [
+   "docmodel/ledger.py",
+   "docmodel/modules/_captions.py",
    "docmodel/modules/abstract.py",
    "docmodel/modules/citation.py",
    "docmodel/modules/code_listing.py",
@@ -2706,19 +2887,25 @@
    "docmodel/modules/page.py",
    "docmodel/modules/paragraph.py",
    "docmodel/modules/picture.py",
+   "docmodel/modules/rotated_text.py",
    "docmodel/modules/sidenote.py",
    "docmodel/modules/table.py",
    "docmodel/modules/toc.py",
    "docmodel/type_contract.py",
+   "docops/citation_spans.py",
+   "docops/conserve.py",
    "docops/mutators/dehyphenate.py",
    "docops/mutators/promote_cleaned.py",
    "docops/nlp_stanza.py",
    "docops/projectors/beamer.py",
    "docops/projectors/compressed_tiddlers.py",
    "docops/projectors/distill_reader.py",
+   "docops/projectors/footnotes.py",
    "docops/projectors/latex.py",
+   "docops/projectors/latex_pipeline.py",
    "docops/projectors/llm_compact.py",
    "docops/projectors/llm_text.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/okf.py",
    "docops/projectors/plaintext.py",
    "docops/projectors/scikgtex.py",
@@ -2726,6 +2913,7 @@
    "mathgold/floor.py",
    "pdfdrill/bibliography.py",
    "pdfdrill/blocks.py",
+   "pdfdrill/brackets.py",
    "pdfdrill/chars_to_lines.py",
    "pdfdrill/classify.py",
    "pdfdrill/commands.py",
@@ -2742,6 +2930,7 @@
    "pdfdrill/font_classify.py",
    "pdfdrill/gemma_client.py",
    "pdfdrill/geometry.py",
+   "pdfdrill/glyphcensus.py",
    "pdfdrill/heading_cleanup.py",
    "pdfdrill/identifiers.py",
    "pdfdrill/inlinectx.py",
@@ -2777,6 +2966,7 @@
    "pdfdrill/symbolfreq.py",
    "pdfdrill/table_structure.py",
    "pdfdrill/texgraphics.py",
+   "pdfdrill/text_escapes.py",
    "pdfdrill/text_layers.py",
    "pdfdrill/tsv_gcn.py",
    "pdfdrill/vendor/blobcc.py",
@@ -2798,18 +2988,21 @@
   ],
   "text_source": [
    "docmodel/prop_contract.py",
+   "docops/projectors/tiddlywiki.py",
    "pdfdrill/classify.py",
    "pdfdrill/heading_cleanup.py",
    "pdfdrill/merge_latex.py"
   ],
   "title": [
    "docmodel/base_module.py",
+   "docmodel/line_types.py",
    "docmodel/modules/citation.py",
    "docmodel/modules/page.py",
    "docmodel/modules/paragraph.py",
    "docmodel/modules/toc.py",
    "docmodel/type_contract.py",
    "docops/base.py",
+   "docops/conserve.py",
    "docops/projectors/beamer.py",
    "docops/projectors/compressed_tiddlers.py",
    "docops/projectors/distill_reader.py",
@@ -2818,6 +3011,7 @@
    "docops/projectors/latex_pipeline.py",
    "docops/projectors/llm_compact.py",
    "docops/projectors/llm_text.py",
+   "docops/projectors/markdown.py",
    "docops/projectors/okf.py",
    "docops/projectors/plaintext.py",
    "docops/projectors/scikgtex.py",
@@ -2855,6 +3049,7 @@
    "pdfdrill/scandrill/cli.py",
    "pdfdrill/sectionpath.py",
    "pdfdrill/sources.py",
+   "pdfdrill/translation_memory.py",
    "pdfdrill/tsv_gcn.py",
    "pdfdrill/vendor/blobcc.py",
    "semantic/build.py",
@@ -2909,6 +3104,7 @@
    "docops/projectors/tiddlywiki.py",
    "features/__init__.py",
    "pdfdrill/annotations.py",
+   "pdfdrill/archive_rename.py",
    "pdfdrill/citedrill.py",
    "pdfdrill/commands.py",
    "pdfdrill/docinspect.py",
