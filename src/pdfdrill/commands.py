@@ -12839,6 +12839,27 @@ def cmd_adopttranslation(pdf: Path, source: str | None = None,
               "was not produced by a translation call against THIS model.")
 
 
+@_writes("readme")
+def cmd_readme(pdf: Path, as_json: bool = False) -> str:
+    """Write `README.md` into the document's folder: what it is, where it came
+    from, every step it has been through, and what was PAID for.
+
+    831 — a drilled folder holds up to forty files and says nothing about
+    itself. All of it is in the sidecar and readable only by someone who knows
+    the sidecar's shape. This projects that record and derives nothing.
+    """
+    from . import readme as R
+    if as_json:
+        return json.dumps(R.collect(pdf), indent=1, ensure_ascii=False)
+    out, d = R.write(pdf)
+    paid = ", ".join(d["paid"])
+    return (f"Wrote {out} — {len(d['transitions'])} step(s) recorded, "
+            f"{len(d['facts'])} fact(s), {len(d['files'])} file(s). "
+            + (f"PAID steps in this folder: {paid}. Those artefacts cannot be "
+               f"rebuilt for free." if paid
+               else "Nothing here cost money; every artefact rebuilds offline."))
+
+
 @_writes("translate")
 def cmd_translate(pdf: Path, target_lang: str = "EN-US",
                   source_lang: str | None = None, limit: int | None = None,

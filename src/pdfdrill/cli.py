@@ -1156,6 +1156,13 @@ def _do_adopttranslation(args):
                                 dry_run="--dry-run" in args)
 
 
+def _do_readme(args):
+    """pdfdrill readme <pdf> [--json]"""
+    from .commands import cmd_readme
+    pdf_args = [x for x in args if x != "--json"]
+    return cmd_readme(_pdf(pdf_args), as_json="--json" in args)
+
+
 def _do_eqnums(args):
     """pdfdrill eqnums <pdf> [--force]"""
     from .commands import cmd_eqnums
@@ -2471,6 +2478,7 @@ HANDLERS = {
         "escalate": _do_escalate,
         "relearn": _do_relearn,
         "eqnums": _do_eqnums,
+        "readme": _do_readme,
         "adopttranslation": _do_adopttranslation,
         "bibliography": _do_bibliography,
         "bibsource": _do_bibsource,

@@ -1491,6 +1491,30 @@ commands:
     type: flag
     flag: --dry-run
     help: report what would be adopted; write nothing
+- name: readme
+  section: Introspection (fast, no extraction)
+  summary: 'Write README.md into the document''s folder — what it is, where it came
+    from, every step it has been through, and WHAT WAS PAID FOR. A drilled folder holds
+    up to forty files and says nothing about itself: which route produced the model,
+    whether a paid MathPix conversion is in there, what has been run and what has deliberately
+    not. All of it is already in the sidecar (facts, evidence, pdfinfo, transitions)
+    and readable only by someone who knows the sidecar''s shape. SKILL-shaped: YAML
+    front matter for a machine, Markdown below it for a reader, so --json and a person
+    opening the folder get the same answer. Derives nothing — every value comes from
+    the sidecar, the model''s build stamp or commands.yaml. Names the steps NOT run,
+    because a property that is not established is absent, not false.'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - name: as_json
+    type: flag
+    flag: --json
+    help: print the record as JSON instead of writing README.md
 - name: bibliography
   section: Introspection (fast, no extraction)
   summary: Parse the References section into Reference nodes (citekey/author/year/text)
