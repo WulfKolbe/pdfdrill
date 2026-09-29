@@ -705,7 +705,11 @@ def main() -> int:
            else (store_dir or os.getcwd()))
     while True:
         try:
-            line = input("\n? ").strip()
+            # In a pipe nobody is typing, so a prompt written BEFORE the read
+            # lands above a line it does not belong to, and a skipped line
+            # leaves a bare `?` behind. Read with no prompt and print the two
+            # together below, so a scripted transcript reads as command/output.
+            line = input("\n? " if interactive else "").strip()
         except EOFError:                              # Ctrl-D ends the session
             print()
             break
@@ -718,6 +722,21 @@ def main() -> int:
             continue
         if not line:                                  # blank → ignore, don't quit
             continue
+        # 827 — A COMMAND FILE NEEDS COMMENTS AND AN ECHO.
+        #
+        # Piping a file of commands already worked (`input()` reads a pipe as
+        # happily as a keyboard, and `interactive` is already stdin.isatty()),
+        # so nothing had to be built for that. What did not work was READING
+        # the result: a `#` line was sent to the LLM as a question — an empty
+        # context answered "no document yet" and the comment became an error —
+        # and nothing echoed the command, so a transcript was a column of `?`
+        # prompts with unattributed output beneath them.
+        #
+        # No drillui command begins with `#`, so the character is free.
+        if line.startswith("#"):
+            continue
+        if not interactive:
+            print("\n? " + line)
         if line.lower() in _QUIT:                     # quit/exit/stop/q/:q/… all work
             break
         if line in (":help", ":h", "help", "?"):
