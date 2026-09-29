@@ -47,13 +47,27 @@ def test_a_comment_is_not_a_question():
     assert "? pwd" in out
 
 
-def test_a_blank_line_leaves_nothing_behind():
-    """A blank line was already ignored, but the prompt for it was not: the
-    transcript grew a bare `?` with nothing after it."""
+def test_a_blank_line_is_ignored():
+    """A blank line must not end the session or reach the LLM. It DOES leave a
+    bare `?` behind, and that is the accepted cost of the prompt below."""
     out = run("\n\npwd\nquit\n")
-    body = out.split("Quit:")[-1]
-    assert body.count("?") == body.count("? ")          # no bare prompts
-    assert "? pwd" in body
+    assert "? pwd" in out
+
+
+def test_the_prompt_is_written_even_over_a_pipe():
+    """832 — THE PROMPT IS A PROTOCOL. `drillui_bridge.ts` spawns this REPL
+    over a pipe and says so in its own header: "The REPL writes its `\n? `
+    prompt to stdout after each turn; we detect that, strip it, and tell the
+    client it's its turn to read a line."
+
+    827 made the prompt conditional on `sys.stdin.isatty()` to keep a scripted
+    transcript tidy. Over a pipe that wrote no prompt at all, the bridge never
+    saw a turn, and the browser sat at "connecting…" with the bridge up and
+    listening. Cosmetics must not outrank a protocol.
+    """
+    out = run("pwd\nquit\n")
+    assert "\n? " in out, "the bridge detects this exact string; without it no turn is announced"
+    assert out.count("? ") >= 2, "one prompt per turn"
 
 
 def test_each_command_is_echoed_above_its_output():

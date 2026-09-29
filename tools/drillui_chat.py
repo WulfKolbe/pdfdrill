@@ -705,11 +705,18 @@ def main() -> int:
            else (store_dir or os.getcwd()))
     while True:
         try:
-            # In a pipe nobody is typing, so a prompt written BEFORE the read
-            # lands above a line it does not belong to, and a skipped line
-            # leaves a bare `?` behind. Read with no prompt and print the two
-            # together below, so a scripted transcript reads as command/output.
-            line = input("\n? " if interactive else "").strip()
+            # 832 — THE PROMPT IS A PROTOCOL, NOT DECORATION. 827 made it
+            # conditional on `interactive` so a scripted transcript would not
+            # show a bare `?` for a skipped line. But drillui_bridge.ts spawns
+            # this REPL over a pipe and says so in its own header: "The REPL
+            # writes its `\n? ` prompt to stdout after each turn; we detect
+            # that, strip it, and tell the client it's its turn." No prompt,
+            # no turn — the browser sat at "connecting…" forever.
+            #
+            # It is written unconditionally again. The scripted echo below
+            # follows the prompt instead of replacing it, which costs a bare
+            # `?` on a comment line and keeps the bridge working.
+            line = input("\n? ").strip()
         except EOFError:                              # Ctrl-D ends the session
             print()
             break
@@ -736,7 +743,7 @@ def main() -> int:
         if line.startswith("#"):
             continue
         if not interactive:
-            print("\n? " + line)
+            print(line)          # the prompt was already written by input()
         if line.lower() in _QUIT:                     # quit/exit/stop/q/:q/… all work
             break
         if line in (":help", ":h", "help", "?"):
