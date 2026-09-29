@@ -813,6 +813,30 @@ def standalone_preamble(preamble: str) -> str:
     # TikZ libraries the diagrams/styles depend on (e.g. decorations.markings,
     # which a \tikzset `decorate` style needs).
     libs = re.findall(r"\\usetikzlibrary\s*\{[^}]*\}", pre)
+    # 826 — A PACKAGE IS NOT ALWAYS LOADED BY \usepackage. XY-pic is loaded the
+    # plain-TeX way, brace-less and unrecognised by the scan above:
+    #
+    #     \input xy
+    #     \xyoption{all} \xyoption{poly} \xyoption{knot}
+    #
+    # arXiv 1102.1889 ("Ologs") is 83 display equations of which 64 are
+    # `\xymatrix`, and its preamble also defines \sq in terms of \xymatrix —
+    # so the macro came across and the package that makes it mean anything did
+    # not. Every diagram then failed twice over: `\xymatrix` undefined, and its
+    # `&` read as a misplaced alignment tab outside any alignment. 1,029 errors
+    # in one evidence report, 503 of them a single `&` message, all from one
+    # dropped line. Measured against a two-line A/B: 7 errors without, 0 with.
+    #
+    # Only a BARE WORD is lifted. `\input mymacros.tex` or `\input ../defs`
+    # names a file beside the source, which is not on the path when a cropped
+    # diagram compiles elsewhere; lifting one turns a missing package into a
+    # missing file and the error moves rather than going away.
+    inputs = [f"\\input {n}" for n in
+              re.findall(r"\\input\s+([A-Za-z][A-Za-z0-9\-]*)\s*(?:%|$)",
+                         pre, re.M)]
+    # `\xyoption{all}` is how xy's features are switched on; it is meaningless
+    # before `\input xy` and required after it, so the two travel together.
+    inputs += re.findall(r"\\xyoption\s*\{[^}]*\}", pre)
     defs = _robustify_macro_defs(_collect_macro_defs(pre))
     # Math-alphabet declarations (single-line, self-contained, no \makeatletter
     # needed) that define math letters a diagram may use, e.g.
@@ -858,8 +882,10 @@ def standalone_preamble(preamble: str) -> str:
     # loading, which is not something to do on spec.
     if defs and any("@" in _def_name(d) for d in defs):
         defs = ["\\makeatletter", *defs, "\\makeatother"]
-    return "\n".join([head, *pkgs, *libs, *fonts, *decls, *colors, *defs,
-                      *tikzsets, *pgfsets])
+    # `inputs` sits with the packages and BEFORE the macro definitions: a
+    # definition written in terms of \xymatrix is only legal once xy is loaded.
+    return "\n".join([head, *pkgs, *inputs, *libs, *fonts, *decls, *colors,
+                      *defs, *tikzsets, *pgfsets])
 
 
 def _def_name(definition: str) -> str:
