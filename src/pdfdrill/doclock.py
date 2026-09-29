@@ -192,7 +192,83 @@ def writer(op: str):
     def deco(fn):
         @functools.wraps(fn)
         def inner(pdf, *a, **kw):
+            pdf = ensure_doc_folder(pdf)
             with hold(Path(pdf), op):
                 return fn(pdf, *a, **kw)
         return inner
     return deco
+
+
+#: 830 — pdfdrill's own PDFs, which are never a reason to promote a folder.
+_GENERATED_PDF = __import__("re").compile(
+    r"^(report|B|residuals|evidence-[a-z]+|formula-report|compare)\.pdf$|"
+    r"\.(formelregister|beamer)\.pdf$", __import__("re").I)
+
+
+def _has_a_second_document(pdf) -> bool:
+    """Is there another document PDF beside this one?"""
+    try:
+        for sib in pdf.parent.glob("*.pdf"):
+            if sib == pdf or not sib.is_file():
+                continue
+            if _GENERATED_PDF.search(sib.name):
+                continue
+            return True
+    except OSError:
+        pass
+    return False
+
+
+def ensure_doc_folder(pdf):
+    """Give a loose PDF its own folder before anything writes beside it.
+
+    830 — EVERY BUILD COMMAND WRITES FIXED NAMES. `report.pdf`,
+    `evidence-equation.pdf`, `residuals.pdf`, `model.docmodel.json` are the
+    same names for every document, so two PDFs drilled in one directory do not
+    collide occasionally — they collide always, and the second silently
+    overwrites the first's reports. The library never showed this because its
+    documents already live in `<stem>/<stem>.pdf`; a working directory like
+    ~/Downloads is where it bites.
+
+    The move is `relocate`'s phase 1 pointed at the PDF's OWN parent, not at
+    the configured library: same planner, so the PDF, its sidecar, the
+    flattened `X.pdf.drill/` blobs and every `X.*` sibling travel together. A
+    `.lines.json` left behind is worse than no move at all — the next build
+    would not find the MathPix conversion it is supposed to read.
+
+    Already self-contained (`<stem>/<stem>.pdf`) is a no-op, which is every
+    document in the library. `PDFDRILL_NO_AUTOFOLDER=1` disables it for a
+    caller that manages its own layout.
+    """
+    import os
+    p = Path(pdf).resolve()
+    if os.environ.get("PDFDRILL_NO_AUTOFOLDER"):
+        return pdf
+    if not p.is_file() or p.parent.name == p.stem:
+        return pdf
+    # ONLY WHERE A COLLISION IS POSSIBLE — a directory holding one document is
+    # already that document's folder, and moving it buys nothing while
+    # surprising every caller that expects its artefacts beside the path it
+    # passed. The collision needs a SECOND document: `doc_dir = pdf.parent`
+    # (commands.py) sends `evidence-<kind>.pdf` and `residuals.pdf` there
+    # under names that are the same for every document.
+    #
+    # pdfdrill's OWN output is not a second document. `report.pdf`,
+    # `evidence-*.pdf`, `residuals.pdf` and `B.pdf` are artefacts of the
+    # document already there; counting them would make the first build
+    # promote the folder it had just written into.
+    if not _has_a_second_document(p):
+        return pdf
+    target = p.parent / p.stem
+    if target.exists() and not target.is_dir():
+        return pdf                       # a FILE of that name: leave well alone
+    try:
+        from .relocate import apply_relocation
+        apply_relocation(p, p.parent)
+    except Exception:                                        # noqa: BLE001
+        return pdf                       # never fail a command over tidiness
+    # A Path, not a str: the handlers take `.stem`/`.parent` off this value,
+    # and `pdf` arrives as a Path from every caller. Returning a string here
+    # failed 122 tests with `'str' object has no attribute 'stem'`.
+    moved = target / p.name
+    return moved if moved.is_file() else pdf

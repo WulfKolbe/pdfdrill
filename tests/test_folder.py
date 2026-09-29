@@ -75,7 +75,14 @@ def test_folder_builds_from_lines_json_without_network():
         assert "1 built, 1 skipped" in msg
         assert "nolines.pdf: SKIP" in msg
 
-        sc = Sidecar(tmp / "doc.pdf")
+        # 830 — TWO PDFs IN ONE DIRECTORY IS THE COLLISION CASE, so the first
+        # build gives each its own folder and `doc.pdf` is now `doc/doc.pdf`.
+        # Its `.lines.json` and `.bib` travelled with it, which is the point:
+        # the model below is built from that lines.json and the Reference
+        # carries bibtex from that .bib.
+        assert (tmp / "doc" / "doc.pdf").is_file(), "the document was not given a folder"
+        assert (tmp / "doc" / "doc.lines.json").is_file(), "the siblings must travel with it"
+        sc = Sidecar(tmp / "doc" / "doc.pdf")
         assert sc.has("MODEL_BUILT")               # model built from lines.json
         model = json.loads((sc.blob_dir / "model.docmodel.json").read_text())
         types = {o["type"] for o in model["objects"]}

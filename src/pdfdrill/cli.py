@@ -266,6 +266,17 @@ def _pdf(args: list[str]) -> Path:
                 folder_pdf = sources.library_pdf_for(arg, cfg.library_root())
             except Exception:                       # noqa: BLE001
                 folder_pdf = None
+        if folder_pdf is None and not Path(arg).exists():
+            # 830 — THE PATH THE CALLER STILL REMEMBERS. The first build gives
+            # a loose document its own folder, so `<dir>/x.pdf` becomes
+            # `<dir>/x/x.pdf` and every command line, script and shell history
+            # that names the old path stops resolving. The move is ours; the
+            # cost of finding it again is ours too. Checked AFTER the library
+            # lookup so a real library document still wins.
+            _p = Path(arg)
+            _moved = _p.parent / _p.stem / _p.name
+            if _moved.is_file():
+                folder_pdf = _moved
         if folder_pdf is not None:
             return _probe_on_acquire(folder_pdf)
     # work directly on an https URL from a known host, OR a bare arXiv id — but

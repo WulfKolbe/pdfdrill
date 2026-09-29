@@ -22,7 +22,7 @@ from pathlib import Path
 
 from . import jsonio as _jsonio
 from . import tidpath as _tidpath
-from .doclock import writer as _writes
+from .doclock import writer as _writes, ensure_doc_folder as _ensure_doc_folder
 from .sidecar import Sidecar
 from .model_io import load_model, save_model
 from . import prompts
@@ -6545,6 +6545,14 @@ def cmd_folder(folder: Path, force: bool = False) -> str:
 
     lines_out, processed, skipped = [], 0, 0
     for pdf in pdfs:
+        # 830 — RESOLVE THE LOCATION ONCE, HERE. The first write below promotes
+        # a loose document into `<stem>/` (a folder full of PDFs is the
+        # collision case `doc_dir = pdf.parent` creates), and this loop then
+        # held a path to where the document USED to be: `<stem>.bib` was looked
+        # for in the old directory, found nothing, and the References came out
+        # empty with no error anywhere. Ask for the folder first so every path
+        # built from `pdf` below is the real one.
+        pdf = _ensure_doc_folder(pdf)
         lines = pdf.parent / f"{pdf.stem}.lines.json"
         if not lines.exists():
             lines_out.append(f"  {pdf.name}: SKIP — no {pdf.stem}.lines.json "
