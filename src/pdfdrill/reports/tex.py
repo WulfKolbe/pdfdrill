@@ -26,7 +26,7 @@ def widths_for(paper: str, landscape: bool, with_image: bool) -> tuple:
     return rt.col_widths(w_mm - 36, with_image=with_image)
 
 
-def _rendered(r: EvidenceRow, widths, out_dir) -> str:
+def _rendered(r: EvidenceRow, widths, out_dir, author_preamble: str = "") -> str:
     # 661 — display_safe(), not the bare gate: this is the site that backs
     # evidence-equation.pdf/evidence-formula.pdf/report.pdf (the PUBLISHED
     # surface, per docs/HANDOVER.md:25-42), and report_tex.py's OWN
@@ -49,7 +49,31 @@ def _rendered(r: EvidenceRow, widths, out_dir) -> str:
     listing = getattr(r, "listing", "")
     if listing:
         return rt.listing_cell(listing)
+    # 836 — A VALUE THAT CANNOT BE SET IN A CELL IS COMPILED AS ITS OWN
+    # DOCUMENT, ahead of `display_safe`, which would happily return an
+    # `\xymatrix` for this cell to typeset. `display_safe` answers "is this
+    # legal display maths"; xy is legal maths and still illegal HERE, because
+    # it seizes the alignment machinery of the longtable around it. See
+    # `rt.needs_own_document`. A FAILED separate compile REFUSES the row; it
+    # does not fall back to setting the value in the cell. 50 of 64 xy rows on
+    # arXiv 1102.1889 compiled standalone and 14 did not, and letting those 14
+    # through cost the whole report — the first of them ends the longtable and
+    # every row after it is gone. One unrenderable row must cost one row.
+    if r.latex and rt.needs_own_document(r.latex):
+        return rt.standalone_math(r.latex, r.identifier, Path(out_dir),
+                                  col_mm=widths[4],
+                                  author_preamble=author_preamble) \
+            or "\\emph{(not rendered)}"
     safe = rt.display_safe(r.latex) if r.latex else ""
+    # 836 — AN ENVIRONMENT THE CELL CANNOT CLOSE MUST NOT BE EMITTED. 822 wrote
+    # this rule for the LaTeX projector's table cells and it is imported, not
+    # copied: one rule, one place. It was never needed here while the document's
+    # own packages were absent, because the row failed earlier and differently.
+    # With them injected, one row's stray `\end{aligned}` closed the enclosing
+    # longtable instead — "\begin{longtable} on input line 272 ended by
+    # \end{aligned}" — and took every following row with it: 0 pages out.
+    if safe:
+        safe = rt.drop_unpaired_envs(safe)
     tail = rt.esc_text(r.trailing_punct) if r.trailing_punct else ""
     if safe:
         return "\\FitMath{$\\displaystyle %s$}%s" % (safe, tail)
@@ -70,7 +94,7 @@ def _conf(r: EvidenceRow, ink_bullets: bool) -> str:
 
 
 def render_row(r: EvidenceRow, widths, *, out_dir, px2mm, bibkey,
-               history=None, ink_bullets=False) -> str:
+               history=None, ink_bullets=False, author_preamble="") -> str:
     extra = getattr(r, "eqnum", "")
     # 669 -- `refined_flag`, unchanged from the retired path's own use of it
     # (233, `report_tex.row()`): the mark that says "this row is not
@@ -92,7 +116,7 @@ def render_row(r: EvidenceRow, widths, *, out_dir, px2mm, bibkey,
     src = ("{\\ttfamily\\footnotesize %s}" % rt.esc_source(source)
            if source else "---")
     cells = [ident, rt.esc_text(r.shown_page), _conf(r, ink_bullets), src,
-             _rendered(r, widths, out_dir)]
+             _rendered(r, widths, out_dir, author_preamble)]
     if len(widths) == 6:
         if r.crop is not None:
             cells.append(rt.crop_cell(r.crop.parent, Path(out_dir), r.crop.stem,
@@ -106,7 +130,7 @@ def render_row(r: EvidenceRow, widths, *, out_dir, px2mm, bibkey,
 
 def render_table(rows: list, kind: str, *, widths, out_dir, px2mm, bibkey,
                  history=None, caption=None, legend_on=False, form=False,
-                 ink_bullets=False) -> str:
+                 ink_bullets=False, author_preamble="") -> str:
     parts = []
     if kind == "formula":
         parts.append("\\noindent{\\small %s}\\\\[.6em]\n" % HOST_LINE_SENTENCE)
@@ -116,17 +140,22 @@ def render_table(rows: list, kind: str, *, widths, out_dir, px2mm, bibkey,
     for r in rows:
         parts.append(render_row(r, widths, out_dir=out_dir, px2mm=px2mm,
                                 bibkey=bibkey, history=history,
-                                ink_bullets=ink_bullets))
+                                ink_bullets=ink_bullets,
+                                author_preamble=author_preamble))
     parts.append("\\end{longtable}\n")
     return "".join(parts)
 
 
 def document(body: str, *, paper: str, landscape: bool, pages=None,
-             title: str = "", form: bool = False) -> str:
+             title: str = "", form: bool = False, meta: dict | None = None) -> str:
     geom = "%spaper%s" % (paper, ",landscape" if landscape else "")
+    # 836 — the DOCUMENT's own packages, guarded. `meta` is optional so the
+    # eleven other callers of this function keep working unchanged; absent, the
+    # slot is empty and the report is exactly what it was.
     pre = rt.preamble(bbdigits=rt.MATHBB_DIGITS,
                       form=rt.FORM_PREAMBLE if form else "", geom=geom,
                       pagesel=rt.pagesel_line(pages),
+                      docpre=rt.document_preamble(meta or {}),
                       unicode=rt.unicode_decls(body))
     head = ("\\begin{center}{\\Large\\bfseries %s}\\end{center}\n"
             % rt.esc_text(title)) if title else ""

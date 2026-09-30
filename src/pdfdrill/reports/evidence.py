@@ -38,7 +38,8 @@ def _refined_summary(refined: dict) -> str:
 
 def build(rows_by_kind: dict, kind: str, fmt: str, *, doc_dir, pdf, bibkey,
           history, px2mm, paper, landscape, compile_pdf,
-          budget_mb: "float | None" = None, rung=None) -> dict:
+          budget_mb: "float | None" = None, rung=None,
+          meta: "dict | None" = None) -> dict:
     if kind not in KINDS:
         raise ValueError("kind must be one of %s, not %r" % (", ".join(KINDS), kind))
     if fmt not in FORMATS:
@@ -63,16 +64,24 @@ def build(rows_by_kind: dict, kind: str, fmt: str, *, doc_dir, pdf, bibkey,
         return {"out": out, "rows": len(rows), "pages": None, "errors": 0,
                 "demoted": 0}
     widths = T.widths_for(paper, landscape, with_image=True)
+    # 836 — the author's own preamble, raw (it brings its own \documentclass),
+    # for the rows `needs_own_document` sends to a separate compile.
+    author_pre = ((meta or {}).get("latex_preamble") or {}).get("standalone") or ""
     body = T.render_table(rows, kind, widths=widths, out_dir=doc_dir,
-                          px2mm=px2mm, bibkey=bibkey, history=history)
+                          px2mm=px2mm, bibkey=bibkey, history=history,
+                          author_preamble=author_pre)
     if refined:
         # 233's own note, unchanged: this is the retired path's mechanism
         # for saying "these rows are refinements," reused rather than
         # rebuilt — see rt.refined_note's own docstring.
         body = rt.refined_note(refined) + body
     tex_path = doc_dir / (OUTPUT % (kind, "tex"))
+    # 836 — the document's own packages travel with its evidence. Without
+    # them a report of a document written in XY-pic compiles `\xymatrix` with
+    # no xy loaded: 1,029 errors on arXiv 1102.1889, 503 of them one message.
     tex_path.write_text(T.document(body, paper=paper, landscape=landscape,
-                                   pages=None, title=title), encoding="utf-8")
+                                   pages=None, title=title, meta=meta),
+                        encoding="utf-8")
     res = {"out": tex_path.with_suffix(".pdf"), "rows": len(rows),
            "pages": None, "errors": 0, "demoted": 0}
     if compile_pdf:

@@ -6187,7 +6187,7 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
                      px2mm=px2mm, paper=paper, landscape=landscape,
                      compile_pdf=compile_pdf,
                      budget_mb=budget_mb_final if pdf_out else None,
-                     rung=rungs.get(k))
+                     rung=rungs.get(k), meta=doc.meta)
         out.append(_evidence_line(r, pdf_out, compile_pdf))
     sc.set_evidence("evidence_kinds", list(KINDS if all_kinds else (kind,)))
     # spec 2026-09-06 (task 10 fix round) — `cmd_report`'s old body was the
