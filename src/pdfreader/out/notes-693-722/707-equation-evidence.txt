@@ -1,0 +1,60 @@
+707 — equation entries for the evidence apparatus
+
+THE CONCEPT, from evidence-equation.pdf
+---------------------------------------
+One row per equation:
+
+    Identifier | Page | Conf. | LaTeX source | Rendered | Image
+
+`Rendered` is the LaTeX compiled; `Image` is the crop from the original PDF.
+inkdrill compares the two as INK and the deviations become a residual file.
+The comparison is only as good as the row it is given.
+
+SHIPPED: equations.py
+---------------------
+`pdf2mmd.sh` now writes `<stem>.equations.json` beside the lines.json and the
+docmodel. On the Prolog paper:
+
+    total 329   display 15   inline 314
+    complete 319   partial 1   empty 7   unbalanced 2
+
+Each row carries the identifier, page, kind, confidence, LaTeX, the region in
+the same 250-dpi pixel space as the crop URLs, and the deferral reasons.
+
+THREE DECISIONS WORTH RECORDING
+-------------------------------
+1. THE IDENTIFIER IS CONTENT-ADDRESSED, with the human-readable `EQnnnn`
+   alongside. Sequential ids alone would renumber on every re-read and turn
+   a diff between two runs into noise.
+
+2. CONSECUTIVE DISPLAY LINES ARE ONE EQUATION. A `cases` construct reaches
+   the page as a fence line, a left-hand side and one line per branch.
+   Scored separately, each fragment came out at 1.000 while the construct as
+   a whole was never assembled -- four perfect scores for a broken reading.
+   The reference table shows that same equation as ONE row at 0.672.
+
+3. CONFIDENCE IS THE PROJECTION FRACTION AND NOTHING ELSE. A structural
+   defect is reported SEPARATELY as `structural_ok`.
+
+   The temptation was to fold the two together and land near the reference
+   table's 0.672. Two reasons not to. The weighting behind that number is
+   not known here, so matching it would be fitting to one observation. And
+   collapsing two different facts into one score is precisely what makes a
+   benchmark unable to see its own errors -- the point of the OmniDocBench
+   finding. A consumer wanting one number can combine them; one wanting to
+   know WHY can read both.
+
+   On the Prolog paper the two `cases` constructs are exactly the rows where
+   confidence is 1.000 and `structural_ok` is false. That pair of values
+   says "every glyph was read, and the structure was not rebuilt", which is
+   the true state and is what 695 measured.
+
+WHAT THE APPARATUS STILL NEEDS FROM THIS SIDE
+---------------------------------------------
+- The `Rendered` column needs the LaTeX to COMPILE. `is_emittable` checks
+  balanced braces and argument presence, but an unbalanced `\Biggl\{` passes
+  it and will not compile. The `structural_ok` flag now marks those rows, so
+  a renderer can skip or repair them rather than failing.
+- Inline equations outnumber display ones 314 to 15, and their crops carry
+  neighbouring prose. An ink comparison on those will need a tighter region
+  than the span rectangle, or it will score the prose too.

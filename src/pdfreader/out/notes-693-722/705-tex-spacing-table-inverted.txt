@@ -1,0 +1,76 @@
+705 — the spacing table read backwards: 694's conclusion was wrong
+
+WHAT 694 AND 702 CONCLUDED
+--------------------------
+694 measured that an author's `\:` and a binary operator's AUTOMATIC 4mu are
+the same width, and shipped only what geometry alone could settle -- a
+negative gap and an abutting pair. Its closing note: "Separating `\,` from a
+binary operator's automatic 4mu needs the ATOM CLASSES, which this projector
+does not model."
+
+702, reading Heckmann & Wilhelm, confirmed the classes exist
+(Ord|Op|Bin|Rel|Open|Close|Punct|Inner) and added that the kind comes from
+the MATHCODE, i.e. from the source, and therefore "no amount of font or
+geometry reading recovers it."
+
+That was wrong, and Baker, Sexton & Sorge (DAS 2010) had already shown why.
+
+THE INVERSION
+-------------
+TeX's spacing is a FUNCTION OF THE CLASS PAIR, from a fixed 8x8 table with
+four values: 0, thin 3mu, medium 4mu, thick 5mu. pdf2mmd read the table out
+of their paper (section 7, Table 1) unaided.
+
+Read forwards it is a nuisance. Read BACKWARDS the space TeX inserted is
+EVIDENCE for the pair that produced it. Their words: such spacing "is being
+used to guide the semantic interpretation of the expression". Their example:
+in `x R y` the calligraphic R is offset by the space of a RELATION, so the
+author's own spacing says it is being used as one, not as a letter.
+
+MEASURED HERE
+-------------
+1887 inter-glyph gaps in one corpus paper, all pairs on one baseline:
+
+    class 0   0.000 em    973   51.6%
+    class 1   0.167 em    158    8.4%
+    class 2   0.222 em     61    3.2%
+    class 3   0.278 em    341   18.1%
+                          ----
+                          81.3% of all gaps land on the table
+
+The four most common gaps in the whole document ARE the four table values.
+
+The inverse is not unique -- a thick space is one of 8 pairs, a medium space
+one of 7 -- but every pair producing a thick space has Rel on one side, and
+every pair producing a medium space has Bin or Inner. Combined with the
+glyph identity, which a born-digital PDF gives exactly, that often
+determines the class.
+
+SHIPPED
+-------
+`texmap.space_class(gap_em)` -> 0..3 or None, and `class_pairs(space)` ->
+the pairs that produce it. The `gaps` field in lines.json carries
+`tex_class` per gap, and a gap ON the table is now REPORTED rather than
+skipped as ordinary.
+
+On a real page it lands where it should: `L`->`=` class 3, `c`->`∈` class 3,
+`=`->`⟨` class 3. All Ord-Rel or Rel-Open.
+
+A TEST THAT SAID THE OPPOSITE
+-----------------------------
+`test_ordinary_spacing_is_not_reported` asserted that a 4mu gap is NOT
+reported, on the reasoning that "a binary operator's own 4mu is not
+information the author added". True, and beside the point: it is information
+TEX added, which is better, because it is systematic.
+
+That is the THIRD test this session to encode a limitation as a requirement
+-- after the fixed-join spacing tests and
+`test_rows_without_stream_data_are_untouched`. The pattern is writing the
+test from what the code does rather than from what the document contains.
+
+NOT DONE
+--------
+The classes are not yet ASSIGNED. Reporting the space class is the evidence;
+propagating it -- seeding from glyphs whose class is certain (`=` is Rel,
+`+` is Bin, a letter is Ord) and solving for the rest -- is the step that
+produces semantic markup, and it is what their section 7 goes on to do.

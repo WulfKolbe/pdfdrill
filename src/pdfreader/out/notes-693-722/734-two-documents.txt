@@ -1,0 +1,118 @@
+734/735 — wzlxjtu-043 AND wzlxjtu-045, BOTH LOOKED AT
+
+Two reports, two different defects, and one measurement error found on the
+way that mattered more than either.
+
+
+043 — THE EQUATIONS WERE NOT LOST. THEY WERE CUT IN HALF.
+---------------------------------------------------------
+Equations 2 and 3 were read CORRECTLY and then emitted as inline `$...$` in
+the middle of the prose, while their own continuation rows stood beside them
+as displays. Nothing was missing; the head of each equation — the part
+carrying `\delta_1^c(0) =`, which is what NAMES it — had simply stopped
+being part of the equation.
+
+`is_display` judges one line at a time and its test is INDENT. Measured on
+that page, column margin 397px, 12pt type:
+
+    eq 1   row 1 x=427 (indent 30)   row 2 x=489 (92)    both display   right
+    eq 2   row 1 x=409 (indent 12)   row 2 x=507 (110)   row 1 INLINE   wrong
+    eq 3   row 1 x=409 (indent 12)   row 2 x=507 (110)   row 1 INLINE   wrong
+
+A multi-row display is not obliged to indent every row equally. This author
+pulls the continuation LEFT — the gold source says `\hspace{-0.15cm}` — so
+the first row barely clears the margin and the second clears it easily.
+
+THE FIX IS NOT A THRESHOLD. A row beginning `-`, `+` or `=` CANNOT BEGIN AN
+EQUATION: a binary operator needs a left operand, and the only place that
+operand can be is the line above. So a recognised display row that starts
+with one claims the line above it, provided that line is maths, is not
+prose, and stands directly over it. Walked upward, so a three-row display
+claims both.
+
+043 equations 2 and 3 now come out character-for-character gold.
+
+
+A MEASUREMENT ERROR, AND IT WAS LARGE
+-------------------------------------
+Checking that, the two readings differed on NOTHING but `\mid` against `|`.
+They are the same character; `\mid` only adds relation spacing. Gold writes
+`|` for "given that", this reader writes `\mid`, and the dialect table that
+exists precisely to neutralise such differences did not have it.
+
+    with `\mid` counted as dialect:   85 correct -> 136
+
+FIFTY-ONE EQUATIONS WERE ALREADY CORRECT AND WERE BEING SCORED WRONG. That
+is not a gain from any fix in this unit; it is a number that was wrong
+before. Both sides were re-measured with the corrected table so the
+comparison stays honest, MathPix included.
+
+
+045 — THE FRACTION BARS WERE THROWN AWAY
+----------------------------------------
+Different defect. The display is ONE two-row equation and it came apart into
+NINE pieces, with two spans deferred `assembly`.
+
+The cause was upstream of all of it. The PDF draws six rules on that page;
+the reader kept four. The two it dropped were the fraction bars, and they
+were dropped by this guard:
+
+    if (x1 - x0) > 12.0 * size: return "separator"
+
+which exists to stop a code listing's border being read as a fraction. But
+TeX sets the fraction rule AS WIDE AS THE WIDER OF NUMERATOR AND
+DENOMINATOR, so a long denominator makes a long bar:
+
+    \frac{1}{\sum_{i=1}^{n} I\{D_i=1, M_i=0, T_i=1\}}
+
+160.2pt in 12pt type — 13.35 em, against a 12 em test. It failed by 16pt.
+And with no bar there is no fraction, so the numerator, the denominator and
+the head of the equation stayed three separate bands.
+
+A listing border is told from a fraction bar by the same rule TeX drew it
+with: ONE OF THE TWO GROUPS REACHES BOTH ENDS OF THE BAR. Code inside a
+frame is inset from both margins and reaches neither.
+
+045 is now PARTLY fixed and I am not going to call it more than that. Both
+bars are classified `fraction`, and the numerator, denominator and head are
+in one line where they belong. The span then still refuses, `reason=fraction`
+— the assembly cannot yet describe a row carrying several baselines each
+with its own sub-expression. That is the open item named in 727 and it is
+not a tweak.
+
+
+MEASURED, whole corpus, dialect table corrected on every row
+------------------------------------------------------------
+                       correct        $$     \frac    crops
+    before             136 (32.3%)   361      202      319
+    +043 continuation  138 (32.8%)   360      208      319
+    +045 wide bars     137 (32.5%)   356      215      315
+    MathPix            207 (49.2%)   417        -        0
+
+The wide-bar fix costs ONE equation and I am reporting it rather than
+burying it. In wzlxjtu-033 a wide rule that used to be a separator SPLIT one
+fraction into rows that happened to line up with gold's `eqnarray` and
+scored as correct. The bar really is a fraction bar; merging the rows is
+right; the assembly then refuses and it becomes an honest crop instead of
+four rows that were correct by coincidence.
+
+Against that: seven fractions recovered in five documents that had none, and
+four fewer crops. wzlxjtu-091, previously two symbols, now reads
+
+    \frac{1}{2} \frac{\Gamma_e(t^{-2})\Gamma_e(pq^3t^2A^{-2}B^2)
+                      \Gamma_e(q^{-1}t^{-2}B^{-2})\Gamma_e(q^{-1}t^{-2}B^2)}
+                     {\theta_p(pq^2t^4A^{-2}B^2)}
+
+against a gold that differs only in `\frac12` and `\big`.
+
+    corpus .tex        102 of 102 compile clean
+    outside documents   18 of 18 compile clean
+    tests              484 passing (was 478)
+
+
+STILL OPEN
+----------
+045's fraction assembly, and with it 033's. Both are now the SAME failure —
+a row carrying several baselines — which is progress of a kind: two
+different-looking reports turned out to be one unsolved problem plus two
+solved ones.

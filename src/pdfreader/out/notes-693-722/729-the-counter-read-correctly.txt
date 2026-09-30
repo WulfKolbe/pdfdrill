@@ -1,0 +1,69 @@
+729 — "100% of the formulae are wrong", and he is close enough to right
+
+THE READING
+-----------
+His: MathPix 417 against gold 421 means MathPix delivers the author's
+equations; pdf2mmd 817 against 421 means it delivers none of them, because a
+count that is twice the truth cannot be a set of correct equations with a
+few errors in it.
+
+I have been reporting that as "ratio 1.94x" and "9% exact", which are
+metrics of DOCUMENT-LEVEL COUNTS. They say how close the tally is. They say
+nothing about whether any equation came out.
+
+MEASURED DIRECTLY
+-----------------
+For each of the 421 gold display equations, is there a single emitted block
+whose normalised content equals it? Normalisation strips whitespace, braces,
+`\left`/`\right`, the `\big` family and the manual spacing commands -- i.e.
+generous.
+
+    gold display equations                                421
+    delivered as ONE block with matching content           21   (5.0%)
+
+Five per cent. Not 9%, and 9% was never the right number anyway: it counts
+documents whose TALLY matches, which a document can do while every equation
+in it is wrong.
+
+So his reading is right in substance. 95% of the authored equations are not
+delivered whole. "817 vs 421" is not "a bit over-split"; it is a different
+object from a list of equations.
+
+WHAT THIS DOES TO THE SESSION'S NUMBERS
+---------------------------------------
+    1646 -> 1504 -> 1281 -> 947 -> 817
+
+Every one of those steps was real and I would make them again -- they
+removed empty blocks, labels, and genuine mis-segmentation. But they were
+movements in a COUNT, and I reported them as progress toward correctness
+without ever measuring correctness. 5.0% is the first number in this work
+that says how many equations are right.
+
+It should have been the headline metric from the first comparison. The
+tally is the cheap proxy; I used it for a full day because it was the one
+the table gave me.
+
+THE TWO SUITE FOLLOW-UPS
+------------------------
+1. `test_docmodel.py`, 96 tests, unrunnable: it is NOT in my export and NOT
+   in my tree. It is stale on his machine from an older install. My
+   installer extracts over the existing tree and never removes files that no
+   longer exist, so a renamed test file lingers for ever, permanently
+   skipped, in every count he takes. That is an installer defect and it is
+   mine.
+
+2. `test_mmd.py` over-gated by 23: five of its nine gated classes hold a MIX
+   of fixture-needing and synthetic tests, and gating the class took the
+   synthetic ones with it. Now gated per TEST in those five.
+
+       without fixtures   450 passed / 70 skipped -> 463 / 57
+       with fixtures      519 / 1                 -> 519 / 1
+
+   728's own diagnosis, one layer out, exactly as he said.
+
+STATE
+-----
+    gold 421   MathPix 417   pdf2mmd 817
+    exact 9 (9%)   within one 32 (31%)   ratio 1.94x
+    crops 548      projection 86.4%
+    EQUATIONS DELIVERED WHOLE: 21 of 421 (5.0%)

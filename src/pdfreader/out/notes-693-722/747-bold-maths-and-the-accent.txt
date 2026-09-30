@@ -1,0 +1,94 @@
+747 — wzlxjtu-074: BOLD MATHS, AND AN ACCENT CUT OFF FROM ITS LETTER
+
+I chose the document by evidence rather than by counting forward: over the
+corpus, wzlxjtu-074 has the WORST GAP TO MATHPIX. Gold 6 equations, MathPix
+misses 1, we emitted 2 blocks and missed 5.
+
+Two defects, one on top of the other. Both are fixed.
+
+
+1. BOLD MATHS DID NOT EXIST
+---------------------------
+The paper writes its vectors and matrices `\bf{t}`, `\bf{F}`, `\bf{\Sigma}`.
+`\bf` selects CMBX -- Computer Modern Bold Extended -- which this reader
+classifies as `text-cm`, and a plain letter from a TEXT font has no maths
+projection. So every bold letter came back UNKNOWN and took its whole span
+with it.
+
+The reported reason was `unmapped-glyph`, never the accent:
+
+    x=199.05 CMBX12 name=t        kind=unknown  tex=None
+    x=287.28 CMBX12 name=G        kind=unknown  tex=None
+    x=308.32 CMBX12 name=Delta    kind=unknown  tex=None
+    x=346.15 CMBX12 name=F        kind=unknown  tex=None
+
+MEASURED over the corpus: 582 unmapped CMBX glyphs INSIDE MATHS SPANS, in 12
+documents -- `F` 116 times, `n` 79, `t` 54, `Sigma` 43.
+
+A bold text letter used as a maths symbol now projects as `\mathbf{F}`, and
+an uppercase Greek as `\mathbf{\Sigma}`. `\mathbf` and not `\boldsymbol`: it
+is what the author wrote, it needs no package, and it sets uppercase Greek
+correctly -- checked by compiling `$\mathbf{\Sigma}$`, clean.
+
+Safe without knowing the span: prose is emitted from the glyph's TEXT, never
+from this token, which only a maths span reads. Lowercase Greek is refused,
+because `\mathbf{\alpha}` asks the operators font for a letter it has not
+got.
+
+
+2. THE ACCENT WAS IN THE WRONG SPAN
+-----------------------------------
+With the bold letters mapped, equation 1 came out right and the other four
+still did not. NOW the reason was the accent, and this is what it was:
+
+    stream 595  circumflex  x=347.02  base=504.23   span p1l11s6
+    stream 596  F           x=346.15  base=501.34   span p1l11s7
+
+CONSECUTIVE IN THE STREAM -- TeX emits `\hat{F}` as the accent and then the
+letter -- and stacked on the page, the accent centred 0.9pt over the letter.
+A span boundary fell between them, so the accent pass could never see its
+base: `accent-not-composed:circumflex`, five crops on that page.
+
+And a display broken by a crop is not a display. It is emitted as inline
+fragments, which is why FOUR EQUATIONS WERE MISSING rather than merely
+wrong:
+
+    $d_{n} = \sup\limits...\{d_{GY}$ [crop] $H_{n}) - d_{GY}$ [crop] $F_{n}, G)\}^{+}$
+
+A run boundary does not get to overrule the producer. An accent at the end
+of a run whose NEXT STREAM POSITION is the first glyph of the next run,
+centred over it and set above its baseline, moves across.
+
+    wzlxjtu-074   2 blocks -> 6, matching gold's 6, e.g.
+
+      gold     d_{GY}(\bf{t}, \hat{F}_n, G_n) = 1 - G_n(\Delta(...))
+      pdf2mmd  d_{GY}(\mathbf{t}, \hat{\mathbf{F}}_{\mathbf{n}},
+                      \mathbf{G}_{\mathbf{n}}) = 1 - \mathbf{G}_{\mathbf{n}}(...)
+
+
+MEASURED, whole corpus
+----------------------
+                      correct        $$   crops   accent crops
+    before           163 (38.6%)    371    265        46
+    after            170 (40.3%)    379    236        17
+
+    corpus .tex    102 of 102 compile clean
+    outside docs    18 of 18 compile clean
+    tests          488 passing
+
+Twenty-nine crops recovered, and twenty-nine of them were accents. Session
+running total: 138 -> 170 correct, crops 315 -> 236.
+
+
+STILL WRONG IN THIS DOCUMENT
+----------------------------
+Equation 3 is the matrix, and it is still the broken one:
+
+    \begin{aligned} \text{(d)} \left( \right) \text{(d)} \left( \right. \\
+    T_{0n,j_1} C_{0n,j_1 j_1} ... \end{aligned}
+
+Those are the six remaining empty delimiter pairs of 743 -- an EXTENSIBLE
+fence, built from stacked pieces, around an array whose rows are each their
+own line. The fence has no single baseline to correct, so the raise table
+that fixed `\bigl(` cannot reach it. It needs the matrix rows joined first,
+which is the 727 problem.

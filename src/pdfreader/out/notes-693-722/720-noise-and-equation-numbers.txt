@@ -1,0 +1,56 @@
+720 — steps 1 and 2 of the plan: refuse noise, strip the label
+
+STEP 1 — A DISPLAY BLOCK MUST SAY SOMETHING
+-------------------------------------------
+`project_mmd.has_content(tex)`: false for empty content, for a lone
+delimiter (`\bigl(`, `\bigr)`, `\biggl[`), for a matched empty pair
+(`\bigl( \bigr)`, `\left( \right)`) and for spacing alone. True for any
+expression, including a bare `\log` -- that is a FRAGMENT, not noise, and
+removing it needs the segmentation fix rather than this gate.
+
+Applied in `to_markdown` (the line falls through to a crop, which is a
+refusal and therefore cannot be wrong the way an emission can) and in
+`equations.py` (the row stays, with latex=None and reason `no-content`, so
+the evidence table still shows that an equation produced nothing).
+
+    markdown $$ blocks   1414 -> 1281
+    tiny equations (<=3 tokens)   202 -> 102
+    crops                 547 -> 548
+
+133 blocks of pure noise gone. What remains in the tail -- `\surd`, `\log`,
+`\Pr`, `\ker` -- are real tokens belonging to larger expressions.
+
+STEP 2 — THE EQUATION NUMBER IS A LABEL, NOT MATHS
+--------------------------------------------------
+`project_mmd.equation_number(line, right)` returns the tag glyphs on three
+conditions together, measured on a real line of 4.pdf:
+
+    the run is a parenthesised number        `(1)`, `(2.14)`, `(3a)`
+    it ENDS at the right margin              525..540 against margin 540.0
+    a wide gap separates it from the maths   202pt, i.e. > 3 em
+
+All three are needed. `f(1)` abutting the expression is a function
+application; `(1)` mid-line is content; `(a)` is not a number. Each has a
+test in the negative.
+
+    equation numbers found: 81 across 21 of 30 documents
+    `L^{-1}dL \in \mathfrak{g}(1)`  ->  `L^{-1}dL \in \mathfrak{g}`
+
+A tag that shares a SPAN with the mathematics survives the span-level
+filter, so the token is also removed from the assembled text -- but only
+what geometry positively identified, and only when the text actually ends
+with it.
+
+    49 tails remain across 102 documents, down from ~240. Those are lines
+    where the gap or the margin test fails; not yet diagnosed.
+
+STATUS
+------
+502 tests passing.
+
+    $$ blocks   1414 -> 1278     (gold 421, MathPix 417)
+    crops        547 -> 547
+
+Step 3, the subscript folding, is untouched and is the large term: it is the
+22-of-27 rows on wzlxjtu-052 and needs the attachment fix from 696/711, not
+a filter.

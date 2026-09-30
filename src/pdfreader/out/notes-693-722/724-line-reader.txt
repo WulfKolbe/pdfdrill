@@ -1,0 +1,62 @@
+724 — reading the line structure out of the stream
+
+THE SCREENSHOT
+--------------
+Two authored equations. The first is ONE line:
+
+    h(.,t+tau) = 1/sqrt(sum_{i=0}^{255}(a_t^{(i)})^2) sum_{i=0}^{255} a
+                 exp(...) delta(.)
+
+and my row clustering makes at least five rows of it -- the numerator `1`,
+the radical denominator, the sum's upper limit `255`, its lower limit
+`i=0`, and the main baseline. The second is a two-line aligned display with
+the number `(1)`.
+
+BUILT: psstream.line_breaks / line_starts
+-----------------------------------------
+A line return is a `Td`/`TD` with dx below -50 and a downward dy. Nothing
+else in the stream is one.
+
+    91.pdf   23 line starts   (22 returns + the first line)
+    93.pdf   17
+    95.pdf   17
+
+matching the raw operator counts exactly, with y descending monotonically
+from 701.1 to 93.4 across the page.
+
+THREE MISTAKES, EACH FOUND BY THE NUMBER BEING WRONG
+----------------------------------------------------
+1. `Show.move` is `(op, [dx, dy])` -- the operands are a LIST, not spread
+   into the tuple. Reading it as `(op, dx, dy)` found ZERO line breaks on a
+   page that has twenty-two. A zero looks exactly like "this producer does
+   not express line breaks that way", which is the wrong conclusion and the
+   one I would have drawn if I had not already measured 22 by hand.
+
+2. `Td` is relative to the line matrix, so the absolute position has to be
+   accumulated -- but `BT` RESETS that matrix, and the producer opens a text
+   object around every fraction rule. Ignoring BT drifted a page-1 baseline
+   from 701 to 10954.
+
+3. Honouring BT then made every reset a line start: 81 where the returns say
+   22. A reset is not a line; what follows RESUMES the line it interrupted.
+   The reset makes the next move absolute and nothing more.
+
+WHAT IS NOT DONE
+----------------
+This is the reader, not the change. The line starts are not yet used to
+group glyphs -- `docmodel_six` still clusters rows by baseline, which is
+what produces 85 rows for 22 lines.
+
+The wiring is the next unit and it is not small: every pass downstream
+assumes the current row grouping, and 696 measured that changing the
+grouping without fixing attachment first makes the output worse. The order
+that follows from everything measured since is: lines from the stream, then
+attachment by stream adjacency, then the folds.
+
+One caution carried from 703: dvips output is almost entirely ABSOLUTE
+placement (1255 absolute moves against 1 relative vertical on that sample),
+so the dx-negative rule is a pdfTeX/Distiller rule. dvips expresses the same
+line structure differently and will need its own reading.
+
+514 tests passing. Standing state unchanged: gold 421, MathPix 417,
+pdf2mmd 817 (9% exact, 1.94x).

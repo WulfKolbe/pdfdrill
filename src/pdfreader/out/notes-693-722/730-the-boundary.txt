@@ -1,0 +1,71 @@
+730 — the boundary is BASELINES, not lines. The user found it by eye.
+
+HIS OBSERVATION
+---------------
+    wzlxjtu-001  0%     wzlxjtu-003  100% (3)     wzlxjtu-004  70% (7/10)
+    wzlxjtu-005  0%     wzlxjtu-006  0%
+    "starting with single math expression the results are very good, after
+     the first 2 and line expression everything goes wrong."
+
+And: "If pdf2mmd has more blocks than MathPix, the meaning is simple:
+100% are wrong." He is right, and the counting I was doing was noise.
+
+MEASURED — 421 gold display equations, 102 documents
+----------------------------------------------------
+Split by PAGE SHAPE, not by LaTeX environment:
+
+    single-baseline  (no fraction, no operator limits, no \\)
+        140 equations     delivered whole and correct   19   13.6%
+    stacked          (fraction / big-operator limits / stacked rows)
+        281 equations     delivered whole and correct    2    0.7%
+
+Two of 281. Stacked display maths is not read at all.
+
+THE CORRECTION TO HIS WORDING, WHICH MAKES IT SHARPER
+-----------------------------------------------------
+"2-line expression" is what he SEES; it is not `\\` in the source.
+wzlxjtu-006 gold #1 is one LaTeX line:
+
+    L = \prod_{i=0}^3 e^{\phi^i K^i}
+
+It came back as THREE blocks:   `L =`  /  `\prod_{\phi^i K^i} i=0`  /  `e`
+
+and gold #3, also one line:
+
+    m^2 l^2 = \Delta(\Delta-5)      ->   m^{2} l^{2} = \Delta(\Delta - 5)
+
+perfect, superscripts and all. The difference between them is not line
+count. It is whether the row puts an EXPRESSION on a baseline other than
+the main one. `m^2` is a script on the main baseline. `\prod`'s limits,
+and a fraction's numerator, are sub-expressions each on a baseline of
+their own.
+
+That is 727's result stated from the other end. 727 said `_attach_scripts`
+models one baseline with scripts hung around it, and refuses on the
+"same baseline but excluded" branch when asked to describe several.
+730 says the same thing measured over the whole corpus: the reader's
+competence boundary IS `_attach_scripts`'s model boundary, exactly.
+
+    scripts on one baseline   ->  works   (13.6%, and the misses there are
+                                           ordinary reading errors)
+    sub-expression on its own ->  0.7%    (shattered into one block per
+    baseline                               band it could not attach)
+
+WHY 817 > 421 IS NOT "A BIT OVER-SPLIT"
+---------------------------------------
+Because the 817 are not equations. They are the fragments left when a
+display row is cut at every baseline the attach pass could not bind.
+A count of them measures how badly the row fell apart, nothing else --
+which is why "more than MathPix" means 100% wrong and not "close".
+
+WHAT THIS DOES NOT SAY
+----------------------
+It does not name the fix. 727 already said what is needed (a pass that
+can describe a row of several baselines each carrying a sub-expression)
+and that it is not a tweak to `_attach_scripts`. 730 adds only the size
+of the prize: 281 of 421 equations, 67% of the corpus, all of it now at
+0.7%.
+
+It also does not excuse the flat 13.6%. Single-baseline rows still lose
+6 in 7 to ordinary reading errors. But that is a different defect and a
+much smaller one, and it should not be worked on first.

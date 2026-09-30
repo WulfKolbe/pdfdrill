@@ -1,0 +1,49 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environment
+# No trailing slash: a SYMLINK to a venv elsewhere is not a directory, and
+# `.pdfmm-venv/` does not match one. One was committed that way -- a link to
+# a path in another user's home, broken for everyone who clones.
+.pdfmm-venv
+.pdfmm-build
+.pdfmm-venv/
+.pdfmm-build/
+
+# Output
+mmd-out/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

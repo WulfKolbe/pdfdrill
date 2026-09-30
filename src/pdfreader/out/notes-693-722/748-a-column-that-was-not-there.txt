@@ -1,0 +1,103 @@
+748 — wzlxjtu-058 EQUATIONS 3 AND 4: A COLUMN THAT WAS NOT THERE
+
+You were right that the two differ only by the operator, and right that the
+minus is where it goes wrong. It is not drawn as a line, though — it is an
+ordinary CMSY `minus` glyph, same as everywhere else. The difference the
+operator makes is FIVE POINTS OF WHITESPACE.
+
+
+THE TWO EQUATIONS
+-----------------
+    eq 3   denominator  p_n + p_c              correct
+    eq 4   denominator  p_{0|0} - p_{0|1}      \frac{p_{0\mid0}}{- p} ...
+                                               and then a row reading
+                                               `p 0|0 0|1`
+
+Under eq 4's fraction bar the reader had only two glyphs -- `minus` and one
+`p`. Four more were on another line. The denominator is ONE CONTIGUOUS
+STREAM RUN, 403..411, and it had been cut:
+
+    403 p      base 264.56   -> row A          407 minus base 264.56 -> row B
+    404 0      base 262.70   -> row A          408 p     base 264.56 -> row B
+    405 |  406 0             -> row A          409 0  410 |  411 1   -> row A
+
+403 and 408 have the SAME BASELINE and the SAME SIZE and landed in different
+rows.
+
+
+WHERE THE CUT CAME FROM
+-----------------------
+Traced through the row grouper stage by stage:
+
+    after clustering      [403, 407, 408]      correct
+    after stream split    [403, 407, 408]      untouched
+    after column split    [403]  [407, 408]    CUT
+
+`_column_edge` reported a gutter at **x = 280.83** on a page that is ONE
+COLUMN -- `columns()` says 1, the text runs 85..510 unbroken, the modal line
+left edge is 85.
+
+It is found from the distribution of row left edges, and a row that already
+spans both columns also contributes "the x just after its widest internal
+gap". On a page of display equations that clause reads their internal
+whitespace as column evidence. The acceptance test was
+
+    n >= 0.1 * ordered[0][1]
+
+-- a tenth of the FIRST CANDIDATE's own count, which is itself usually 1, so
+a single piece of evidence always passed. The page's real mode had SEVEN
+rows at x=84; the accepted "column" had ONE.
+
+And that is the whole difference between equations 3 and 4: eq 3's gap at
+that x is 3.4pt, eq 4's is 5.0pt. The wider one crossed the split.
+
+Now a second column has to be named by at least two rows. One row's internal
+gap is not a column.
+
+
+MEASURED, whole corpus
+----------------------
+                      correct        $$   \frac  crops
+    before           170 (40.3%)    379    219    236
+    after            171 (40.5%)    370    218    242
+
+    corpus .tex    102 of 102 compile clean
+    outside docs    18 of 18 compile clean
+    tests          488 passing
+
+I AM NOT CLAIMING MUCH FROM THAT COUNTER. It moves by one, crops rise by
+six, and 36 documents change. The case for the fix is the KIND of change,
+not the total:
+
+    wzlxjtu-067   before  $\epsilon_{r,D}$ the ... ${}^{tot}$ this study we
+                  after   $\epsilon_{r,D}^{tot}$ the
+
+    a superscript reunited with its base, and the prose that the phantom
+    gutter had interleaved with it put back in order.
+
+    wzlxjtu-058   before  \frac{p_{0\mid0}}{- p} E[...] \\ p 0|0 0|1
+                  after   a crop
+
+    eq 4's head row now REFUSES rather than emitting a fraction with half
+    its denominator missing. Its second row is correct, and eq 2's
+    denominator -- `\frac{p_{0\mid0}}{p_{0\mid0} - p_{0\mid1}}` -- is right.
+
+An equation cut in half by a column that is not there is a wrong reading
+that looks like a right one, and six crops is the price of not shipping
+those.
+
+
+I TRIED A STRONGER VERSION FIRST AND IT WAS WORSE
+-------------------------------------------------
+Requiring the second column to carry half the dominant mode's rows --
+`n >= 0.5 * strongest`, the same test the `strong` set above already uses --
+measured 170 -> 165 correct and crops 236 -> 245. The column split does real
+work on pages whose two modes are not balanced, and that threshold took it
+away. Reverted to the weakest claim that fixes the case: two rows, not one.
+
+
+STILL WRONG IN THIS DOCUMENT
+----------------------------
+Equation 4's head row is a crop, reason `script-attachment`. The row carries
+a fraction whose numerator, denominator and their subscripts sit on four
+baselines, and attachment still models one. 727.

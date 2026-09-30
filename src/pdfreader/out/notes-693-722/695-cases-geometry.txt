@@ -1,0 +1,54 @@
+695 — the `cases` construct: measured geometry, and the prerequisite
+
+WHAT IT LOOKS LIKE IN THE MODEL
+-------------------------------
+From the-semantics-of-metaprogramming-in-prolog, page 3. The author wrote a
+`cases`; four separate display blocks came out:
+
+    $$\Biggl\{$$        $$x \in N at =$$
+    $$\text{if} x = 0$$ $$\text{if} x^{\prime} \in N at ...$$
+
+The rows, top to bottom:
+
+    y=356.6  x=[203.5,211.5]  the brace, alone on its row
+    y=348.4  x=[213.0,251.1]  `if x = 0`                 <- case 1
+    y=339.6  x=[157.7,201.6]  `x in Nat =`               <- the LHS
+    y=331.2  x=[213.0,341.0]  `if x' in Nat and ...`     <- case 2
+
+The arrangement is unambiguous and it repeats on the same page for a second
+construct (`x in R_a^G =` at y=273.8):
+
+    the FENCE is a single CMEX glyph, `braceleftBigg`
+    the LHS is entirely LEFT of the fence and vertically CENTRED on it
+    the cases all start at one x, RIGHT of the fence, within its span
+
+So the reconstruction rule needs no new statistics:
+
+    LHS \begin{cases} case1 \\ case2 \end{cases}
+
+THE PREREQUISITE, AND IT IS A DEFECT OF OURS
+--------------------------------------------
+    braceleftBigg  CMEX10  rect=[203.5, 346.7, 211.5, 356.6]  height 10.0pt
+
+Ten points. The brace visibly spans from the first case to the last, roughly
+25pt. The height is wrong because `_sane_rect` REPAIRED it: CMEX10 declares a
+-2.359em descent that misplaces every big operator, and the repair replaces
+the declared box with a plausible one around the baseline.
+
+That repair is what made big operators and radicals work. It also destroys
+the one measurement a fence reconstruction depends on -- how far the fence
+reaches. Both readings are needed:
+
+    the repaired box   for grouping the fence onto a row
+    the declared box   for knowing what it spans
+
+The fix is to keep the original bbox on the glyph beside the repaired one,
+not to choose between them. Nothing can be built on top until that exists.
+
+NOT ATTEMPTED
+-------------
+The reconstruction itself. The geometry above is from ONE document and two
+instances on one page; a `cases` with three or more branches, a `matrix`, an
+`array` with alignment, and a fence built from STACKED pieces
+(`braceleftBig` + `braceex` + `braceleftbt`) rather than one glyph are all
+unmeasured, and the stacked form is the common one in older TeX.

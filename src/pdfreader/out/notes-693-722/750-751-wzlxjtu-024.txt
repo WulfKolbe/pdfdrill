@@ -1,0 +1,93 @@
+750/751 — wzlxjtu-024: A LOST INTEGRAL, AND TWO EQUATIONS SHARING RULES
+
+Chosen by evidence again: worst remaining gap to MathPix. Gold 6 equations,
+MathPix misses 2, we emitted 3 blocks and missed 5. Two defects found, both
+fixed; the document is still not whole and I say where it stops.
+
+
+750 — HOW FAR A BIG OPERATOR IS RAISED DEPENDS ON WHICH ONE IT IS
+------------------------------------------------------------------
+Equation 3 is `\int dx\,\rho(x) = 1` and came out `dx \rho(x) = 1`. The
+integral was not unmapped -- `integraldisplay` projects to `\int` perfectly
+well. It was in the PROSE LINE ABOVE, the one reading "...should approach an
+L1 function normalized as".
+
+A big operator is drawn raised, so the row grouper lowers it before deciding
+which row it is on. That correction was ONE CONSTANT, 0.7 em, for every
+operator. Measured over 60 documents, as the raise above the baseline of the
+nearest full-size glyph beside it:
+
+    summationdisplay   n=18   0.95 em    (17 of 18 exactly)
+    integraldisplay    n=14   1.361 em   (10 of 14 exactly)
+    c P l m s d t e k i       0.000 em   (exact, 100+ samples)
+
+An integral is raised HALF AN EM MORE than a sum. Corrected by 0.7 em this
+one keyed to 437.8, and the prose line's baseline was nearer than the
+equation's.
+
+The last row is every operator built from LETTERS -- `\cos`, `\max`, `\sup`;
+the operator merge marks the head letter `bigop`, and it sits on the
+ordinary baseline like the text it is. The blanket 0.7 em was moving all of
+those off their own row too.
+
+I tried to avoid a table. TeX centres these on the maths axis, so the box
+CENTRE should identify the row without any constant: measured, that fits the
+letter operators (0.06 em, tight) and not the CMEX ones (sum 1.05, int
+1.23), because pdfminer does not report the real depth of a CMEX glyph. So:
+a measured table, and 0 for anything not in it.
+
+    equation 3   `dx \rho(x) = 1`  ->  `\int dx \rho(x) = 1`
+
+
+751 — A VINCULUM BELONGED TO WHICHEVER RADICAL STARTED AT ITS x
+----------------------------------------------------------------
+Equations 5 and 6 are
+
+    F \approx -\frac{9\sqrt{2}\pi N^{5/2}}{5\sqrt{8-N_f}}
+    G_6 = \frac{5\pi\sqrt{8-N_f}}{27\sqrt{2}} N^{-5/2}
+
+and both were crops, `fraction+overline+unmapped-glyph`. Their lines had
+been handed each other's rules:
+
+    p1l21  y 244..285   rules at 275.19, 259.96, 257.57, and 158.13   <<<
+    p1l26  y 146..188   rules at 275.19, 257.57, 176.31, 160.53, 158.13
+
+A rule ninety points below a line, on that line. The vinculum rule attaches
+a bar to a line when the bar starts at a radical sign's right edge, AT ANY
+HEIGHT -- "nothing else in a row does that". True while one radical on the
+page starts there. Both equations set `\sqrt{2}`, at x=302.79 and x=301.64,
+and each bar abutted both signs.
+
+TeX draws the vinculum at the TOP of the sign, inside its box. That is the
+test `_rule_role` already applies to the same decision; it applies here now
+too. Each line keeps exactly its own three rules.
+
+
+MEASURED, whole corpus
+----------------------
+                        correct        $$   \frac  \sqrt  crops
+    before             171 (40.5%)    370    218     12    242
+    + operator raise   172 (40.8%)    365    212     12    237
+    + vinculum height  172 (40.8%)    367    226     17    233
+
+    corpus .tex    102 of 102 compile clean
+    outside docs    18 of 18 compile clean
+    tests          488 passing
+
+Fourteen fractions and five square roots recovered by the second fix alone,
+with no loss anywhere. Session running total: 138 -> 172 correct, crops
+315 -> 233.
+
+
+WHERE wzlxjtu-024 STOPS, AND IT IS NOT FIXED
+--------------------------------------------
+Three blocks of six. Equations 4, 5 and 6 are still crops. The rules are now
+right and the spans still refuse, because each of those equations is a
+FRACTION WITH A RADICAL IN BOTH PARTS:
+
+    \frac{9\sqrt{2}\pi N^{5/2}}{5\sqrt{8-N_f}}
+
+-- a numerator, a denominator, a radicand inside each, and the superscript
+`5/2` on top of that. Four baselines in one row, and attachment models one.
+That is 727, and it is now the only thing standing between this document and
+its six equations.

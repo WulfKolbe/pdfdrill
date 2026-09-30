@@ -1,0 +1,140 @@
+739/740/741 — FILES 27, 30, 91 AND 92
+
+Three reports, three defects, and the third one was the big one.
+
+
+27 — TWO EQUATIONS BECAME ONE, AND THE NUMBERS WENT BOTH WAYS WRONG
+-------------------------------------------------------------------
+The page:
+
+    L3  y=387  x= 932..1123   \bar\psi_A = \psi_A^\dagger \gamma_7
+    L5  y=398  x=1823..1875   (1)
+    L4  y=566  x= 924..1131   (\gamma_7)^\dagger = -\gamma_7
+    L6  y=572  x=1823..1875   (2)
+
+Each number is on its equation's OWN BAND -- 11px apart in 12pt type -- and
+700px to its right, so band-building kept them as separate lines. Everything
+downstream then read the page wrong in two ways at once:
+
+  * L3 and L4 became adjacent display lines with nothing between them, so
+    the run pass fused them into one `aligned`. Two equations became one.
+  * the numbers survived as lines of their own. `to_markdown` drops such a
+    line, so the number was LOST; `to_latex` had no such rule, so it emitted
+    `(1)` and `(2)` as loose prose after the two `equation` environments --
+    the number printed twice, once by LaTeX and once as text. That is the
+    code you sent.
+
+Rejoined before anything groups or emits, and then BOTH follow:
+
+  * a display carrying its own number cannot be a row of the one above it,
+    so a number now ends the run;
+  * the number is attached to the equation it labels.
+
+And the two projections need OPPOSITE things from it, which is what you
+said. LaTeX numbers an `equation` itself, so the page's own `(1)` must go.
+Markdown numbers nothing, so dropping it loses the label the prose refers
+to. `\tag{1}` in the markdown, nothing in the LaTeX.
+
+    wzlxjtu-027    md 5 blocks -> 7, matching gold's 7
+                   tex 7 `equation`, ZERO literal `(N)`
+
+
+30 — THE SUM WAS REJOINED TO ITS OWN SUPERSCRIPT
+------------------------------------------------
+Equation 4's `\sum` came out on a row BELOW the expression instead of in
+front of it. The furniture pass, which rejoins a tall operator to the row it
+stands in, chose the wrong row -- and the row it chose was the operator's
+own upper limit:
+
+    \sum              baseline 447.5
+    upper limit       baseline 451.3      3.8 away   <- chosen
+    the equation      baseline 438.0      9.5 away
+
+The host is picked by NEAREST BASELINE, and an operator's own limit is
+always nearer than the row it belongs to. A limit is set at SCRIPT SIZE, so
+a candidate with no full-size glyph in it is not a row; that test already
+existed in the stacked-limit pass and is now used here too.
+
+The limit had stayed a band of its own because the stacked-limit merge
+required it to be CONTAINED in the operator's column. TeX does not contain a
+limit, it CENTRES it:
+
+    \sum          x=414.4..428.8   centre 421.6   width 14.4
+    upper limit   x=398.1..445.1   centre 421.6   width 47.0
+    lower limit   x=407.9..435.3   centre 421.6   width 27.5
+
+Three centres identical to the tenth of a point, and both limits wider than
+the operator. Centring is now the test, containment kept as the other way in.
+
+The `\sum` is now in the row where it belongs. The row then REFUSES and
+becomes a crop, because assembling several baselines in one row is the open
+problem of 727 -- so this equation went from wrong to withheld, not from
+wrong to right, and I am not calling it fixed.
+
+
+91 AND 92 — YOU WERE RIGHT, AND IT WAS ORDER
+---------------------------------------------
+Not a stack: the ORDER of the glyphs. wzlxjtu-092's denominator row runs
+stream 438..484 and then JUMPS BACK to 471..483.
+
+Every band merge in the reader concatenates -- `groups[host] + groups[_i]` --
+so the glyph sequence that reaches `to_tex` is whatever order the passes
+happened to run in. Here the script band was appended AFTER the delimiter
+band, which put every big delimiter next to another big delimiter:
+
+    \bigl( \bigr)\bigl( \bigr)\bigl( \bigr)
+
+with their contents somewhere else. That is the "breaks after some
+characters".
+
+Restored to THE ORDER THE PDF DREW THEM IN, which is the order TeX emitted
+them, which is reading order. Not x -- a superscript is drawn where it
+belongs in the expression, and sorting by position is exactly what loses
+that. The stream index is the evidence; x is the fallback for a page where
+some glyph lacks one.
+
+This is the single largest change of the three:
+
+    wzlxjtu-092 equation 1, before
+      \times_{u} (T_{J_B,J_C,J_D}(h,u,z) \times_h C^{(1,0;AB^{-1})}_{J_B}(h)))
+      -- beginning mid-expression
+
+    after
+      T_{J_D}(v) \times_v ((T_{J_B,J_C,J_D}(w,u,v) \times_w
+                            C^{(0,0;A^{-1}B)}_{J_B}(w))
+      -- gold's own opening
+
+
+MEASURED, whole corpus
+----------------------
+                         correct        $$    \frac   crops
+    before              138 (32.7%)    356     215     315
+    +27 numbers         143 (33.9%)    394     211     318
+    +30 sum host        143 (33.9%)    392     211     316
+    +91/92 stream order 146 (34.6%)    400     211     282
+
+    matched to a gold equation   287 -> 306 of 422
+    corpus .tex     102 of 102 compile clean
+    outside docs     18 of 18 compile clean
+    tests           488 passing
+
+A METRIC CORRECTION CAME WITH THE FIRST ONE, and it was large enough to
+report on its own. Stating `\tag{3}` made the scorer read every numbered
+equation as wrong -- 138 fell to 47 -- because `canon.py` strips `\label`
+and `\notag` but had no rule for `\tag`. Gold numbers implicitly. A reader
+that states the number must not be marked wrong for it, so `\tag` is now
+noise in both the scorer and the table's matcher, and every row above was
+re-measured with it.
+
+
+STILL OPEN, NAMED AND COUNTED
+-----------------------------
+    75 EMPTY BIG-DELIMITER PAIRS in 14 documents -- `\bigl( \bigr)` with
+    nothing between. wzlxjtu-092's denominator is one: its numerator and the
+    DENOMINATOR'S delimiters share one band (both are tall), while the
+    denominator's ordinary-size contents are a band below. The furniture
+    rejoin cannot move the delimiters because that band is not pure
+    furniture -- it holds the numerator too.
+
+    Each of these is wrong output that LOOKS like right output, which is the
+    thing this project refuses to ship. It is the next one to take.

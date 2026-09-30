@@ -1,0 +1,54 @@
+716 — `\midx`: a command glued to the letter after it
+
+THE DEFECT
+----------
+    source:  |x - y|
+    output:  \midx - y\mid
+
+`\midx` is undefined. The closing `\mid` is fine because nothing follows it.
+The user measured 442 occurrences across 43 documents.
+
+THE CAUSE, AND IT IS 694'S OWN MEASUREMENT
+------------------------------------------
+TeX ends a control word at the first NON-LETTER, so a letter placed straight
+after a multi-letter command extends its name.
+
+694 shipped measured spacing: a gap of zero renders as "" so that `$ab$`
+stays `$ab$` rather than becoming `$a b$`. That was right, and it is exactly
+what glues a command to the letter after it.
+
+A guard was already there -- and tested the WRONG SIDE. It asked whether the
+GAP ends in a letter, which catches `\quad` + `b`. It never asked whether the
+PREVIOUS PART does.
+
+TWO JOIN SITES, NOT ONE
+-----------------------
+Fixing the pieces loop took the count from 66 to 41 across 30 files, and
+`\mid`, `\star`, `\ell`, `\langle` and `\times` to zero. `\cdot` survived:
+
+    P^{ret})\cdot(y+y\_)-P\cdoty
+
+A row carrying SCRIPTS or UNDERSCORES is assembled in `_weave_underscores`,
+a different join with the same hazard and no guard. The first fix never
+touched that path. Both now guard.
+
+VERIFIED ACROSS ALL 102
+-----------------------
+    command+letter runs remaining:
+        \Sigma 50   \infty 15   \int 7   \inf 4
+
+Every one is a legitimate command that a crude prefix detector splits. No
+real fusion remains.
+
+    crops 548 -> 547        490 tests passing
+
+TWO THINGS TO CARRY FORWARD
+---------------------------
+1. A guard that tests one side of a join is half a guard. This one had been
+   in place and passing its own test for weeks while the defect it was
+   written for ran at 442 occurrences on the other side.
+
+2. My first DETECTOR was wrong too -- `\\[a-zA-Z]+` greedily matches `\midx`
+   as one token, so it reported ZERO occurrences of a defect that was
+   plainly there. A measurement that returns zero deserves the same
+   suspicion as one that returns a surprise.

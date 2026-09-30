@@ -1,0 +1,59 @@
+#!/bin/sh
+# pdf2mmd — convert a born-digital PDF to Markdown + LaTeX.
+#
+#   pdf2mmd paper.pdf                  -> ./paper/paper.md .tex .report.txt ...
+#   pdf2mmd paper.pdf 1-6              -> only those pages
+#   pdf2mmd paper.pdf all out/         -> whole document, into out/
+#   pdf2mmd -c paper.pdf               -> also compile the .tex with xelatex
+#
+# Works from any directory; finds its own interpreter and sources.
+#
+# EXIT STATUS
+#   0  converted
+#   2  NO TEXT WAS READ -- the PDF has no text layer on those pages. It is a
+#      scan or an image-only page and needs OCR, not a glyph reader.
+#   1  usage, or the conversion failed
+set -eu
+
+HERE=$(cd "$(dirname "$0")" && pwd)
+PY="$HERE/.pdfmm-venv/bin/python"
+[ -x "$PY" ] || PY=python3
+
+COMPILE=0
+[ "${1:-}" = "-c" ] && { COMPILE=1; shift; }
+
+PDF="${1:-}"
+[ -n "$PDF" ] || { sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+[ -f "$PDF" ] || { echo "pdf2mmd: no such file: $PDF" >&2; exit 1; }
+
+PAGES="${2:-all}"
+STEM=$(basename "$PDF"); STEM="${STEM%.*}"
+OUT="${3:-$STEM}"
+
+PDF=$(cd "$(dirname "$PDF")" && pwd)/$(basename "$PDF")
+mkdir -p "$OUT"
+OUT=$(cd "$OUT" && pwd)
+
+set +e
+(cd "$HERE" && "$PY" pdf2mmd.py "$PDF" --pages "$PAGES" --out "$OUT")
+RC=$?
+set -e
+[ "$RC" -eq 0 ] || exit "$RC"
+
+if [ "$COMPILE" -eq 1 ]; then
+    command -v xelatex >/dev/null || { echo "pdf2mmd: xelatex not found" >&2; exit 1; }
+    echo "compiling $OUT/$STEM.tex ..."
+    # The crop links point at a server that is not running, so the figures
+    # cannot resolve. Comment them out for a readable proof copy, and keep
+    # the original beside it.
+    cp "$OUT/$STEM.tex" "$OUT/$STEM.withcrops.tex"
+    sed -i 's|^\( *\)\\includegraphics|\1% \\includegraphics|' "$OUT/$STEM.tex"
+    (cd "$OUT" && xelatex -interaction=nonstopmode -no-shell-escape "$STEM.tex" >/dev/null 2>&1) || true
+    if [ -f "$OUT/$STEM.pdf" ]; then
+        echo "wrote $OUT/$STEM.pdf"
+    else
+        echo "pdf2mmd: xelatex produced no PDF; see $OUT/$STEM.log" >&2
+    fi
+fi
+
+echo "wrote $OUT/$STEM.md and $OUT/$STEM.tex   (report: $OUT/$STEM.report.txt)"

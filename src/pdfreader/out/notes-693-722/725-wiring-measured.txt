@@ -1,0 +1,61 @@
+725 — the line reader wired in, measured, and left switched off
+
+WHAT WAS BUILT
+--------------
+`_line_bands(path, pages)` reads the producer's line boundaries from the
+content stream via `psstream.line_starts`, as midpoints between consecutive
+baselines. `_merge_stream_lines(rows, bands)` joins rows falling between the
+same pair.
+
+It is conservative by construction: it only ever JOINS rows that baseline
+clustering separated, never splits one, and a producer whose stream does not
+express line breaks this way (dvips places absolutely -- 703) yields no
+bands and nothing changes.
+
+IT WORKS, AND THAT IS NOT THE POINT
+-----------------------------------
+    91.pdf   72 rows -> 21      (22 line returns in its stream)
+    93.pdf           -> 15
+    95.pdf           -> 14
+
+The rows are now the producer's own lines. A fraction's numerator, rule and
+denominator are one row, as they should be.
+
+THEN THE MEASUREMENT
+--------------------
+    display blocks         817 -> 98      (gold 421 -- now UNDER)
+    crops                  548 -> 1303
+    maths projected       ~88% -> 62.4%
+    within one of gold      32 -> 22
+    script-attachment failures            1532
+
+Every metric except the row count got worse. `_attach_scripts` cannot
+consume a whole display line with all its scripts in one row, so the span
+defers and the equation becomes a crop.
+
+This is 696 again, from the other direction and with a better instrument.
+696 folded script rows into their base by stream containment, measured worse
+on all 14 documents, and reverted -- concluding the ATTACHMENT rule had to
+change first. That conclusion was correct, and I have now paid to confirm it
+a second time.
+
+LEFT SWITCHED OFF
+-----------------
+The call is commented out with the numbers above beside it, and the pass has
+five tests: rows inside one band merge, rows across a boundary stay apart,
+no bands changes nothing, it only ever joins, and the merged row is in x
+order.
+
+519 tests passing. Standing state unchanged: gold 421, MathPix 417,
+pdf2mmd 817 (9% exact, 1.94x), crops 548.
+
+THE ORDER, NOW SETTLED BY MEASUREMENT RATHER THAN ARGUMENT
+-----------------------------------------------------------
+    1. `_attach_scripts` binds by stream adjacency, not by x.
+       697 built the reader. 699 showed the binding works for accents.
+       This is the blocker for everything below it.
+    2. Uncomment `_merge_stream_lines`.
+    3. The folds.
+
+Doing 2 before 1 costs 719 display blocks and 755 crops. That is now
+measured twice.

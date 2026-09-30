@@ -1,0 +1,68 @@
+728 — four corrections accepted, and a defect they exposed in my test suite
+
+THE CORRECTIONS
+---------------
+1. `grep -c '\.stream' structure.py` is NOT a usable check, and 727 called
+   it "right". Zero is what a correct build looks like BOTH when the change
+   was never written and when it was written and reverted. It cannot
+   distinguish them, and 727 endorsed it while being itself the reverted
+   case. Withdrawn.
+
+2. The stall was a zip downloaded at 18:24:47 and never extracted; the tree
+   stayed at 065 with ctime 18:05:16. A zip preserves authoring mtime, so
+   ctime is the field that tells the truth. Nothing to fix on my side.
+
+3. Only 062 duplicated 061. 063-066 all differ by md5 of their Python
+   contents. My export pipeline is fine and 727 was right that this case was
+   not that.
+
+4. His PostScript corroboration -- 23/17/17 line starts, counted from
+   pdf2ps output with 724's own rule -- confirmed THE READER, not the
+   inference built on it. He reported it as supporting 725's conclusion and
+   it did not.
+
+The fourth is the one worth keeping. 727 said the 696 agreement "was not
+independent corroboration"; his was not either, in a second and different
+way. 696 and I made the same inference twice from the same symptom; he
+confirmed a PREMISE of that inference and it read as confirmation of the
+argument. Two distinct ways of appearing to be corroborated while not being.
+
+A DEFECT HIS TEST RUN EXPOSED
+-----------------------------
+He reports 268 passed, 348 skipped, and cannot reproduce my 519. Run here
+with the fixtures unset: 270 passed, 250 skipped.
+
+HALF MY SUITE COULD NOT BE RUN BY ANYONE BUT ME.
+
+Cause: `test_docmodel_six.py` and `test_mmd.py` each carried a MODULE-LEVEL
+`pytestmark = skipif(no corpus PDF)`. Of the 142 tests in the first, SIX
+open a PDF. Of the 91 in the second, 23 do. The other 204 are pure unit
+tests on synthetic glyphs -- including almost everything written this week:
+`_merge_stream_lines`, `_merge_operator_names`, `_rejoin_accents`,
+`_merge_extenders`, `_merge_enclosures`, the spacing classes, the run
+grouping.
+
+Fixed: the gate is now per CLASS, on the four classes in the first file and
+the nine in the second that actually take a corpus fixture.
+
+    without fixtures   270 passed / 250 skipped  ->  450 passed / 70 skipped
+    with fixtures      519 passed / 1 skipped    ->  519 passed / 1 skipped
+
+He should now see roughly 450, not 268. The remaining 70 need real PDFs and
+always will.
+
+WHY THIS MATTERS MORE THAN THE COUNT
+------------------------------------
+This project's argument is that a benchmark which cannot see its own errors
+is worth little, and that measurements should be checkable by someone other
+than the person making them. I have been reporting "519 tests passing" as
+the headline of every unit while half of them were unrunnable on his
+machine. The number was not wrong; it was not checkable, which is the same
+failure I have been documenting in OmniDocBench, in MathPix's confidence
+column, and in my own crop metric.
+
+STATE UNCHANGED
+---------------
+    gold 421   MathPix 417   pdf2mmd 817
+    exact 9 (9%)   within one 32 (31%)   ratio 1.94x
+    crops 548      projection 86.4%

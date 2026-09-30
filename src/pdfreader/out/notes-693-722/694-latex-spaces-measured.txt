@@ -1,0 +1,64 @@
+694 — what a LaTeX space leaves in the PDF stream, measured
+
+THE EXPERIMENT
+--------------
+A table of all thirteen spacing forms, `$a<space>b$` per row, compiled with
+pdflatex, then every glyph on the page read with its advance and position.
+
+RESULT — NOT ONE OF THEM EMITS A GLYPH
+--------------------------------------
+Every form is a pure ADVANCE of the current point. Zero glyphs between the
+`a` and the `b` in all thirteen rows. The gaps, in em:
+
+    \!           -0.167          \enspace      +0.500
+    (none)        0.000          \quad         +1.000
+    \,           +0.167          \qquad        +2.000
+    \:           +0.222          \             +0.333
+    \;           +0.278          ~             +0.333
+    \hspace{10pt} +0.913         text space    +0.333
+    \mspace{6mu} +0.333
+
+These are TeX's own numbers, not a fit: 3mu = 1/6 em, 4mu = 2/9, 5mu = 5/18.
+`\!` is NEGATIVE. `\ `, `~` and an ordinary text space are identical at
++1/3 em and cannot be told apart by width.
+
+WHAT IT MEANS FOR A GLYPH-BASED READER
+--------------------------------------
+Spacing is invisible to anything that reads glyphs. It exists only as
+geometry, and it must be inferred or it is lost. pdf2mmd joined maths with a
+single blank, so all thirteen collapsed to `$a b$` -- including `$ab$`, which
+has no space at all, and `\!`, which has a negative one.
+
+RECOVERING THE COMMAND — TWO MEASUREMENTS SAID NO
+-------------------------------------------------
+Mapping every band back to its command looked obvious and was wrong twice:
+
+1. TeX inserts spacing AUTOMATICALLY by atom class -- 4mu round a binary
+   operator, 5mu round a relation. Those are exactly `\:` and `\;` by width.
+   Emitting them explicitly measured 48.8 spacing commands per 1000 tokens on
+   a real paper, far more than any author writes, and a recompile would add
+   TeX's spacing again on top.
+
+2. Narrowed to `\quad`/`\qquad` only, it then fired on ALIGN environments:
+   `\vartheta^{\alpha}\quad= E_{i}^{\alpha}`, where the gap before the
+   relation is the alignment's, not the author's.
+
+WHAT SHIPPED
+------------
+Only what geometry alone can settle:
+
+    gap < -0.08 em   ->  \!        (nothing automatic produces a negative gap)
+    |gap| < 0.08     ->  ""        (`$ab$` stays `$ab$`)
+    otherwise        ->  " "
+
+Corpus after the change: 14 documents, 387 pages, every projection rate
+unchanged from 693. Three corpus tests had encoded the old fixed join and
+now assert what the measured geometry implies.
+
+NOT SETTLED
+-----------
+Separating `\,` from a binary operator's automatic 4mu needs the ATOM
+CLASSES (ord/bin/rel/op/open/close/punct), which this projector does not
+model. That is the piece of information the geometry cannot supply, and it
+is the same shape as the row/column threshold problem: the rule is in TeX's
+tables, not in the page.

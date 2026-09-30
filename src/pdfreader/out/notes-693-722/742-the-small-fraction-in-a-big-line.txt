@@ -1,0 +1,104 @@
+742 — FILES 91 AND 92: HOW A VERY LARGE LINE IS HANDLED
+
+You asked how the reader handles the very long rows in 91/92, the ones that
+open `\frac12 \frac{large numerator}{large denominator}`. The answer was:
+badly, and for one measurable reason.
+
+
+WHAT THESE ROWS ARE
+-------------------
+wzlxjtu-091's first equation is ONE `gather*` of eight rows. Its bands come
+out 30 to 53 points tall and carry UP TO EIGHT FRACTION BARS EACH, because
+every `(pq)^{\frac12}` in the row draws one. On that page:
+
+    p1l3    h=45.4   8 rules
+    p1l8    h=35.2   6 rules
+    p1l20   h=30.4   8 rules
+    p1l26   h=53.1   8 rules
+
+and almost every one of those spans refused.
+
+
+THE REASON, AND IT IS ONE LINE OF EVIDENCE
+------------------------------------------
+Every one of those bars is 3.7pt wide and sits at the same y. Instrumented,
+p1l3's eight bars report:
+
+    x=159.8  above_b=[616.0]  below_b=[609.6]   above=True    fraction
+    x=225.0  above_b=[616.0]  below_b=[609.6]   above=False   overline
+    x=297.8  above_b=[616.0]  below_b=[609.6]   above=False   overline
+    x=309.9  above_b=[616.0]  below_b=[609.6]   above=False   overline
+    x=362.7  above_b=[616.0]  below_b=[609.6]   above=False   overline
+    x=435.4  above_b=[616.0]  below_b=[609.6]   above=False   overline
+    x=447.5  above_b=[616.0]  below_b=[609.6]   above=False   overline
+    x=510.1  above_b=[616.0]  below_b=[609.6]   above=False   overline
+
+IDENTICAL EVIDENCE, DIFFERENT VERDICTS. Seven `\frac12` became
+`\overline{}`, and a span holding an unaccounted overline refuses: that page
+reported `fraction` 8 and `fraction+overline` 6.
+
+It is not inconsistency, it is NON-LOCALITY. `_is_own_row` decides whether
+what sits above a bar is a numerator or a text line running across it by
+counting the glyphs on that baseline that fall OUTSIDE the bar, within six
+ems. That test is right for a bar alone on a line. In a row packed with
+other superscripts there is always something out there, so the verdict turns
+on which neighbours happen to be in range -- and the leftmost bar wins
+because its window is emptier.
+
+
+THE FIX: JUDGE A SMALL FRACTION LOCALLY
+---------------------------------------
+What a text line running over a bar CANNOT do is be set at SCRIPT SIZE. TeX
+sets a fraction inside an exponent smaller than the type around it, and it
+sets the rule to the width of its parts. So material above AND below, both
+centred within the bar, both smaller than the surrounding type, is a
+fraction -- and no neighbour can change that answer.
+
+Added beside `_is_own_row`, not instead of it: the old test still decides
+every full-size bar, so an `\overline{x}` in running text -- where the thing
+below is full size -- never reaches the new one.
+
+    wzlxjtu-091 rule roles   fraction 8 / overline 44   ->   46 / 6
+
+and the first equation now opens the way gold does:
+
+    gold      \frac12 \frac{\Gamma_e(t^{-2})\Gamma_e\big(pq^3t^2A^{-2}B^2\big)
+                            \Gamma_e\big(q^{-1}t^{-2}B^{-2}\big)...}
+    pdf2mmd   \frac{1}{2} \frac{\Gamma_{e}(t^{-2})\Gamma_{e}\bigl(pq^{3}t^{2}
+                            A^{-2}B^{2}\bigr)\Gamma_{e}\bigl(q^{-1}t^{-2}
+                            B^{-2}\bigr)...}
+
+
+MEASURED, whole corpus
+----------------------
+                        correct       $$   \frac  crops
+    before             146 (34.6%)   400    211    282
+    small fractions    149 (35.3%)   398    217    278
+
+    corpus .tex    102 of 102 compile clean
+    outside docs    18 of 18 compile clean
+    tests          488 passing
+
+Running total over this session's four units: 138 -> 149 correct, crops
+315 -> 278.
+
+
+WHAT IS STILL WRONG WITH THESE TWO DOCUMENTS
+--------------------------------------------
+I am not going to call 91 and 92 fixed. Two things remain, both named:
+
+1. THE EIGHT ROWS ARE STILL FOUR BLOCKS. Gold's first equation is one
+   `gather*` of eight rows; the reader emits four `$$`. The rows are
+   30-53pt tall and interleave vertically -- row N's descenders reach into
+   row N+1's ascenders -- so band-building cannot separate them by baseline
+   alone. This is the 727 problem at its worst: several baselines per row,
+   and the rows themselves overlapping.
+
+2. THE 75 EMPTY DELIMITER PAIRS are unchanged. wzlxjtu-092's denominator
+   still reads `\bigl( \bigr)\bigl( \bigr)...`: its numerator and the
+   DENOMINATOR'S big delimiters share one band, because both are tall, while
+   the denominator's ordinary-size contents are a band below. The furniture
+   rejoin cannot move the delimiters, because that band is not pure
+   furniture -- it holds the numerator too.
+
+Both are real and both are measured. Neither is a threshold.

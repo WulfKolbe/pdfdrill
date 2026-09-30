@@ -1,0 +1,600 @@
+diff --git a/pdfminer/converter.py b/pdfminer/converter.py
+index ad2c210..0c51cf7 100644
+--- a/pdfminer/converter.py
++++ b/pdfminer/converter.py
+@@ -259,6 +259,8 @@ class PDFLayoutAnalyzer(PDFTextDevice):
+             textdisp,
+             ncs,
+             graphicstate,
++            cid,
++            self.textstate_render,
+         )
+         self.cur_item.add(item)
+         return item.adv
+diff --git a/pdfminer/encodingdb.py b/pdfminer/encodingdb.py
+index 85d8c1f..2e5d74d 100644
+--- a/pdfminer/encodingdb.py
++++ b/pdfminer/encodingdb.py
+@@ -87,16 +87,24 @@ class EncodingDB:
+     mac2unicode: ClassVar[dict[int, str]] = {}
+     win2unicode: ClassVar[dict[int, str]] = {}
+     pdf2unicode: ClassVar[dict[int, str]] = {}
++    std2name: ClassVar[dict[int, str]] = {}
++    mac2name: ClassVar[dict[int, str]] = {}
++    win2name: ClassVar[dict[int, str]] = {}
++    pdf2name: ClassVar[dict[int, str]] = {}
+     for name, std, mac, win, pdf in ENCODING:
+         c = name2unicode(name)
+         if std:
+             std2unicode[std] = c
++            std2name[std] = name
+         if mac:
+             mac2unicode[mac] = c
++            mac2name[mac] = name
+         if win:
+             win2unicode[win] = c
++            win2name[win] = name
+         if pdf:
+             pdf2unicode[pdf] = c
++            pdf2name[pdf] = name
+ 
+     encodings: ClassVar[dict[str, dict[int, str]]] = {
+         "StandardEncoding": std2unicode,
+@@ -105,6 +113,13 @@ class EncodingDB:
+         "PDFDocEncoding": pdf2unicode,
+     }
+ 
++    name_encodings: ClassVar[dict[str, dict[int, str]]] = {
++        "StandardEncoding": std2name,
++        "MacRomanEncoding": mac2name,
++        "WinAnsiEncoding": win2name,
++        "PDFDocEncoding": pdf2name,
++    }
++
+     @classmethod
+     def get_encoding(
+         cls,
+@@ -125,3 +140,41 @@ class EncodingDB:
+                         log.debug(str(e))
+                     cid += 1
+         return cid2unicode
++
++    @classmethod
++    def get_encoding_names(
++        cls,
++        name: str,
++        diff: Iterable[object] | None = None,
++        base: bool = True,
++    ) -> dict[int, str]:
++        """cid -> POSTSCRIPT GLYPH NAME, the twin of `get_encoding`.
++
++        `get_encoding` answers "what Unicode character is this?" and drops the
++        entry when there is no answer — which is why a `/star` or `/lscript`
++        from a TeX maths font arrives downstream as `(cid:7)`. The glyph NAME
++        is what the PDF actually states, it is always available where a
++        `/Differences` array or a base encoding is, and it is a strictly
++        stronger identifier than Unicode: `parenleftbigg` and `parenleftbig`
++        are one Unicode character but two different glyphs.
++
++        No name is ever dropped: unlike `get_encoding` this never calls
++        `name2unicode`, so an unmappable name is still reported.
++
++        Pass `base=False` for a SYMBOLIC font that states no base encoding.
++        Such a font carries its own built-in encoding, so only the
++        `/Differences` entries are stated by the PDF and the Latin tables say
++        nothing about the rest — returning their names would be an invention
++        rather than a reading.
++        """
++        cid2name = cls.name_encodings.get(name, cls.std2name) if base else {}
++        if diff:
++            cid2name = cid2name.copy()
++            cid = 0
++            for x in diff:
++                if isinstance(x, int):
++                    cid = x
++                elif isinstance(x, PSLiteral):
++                    cid2name[cid] = cast(str, x.name)
++                    cid += 1
++        return cid2name
+diff --git a/pdfminer/layout.py b/pdfminer/layout.py
+index df818a1..21cf8de 100644
+--- a/pdfminer/layout.py
++++ b/pdfminer/layout.py
+@@ -359,11 +359,27 @@ class LTChar(LTComponent, LTText):
+         textdisp: float | tuple[float | None, float],
+         ncs: PDFColorSpace,
+         graphicstate: PDFGraphicState,
++        cid: int = -1,
++        render_mode: int = 0,
+     ) -> None:
+         LTText.__init__(self)
+         self._text = text
+         self.matrix = matrix
+         self.fontname = font.fontname
++        # The character code as it appears in the content stream, and the
++        # PostScript glyph name the font gives it. `get_text()` may be
++        # "(cid:7)" while `glyphname` is "star" — the identity is present in
++        # the PDF even when no Unicode value is. -1 / None mean "not stated",
++        # which is also what a caller constructing an LTChar directly gets.
++        self.cid = cid
++        self.glyphname = font.to_glyphname(cid) if cid >= 0 else None
++        # PDF text rendering mode (`Tr`). 3 and 7 draw nothing: the glyph was
++        # never shown to a reader. A scanner writes its OCR layer that way,
++        # over the page image, so `invisible` marks text that is a machine's
++        # reading of a raster rather than text the producer typeset. The
++        # positions are still the OCR's, and can be far better than its
++        # character identities.
++        self.render_mode = render_mode
+         self.ncs = ncs
+         self.graphicstate = graphicstate
+         self.adv = textwidth * fontsize * scaling
+@@ -401,6 +417,18 @@ class LTChar(LTComponent, LTText):
+             f"text={self.get_text()!r}>"
+         )
+ 
++    @property
++    def invisible(self) -> bool:
++        """True if this glyph was drawn in a non-painting text mode.
++
++        Modes 3 (neither fill nor stroke) and 7 (clip only) put no marks on
++        the page. Text drawn that way is an annotation over the page's own
++        raster — characteristically a scanner's OCR layer — not something a
++        reader ever saw. Treating it as equal in standing to visible text is
++        what lets an OCR engine's mistakes pass silently downstream.
++        """
++        return self.render_mode in (3, 7)
++
+     def get_text(self) -> str:
+         return self._text
+ 
+diff --git a/pdfminer/pdfdevice.py b/pdfminer/pdfdevice.py
+index 89ebebe..a168dda 100644
+--- a/pdfminer/pdfdevice.py
++++ b/pdfminer/pdfdevice.py
+@@ -35,6 +35,16 @@ class PDFDevice:
+     def __init__(self, rsrcmgr: "PDFResourceManager") -> None:
+         self.rsrcmgr = rsrcmgr
+         self.ctm: Matrix | None = None
++        # PDF text rendering mode (the `Tr` operator) in force for the string
++        # currently being rendered. Carried on the device rather than threaded
++        # through `render_string`/`render_char`, so that devices overriding
++        # those methods with the existing signature keep working.
++        #
++        # Mode 3 is "neither fill nor stroke": text that is never displayed.
++        # That is how a scanner's OCR layer is written over the page raster,
++        # so it distinguishes a machine's guess at the page from typeset text
++        # the producer actually drew. Mode 7 (clip only) is likewise invisible.
++        self.textstate_render: int = 0
+ 
+     def __repr__(self) -> str:
+         return "<PDFDevice>"
+@@ -104,6 +114,7 @@ class PDFTextDevice(PDFDevice):
+         graphicstate: "PDFGraphicState",
+     ) -> None:
+         assert self.ctm is not None
++        self.textstate_render = textstate.render
+         matrix = utils.mult_matrix(textstate.matrix, self.ctm)
+         font = textstate.font
+         fontsize = textstate.fontsize
+diff --git a/pdfminer/pdffont.py b/pdfminer/pdffont.py
+index 03a75e8..a647fe2 100644
+--- a/pdfminer/pdffont.py
++++ b/pdfminer/pdffont.py
+@@ -3,6 +3,7 @@ import logging
+ import struct
+ from collections.abc import Iterable, Iterator, Mapping
+ from io import BytesIO
++from types import MappingProxyType
+ from typing import (
+     TYPE_CHECKING,
+     Any,
+@@ -128,6 +129,22 @@ class Type1FontHeaderParser(PSStackParser[int]):
+     def __init__(self, data: BinaryIO) -> None:
+         PSStackParser.__init__(self, data)
+         self._cid2unicode: dict[int, str] = {}
++        self._cid2name: dict[int, str] = {}
++
++    def get_glyphnames(self) -> dict[int, str]:
++        """Parse the builtin font encoding, keeping the GLYPH NAMES.
++
++        `get_encoding` reads exactly the same (cid, name) pairs and then throws
++        every name away that `name2unicode` cannot map — which is most of a
++        maths font. The names are what the font program actually states, so
++        they are reported here unconditionally.
++
++        Must be called on a fresh parser, or after `get_encoding`, which fills
++        the same cache.
++        """
++        if not self._cid2name:
++            self.get_encoding()
++        return self._cid2name
+ 
+     def get_encoding(self) -> dict[int, str]:
+         """Parse the font encoding.
+@@ -148,6 +165,7 @@ class Type1FontHeaderParser(PSStackParser[int]):
+                 (cid, name) = self.nextobject()
+             except PSEOF:
+                 break
++            self._cid2name[cid] = cast(str, name)
+             try:
+                 self._cid2unicode[cid] = name2unicode(cast(str, name))
+             except KeyError as e:
+@@ -889,6 +907,27 @@ FontWidthDict = dict[int | str, float]
+ 
+ 
+ class PDFFont:
++    # cid -> PostScript glyph name, e.g. {7: "star", 4: "lscript"}.
++    #
++    # A PDF states a character's identity twice: as a glyph (what is drawn)
++    # and as a Unicode value (what is copied). Only the second is optional,
++    # and `to_unichr` therefore fails on exactly the fonts where the first is
++    # most informative — TeX maths fonts, whose `/star`, `/lscript`,
++    # `/parenleftbigg`, `/integraldisplay` have no Unicode equivalent at all.
++    # The glyph name is also strictly finer than Unicode: `parenleftbig` and
++    # `parenleftbigg` are one Unicode character but two distinct glyphs.
++    #
++    # Immutable empty default. Subclasses that can know the mapping replace it
++    # with their own dict; they never mutate this one.
++    cid2name: Mapping[int, str] = MappingProxyType({})
++
++    def to_glyphname(self, cid: int) -> str | None:
++        """The PostScript glyph name for `cid`, or None if the font does not
++        state one. Never raises — unlike `to_unichr`, absence is an ordinary
++        answer here, not an error.
++        """
++        return self.cid2name.get(cid)
++
+     def __init__(
+         self,
+         descriptor: Mapping[str, Any],
+@@ -980,6 +1019,20 @@ class PDFFont:
+     def to_unichr(self, cid: int) -> str:
+         raise NotImplementedError
+ 
++    @staticmethod
++    def _is_symbolic(descriptor: Mapping[str, Any]) -> bool:
++        """True if the descriptor sets the Symbolic flag (bit 3, value 4).
++
++        A symbolic font supplies its own built-in encoding, so the standard
++        Latin encodings say nothing about what its codes mean. Reporting a
++        StandardEncoding glyph name for one manufactures a confidently wrong
++        answer: in a Symbol font, code 37 is not `percent`.
++        """
++        try:
++            return bool(int(resolve1(descriptor.get("Flags", 0)) or 0) & 4)
++        except (TypeError, ValueError):
++            return False
++
+     @staticmethod
+     def _parse_bbox(descriptor: Mapping[str, Any]) -> Rect:
+         """Parse FontBBox from the fonts descriptor"""
+@@ -1019,8 +1072,24 @@ class PDFSimpleFont(PDFFont):
+             name = literal_name(encoding.get("BaseEncoding", default_encoding))
+             diff = list_value(encoding.get("Differences", []))
+             self.cid2unicode = EncodingDB.get_encoding(name, diff)
++            # A symbolic font with no explicit BaseEncoding uses its own
++            # built-in encoding, so only the Differences entries are stated
++            # by the PDF; the rest are unknown, not Standard.
++            if self._is_symbolic(descriptor) and "BaseEncoding" not in encoding:
++                self.cid2name = EncodingDB.get_encoding_names("", diff, base=False)
++            else:
++                self.cid2name = EncodingDB.get_encoding_names(name, diff)
+         else:
+             self.cid2unicode = EncodingDB.get_encoding(literal_name(encoding))
++            if "Encoding" in spec or not self._is_symbolic(descriptor):
++                self.cid2name = EncodingDB.get_encoding_names(literal_name(encoding))
++            else:
++                # Symbolic font, no /Encoding at all: the real names live in
++                # the font program's built-in encoding. `PDFType1Font` may
++                # recover them below; until then we state nothing rather than
++                # report a Standard name that is confidently wrong — a Symbol
++                # font's code 37 is not "percent".
++                self.cid2name = {}
+ 
+         self.unicode_map: UnicodeMap | None = None
+         if "ToUnicode" in spec:
+@@ -1068,6 +1137,7 @@ class PDFType1Font(PDFSimpleFont):
+             data = self.fontfile.get_data()[:length1]
+             parser = Type1FontHeaderParser(BytesIO(data))
+             self.cid2unicode = parser.get_encoding()
++            self.cid2name = parser.get_glyphnames()
+ 
+     def __repr__(self) -> str:
+         return f"<PDFType1Font: basefont={self.basefont!r}>"
+diff --git a/tests/test_glyphname.py b/tests/test_glyphname.py
+new file mode 100644
+index 0000000..38d60c8
+--- /dev/null
++++ b/tests/test_glyphname.py
+@@ -0,0 +1,291 @@
++"""Tests for PostScript glyph-name preservation (cid2name / to_glyphname /
++LTChar.glyphname).
++
++Each test names one guarantee. They are independent: none depends on another
++having run, and none shares fixture state.
++"""
++
++import pytest
++
++from tests.helpers import absolute_sample_path
++from pdfminer.encodingdb import EncodingDB
++from pdfminer.high_level import extract_pages
++from pdfminer.layout import LTChar
++from pdfminer.pdffont import PDFFont
++from pdfminer.psparser import PSLiteral
++
++# The /Encoding /Differences array of font F4 (…+MTMI) in a real MathTime
++# document, verbatim. `star` and `lscript` have no Unicode equivalent, which
++# is precisely why they used to arrive as "(cid:7)" / "(cid:4)".
++MTMI_DIFFERENCES = [2] + [
++    PSLiteral(n)
++    for n in (
++        "theta", "chi", "lscript", "theta1", "alpha", "star", "epsilon",
++        "Gamma", "beta", "gamma", "eta", "delta", "Sigma",
++    )
++]
++
++
++class TestGetEncodingNames:
++    def test_differences_yield_names(self):
++        """G: a name in /Differences is reported at its code."""
++        names = EncodingDB.get_encoding_names("StandardEncoding", MTMI_DIFFERENCES)
++        assert names[2] == "theta"
++        assert names[6] == "alpha"
++        assert names[7] == "star"
++
++    def test_unmappable_name_is_kept(self):
++        """G: a name with no Unicode equivalent is still reported.
++
++        This is the whole point: `get_encoding` drops these, so the identity
++        the PDF states is lost. `get_encoding_names` must not drop them.
++        """
++        names = EncodingDB.get_encoding_names("StandardEncoding", MTMI_DIFFERENCES)
++        unicodes = EncodingDB.get_encoding("StandardEncoding", MTMI_DIFFERENCES)
++        for cid, name in ((4, "lscript"), (7, "star")):
++            assert names[cid] == name
++            assert cid not in unicodes, "precondition: no Unicode for this glyph"
++
++    def test_base_encoding_without_differences(self):
++        """G: names are available from a base encoding alone."""
++        assert EncodingDB.get_encoding_names("WinAnsiEncoding")[65] == "A"
++        assert EncodingDB.get_encoding_names("StandardEncoding")[65] == "A"
++
++    def test_unknown_base_encoding_falls_back_to_standard(self):
++        """G: same fallback as get_encoding, so the two stay in step."""
++        assert EncodingDB.get_encoding_names("NoSuchEncoding")[65] == "A"
++
++    def test_does_not_mutate_the_shared_table(self):
++        """G: building a per-font map never edits the class-level table."""
++        before = dict(EncodingDB.std2name)
++        EncodingDB.get_encoding_names("StandardEncoding", MTMI_DIFFERENCES)
++        assert EncodingDB.std2name == before
++
++    def test_get_encoding_is_unchanged(self):
++        """G1: the existing Unicode path behaves exactly as before."""
++        u = EncodingDB.get_encoding("StandardEncoding", MTMI_DIFFERENCES)
++        assert u[6] == "\u03b1"      # alpha
++        assert u[5] == "\u03d1"      # theta1
++        assert 7 not in u            # star: still no Unicode, still absent
++
++
++class TestToGlyphname:
++    def test_default_is_none_not_an_exception(self):
++        """G3: absence is an ordinary answer, unlike to_unichr."""
++        font = PDFFont.__new__(PDFFont)      # no __init__: bare default
++        assert font.to_glyphname(7) is None
++
++    def test_default_table_is_write_protected(self):
++        """G: the empty class default cannot be mutated into shared state."""
++        with pytest.raises(TypeError):
++            PDFFont.cid2name[7] = "star"     # type: ignore[index]
++
++
++class TestLTCharGlyphname:
++    def _chars(self, name):
++        out = []
++
++        def walk(o):
++            if isinstance(o, LTChar):
++                out.append(o)
++            elif hasattr(o, "__iter__"):
++                for c in o:
++                    walk(c)
++
++        for layout in extract_pages(absolute_sample_path(name)):
++            for e in layout:
++                walk(e)
++        return out
++
++    def test_simple_font_chars_carry_names(self):
++        """G: a simple-font glyph reports its PostScript name."""
++        chars = self._chars("simple1.pdf")
++        assert chars, "precondition: the sample yields glyphs"
++        named = [c for c in chars if c.glyphname]
++        assert named, "no glyph reported a name"
++        for c in named:
++            assert isinstance(c.cid, int) and c.cid >= 0
++
++    def test_undefined_chars_still_have_identity(self):
++        """The claim, on a real file: text is (cid:N), identity is not lost."""
++        chars = self._chars("contrib/issue-1061-colour-space-stack.pdf")
++        undefined = [c for c in chars if c.get_text().startswith("(cid:")]
++        assert undefined, "precondition: this sample has unmapped glyphs"
++        recovered = [c for c in undefined if c.glyphname]
++        assert len(recovered) == len(undefined), (
++            f"{len(undefined) - len(recovered)} of {len(undefined)} "
++            "unmapped glyphs reported no name"
++        )
++
++    def test_cid_defaults_keep_direct_construction_working(self):
++        """G1: third-party code constructing LTChar without cid still works.
++
++        pdfminer advertises that any component can be replaced, so the new
++        parameter must be optional and must not make glyphname lie.
++        """
++
++        class _Font:
++            fontname = "Test"
++            cid2name: dict = {}
++
++            def is_vertical(self):
++                return False
++
++            def get_descent(self):
++                return 0.0
++
++            def to_glyphname(self, cid):
++                return None
++
++        ch = LTChar(
++            (1, 0, 0, 1, 0, 0), _Font(), 10.0, 1.0, 0.0, "x", 0.5, 0.0, None, None
++        )
++        assert ch.cid == -1
++        assert ch.glyphname is None
++
++
++class TestSymbolicFonts:
++    """A symbolic font supplies its own built-in encoding.
++
++    The Latin base encodings say nothing about its codes, so reporting one of
++    their names is an invention. Measured on a PowerPoint/Equation-Editor deck
++    where every maths glyph lives in a symbolic `Symbol` font with no
++    /Encoding at all: code 37 is a relation sign, and StandardEncoding would
++    call it `percent`. Abstaining is the only correct answer, and a wrong name
++    is worse than none because nothing downstream can tell it is wrong.
++    """
++
++    SYMBOLIC = {"Flags": 6}          # bit 3 set
++    NONSYMBOLIC = {"Flags": 32}      # bit 6 set
++
++    def _font(self, descriptor, spec):
++        from pdfminer.pdffont import PDFSimpleFont
++
++        return PDFSimpleFont(descriptor, {}, spec)
++
++    def test_symbolic_without_encoding_states_no_names(self):
++        font = self._font(self.SYMBOLIC, {})
++        assert font.cid2name == {}
++        assert font.to_glyphname(37) is None
++
++    def test_nonsymbolic_without_encoding_uses_base_encoding(self):
++        """G1-adjacent: the ordinary case must not regress."""
++        font = self._font(self.NONSYMBOLIC, {})
++        assert font.to_glyphname(65) == "A"
++
++    def test_symbolic_reports_its_differences_only(self):
++        """What the PDF states is kept; what it does not state stays unknown."""
++        spec = {"Encoding": {"Differences": [7, PSLiteral("star")]}}
++        font = self._font(self.SYMBOLIC, spec)
++        assert font.to_glyphname(7) == "star"
++        assert font.to_glyphname(65) is None, "base encoding must not leak in"
++
++    def test_symbolic_with_explicit_base_encoding_is_trusted(self):
++        """An explicit BaseEncoding is a statement by the PDF, so honour it."""
++        spec = {
++            "Encoding": {
++                "BaseEncoding": PSLiteral("WinAnsiEncoding"),
++                "Differences": [7, PSLiteral("star")],
++            }
++        }
++        font = self._font(self.SYMBOLIC, spec)
++        assert font.to_glyphname(7) == "star"
++        assert font.to_glyphname(65) == "A"
++
++    def test_symbolic_with_named_encoding_is_trusted(self):
++        spec = {"Encoding": PSLiteral("WinAnsiEncoding")}
++        font = self._font(self.SYMBOLIC, spec)
++        assert font.to_glyphname(65) == "A"
++
++    def test_get_encoding_names_base_false(self):
++        names = EncodingDB.get_encoding_names(
++            "StandardEncoding", [7, PSLiteral("star")], base=False
++        )
++        assert names == {7: "star"}
++
++
++class TestRenderMode:
++    """`Tr` distinguishes text drawn for a reader from text drawn for a machine.
++
++    A scanner writes its OCR layer in mode 3 — no fill, no stroke, invisible —
++    on top of the page raster. Measured on a 319-page professional book scan:
++    every one of its glyphs is mode 3, while three born-digital documents and
++    one MRC-compressed scan are all mode 0. The mode is parsed by `do_Tr` and
++    was previously dropped before reaching the layout objects, so nothing
++    downstream could tell an OCR guess from typeset text.
++    """
++
++    def _chars(self, name):
++        out = []
++
++        def walk(o):
++            if isinstance(o, LTChar):
++                out.append(o)
++            elif hasattr(o, "__iter__"):
++                for c in o:
++                    walk(c)
++
++        for layout in extract_pages(absolute_sample_path(name)):
++            for e in layout:
++                walk(e)
++        return out
++
++    def test_default_is_visible_fill_mode(self):
++        """Ordinary text reports mode 0 and is not flagged invisible."""
++        chars = self._chars("simple1.pdf")
++        assert chars, "precondition: the sample yields glyphs"
++        assert all(c.render_mode == 0 for c in chars)
++        assert not any(c.invisible for c in chars)
++
++    def test_invisible_is_true_only_for_nonpainting_modes(self):
++        """Modes 3 and 7 put no marks on the page; 0-2 and 4-6 do."""
++        from pdfminer.pdfinterp import PDFGraphicState
++
++        class _Font:
++            fontname = "Test"
++            cid2name: dict = {}
++
++            def is_vertical(self):
++                return False
++
++            def get_descent(self):
++                return 0.0
++
++            def to_glyphname(self, cid):
++                return None
++
++        def make(mode):
++            return LTChar(
++                (1, 0, 0, 1, 0, 0), _Font(), 10.0, 1.0, 0.0, "x", 0.5, 0.0,
++                None, PDFGraphicState(), 1, mode,
++            )
++
++        for mode in (0, 1, 2, 4, 5, 6):
++            assert make(mode).invisible is False, mode
++        for mode in (3, 7):
++            assert make(mode).invisible is True, mode
++
++    def test_render_mode_defaults_keep_direct_construction_working(self):
++        """G1: the new parameter is optional, like `cid`."""
++        from pdfminer.pdfinterp import PDFGraphicState
++
++        class _Font:
++            fontname = "Test"
++            cid2name: dict = {}
++
++            def is_vertical(self):
++                return False
++
++            def get_descent(self):
++                return 0.0
++
++            def to_glyphname(self, cid):
++                return None
++
++        ch = LTChar(
++            (1, 0, 0, 1, 0, 0), _Font(), 10.0, 1.0, 0.0, "x", 0.5, 0.0, None,
++            PDFGraphicState(),
++        )
++        assert ch.render_mode == 0
++        assert ch.invisible is False
++        assert ch.adv == pytest.approx(5.0), "constructor must run to completion"

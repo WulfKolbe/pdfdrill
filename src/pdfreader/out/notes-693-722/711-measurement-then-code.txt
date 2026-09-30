@@ -1,0 +1,72 @@
+711 — the measurement fixed first, then one cause of the largest class
+
+WHY THE MEASUREMENT CAME FIRST
+------------------------------
+710 found that `span_reason` reported what a span CONTAINED, not what
+FAILED. Every count in 709 rested on that string. It now names the pass
+that actually returned None, established by running the passes:
+
+    unmapped-glyph:<names>          a glyph nothing can name, and WHICH
+    <kind>-not-composed:<names>     an accent or overlay that HAS its LaTeX
+                                    and is waiting for a base
+    unmodelled-rule:<role>          a rule no pass models
+    fraction-unresolved             a bar the splitter could not use
+    fraction-part-unprojectable     the fraction split, a part did not
+    script-attachment               `_attach_scripts` refused
+    assembly                        every pass accepts, the whole failed
+
+WHAT THE HONEST NUMBERS LOOK LIKE
+---------------------------------
+    stated in 709          measured now
+    fraction       146     script-attachment           299
+    overline       129     assembly                    127
+    unmapped        91     accent-not-composed:ring     30
+    script          78     unmodelled-rule:unknown      27
+                           accent-not-composed:circumflex 23
+
+Script attachment was the dominant cause all along, at 67% of all crops,
+and was invisible because a span holding a fraction reported `fraction`.
+
+TWO LABELS THAT WOULD HAVE SENT ME THE WRONG WAY
+------------------------------------------------
+`circumflex` was reported as an unmapped glyph 23 times. It is NOT unmapped:
+it maps to `\hat` as an ACCENT, and `glyph_latex` returns None for accents
+by design because they need a base. Reporting it as unmapped would have sent
+it to the "add it to the table" pile when it was already in the table.
+
+`ring` genuinely was missing -- from the MATHS symbol path, while present
+for text. 30 crops. Added, along with breve, acute, grave and dotaccent for
+the same reason.
+
+THE CODE FIX
+------------
+`_attach_scripts` refuses a full-size glyph off the row baseline. That guard
+is correct and was paid for: without it a numerator that escaped its rule's
+x-range produced `+^{( -}` from `+\frac{(-1)^{s}}{2}`.
+
+But a big DELIMITER is off the baseline for the same reason a big OPERATOR
+is -- grown about the maths axis, not set on the line. `\left( ... \right)`
+around a two-level expression puts its parens at 12pt on a baseline 10pt
+above the row, and the guard refused the entire span.
+
+Delimiters now count as main glyphs, as bigops already did.
+
+    dataset crops       448 -> 442
+    script-attachment   299 -> 273
+    94.pdf              14 -> 12 crops
+    90.pdf              18 -> 17
+
+Small. The guard has other shapes behind it -- `assembly` rose 127 -> 150,
+which means spans that used to fail in the script pass now fail later, so
+some of that movement is a relabelling rather than a repair.
+
+Other corpus unchanged: 2506.16206 97.1%, prolog 97.7%, choice-trees 92.9%,
+22-0483 88.6% (up from 88.1%).
+
+STILL OPEN, IN ORDER OF SIZE
+----------------------------
+    script-attachment  273   other shapes of the same guard
+    assembly           150   every pass accepts, the whole fails -- not yet
+                             decomposed, and now the second largest
+    accent composition  64   ring, circumflex, tildewide waiting for a base
+    unmodelled-rule     27   role `unknown`, not yet identified

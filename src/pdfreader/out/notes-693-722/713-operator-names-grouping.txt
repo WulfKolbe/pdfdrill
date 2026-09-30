@@ -1,0 +1,59 @@
+713 — the second class: grouping, not identity
+
+THE DISTINCTION
+---------------
+712 fixed a glyph-IDENTITY defect: the StandardEncoding fallback naming
+TeX-matha cid 112 as `p` when it renders as `(`. The remaining
+`\mathrm{p}`/`\mathrm{q}` cases are not that. They come from CMR12, CMMI12
+and CMBX8 -- text and maths-italic fonts, which `_NO_LATIN` deliberately
+excludes because a `p` in CMR12 usually IS the letter p. Both are genuine
+readings of the glyphs:
+
+    \mathrm{E}_{\mathrm{p}}                     the elliptical distribution
+    \mathrm{s}_{<}\mathrm{u}_{i}\mathrm{p}_{-}  a mangled \sup
+
+The second is a GROUPING failure. Every letter was read correctly; they were
+never assembled into one token, and a neighbour then attached to one of them
+as a script.
+
+WHAT WAS BUILT
+--------------
+`_merge_operator_names`: a run of contiguous UPRIGHT ROMAN letters, same
+size and baseline, that EXACTLY spells one of TeX's log-like function names
+becomes a single token.
+
+Two refusals are deliberate and tested:
+
+  - `supp` is not `\sup` + `p`. A run must END at the name; TeX never sets
+    `\sup` immediately followed by another upright roman letter at a tight
+    gap, because that is a word. Turning a variable name into an operator
+    would be the confident wrong answer this project refuses.
+  - `min` in MATHS ITALIC is three variables m, i, n, not `\min`.
+
+MEASURED EFFECT ON THE 102-DOCUMENT SET: ESSENTIALLY NONE
+----------------------------------------------------------
+    operator tokens emitted (30 files)   0
+    letter-split remnants                1
+    dataset crops                      542 -> 543
+
+Zero. The reason is worth recording rather than hiding: the corpus DOES
+contain the runs -- `min` x14, `cosh` x7, `sinh`, `sin`, `tanh` -- and
+`operator_name` recognises every one. But inspected, they are MATHS ITALIC:
+
+    m  math-italic 9.96  i  math-italic 9.96  n  math-italic 9.96
+
+The authors wrote `\lambda_{min}`, not `\lambda_{\min}`. Italic `min` IS
+three variables typographically, and reading it as such is faithful to the
+PDF. The merge correctly declines.
+
+So the defect the user identified is real and the fix is right, but this
+corpus is not where it shows. It will show on documents whose authors use
+the operator macros, and the one remaining `\mathrm{m}\mathrm{in}` remnant
+is the case to chase when one turns up.
+
+STATUS
+------
+482 tests passing. `_merge_operator_names` is tested in isolation -- exact
+match, longest match, near miss, gap break, size break, italic refusal,
+extent preserved -- and has near-zero measured effect on the dataset in
+hand. Both facts belong in the record.

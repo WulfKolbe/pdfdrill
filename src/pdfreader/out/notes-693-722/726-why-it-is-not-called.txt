@@ -1,0 +1,68 @@
+726 — why the merge is not called, checked rather than asserted
+
+THE QUESTION
+------------
+"why is your improvement not called?"
+
+Because switching it on costs 719 display blocks, 755 crops and a quarter of
+the projection rate. But "the attachment pass is the blocker" was my
+CONCLUSION from one measurement, not something I had traced. So I traced it.
+
+FIRST DIAGNOSIS, AND IT WAS WRONG
+---------------------------------
+Called `_attach_scripts` directly on each merged row: 12 of 23 refused, and
+the refusing rows carried 8 to 13 distinct baselines with dozens of
+FULL-SIZE glyphs off the top one -- a numerator `1` at 663.9, a denominator
+`2` at 647.6.
+
+That looked conclusive and it was not a fair test. The pipeline splits
+fractions BEFORE attaching scripts, so calling the second pass alone hands
+it material the first pass was supposed to remove.
+
+SECOND DIAGNOSIS, THROUGH THE REAL ORDER
+----------------------------------------
+    row 2   n=62   rules=0   -> fractions 0, rest 62   attach: None
+    row 3   n=59   rules=2   -> fractions 2, rest 55   attach: 32 triples
+
+Row 2 plainly contains a fraction and was given ZERO rules. Found why: a
+rule is attached to a line only within `0.8 * span_pt` of its BASELINE --
+a window sized for a single text line. A merged display line is two or three
+times that, and its fraction bar sits between the numerator and the
+denominator, outside the window. The bar is dropped, `_split_fractions` has
+nothing to split, and the full-size numerator then trips the off-baseline
+guard.
+
+A complete, mechanical, satisfying explanation.
+
+TESTED, AND IT IS NOT THE CAUSE
+-------------------------------
+Widened the window to the line's own extent (`max(0.8*span_pt, gy1-base,
+base-gy0)`) and turned the merge on:
+
+    projection                62.4%  ->  62.4%
+    script-attachment failures  666  ->  666
+
+Not one span changed. With the merge OFF the same change cost 2 display
+blocks. Reverted, with the measurement recorded beside the line.
+
+WHERE THAT LEAVES IT
+--------------------
+The answer to the question is unchanged -- `_attach_scripts` is the blocker
+-- but it is now traced rather than inferred, and one plausible alternative
+has been ruled out by measurement instead of by argument.
+
+What is now known: the rows are the producer's real lines (the user
+corroborated 23/17/17 independently from the PostScript, different tool,
+different code path); the fraction rules ARE reaching the merged lines on at
+least some rows; and widening the rule window changes nothing. The remaining
+failure is inside the script pass itself, on rows with many baselines, which
+is precisely what 696 said.
+
+519 tests passing. Standing state unchanged: gold 421, MathPix 417,
+pdf2mmd 817 (9% exact, 1.94x), crops 548, projection 86.4%.
+
+NEXT, UNCHANGED
+---------------
+    1. `_attach_scripts` binds by stream adjacency, not by x.
+    2. Uncomment `_merge_stream_lines`.
+    3. The folds.

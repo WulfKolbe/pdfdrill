@@ -1,0 +1,88 @@
+744 — wzlxjtu-009 EQUATION 3: THE "3" BELONGED TO THE LINE BELOW
+
+You called it subtle. It is the worst kind of error this reader makes,
+because it is symmetric and silent: one row GAINS something and the next
+row LOSES it, and both still look like mathematics.
+
+    gold      M_0 = 2m e^{-3\sigma} \cos \phi^3 \sinh \phi^0
+              M_3 = -2i g e^{\sigma} \sin \phi^3
+
+    pdf2mmd   M_0 = 2m e^{-3\sigma} \cos \phi_{\sigma}^{3} \sinh \phi_{3}^{0}
+              M_3 = -2i g e \sin \phi
+
+Two invented subscripts on one row; two superscripts missing from the next.
+Nothing marks either.
+
+
+THE GEOMETRY SAYS ONE THING AND THE GROUPER DID THE OTHER
+---------------------------------------------------------
+    row M_0        baseline 170.16
+    the two strays baseline 157.66
+    row M_3        baseline 152.72
+
+The strays are 4.94pt above the row below and 12.5pt below the row above --
+they are NEARER to where they belong, and went to the other one anyway. They
+are the superscripts of `e^{\sigma}` and `\phi^3` on the M_3 row, and a
+superscript sits exactly 4.93pt above its base at this size, which is what
+every other script on the page does too.
+
+There is already a pass for this, and it could not fire: it rescues a band
+that is ENTIRELY scripts, and skips any group holding full-size glyphs. A
+script absorbed into a full-size row is precisely the case it cannot reach,
+and precisely the case that yields a wrong reading rather than a missing
+one.
+
+
+THE STREAM SETTLES IT
+---------------------
+    stream 1698  'e'       row M_3
+    stream 1699  '\sigma'  row M_0      <- wrong
+    stream 1700  '\sin'    row M_3
+    stream 1703  '\phi'    row M_3
+    stream 1704  '3'       row M_0      <- wrong
+    stream 1708  '('       row M_3
+
+Each stray sits BETWEEN two glyphs of the row it belongs to. A glyph
+sandwiched in the stream belongs to its neighbours -- both of them must
+agree, because one would be mere adjacency -- and it must be script-size, so
+this moves scripts and never prose.
+
+AND A STREAM NEIGHBOUR IS NOT ALWAYS A NEIGHBOUR ON THE PAGE. The first
+attempt fixed `\sigma` and left `3` exactly as it was: the glyph following
+`\phi` in the stream is 1705, the `(` of an EARLIER EQUATION'S NUMBER, 163pt
+up the page, because TeX emits a tag after the body it belongs to. The scan
+now steps past any neighbour more than two ems off this glyph's band -- a
+neighbour on another band says nothing about this glyph.
+
+Both rows now come out character-for-character gold.
+
+
+MEASURED, whole corpus
+----------------------
+                      correct        $$   \frac  crops
+    before           154 (36.5%)    381    218    274
+    after            155 (36.7%)    381    216    273
+
+    corpus .tex    102 of 102 compile clean
+    outside docs    18 of 18 compile clean
+    tests          488 passing
+
+ONE equation by the counter, and 26 DOCUMENTS CHANGED. The counter is
+measuring exact matches against gold; most of what moved here is a symbol
+landing on the right base inside an equation that was already wrong
+somewhere else. Two of the clearer ones:
+
+    wzlxjtu-006
+      before  \cosh \phi \cosh \phi \cosh \phi \cosh \phi ... {}^{i 2 2\sigma}
+      after   \cosh \phi^{0} \cosh \phi^{1} \cosh \phi^{2} \cosh \phi^{3}
+
+    wzlxjtu-067
+      before  \sum C_{i}^{disc} \cdot x_{i}
+      after   \sum\limits_{i} C_{i}^{disc} \cdot x_{i}
+
+Four exponents onto four bases, and a sum's index back on its sum. Neither
+shows in the exact-match column and both are the difference between a
+reading and a guess.
+
+Session running total: 138 -> 155 correct, crops 315 -> 273, empty
+delimiter pairs 75 -> 7.

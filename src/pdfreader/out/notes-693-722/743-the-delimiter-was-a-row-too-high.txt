@@ -1,0 +1,81 @@
+743 — THE 75 EMPTY DELIMITER PAIRS
+
+    \frac{\theta_p(pq^2t^2A^{-2}B^2)\theta_p\bigl((pq)^{-1}q^{-1}t^{-4}A^2B^{-2}\bigr)}
+         {\bigl( \bigr) \bigl( \bigr) \bigl( \bigr) \bigl( \bigr) \bigl( \bigr)}
+
+Seventy-five of those over the corpus, in 14 documents, concentrated in
+090-095. Brackets with the mathematics gone from between them -- wrong
+output that looks like right output, which is the one thing this reader is
+not allowed to produce.
+
+
+WHERE THEY COME FROM
+--------------------
+wzlxjtu-093's first line is the clean case. The line runs y 666.4..699.7
+with its fraction bar at 672.2, and its glyphs fall on five baselines:
+
+    base 687.7  ABOVE   (cid:0)(cid:1)                    <- numerator's own \big( )
+    base 682.4  ABOVE   22-22-1-1-42-2
+    base 678.0  ABOVE   theta(pqtAB)theta(pq)qtAB
+    base 676.2  ABOVE   pp
+    base 670.0  below   ( ) ( ) ( ) ( ) ( ) ( )           <- TEN DELIMITERS, NOTHING ELSE
+
+Everything below the bar is delimiters and nothing else. What they enclose
+-- `t^{-2}`, at baseline 660.3 -- is in the NEXT BAND.
+
+A `\bigl(` is set on the MATHS AXIS, not on the baseline of what it
+encloses, so it sits a fixed distance above its own contents and baseline
+clustering files it one row too high. Where the contents happened to land in
+the same merged band it worked; where the band boundary fell between them
+the delimiters were orphaned, and a pair with nothing between it prints as
+`\bigl( \bigr)`.
+
+The grouper already knew about this for BIG OPERATORS -- `key()` lowers a
+`bigop` by 0.7 em for exactly this reason. Delimiters were not in it.
+
+
+THE CONSTANT, MEASURED
+----------------------
+Every big delimiter in the first 50 documents, against the nearest full-size
+glyph beside it, as a fraction of its own size:
+
+    big    n=67   0.81 em   (39 of 67 exactly 0.81)
+    Big    n=12   1.11 em   ( 9 of 12 exactly 1.11)
+    bigg   n=37   1.41 em
+    Bigg   n=2    1.71 em
+
+0.81, 1.11, 1.41, 1.71 -- a step of 0.30 em per size. That is not four
+constants, it is how TeX grows \big \Big \bigg \Bigg, and the table says so.
+
+(The medians for `bigg` are noisy because "nearest full-size glyph to the
+right" sometimes picks the wrong reference. The MODE is the signal, and it
+is exact.)
+
+
+MEASURED, whole corpus
+----------------------
+                      correct        $$   \frac  crops   empty pairs
+    before           149 (35.3%)    398    217    278         75
+    after            154 (36.5%)    381    218    274          7
+
+    corpus .tex     102 of 102 compile clean
+    outside docs     18 of 18 compile clean
+    tests           488 passing
+
+`$$` falls by 17 and that is the fix working, not failing: wzlxjtu-093
+emitted SEVEN display blocks and every one of them carried empty brackets.
+Those seven are now crops. A crop is a refusal and can be looked at; a
+bracket pair with the mathematics missing cannot be told from a correct
+reading by eye, which is how 75 of them survived this long.
+
+Running total over the session: 138 -> 154 correct, crops 315 -> 274.
+
+
+THE SEVEN THAT REMAIN ARE A DIFFERENT CLASS
+-------------------------------------------
+They are `\left( \right)` and `\left. \right)`, not `\bigl( \bigr)`: six in
+wzlxjtu-074 and one in 011. Those come from EXTENSIBLE fences -- a delimiter
+built from stacked pieces around a matrix -- where each matrix row is its
+own line and the fence has no single baseline to correct. That is the matrix
+case, and it belongs with the multi-baseline row problem of 727 rather than
+here.

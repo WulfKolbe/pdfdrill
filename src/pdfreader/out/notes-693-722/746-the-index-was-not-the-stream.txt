@@ -1,0 +1,89 @@
+746 — THE STREAM INDEX WAS NOT THE STREAM
+
+You asked what happens around the `\frac{1}{8}` bar and the longer line after
+it. The answer is bigger than that fraction: THE READER'S NOTION OF STREAM
+ORDER WAS WRONG, and wrong in exactly the place you were pointing at.
+
+
+WHAT THE PDF ACTUALLY DOES THERE
+--------------------------------
+    [(+)]TJ 12.956 8.088 Td [(1)]TJ          <- numerator, RELATIVE Td
+    ET
+    q  1 0 0 1 193.406 525.446 cm
+       []0 d 0 J 0.478 w 0 0 m 5.853 0 l S   <- the bar: a STROKED LINE
+    Q
+    BT
+    /F15 11.9552 Tf 193.406 514.256 Td [(8)]TJ    <- denominator, ABSOLUTE
+    /F20 11.9552 Tf 7.049 8.201 Td [(me)]TJ ...
+
+The bar is not a rectangle and not a glyph: `0 0 m 5.853 0 l S`, a path
+stroked at width 0.478 under a CTM that carries it to (193.406, 525.446).
+Paths cannot be drawn inside a text object, so TeX ENDS the text object,
+saves the graphics state, draws, restores, and BEGINS A NEW ONE. The text
+matrix resets at `BT`, which is why the `8` is placed absolutely at
+(193.406, 514.256) while everything around it moves by small relative `Td`
+steps -- and why the next `Td` after it, `7.049 8.201`, is measured from the
+DENOMINATOR rather than from the `+`.
+
+So yes: a save/restore, and a text object torn in half around it. That is
+what you suspected.
+
+(There is no `<00>` in this corpus -- checked all 102, none uses hex strings
+at all. `<00>` is the CID form, `[<00><03>...]TJ` with Identity-H encoding;
+these files are Type 1 with literal strings and kerns, `[(cosh)-222(\036)]TJ`.
+The negative numbers inside the brackets are kerns in 1/1000 em, not
+positions.)
+
+
+AND HERE IS WHAT IT COST
+------------------------
+`_stream_index` recorded glyph order by walking `extract_pages(laparams=None)`,
+on the reasoning that switching layout analysis off leaves the producer's
+order alone. Measured against `render_char`, the interpreter's own callback:
+
+    render_char      +  1  8  m  e  -  6  sigma  [  -  3  2      <- the stream
+    extract_pages    +  [  m  e  -  6  sigma  1  8  -  3  2      <- what we had
+
+The numerator and denominator are moved SEVEN PLACES LATER and the big
+bracket seven places earlier. THE REORDERING HAPPENS AT THE BT/ET BOUNDARY,
+which is precisely what wraps a fraction rule or a big delimiter -- so the
+index was wrong exactly where the layout is hard, and right everywhere it
+did not matter.
+
+Every pass that trusts the stream inherited it: the row sort of 741, the
+script-band merge, the sandwich of 744.
+
+Now recorded at `render_char`. The index is the stream.
+
+
+MEASURED, whole corpus
+----------------------
+                      correct        $$   \frac  crops
+    before           155 (36.7%)    381    216    273
+    after            163 (38.6%)    371    219    265
+
+    corpus .tex    102 of 102 compile clean
+    outside docs    18 of 18 compile clean
+    tests          488 passing
+
++8 exact matches and -8 crops from one correction, the largest single step
+of this session. Session running total: 138 -> 163 correct, crops 315 -> 265.
+
+
+AND wzlxjtu-006 EQUATION 2 IS STILL WRONG
+-----------------------------------------
+The document that led me here did not change:
+
+    V (\sigma, \phi^{i}) = -g^{2} e + me \biggl[ ... + 8m \cosh^{2} \phi
+        {}^{2\sigma} \frac{1}{8}^{-6\sigma 4\sigma 0}
+
+It fails for the reason in 745, which the stream index does not touch: the
+exponents of that row and the two digits of `\frac{1}{8}` are clustered into
+one band, and the pass that would return them SKIPS ANY BAND HOLDING A
+FULL-SIZE GLYPH. The digits are full size. One fraction in a superscript
+band still costs the row all its exponents.
+
+I attempted that fix in 745, measured it, and reverted it -- it gained one
+exact match, lost a correct block in wzlxjtu-020, and moved 36 documents on
+a tie-break I had invented. It needs the fraction pass and the script pass
+to agree about one row, which is the open problem of 727.

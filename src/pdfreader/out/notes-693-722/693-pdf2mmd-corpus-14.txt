@@ -1,0 +1,72 @@
+693 — pdf2mmd over the 14 supplied documents, and two defects it found
+
+POPULATION
+----------
+The 14 folders under mmd-out/, each carrying the PDF, MathPix's lines.json
+and MathPix's .md. 387 pages. Every document completed; none crashed.
+
+BEFORE / AFTER (maths spans projected)
+
+    document                                 pages   before    after
+    1-s2.0-...5145-main                         10   100.0%   100.0%
+    1-s2.0-...0565-main                         15    30.7%    82.6%
+    1-s2.0-...0171-main                         15    63.4%    67.6%
+    1-s2.0-...0274-main                         22    36.4%    75.0%
+    1-s2.0-...0298-main                         15    91.5%    91.5%
+    1-s2.0-...0390-main                         19   100.0%   100.0%
+    22-0483                                     50    78.9%    78.9%
+    25-1064                                     52    85.9%    85.9%
+    2506.16206                                  31    96.3%    96.3%
+    30.1.1                                      25    96.4%    96.4%
+    choice-trees-...-rocq                       61    84.3%    84.3%
+    generating_action_compilers...              30     0.0%     0.0%*
+    peerj-cs-4093                               26    77.0%    77.0%
+    the-semantics-of-metaprogramming-in-prolog  16    96.2%    96.2%
+
+    * the number is unchanged but its MEANING is not: see defect 2.
+
+DEFECT 1 — THE UNICODE DIALECT
+------------------------------
+A publisher's maths font names its glyphs by CODEPOINT. STIXMath emits
+`u1D460`, `u1D6FF`, `uni2032.var`; Computer Modern emits `s`, `delta`,
+`prime`. The projection table only spoke the TeX dialect, so a correctly
+read glyph was deferred for its name.
+
+Measured as the single largest cause of deferral across three journal
+papers: 48 glyphs on one document. The Mathematical Alphanumeric Symbols
+block (U+1D400..U+1D7FF) encodes a letter WITH a style, so it decomposes --
+U+1D460 is an italic `s`, which maths italic already means; U+1D6FF is
+`\delta`; U+1D538 is `\mathbb{A}`.
+
+    1-s2.0-...0565   30.7% -> 82.6%
+    1-s2.0-...0274   36.4% -> 75.0%
+    1-s2.0-...0171   63.4% -> 67.6%
+
+DEFECT 2 — A SPACE WAS AN UNMAPPED GLYPH
+----------------------------------------
+15 `space` glyphs in Times-Roman deferred EVERY maths span in
+generating_action_compilers -- 0% projected, with nothing wrong but the gaps
+between the symbols.
+
+Fixed. The document still reports 0%, and that is now an honest number: all
+26 remaining deferrals are `script-or-multi-baseline`, a structural refusal
+(stacked limits, matrices), not a glyph the reader failed to name. The two
+cases were indistinguishable in the metric before.
+
+STILL BAD, NOT DIAGNOSED
+------------------------
+    1-s2.0-...0171-main    958 crops on 15 pages
+    1-s2.0-...0565-main    391 crops on 15 pages
+    1-s2.0-...0274-main    293 crops on 22 pages
+
+The Elsevier family crops heavily even where its maths now projects. Cause
+unknown; the crop count was not the thing being measured here.
+
+ENVIRONMENT HAZARD
+------------------
+`bootstrap.sh` runs `pip install pdfminer.six` and OVERWROTE the glyph-name
+fork in the shared interpreter, after which pdf2mmd raised
+`'LTChar' object has no attribute 'invisible'`. The corpus above was run
+from pdf2mmd's own venv. Any integration has to settle which pdfminer is on
+the path -- 691 measured what the fork is worth (100.0% vs 1.3% glyph names
+on Computer Modern), so silently losing it is a real regression.

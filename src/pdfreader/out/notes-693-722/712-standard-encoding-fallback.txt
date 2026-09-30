@@ -1,0 +1,66 @@
+712 — the StandardEncoding fallback: my fork's bug, confirmed and fixed
+
+WHOSE BUG
+---------
+Mine. Upstream pdfminer exposes no glyph name at all, so a font with no
+/Encoding produced nothing and the span deferred -- the correct outcome. The
+fork adds `LTChar.glyphname` from `cid2name`, and when /Encoding is absent
+pdfminer has already fallen back to StandardEncoding, so the fork reports
+that fallback AS IF IT WERE THE FONT'S OWN NAME.
+
+An abstention became a confident wrong answer, which is the one failure this
+project exists to avoid.
+
+VERIFIED BY RENDERING
+---------------------
+1.pdf, TeX-matha10, each glyph's EXACT box rasterised at 500dpi and the five
+placed side by side so no neighbour could be misread:
+
+    cid  reported          really
+     16  quotedblleft      =
+     18  quotedblbase      ~
+     24  perthousand       !=
+     80  P                 in
+     82  R                 notin
+    112  p                 (
+    113  q                 )
+
+`\pi^{*}(\omega_{0})` was being read as `\pi^{*}p\omega_{0}q`.
+
+THE FIX, IN THREE PARTS
+-----------------------
+1. ABSTAIN where the name is certainly the fallback. A Latin letter or a
+   text-punctuation name in a font that HAS NO LATIN ALPHABET -- TeX-matha,
+   TeX-mathx, CMEX, LMMathExtension, MSAM, MSBM -- cannot be the font's own
+   name. CMMI and CMSY are excluded: CMMI carries the maths italic alphabet
+   at its ASCII slots, so `p` there really is `p`, and distrusting it would
+   break every variable.
+
+2. A VERIFIED SLOT TABLE keyed on BaseFont prefix and cid. Seven entries,
+   every one read off a rendered glyph. Nothing goes in on the strength of a
+   table or a guess -- a guess is what caused this.
+
+3. The TeX-math* fonts were classified as TEXT, so they emitted their
+   fallback characters literally. Now math-symbol, math-extension and
+   math-italic by name.
+
+THE NUMBERS GOT WORSE, AND THAT IS THE POINT
+---------------------------------------------
+    dataset crops        442 -> 542
+    zero-crop files       25 -> 16
+
+A hundred glyphs that were read with a wrong name now refuse. The seven
+verified slots recover some; the rest -- TeX-mathx cid 112 among them, 27
+occurrences -- stay refused until someone renders them.
+
+Any metric counting crop links will call this a regression. It is the
+opposite: 442 included an unknown number of confidently wrong readings that
+no crop-count could see, which is exactly the OmniDocBench failure mode from
+the inside.
+
+NEXT, AND IT IS CHEAP
+---------------------
+The remaining abstentions are concentrated: TeX-mathx cid 112 (27), and
+`ring`/`acute`/`dieresis` from TeX-matha7 and matha5 at cid 6, 1 and 4 (55
+together). Each is one render away from a verified slot. The method is
+established; only the looking is left.

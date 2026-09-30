@@ -1,0 +1,67 @@
+730 — the end of an expression, by look-ahead
+
+HIS DIAGNOSIS, CONFIRMED AND SHARPENED
+--------------------------------------
+"Starting with single math expression the results are very good, after the
+first 2 and more line expression everything goes wrong."
+
+Confirmed, and it is worse than stated. 4.pdf block 2:
+
+    L^{-1}
+    dL = Q + P
+
+That is ONE equation, `L^{-1}dL = Q + P`, split into two rows -- and block 5
+has a bare `\det` glued onto the end of an unrelated expression. The damage
+begins INSIDE a single equation, and fragments then migrate between blocks.
+
+His per-document inspection: 001 0%, 003 100% (3/3), 004 70% (7/10),
+005 0%, 006 0%.
+
+And his reading of the counter is right: more blocks than MathPix does not
+mean "somewhat over-split", it means the output is not a list of equations.
+Measured directly in 729: 21 of 421 authored equations delivered whole, 5%.
+
+THE LOOK-AHEAD HE ASKED FOR
+---------------------------
+Nothing INSIDE a display says where it stops. The producer pops the graphics
+state and the current point with it. The line AFTER it announces itself --
+by starting at the BODY MARGIN rather than at the display indent.
+
+724's `line_starts` returns only the y. That bounds a LINE and not an
+EXPRESSION; the x is the whole signal and I discarded it.
+
+    psstream.line_origins(shows)   -> [(x, y), ...] per line
+    psstream.display_runs(origins) -> [("body"|"display", [line indices])]
+
+The body margin is the x most lines begin at. A display ends at the first
+following line that returns to it.
+
+MEASURED, 102 DOCUMENTS
+-----------------------
+    gold (authored displays)          421
+    stream display runs               288     0.68x   exact 21%  within 1 53%
+    pdf2mmd markdown blocks           817     1.94x   exact  9%  within 1 31%
+    MathPix                           417     0.99x   exact 94%
+
+The boundary from the stream is closer to the author's own structure than
+anything the geometry has produced in this work, and it is UNDER rather than
+over: consecutive displays with no prose between them merge into one run,
+where gold counts each environment. That is a smaller and more tractable
+error than splitting one equation into four.
+
+NOT WIRED IN
+------------
+This is the boundary, not the change. Two reasons to stop here.
+
+First, 725 measured what happens when a better row structure meets
+`_attach_scripts`: blocks 817 -> 98, projection 86.4% -> 62.4%. The pass
+cannot describe a row carrying several baselines each with its own
+sub-expression, and 727 measured that binding by stream does not fix that
+either. Nothing has changed about that.
+
+Second, the honest metric is now 5% of equations delivered whole (729), not
+a block count. Any wiring of this should be judged by that number, and I
+would rather measure it against a working implementation than predict it.
+
+525 tests passing. Standing state unchanged: gold 421, MathPix 417,
+pdf2mmd 817, crops 548, projection 86.4%, equations whole 21/421.

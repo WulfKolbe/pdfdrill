@@ -1,0 +1,70 @@
+714 — the gold comparison: 7% vs 94%, and what it is actually made of
+
+THE USER'S MEASUREMENT
+----------------------
+    agrees with gold on the equation count
+        MathPix    96 of 102  (94%)
+        pdf2mmd     7 of 102  ( 7%)
+    totals: gold 421, MathPix 417, pdf2mmd 1646
+
+That is the result. MathPix reproduces the author's environment count almost
+exactly and can be paired row-for-row with gold; pdf2mmd cannot.
+
+FIRST FINDING: pdf2mmd DISAGREES WITH ITSELF
+--------------------------------------------
+The markdown and `equations.json` give DIFFERENT equation counts for the
+same document, in both directions:
+
+    doc 1   md-blocks  9    equations.json display 21
+    doc 4   md-blocks 16    equations.json display  9
+    doc 5   md-blocks 18    equations.json display  8
+
+`equations.json` has fused consecutive display runs since 707; `to_markdown`
+opened a new `$$` per line group and had no fusion at all. One tool, one
+document, two answers to "how many equations". That alone disqualifies
+either number as a metric until they agree.
+
+WHAT WAS FIXED
+--------------
+`to_markdown` now fuses a display block with the one immediately above when
+the two are vertically adjacent (within 2.0 em, chosen by sweep: 1.2 gave
+2.4x, 2.0 gave 2.12x, 3.0 gave 2.09x on 35 files -- flat beyond 2.0).
+
+    102 documents   gold 421   pdf2mmd 1646 -> 1414   3.91x -> 3.36x
+    exact agreement 6 (6%), within one 16 (16%)
+
+Still 3.4x. The fusion is not the main term.
+
+SECOND FINDING: IT IS NOT MOSTLY TABLES, AND IT IS NOT MOSTLY SPLITTING
+-----------------------------------------------------------------------
+Document 95 -- gold 4, ours 51 -- is a TABLE. Rows like
+
+    q t AB C D theta_p q A B
+    -1 -2 -1 +-1 +-1 -1 2 -2
+
+are indented, carry no prose, and satisfy `is_display`. But measured across
+35 files, only 8% of display-flagged lines have three or more wide column
+gaps. Tables are a real defect and doc 95 is dominated by it, but they are
+not the general cause.
+
+So 679 display-flagged lines across 35 files against a gold count near 145
+is mostly genuine multi-line splitting that adjacency fusion does not catch
+-- the lines are not adjacent enough, or are separated by material that
+breaks the run.
+
+A MISTAKE WORTH RECORDING
+-------------------------
+The threshold sweep was done with `sed -i "s/<= [0-9.]* \\* size$/.../"`,
+which also rewrote an unrelated line 528 lines away: the raised-marker test
+`g.size <= 0.85 * size` became `<= 2.0 * size`. One test caught it
+immediately (`test_a_same_size_glyph_is_not_a_marker`). A blanket regex edit
+across a 1000-line file to tune one constant is not a sweep, it is a
+liability; the test suite was the only thing standing between that and a
+silently changed heuristic.
+
+STATUS
+------
+482 tests passing. Ratio 3.36x against gold, agreement 6%. The number is
+better than 3.91x and nowhere near MathPix's 0.99x. The remaining term is
+not identified, and guessing at it is what produced the last two partial
+fixes.

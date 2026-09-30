@@ -1,0 +1,72 @@
+727 — step 1 implemented, measured, and the plan falsified
+
+FIRST, THE EXPORT
+-----------------
+The user's check is right and the diagnosis is not: `grep -c '\.stream'
+structure.py` returned 0 on my own export too. Nothing was lost in transit.
+STEP 1 HAD NEVER BEEN WRITTEN. 726 was a diagnosis unit and closed by naming
+step 1 as the next task; I then sent a build and said nothing about the fact
+that it contained no step 1. That is on me, not on the zip.
+
+(The 062-identical-to-061 case may still be real and is worth his md5 check.
+This one is not that.)
+
+STEP 1, IMPLEMENTED
+-------------------
+A script now binds to the main glyph most recently emitted BEFORE it in the
+stream, rather than to the nearest main glyph to its left in x, falling back
+to the x rule wherever any glyph lacks a stream index.
+
+MEASURED
+--------
+    merge OFF   blocks 817 -> 801   crops 548 -> 588   proj 86.4% -> 85.4%
+    merge ON    blocks  95          crops 1349         proj 60.9%
+
+The merge still collapses. So the change costs a little on its own and
+delivers none of what it was for.
+
+WHY -- AND THIS IS THE RESULT
+-----------------------------
+The stream path WAS running. Every glyph on those pages carries an index
+(26 of 26 spans on 91.pdf), so the fallback never fired. It bound by stream
+and still refused.
+
+Instrumented, 17 of 18 refusals on 91.pdf are the "same baseline but
+excluded" branch -- NOT the off-baseline guard everyone predicted. A merged
+display line contains whole sub-expressions set at script size on their OWN
+baselines: a fraction's numerator and its denominator are each a little
+expression with its own scripts. `_attach_scripts` models ONE baseline with
+scripts hung around it. No binding rule fixes that, because the problem is
+the shape of what it is being asked to describe.
+
+SO THE PLAN IS WRONG
+--------------------
+    725: "attachment by stream adjacency first, then uncomment the merge"
+    726: same, traced further
+    696: same, from the opposite direction
+
+Three notes, two directions, one conclusion -- and it is false. The
+agreement between 696 and me was not independent corroboration; it was the
+same wrong inference made twice from the same symptom, which is exactly what
+it looks like when a diagnosis is right.
+
+Recorded in structure.py at the site, not only in a note, because the next
+reader of 696/725/726 will otherwise implement it a third time.
+
+WHAT IS ACTUALLY NEEDED
+-----------------------
+A pass that can describe a row containing several baselines each carrying
+their own sub-expression -- which is what a display line IS. `to_tex`
+already recurses for fraction parts; the missing piece is recognising the
+sub-expression boundaries in a row that has no rule to split on (stacked
+limits, aligned columns, matrix rows).
+
+That is a new unit and I have not designed it. What can be said is that it
+is not a tweak to `_attach_scripts`.
+
+STATE RESTORED AND VERIFIED
+---------------------------
+    gold 421   MathPix 417   pdf2mmd 817
+    exact 9 (9%)   within one 32 (31%)   ratio 1.94x
+    crops 548   projection 86.4%
+    519 tests passing;  grep -c '\.stream' structure.py -> 0

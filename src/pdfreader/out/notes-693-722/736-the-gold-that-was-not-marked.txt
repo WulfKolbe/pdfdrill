@@ -1,0 +1,76 @@
+736 — wzlxjtu-003: THE GOLD IS THERE. IT IS NOT MARKED AS MATHS.
+
+`golden/3_gt.tex` exists and is 3,218 bytes. What it does not contain is a
+single display-maths environment. The page carries THREE display equations
+and the gold sets all three without one:
+
+    (1)  ({\it e}µ{\it a}, ?µ{\it A, A}µa, {\it B}µ?, ?{\it A}, s)   (1)
+    (2)  ({\it A}µ, ?{\it A}, fa){\it I}   (2)
+    (3)  \begin{center}
+         $\displaystyle \mathcal{M}=\frac{SO(4,n)}{SO(4)\times SO(n)}
+                        \ \times SO(1,1)$   (3)
+         \end{center}
+
+`gold_equations` looks for equation / eqnarray / align / gather / multline /
+displaymath / \[..\] / $$..$$. None of those occurs here, so the document
+reported zero gold and dropped out of every comparison.
+
+
+WHICH OF THE SIX EMPTY DOCUMENTS ARE REAL
+-----------------------------------------
+Six of 102 returned no gold. Checked one at a time against BOTH readers,
+because a gold of zero is only a defect if there was something to read:
+
+    wzlxjtu-021   gold 0   pdf2mmd 0   MathPix 0     prose page, correct
+    wzlxjtu-034   gold 0   pdf2mmd 0   MathPix 0     prose page, correct
+    wzlxjtu-037   gold 0   pdf2mmd 0   MathPix 0     prose page, correct
+    wzlxjtu-047   gold 0   pdf2mmd 0   MathPix 0     prose page, correct
+    wzlxjtu-022   gold 0   pdf2mmd 1   MathPix 0     a pdf2mmd FALSE POSITIVE
+    wzlxjtu-003   gold 0   pdf2mmd 3   MathPix 3     a gap in the MEASUREMENT
+
+So five of the six were right, one was not, and one is a defect of a
+different kind (022 promotes a lone `\sim` to a display; gold and MathPix
+agree there is no equation there).
+
+
+THE FIX
+-------
+A centred maths block IS a display equation -- centred, on its own line,
+with its number beside it. `gold_equations` now takes a `center` whose
+content is mathematics, and ONLY that: the block must carry `$...$`, and
+what remains outside the maths must be an equation number or nothing, so a
+centred figure, caption or heading is not swept in.
+
+    gold 421 -> 422
+
+wzlxjtu-003 equation 3, all three readings:
+
+    gold     \mathcal{M}=\frac{SO(4,n)}{SO(4)\times SO(n)}\ \times SO(1,1)
+    MathPix  \mathcal{M}=\frac{S O(4, n)}{S O(4) \times S O(n)} \times S O(1,1)
+    pdf2mmd  \mathcal{M} = \frac{SO(4, n)}{SO(4) \times SO(n)} \times SO(1, 1)
+
+Both readers had it exactly right the whole time, and both were scored
+against nothing. Corrected, both gain one.
+
+    pdf2mmd  138 of 422  (32.7%)
+    MathPix  208 of 422  (49.3%)
+
+
+AND THE PART THAT CANNOT BE FIXED — WORTH KNOWING
+-------------------------------------------------
+Equations (1) and (2) are still not gold, and should not be. The
+transcription lost the letters:
+
+    PDF       (e^a_µ , ψ_µ^A , A^α_µ , B_µν , χ^A , σ)
+    gold      ({\it e}µ{\it a}, ?µ{\it A, A}µa, {\it B}µ?, ?{\it A}, s)
+    pdf2mmd   (e_{\mu}^{a}, \psi_{\mu}^{A}, A_{\mu}^{\alpha}, B_{\mu\nu},
+               \chi^{A}, \sigma)
+
+`?` stands where ψ and χ are, `s` where σ is, and the α is gone. HERE THE
+READER IS RIGHT AND THE GOLD IS WRONG. Nothing can be measured against it,
+and making it a gold equation would score a correct reading as a failure.
+
+I checked whether that degradation reaches the gold that IS used: of the 422
+display equations, ZERO contain a `?`. The damaged material in this document
+sits in the two equations the gold never marked as equations, so it has
+never entered the comparison. The 422 are clean.

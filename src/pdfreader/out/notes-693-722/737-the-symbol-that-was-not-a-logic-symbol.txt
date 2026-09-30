@@ -1,0 +1,76 @@
+737 — wzlxjtu-026: ⊮ WAS THE CLUE, NOT THE SYMBOL
+
+The report was "I saw some of these ⊮ (U+22AE, does not force) and they
+vanished in pdf2mmd". Both halves are right, and neither is quite what it
+looks like. There is no ⊮ in this document. What is there is 𝟙, the
+double-struck identity matrix, eight times.
+
+
+WHAT EACH READER DOES WITH IT
+-----------------------------
+The page loads `dsrom12` — the font of the `dsfont` package, every glyph of
+which is double-struck — and uses its `one` eight times.
+
+    gold       \mathds{1}      ×8      correct
+    MathPix    \mathbb{1}      ×8      TYPESETS ⊮
+    pdf2mmd    1               ×7      the symbol vanished
+               (dropped)       ×1      the eighth, silently
+
+`\mathbb{1}` is not a spelling variant. amssymb's blackboard alphabet is
+msbm's, which carries A–Z AND NO DIGITS, and msbm's `1` slot holds
+`\nVdash`. Compiled and read back out of the PDF:
+
+    \documentclass{article}\usepackage{amssymb}\usepackage{dsfont}
+    amssymb: $\mathbb{1}$ and $\mathbb{H}$   ->   ⊮ and H
+    dsfont:  $\mathds{1}$                    ->   1
+
+SO THE ⊮ IS MATHPIX'S AND IT IS A WRONG SYMBOL, not a wrong font. An
+identity matrix is being printed as a logic relation. Nine `\mathbb{<digit>}`
+over this corpus, every one of them that.
+
+And they "vanished in pdf2mmd" because pdf2mmd wrote a bare `1`: the reading
+was not wrong, it had simply stopped being a symbol at all. Which is the
+worse of the two failures, because nothing marks it.
+
+
+WHY
+---
+`dsrom12` was in no family rule, so it fell through to `text`, and a text
+font's `one` is the character `1`. Two consequences, and the second is the
+one that actually loses material:
+
+  * projected as an ordinary digit — seven times;
+  * NOT IN `MATH_FAMILIES`, so where the glyph sat in an inline formula
+    rather than a display it landed in a TEXT span, which carries no LaTeX,
+    and was dropped with no crop and no deferral — the eighth.
+
+This is the same shape as the txfonts and XCharter misclassifications in
+733: a maths font nobody had named, quietly read as prose.
+
+
+FIXED
+-----
+`dsrom\d*` is a family, `doublestroke`, in MATH_FAMILIES beside `fraktur`
+and `script`; its glyphs project as `\mathds{<char>}`; and `dsfont` is
+derived into the preamble by the usual rule — THE FONT SAYS WHICH PACKAGE.
+That last part is why pdf2mmd can be right here and MathPix cannot: the
+glyph came from a named font, and the font names its package.
+
+    wzlxjtu-026   \mathds 0 -> 8    gold 8    exact
+    wzlxjtu-005   \mathds 0 -> 1    gold 1    exact
+                  and its `= -$ 1.` becomes `= -\mathds{1}$`
+    corpus        \mathds 0 -> 9    MathPix \mathbb{<digit>} 9
+
+
+MEASURED
+--------
+    correct        138 of 422 (32.7%)   UNCHANGED
+    corpus .tex    102 of 102 compile clean
+    outside docs    18 of 18 compile clean
+    tests          488 passing (was 484)
+
+The correct count does not move, and that is a fact about the METRIC, not
+about the fix: `canon.py` strips font commands on purpose, so `\mathds{1}`,
+`\mathbb{1}` and a bare `1` all canonicalise to `1`. A LOST FONT IS INVISIBLE
+TO IT. Every one of these nine symbols is now right in the output and was
+wrong before; no aggregate here can show that, so it is written down instead.

@@ -1,0 +1,113 @@
+745 — wzlxjtu-006 EQUATION 2: DIAGNOSED, ATTEMPTED, REVERTED
+
+You were right that something in the stream explains it, and right that the
+mechanism involves TeX knowing a size before it can place something. The
+diagnosis is below. THE FIX IS NOT IN: I built it, measured it, and it cost
+more than it gained. The tree is back at 744.
+
+
+WHAT IS ACTUALLY WRONG
+----------------------
+    gold     V(\sigma,\phi^i) = -g^2 e^{2\sigma} + \frac{1}{8} m e^{-6\sigma}
+                 \bigg[-32 g e^{4\sigma} \cosh\phi^0 ... \cosh\phi^3
+                 + 8m \cosh^2\phi^0
+
+    pdf2mmd  V (\sigma, \phi^{i}) = -g^{2} e + me \biggl[ -32ge \cosh\phi^{0}
+                 ... \cosh\phi^{3} + 8m \cosh^{2} \phi
+                 {}^{2\sigma} \frac{1}{8}^{-6\sigma 4\sigma 0}
+
+Nothing is lost. FIVE PIECES ARE SWEPT TO THE END IN A HEAP: the exponents
+of the three `e`s, the `\frac{1}{8}`, and the `0` on the last `\phi`.
+
+
+AND YES, THE STREAM SHOWS THE SIZE-FIRST BEHAVIOUR
+--------------------------------------------------
+    stream 393  '+'        x=180.45
+    stream 394  '(cid:20)' x=232.56   <- \biggl[
+    stream 395  'm'        x=200.46
+    stream 396  'e'        x=210.69
+
+The `\biggl[` is EMITTED BEFORE the `m e` and PLACED AFTER them. TeX has to
+know the height of the bracket's contents before it can choose which
+extensible piece to draw, so it emits the fence out of positional order.
+That is the effect you described. It is handled -- the reader sorts a
+merged band into stream order, and 741 measured that as crops 316 -> 282 --
+and it is not what breaks this row.
+
+
+WHAT BREAKS THIS ROW
+--------------------
+    stream 390  'e'      p1l8  base 522.46  size 12
+    stream 391  '2'      p1l7  base 527.39  size 8
+    stream 392  'sigma'  p1l7  base 527.39  size 8
+    stream 393  '+'      p1l8  base 522.46  size 12
+    ...
+    stream 396  'e'      p1l8  base 522.46  size 12
+    stream 397  '-'      p1l7  base 527.39  size 8
+    stream 398  '6'      p1l7  base 527.39  size 8
+    stream 399  'sigma'  p1l7  base 527.39  size 8
+    stream 400  '1'      p1l7  base 530.54  SIZE 12
+    stream 401  '8'      p1l7  base 514.26  SIZE 12
+    stream 402  '-'      p1l8  base 522.46  size 12
+
+Band p1l7 is a LEFTOVER: every exponent of the row, plus 400 and 401, which
+are the numerator and denominator of `\frac{1}{8}` -- same x, full size,
+one above the row and one below it.
+
+There is a pass that returns a displaced band's glyphs to their row using
+exactly this stream evidence. IT SKIPS ANY BAND HOLDING A FULL-SIZE GLYPH,
+because such a band is a row rather than a band of scripts. The two digits
+of `\frac{1}{8}` are full size, so p1l7 is disqualified, and every exponent
+on the row stays behind with them.
+
+That is the whole defect: ONE FRACTION IN A SUPERSCRIPT BAND DISQUALIFIES
+THE BAND, and the row loses all its exponents.
+
+
+WHAT I BUILT, AND WHY IT IS NOT IN
+----------------------------------
+744's rule -- a glyph whose two stream neighbours are both in one other band
+belongs to that band -- cannot see these, because consecutive strays are
+each other's neighbours. So I made the unit the RUN: a maximal stretch of
+consecutive stream positions in one band, moved when the glyph before it and
+the glyph after it agree.
+
+    first attempt   moved any sandwiched run
+                    -> took the ROW apart as well, because `+ m e` is itself
+                       a short run sandwiched between two stray runs.
+                       wzlxjtu-006 came out as `V (\sigma, \phi` and nothing
+                       else.
+
+    second attempt  dissolve only a band that is ALMOST ENTIRELY sandwiched
+                    runs (>= 80%).
+                    -> BOTH bands qualify. They interleave, so every run of
+                       each is sandwiched by the other: group 10 (17 glyphs,
+                       16 sandwiched) named group 12, and group 12 (32, 27)
+                       named group 10. They swapped and destroyed each other.
+
+    third attempt   break the tie by size -- only the smaller band dissolves.
+                    -> measured: correct 155 -> 156, crops 273 -> 269,
+                       but `$$` 381 -> 367 and 36 DOCUMENTS PERTURBED, and
+                       wzlxjtu-020 lost a block that was RIGHT:
+                           \delta\bigl(\sqrt{\gamma}\mathcal{L}_{ren}\bigr)
+                       became a crop.
+
+One exact match gained, a correct block lost, 36 documents moved, and the
+tie-break is not evidence -- "the bigger band wins" is something I chose to
+make this document work. Reverted. The tree is byte-for-byte 744, verified
+by rebuilding wzlxjtu-006 and wzlxjtu-020 and comparing to the 744 run.
+
+
+WHAT THE REAL FIX LOOKS LIKE
+----------------------------
+Not a tie-break. The two bands are not symmetric in the evidence -- I was
+using the wrong evidence. p1l7's glyphs are at 527.39, 530.54 and 514.26
+around a row at 522.46: they are a SUPERSCRIPT LINE, a FRACTION NUMERATOR
+and a FRACTION DENOMINATOR of that row, and each of those is a known
+relationship with its own geometry. Deciding "which band is the row" by
+counting glyphs throws all of that away.
+
+The band that owns a baseline is the one whose glyphs sit ON it. That is
+the direction to take next, and it needs the fraction pass and the script
+pass to agree about one row rather than each guessing separately -- which
+is the 727 problem again, from a new side.

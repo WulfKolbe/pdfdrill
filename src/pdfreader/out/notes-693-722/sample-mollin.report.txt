@@ -1,0 +1,15 @@
+document      mollin
+pages         150-158 of 417
+glyphs        16600
+lines         338
+maths spans   691
+  projected   514 (74.4%)
+  deferred    177
+
+deferrals by reason (each is a crop link in the Markdown, with its node id):
+     125   18.1%  script-or-multi-baseline
+      26    3.8%  fraction
+      22    3.2%  unmapped-glyph
+       2    0.3%  overline
+       1    0.1%  fraction+unmapped-glyph
+       1    0.1%  fraction+overline

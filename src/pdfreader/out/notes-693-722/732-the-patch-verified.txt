@@ -1,0 +1,75 @@
+732 — 730.patch applied and verified independently, and where the equations are
+
+APPLIED
+-------
+Applies cleanly to my tree. One test failed:
+
+    test_mmd.py::TestProjection::test_deferred_crop_keeps_its_node_id
+
+It asserted the crop's alt text contains "baseline", "fraction", "unknown"
+or "glyph" -- the reason vocabulary from BEFORE 711 renamed reasons to the
+failing PASS. After the patch that page emits only `script-attachment`, so
+the test failed on the rename, not on a defect. It is a corpus-backed test,
+which is why his 467 did not include it.
+
+Rewritten to assert the CONTRACT -- an id and a non-empty reason -- rather
+than a snapshot of the reasons in use. 525 passing here, 1 skipped.
+
+VERIFIED, 102 DOCUMENTS
+-----------------------
+                          069      730 (measured here)
+    $$ blocks             817      464      1.10x   (gold 421)
+    crops                 548      463
+    fraction rules        489      738
+    EQUATIONS WHOLE        21       22      5.0% -> 5.2%
+
+His four fixes are real and the block count is now within 10% of the
+author's structure, from 194%.
+
+AND THE DELIVERY DID NOT MOVE.
+
+21 to 22 of 421. The segmentation is fixed; the equations still are not
+delivered. That is not a criticism of the patch -- it is the patch's own
+conclusion, measured: "417 fractions are assembled and then thrown away".
+
+SIZING THE LEVER
+----------------
+Of the 683 deferred maths spans on this corpus:
+
+    0 glyphs refused      414   (61%)   the failure is STRUCTURAL
+    exactly 1 refused     195   (29%)
+    2 or more              74   (11%)
+
+So the "one bad glyph costs five fractions" case is 29%, not the majority.
+Sixty-one per cent of deferrals have every glyph projecting and fail on
+structure alone -- `script-attachment` 261, `assembly` 71.
+
+That changes what the abstention question is. Relaxing all-or-nothing to
+"emit the parts that projected, crop the part that did not" would address
+the 29%. It would not touch the 61%, because in those spans there is no bad
+part to isolate: the glyphs are all fine and the pass cannot describe their
+arrangement.
+
+WHAT I WOULD DO NEXT, AND WHY NOT YET
+--------------------------------------
+Two units, in this order:
+
+1. PARTIAL EMISSION for the 195 one-glyph cases. The unit that projects is
+   the smallest self-contained sub-expression, not the span; the failing
+   part keeps its crop. "A wrong \frac is worse than a crop" survives this
+   -- nothing is guessed, the hole is shown.
+
+2. The 414 structural cases are `_attach_scripts` again, which 725 and 727
+   both measured and 727 falsified the planned fix for. That one still needs
+   a pass that can describe a row of several baselines each carrying a
+   sub-expression, and I have not designed it.
+
+I am not starting either tonight. The measurement above is what I would want
+in hand before choosing, and it says the abstention change buys at most a
+third of what is missing -- worth doing, and not the answer on its own.
+
+STATE
+-----
+    gold 421   MathPix 417   pdf2mmd 464 (1.10x)
+    crops 463   equations whole 22/421 (5.2%)
+    525 tests passing, 1 skipped

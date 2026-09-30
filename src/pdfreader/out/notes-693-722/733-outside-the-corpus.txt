@@ -1,0 +1,87 @@
+733 — WHAT 18 PDFs FROM OUTSIDE THE CORPUS FOUND
+
+The 102 documents are one publisher, one era, one class file. Running the
+reader on 18 unrelated PDFs (arXiv papers, a book, beamer slides, German
+letters, TikZ tests) found four defects. None of them is a maths defect, and
+none of them could have been found in the corpus — three because the corpus
+never carries the character, one because the corpus .tex files have their
+\includegraphics lines commented out for inspection and never reach the key.
+
+All four are now fixed, and all four are the same shape: THE READER FAILED
+AND SAID NOTHING.
+
+1. `max width` IS ADJUSTBOX'S KEY, NOT GRAPHICX'S
+   `\includegraphics[alt={},max width=\textwidth]` with only graphicx loaded:
+       ! Package keyval Error: max width undefined.
+   13 of 18 documents failed. Fixed: adjustbox is added when the body uses
+   the key, emitted as \usepackage[export]{adjustbox}.
+
+2. THE TEXT FONT DROPS CHARACTERS SILENTLY
+   Prose does not go through texmap. A glyph the PDF's ToUnicode names is
+   written out as itself, and if the font lacks it LaTeX only WARNS:
+       Missing character: There is no α (U+03B1) in font [lmroman10-regular]
+   The document still builds, one character short, and nothing says so.
+   Three documents lost a character this way (α, β, ✩).
+
+   MEASURED, NOT GUESSED. 840 candidates — this table, every non-ASCII
+   character the reader emits over the corpus and the 18 outside documents,
+   and the Latin-1, Latin Extended, punctuation, ligature, arrow, operator,
+   Greek and currency blocks — were each set in an \hbox under the preamble
+   this reader derives, and the log read back. 398 render; 442 do not.
+
+   The result is not the one you would guess, which is why it is measured:
+
+       Latin Modern has EVERY GREEK CAPITAL and NO GREEK LOWERCASE.
+       It also has  ×  ÷  ±  ∑  √  ∞  ≈  →  …  €  ∗  ∘  −
+
+   So a table alone is not enough — a declaration for a character the font
+   already has would change output that is correct. Two sets are needed: the
+   translation table (105 entries, by class: the whole Greek block, the
+   operators, the arrows, the stars) and the measured renderable set. A
+   character is declared only when it is in the first and not in the second.
+
+   \newunicodechar, not \DeclareUnicodeCharacter: the latter is inputenc,
+   which is pdfLaTeX-only and does nothing under xelatex — and the form
+   MathPix emits for it, \ifmmode\times\else{$\times$}\fi, opens a maths
+   environment inside one that is already open.
+
+   A character that is in NEITHER set is named in the preamble rather than
+   dropped. That warning has already paid for itself: it reported U+00AD
+   SOFT HYPHEN, which is a hyphenation point and spells `\-`, now in the
+   table.
+
+3. A PRIVATE-USE CODEPOINT IS NOT A CHARACTER
+   HSVA-100jahre emitted U+F075. That is a FONT'S INTERNAL SLOT: the PDF's
+   ToUnicode said this glyph has no Unicode. No font outside that document
+   has it, so it sets nothing, and it disappeared from the output. Removed,
+   and the count and codepoints named in the preamble.
+
+4. A PDF THE READER CANNOT READ LOOKED LIKE A SUCCESS
+   ~/Gemma4/test.pdf produced `glyphs 0, lines 0`, EXIT STATUS 0, and no
+   message. The .tex was \documentclass{article} around a bare \newpage, so
+   xelatex answered "No pages of output" — which reads as a LaTeX fault, not
+   as "nothing was extracted".
+
+   Zero glyphs is not a hard document, it is a DIFFERENT KIND of document:
+   no text layer, so the page is an image and belongs to OCR, not to a glyph
+   reader. The report now names it, the page says it in words, and the exit
+   status is 2.
+
+MEASURED AFTER
+    outside documents   18 of 18 compile clean, 0 dropped characters
+                        (was 5 of 18, 4 dropped characters)
+    corpus markdown     byte-identical in all 102 documents
+    corpus .tex         102 of 102 compile clean
+    tests               478 passing (was 473)
+
+The corpus equation numbers are therefore unchanged by this unit — 61 whole,
+85 dialect-correct, 319 crops — and that is the point: none of these four
+defects was visible from inside it.
+
+ONE ERROR OF MY OWN, RECORDED
+    The private-use warning line begins "% WARNING", and it was built with a
+    `%` format string, so emitting it raised `unsupported format character
+    'W'` and the whole document failed to project. It passed 477 tests,
+    because nothing in the suite had ever produced a private-use codepoint.
+    The run outside the corpus caught it on the first document. There is now
+    a test.

@@ -1,0 +1,72 @@
+721 — step 3, first half: a script row OVERLAPS the row it belongs to
+
+WHAT THE TABLE SOURCE GAVE
+--------------------------
+716-equations.tex carries all three columns as data. Parsed directly, it
+reproduces the reported figures exactly: gold 421, MathPix 417, pdf2mmd
+1281; pdf2mmd exact 7 (7%), within one 19 (19%); MathPix exact 96 (94%),
+within one 99 (97%). Reading the source rather than the rendering is the
+right instrument, and it took one pass.
+
+THE MEASUREMENT THAT LOCATED IT
+-------------------------------
+Worst document, wzlxjtu-091: gold 2, pdf2mmd 33. Its first page emits
+EIGHTY-FIVE display lines. Inspected, they are not equations:
+
+    y=708.34  n=4   sizes [(12.0, 4)]              delimiters only
+    y=697.46  n=17  sizes [(12.0,13),(8.0,4)]      main row
+    y=674.29  n=13  sizes [(12.0,11),(8.0,2)]      main row
+    y=675.41  n=7   sizes [(8.0, 7)]               SCRIPT ROW, alone
+    y=686.29  n=1   sizes [(12.0, 1)]              one delimiter
+
+The script row at y=675.41 sits against a main row whose top is 674.29. The
+gap between them is NEGATIVE: they OVERLAP, as a superscript must.
+
+The display fusion added in 714 required `0 <= gap <= 2.0 em`. A script row
+is never at a non-negative gap from its base, so it never fused, and every
+one became its own display equation.
+
+THE FIX
+-------
+One condition: allow the gap down to -1.5 em.
+
+    102 documents   gold 421
+    blocks   1281 -> 944        ratio 3.04x -> 2.24x
+    exact       7 -> 10  (10%)
+    within 1   19 -> 27  (26%)
+    crops      547 -> 547
+
+Largest single movement in this work so far, from a sign.
+
+ONE CHANGE TRIED AND REVERTED
+-----------------------------
+Between two display blocks on 91.pdf sat `$\bigl($` and
+`$\bigr) \bigl( \bigr)` -- inline spans of pure delimiters, the same noise
+`has_content` refuses in display position, and they break the fusion chain.
+
+Gating `_inline` on `has_content` looked obviously right. Measured: the
+block count did not move AT ALL (947 both ways) and crops rose 548 -> 854,
+because a refused inline span becomes a CROP and the chain then broke on the
+crop exactly as it had on the inline.
+
+Reverted, with the reason recorded in the code. The right treatment is to
+drop such a span silently, which is a change to the caller, not to
+`_inline`. I have not made that change, because "obviously right" is what
+the last one looked like too.
+
+WHERE IT STANDS AGAINST THE THREE SOURCES
+-----------------------------------------
+    gold      421
+    MathPix   417    exact 94%   within one 97%   ratio 0.99x
+    pdf2mmd   944    exact 10%   within one 26%   ratio 2.24x
+
+505 tests passing.
+
+STILL OPEN
+----------
+91.pdf is 25 blocks against a gold of 2. The remaining splits are chains
+broken by material between the rows -- inline fragments, crops -- which the
+incremental emission cannot see past. The structural answer is to group the
+display runs in ONE pass over the lines before emitting anything, the way
+equations.py already does, rather than fusing incrementally. That is a
+refactor, not a threshold.

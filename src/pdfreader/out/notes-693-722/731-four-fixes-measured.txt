@@ -1,0 +1,100 @@
+731 — four geometry fixes, implemented and measured. Patch: 730.patch
+
+Against the pdf2mmd069 payload. Two files, docmodel_six.py and
+project_mmd.py. structure.py is byte-identical to baseline -- none of this
+needed the new pass 727 called for.
+
+    tests   467 passed, 59 skipped   (unchanged)
+
+WHAT WAS WRONG, IN ORDER OF WHAT IT COST
+----------------------------------------
+1. FRACTION BARS WERE BEING CALLED OVERLINES.
+   `_rule_role` requires a fraction's numerator to be its OWN row: no glyph
+   on that baseline outside the bar's x-range. But `\frac{a}{b}+\frac{c}{d}`
+   is an ordinary display and its two numerators SHARE a baseline, so for
+   bar 1 the glyph `c` looks exactly like a text line running across it.
+   Both bars were demoted and neither fraction was ever built.
+
+       author's bars in the gold set   1157
+       classified "fraction"            489  ->  902
+       classified "overline"            685  ->  307
+
+   The fix is the other bar: a glyph covered by a DIFFERENT rule at the same
+   offset is that fraction's part, not this line. Exact geometry, no threshold.
+
+2. STACKED LIMITS NEVER REACHED `_attach_scripts`.
+   structure.py states "no stacked limits above/below big operators" as a
+   limit it does not model. But `_attach_scripts` already treats a bigop as a
+   main glyph and hangs scripts on it -- the limits simply never arrive.
+   Baseline grouping puts the row above and below a `\prod` in rows of their
+   own, exactly as it does a fraction's numerator, and a fraction is rescued
+   only because its bar is evidence that the rows are one line. An operator
+   has no bar. Its evidence is its own geometry: a row wholly inside the
+   operator's column, in smaller type, within a window scaled to the operator.
+
+3. A DISPLAY'S MAIN ROW WAS ARRIVING IN PIECES.
+   wzlxjtu-006, `L=\prod_{i=0}^3 e^{\phi^i K^i}`:
+
+       g4  base=627.61  x=[286.8,328.0]   the raised operator
+       g5  base=620.26  x=[263.1,283.4]   'L='
+       g6  base=620.26  x=[304.0,540.0]   'e(1)'
+
+   g5 and g6 share a baseline EXACTLY. They are one line, split because the
+   `\prod` stands between them on its raised baseline, leaving a 20.6pt hole
+   that reads like a column gutter. Nothing downstream can recover from that.
+   Rejoined only when something STANDS IN THE HOLE at a nearby baseline --
+   two columns of prose also flank a gap; what they lack is a raised glyph in
+   it. Then the operator rejoins the row whose x-range it stands inside.
+
+       069:  four blocks  `L =` / `\prod_{\phi^i K^i}` / `i=0` / `e`
+             with the upper limit `3` outside the display altogether
+       730:  $$ L = \prod_{i=0}^{3} e^{\phi^{i} K^{i}} $$      = gold, exactly
+
+4. THE RUN RULE WAS A VERTICAL GAP.
+   `run_of` fused two display groups when `-1.5*size <= gap <= 2.0*size`,
+   scanning display groups alone and ignoring everything between them. Wrong
+   in both directions: a fraction or a tall delimiter pushes two rows of ONE
+   equation past 2.0*size, and nothing stopped two separate displays with
+   prose between them from fusing.
+
+   Replaced with the look-ahead -- your own instrument, applied in the
+   projector's coordinates where the x of every line is already known. A run
+   ends at a return to the BODY MARGIN. An indented fragment (`$\bigl($`,
+   the 91.pdf case) does not end it; a crop does not; prose does. One guard
+   remains beside it, for two displays with nothing at all between them.
+
+MEASURED -- 421 gold display equations, 102 documents
+-----------------------------------------------------
+                    069        730        MathPix    gold
+    $$ blocks       817        464        417        421
+    \frac emitted   148        177       1129       1157
+
+    stacked, exact    2 (0.7%)   5 (1.8%)  21 (7.5%)
+    stacked, whole    3 (1.1%)   8 (2.8%)  42 (14.9%)
+    flat,    exact   19 (13.6%) 17 (12.1%) 38 (27.1%)
+
+The block count is now within 10% of the author's own structure, from 194%.
+The class that was at zero has moved. Flat lost two, which I have not chased.
+
+WHERE THE REST OF IT GOES -- THE ONE REMAINING LEVER
+-----------------------------------------------------
+    fraction rules classified   902
+    merged into one line        594
+    \frac actually emitted      177
+
+417 fractions are assembled and then thrown away. `to_tex` is all-or-nothing:
+an overline anywhere in the span, one unresolved bar, one glyph `glyph_latex`
+refuses, one `_attach_scripts` refusal -- and the ENTIRE display defers to a
+crop. Counted over the corpus:
+
+    spans deferred (span_to_tex)                7727
+    `_attach_scripts` returned None             4156
+      of which, inside it:
+        full-size glyph off the row baseline    2243
+        leading script with no base             2431
+        same baseline but excluded               925
+    glyph_latex refused a glyph                 2019
+
+"A wrong \frac is worse than a crop" is why it is built that way, and on a
+five-fraction display it means one bad glyph costs all five. That is the next
+unit, and it is a question about the abstention policy, not about geometry.

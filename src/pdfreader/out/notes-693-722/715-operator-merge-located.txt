@@ -1,0 +1,58 @@
+715 — why the operator merge fired zero times: the ordering, not the table
+
+THE USER'S DIAGNOSIS WAS RIGHT AND PRECISE
+------------------------------------------
+His four points, checked one by one:
+
+1. WIRED IN, PRECONDITIONS SATISFIED. Confirmed. `_merge_operator_names` is
+   called on `upright_glyphs`, and 72.pdf's `s`,`u`,`p` are textbook
+   qualifying: all CMR10, size 10.91, baseline 427.74, gaps 0.00. Every
+   condition the pass tests was met. The failure was inside the pass.
+
+2. WHAT FILTERS THE GLYPHS FIRST. This was it. `upright_glyphs` is the whole
+   PAGE's upright glyphs. The pass walks a SEQUENCE, sorting by `rect[0]`
+   alone -- so glyphs from OTHER LINES fall between the letters:
+
+       page-wide x-sort:   s,u,p NOT adjacent
+       within their line:  adjacent, gaps 0.00
+
+   Its sibling passes here, `_merge_enclosures` and `_merge_extenders`, use
+   explicit geometric tests and are order-independent. This one is not, and I
+   gave it the same input without noticing the difference. Fixed: it groups
+   by baseline first and walks each line.
+
+3. THE NAME TABLE. Ruled out. `operator_name("sup")` returned `\sup`
+   throughout. His alternative hypothesis fit the observed zero exactly, and
+   was wrong -- but it was worth stating, and checking it took one call.
+
+4. NO STALE COPY. Confirmed; modules load from the working directory.
+
+A SECOND DEFECT THE FIX EXPOSED
+-------------------------------
+With the run merging, output was `\text{\max}` -- the merged glyph kept the
+TEXT family it inherited from its letters, so the text path wrapped it and
+the command rendered literally. A log-like operator is maths. Set to
+math-symbol.
+
+EFFECT
+------
+    45 files: operator tokens 73 across 22 documents   (was 0 across 0)
+
+THE SIBLING PASS
+----------------
+`structure._merge_operator_runs` exists and handles a different case --
+`Spin`, `Cl`, `Tr` as `\mathbf{}`/`\mathrm{}` group and algebra names, bold
+vs roman deciding which. It runs per-span, where the ordering is already
+correct. The two do not overlap and neither is redundant, but having two
+passes with near-identical names doing related work in different modules is
+an invitation to exactly this kind of mistake.
+
+WHAT THIS SAYS ABOUT THE ZERO
+-----------------------------
+713 recorded "0 operator tokens, and here is the honest reason: the corpus's
+runs are maths italic". That reason was real -- the `min` in `\lambda_{min}`
+IS italic and correctly not merged -- but it was not the whole reason, and I
+stopped at the first explanation that fit. The user did not, and the second
+cause was the one that mattered.
+
+485 tests passing.

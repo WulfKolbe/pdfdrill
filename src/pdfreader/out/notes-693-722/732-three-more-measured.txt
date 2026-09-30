@@ -1,0 +1,71 @@
+732 — three more fixes, measured. Patch: 731.patch (against the 070 payload)
+
+docmodel_six.py and structure.py. +96 lines, -5.
+tests 467 passed, 59 skipped.
+
+I went after the biggest NAMED non-implementation rather than the abstention
+policy, because the abstention change buys at most a third and this was sitting
+in the refusal counts with a comment pointing at it.
+
+5. `\sqrt` WAS NEVER MODELLED AT ALL.
+   `to_tex` refused any span containing a radical glyph outright -- one line,
+   `# see LIMITS`. Cost: 828 refusals across the 102 documents. The author
+   wrote 70 roots in 41 equations, 9.7% of the corpus, and not one could ever
+   be read. MathPix reads 68 of the 70.
+
+   The machinery was already there. A radical is `_merge_overlines`' own shape
+   -- a bar with glyphs below and nothing above -- plus a sign immediately to
+   the bar's LEFT. TeX starts the vinculum exactly at the sign's right edge
+   (161.6 to 161.6, measured on wzlxjtu-020), so the pairing is not a guess.
+   The blanket guard MOVED below the merge rather than away: a radical that
+   found no vinculum still defers exactly as before.
+
+6. BIG DELIMITERS AND RADICAL SIGNS ARE THE SAME FURNITURE AS A BIG OPERATOR.
+   wzlxjtu-020 sets `\delta(\sqrt{\gamma}L_{ren})` as two bands:
+
+       base 480.8   parenleftbig@146  radical@152  parenrightbig@189
+       base 470.9   delta@139  gamma@162  L@168  r@177  e@180  n@184
+
+   Everything tall on one band, everything it encloses on the other. 731's
+   operator rejoin only recognised `tex.kind == "bigop"`, so a band of pure
+   furniture never rejoined the row it was furniture FOR. `_attach_scripts`
+   already groups "bigop" and "delimiter" together for this exact reason.
+
+7. A RADICAL SIGN NOW FOLLOWS ITS VINCULUM.
+   Being raised, the sign can be grouped with the row ABOVE the one it belongs
+   to. That left an unpaired radical on a row that had otherwise assembled
+   correctly -- and an unpaired radical defers the whole span, so a good row
+   was thrown away for a glyph that was never its own.
+
+MEASURED — 421 gold display equations, 102 documents
+-----------------------------------------------------
+                  069      730      732     MathPix   gold
+    $$ blocks     817      464      421       417      421
+    ratio        1.94x    1.10x    1.00x     0.99x
+    crops         548      463      452         0
+    \frac         148      177      179      1129     1157
+    \sqrt           0        0        8        68       70
+
+    delivered whole   27 (6.4%)  31 (7.4%)  34 (8.1%)   96 (22.8%)
+      flat  exact     19         17         18          38
+      stacked exact    2          5          6          21
+
+The block count is now the author's own, exactly: 421 against 421, from 817.
+Segmentation is finished. Delivery is 8.1% against MathPix's 22.8%.
+
+WHAT DID NOT WORK, SO NOBODY REPEATS IT
+---------------------------------------
+`\sqrt` emits 8, not 70. The rest are roots INSIDE fractions, where the
+vinculum is not in the span's rule list at all -- the span carries the
+fraction bar and the radicand, and the root's own bar went elsewhere. That is
+rule-to-line assignment, not the radical pass, and I did not chase it further
+tonight.
+
+THE ABSTENTION SPLIT, WHICH IS STILL THE MAIN LEVER
+----------------------------------------------------
+Your 61/29/11 stands and it is the right frame. Partial emission addresses the
+29% where exactly one glyph refused. The 61% with every glyph projecting is
+`_attach_scripts` and still needs the pass 727 called for. What 732 shows is
+that a useful part of that 61% is not the pass at all -- it is rows arriving
+in pieces, which is fixable one shape at a time in the grouper, and three more
+shapes came out tonight.
