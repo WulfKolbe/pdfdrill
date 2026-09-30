@@ -433,6 +433,70 @@ def mathpix_to_raster(x: float, y: float, w: float, h: float, *,
 # 2. Attachments (pdfdetach + pypdf)
 # ---------------------------------------------------------------------------
 
+def render_regions(pdf: Path, dest: Path, want: dict, dims: dict, *,
+                   dpi: int = 400, post=None) -> tuple[int, int]:
+    r"""Cut rectangles out of rasterized pages. Returns (rendered, skipped).
+
+    836 — extracted from `report_tex.render_crops`, which was the only thing
+    that knew how to turn a region into a picture. Seam 2 of the pdf2mmd
+    integration spec needs the same operation for the glyph reader's LaTeX
+    projection, which emits `http://localhost:8000/cropped/...` URLs where a
+    compiled document needs files on disk. Two callers, one implementation:
+    the alternative is a second rasterize-and-crop that gets the CropBox, the
+    per-page scale or the resize wrong in its own way.
+
+    `want` is {page: [(outfile, (x, y, w, h), tag), ...]} with the rectangle in
+    the SAME pixel space as `dims[page]` — MathPix's page pixels for a MathPix
+    model, `PX_PER_PT` points-scaled pixels for the glyph reader. `dims` is
+    {page: (width, height)} in that space; a page missing from it never
+    reaches here, because cropping it wrongly is worse than not cropping it.
+
+    `post(outfile, tag)` runs after each successful save — left-trimming and
+    provenance bookkeeping belong to the caller, not to the cut.
+    """
+    from PIL import Image
+    import shutil as _sh
+    import re as _re
+    dest = Path(dest)
+    dest.mkdir(parents=True, exist_ok=True)
+    rendered = skipped = 0
+    # ONE rasterize call for the pages actually needed. kohlhase-omdoc has 103
+    # table rows; a Ghostscript run per row is 103 runs over ~40 pages.
+    pages_dir = dest / "_pages"
+    _sh.rmtree(pages_dir, ignore_errors=True)
+    imgs = rasterize(pdf, pages_dir, pages=sorted(want), dpi=dpi,
+                     use_cropbox=True)
+    # PARSE the page out of the filename rather than zipping against the
+    # request. rasterize globs its output directory, so a stale page left by a
+    # crashed run would shift every pairing by one and crop each region from
+    # its neighbour's page — plausible-looking and wrong.
+    by_page = {}
+    for f in (imgs or []):
+        m = _re.search(r"page-(\d+)\.", f.name)
+        if m:
+            by_page[int(m.group(1))] = f
+    for page, jobs in want.items():
+        src = by_page.get(page)
+        if src is None:
+            skipped += len(jobs)
+            continue
+        im = Image.open(src).convert("RGB")
+        for out, (x, y, w, h), tag in jobs:
+            box = mathpix_to_raster(x, y, w, h, raster_size=im.size,
+                                    mathpix_size=dims[page])
+            if box is None:
+                skipped += 1
+                continue
+            im.crop(box).resize((w, h), Image.LANCZOS).save(out, quality=92)
+            if post is not None:
+                post(out, tag)
+            rendered += 1
+    # the rasterized pages are the largest thing this writes and nothing reads
+    # them afterwards
+    _sh.rmtree(pages_dir, ignore_errors=True)
+    return rendered, skipped
+
+
 def list_attachments(pdf: Path) -> tuple[list[dict[str, Any]], str]:
     """List embedded files. Prefer `pdfdetach -list`; fall back to pypdf's
     document-level attachments. Returns (items, source_used)."""

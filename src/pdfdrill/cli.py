@@ -984,6 +984,7 @@ def _opt(args, name):
 def _do_model(args):
     """pdfdrill model <pdf> [--bibkey KEY] [--force] [--ledger]
     [--force-discard-translation] [--force-discard-enrichments] [--no-source]
+    [--reader glyphs|mathpix]
 
     431 — BOTH overrides are wired here. `force_discard_translation` was a
     parameter of cmd_model that no CLI path could set, so the refusal it
@@ -993,6 +994,8 @@ def _do_model(args):
     """
     from .commands import cmd_model, model_ledger
     bibkey, args = _opt(args, "--bibkey")
+    # 836 — phase 4: two readers, one command.
+    reader, args = _opt(args, "--reader")
     flags = ("--force", "--force-discard-translation",
              "--force-discard-enrichments", "--ledger", "--no-source")
     pdf_args = [a for a in args if a not in flags]
@@ -1007,7 +1010,7 @@ def _do_model(args):
         _pdf(pdf_args), force="--force" in args, bibkey=bibkey,
         force_discard_translation="--force-discard-translation" in args,
         force_discard_enrichments="--force-discard-enrichments" in args,
-        no_source="--no-source" in args)
+        no_source="--no-source" in args, reader=reader)
 
 
 def _do_compare(args):

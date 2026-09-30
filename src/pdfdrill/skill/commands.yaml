@@ -1097,6 +1097,10 @@ commands:
     required: true
     help: PDF path, https URL, or bare arXiv id
   flags:
+  - name: reader
+    flag: --reader
+    type: str
+    help: 'name the reading to build from: `glyphs` re-reads the PDF with our own glyph reader (free, keyless, offline) and builds from that; `mathpix` builds from a MathPix lines.json you already have and REFUSES rather than buying one. Both imply --no-source, because naming a reader means measuring that reader. Two readers, one command.'
   - name: no_source
     flag: --no-source
     type: flag

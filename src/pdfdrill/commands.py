@@ -5397,7 +5397,7 @@ def model_ledger(pdf: Path) -> str:
 def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
               force_discard_translation: bool = False,
               force_discard_enrichments: bool = False,
-              no_source: bool = False) -> str:
+              no_source: bool = False, reader: "str | None" = None) -> str:
     """Build the unified docmodel Document from MathPix lines.json.
 
     Auto-chains `mathpix` if the lines.json isn't there yet. Writes the
@@ -5408,8 +5408,46 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
     used by `tiddlers`/`report`/`compare`; it is persisted in the sidecar so
     later commands reuse it without re-passing `--bibkey`. Defaults to the
     filename stem (preserving clean arXiv ids like `2004.05631v1`).
+
+    `reader` NAMES THE READING TO BUILD FROM — phase 4 of the pdf2mmd
+    integration spec, and the whole point of absorbing the glyph reader: two
+    readers, ONE command, so a change to either is measured the same way.
+
+      * `glyphs`  — re-read the PDF with `src/pdfreader/` (free, keyless,
+                    offline) and build from that.
+      * `mathpix` — build from the MathPix lines.json, and REFUSE rather than
+                    buy one. A paid step is never auto-run (`planner.network_commands`).
+
+    Both imply `no_source`. On an arXiv paper the author's LaTeX is the
+    richest input there is and `prefers_merged_route` takes it, which would
+    make `--reader` name a reading that never happened — the comparison would
+    silently be source-against-source. Naming a reader means measuring THAT
+    reader, so the source lane steps aside.
     """
     from docmodel.main import run as build_model, DEFAULT_CONFIG_PATH
+
+    if reader is not None:
+        if reader not in ("glyphs", "mathpix"):
+            return ("model --reader takes `glyphs` or `mathpix`, not %r. "
+                    "`glyphs` is our own reader (free, offline); `mathpix` "
+                    "builds from a conversion you already paid for." % reader)
+        no_source = True                  # see the docstring: measure THAT reader
+        lp = _lines_json_path(pdf)
+        if reader == "mathpix":
+            if not (lp.exists() and _is_mathpix_lines(lp)):
+                return ("model --reader mathpix: no MathPix lines.json beside "
+                        "%s. This step is paid and is never run for you — "
+                        "`pdfdrill mathpix %s` first, then repeat this."
+                        % (pdf.name, pdf.stem))
+        else:
+            # --force is implied: naming the reader IS the instruction to
+            # re-read. Without it a MathPix lines.json already on disk would
+            # be kept and the build would measure MathPix under the other
+            # reader's name.
+            msg = cmd_glyphlines(pdf, force=True)
+            if "could not read" in msg or "yielded" in msg:
+                return msg
+            force = True
 
     sc = Sidecar(pdf)
     blocked = model_rebuild_blocked(

@@ -3014,9 +3014,9 @@ def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,
     from . import pdf_reading
     from .refine import mathpix_page_dims
     try:
-        from PIL import Image
+        from PIL import Image                                    # noqa: F401
     except Exception:
-        return 0, 0, 0
+        return 0, 0, 0     # the probe: without PIL nothing here can be cut
     pdf = Path(pdf)
     dest = Path(dest)
     dims = mathpix_page_dims(pdf.parent)
@@ -3072,52 +3072,28 @@ def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,
         if box[2] <= 0 or box[3] <= 0 or page not in dims:
             skipped += 1
             continue
-        want.setdefault(page, []).append((f, box, title, key))
+        want.setdefault(page, []).append((f, box, (title, key)))
     if not want:
         if geom_dirty:
             dest.mkdir(parents=True, exist_ok=True)
             _save_crop_geometry(geom_path, geom)
         return rendered, cached, skipped
-    dest.mkdir(parents=True, exist_ok=True)
-    # ONE rasterize call for the pages actually needed. kohlhase-omdoc has 103
-    # table rows; a Ghostscript run per row is 103 runs over ~40 pages.
-    pages = sorted(want)
-    shutil_rmtree_first = dest / "_pages"
-    import shutil as _sh
-    _sh.rmtree(shutil_rmtree_first, ignore_errors=True)
-    imgs = pdf_reading.rasterize(pdf, shutil_rmtree_first, pages=pages, dpi=dpi,
-                                 use_cropbox=True)
-    # PARSE the page out of the filename rather than zipping against the
-    # request. rasterize globs its output directory, so a stale page left by a
-    # crashed run would shift every pairing by one and crop each region from
-    # its neighbour's page — plausible-looking and wrong.
-    by_page = {}
-    for f in (imgs or []):
-        m = re.search(r"page-(\d+)\.", f.name)
-        if m:
-            by_page[int(m.group(1))] = f
-    for page, jobs in want.items():
-        src = by_page.get(page)
-        if src is None:
-            skipped += len(jobs)
-            continue
-        im = Image.open(src).convert("RGB")
-        for f, (x, y, w, h), title, key in jobs:
-            box = pdf_reading.mathpix_to_raster(
-                x, y, w, h, raster_size=im.size, mathpix_size=dims[page])
-            if box is None:
-                skipped += 1
-                continue
-            im.crop(box).resize((w, h), Image.LANCZOS).save(f, quality=92)
-            if trim:
-                _pad_top(f)
-            geom[title] = key
-            geom_dirty = True
-            rendered += 1
-    # the rasterized pages are the largest thing this writes and nothing reads
-    # them afterwards
-    _sh.rmtree(dest / "_pages", ignore_errors=True)
-    if geom_dirty:
+    def _post(f, title_key):
+        if trim:
+            _pad_top(f)
+        title, key = title_key
+        geom[title] = key
+
+    # 836 — THE CUTTING ITSELF LIVES IN `pdf_reading`, not here. It is a
+    # PDF-reading primitive ("rasterize these pages, cut these rectangles out
+    # of them"), and seam 2 of the integration spec needs the same primitive
+    # for the glyph reader's LaTeX projection, which emits crop URLs where it
+    # should emit files. One implementation, two callers.
+    r, sk = pdf_reading.render_regions(pdf, dest, want, dims, dpi=dpi,
+                                       post=_post)
+    rendered += r
+    skipped += sk
+    if rendered or geom_dirty:
         _save_crop_geometry(geom_path, geom)
     return rendered, cached, skipped
 
