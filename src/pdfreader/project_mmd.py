@@ -44,16 +44,44 @@ from pdfreader.docmodel_six import GlyphNode, LineNode, PageNode
 DEFAULT_PX_PER_PT = docmodel.PX_PER_PT
 
 
+def crop_box(rect, page: PageNode,
+             px_per_pt: float = DEFAULT_PX_PER_PT) -> tuple:
+    """(left, top, width, height) in page-image pixels, y DOWN, for a rect
+    given in PDF points, y up.
+
+    836 — the conversion, separated from the URL that used to be the only
+    thing that did it. `render_regions` wants the numbers; only a reader with
+    a server wants them spelled into a query string.
+    """
+    x0, y0, x1, y1 = rect
+    page_top = page.rect[3]
+    return (int(round(x0 * px_per_pt)),
+            int(round((page_top - y1) * px_per_pt)),
+            max(1, int(round((x1 - x0) * px_per_pt))),
+            max(1, int(round((y1 - y0) * px_per_pt))))
+
+
+def crop_id(doc_id: str, page: int) -> str:
+    """The one crop id, `<bibkey>-<page:02d>`.
+
+    836, seam 3 of the integration spec. This used to be `{doc_id}g-{page}`,
+    and pdfdrill's crop manifest has always written `<bibkey>-<page:02d>`, so
+    the Markdown this reader produced could not resolve against the server
+    pdfdrill's `inspect` feeds: 404, with a helpful message pointing at the
+    wrong fix. The `g` and the unpadded page were the two halves of it.
+
+    Both forms parse the same way at the server (`inspectserver.page_of`
+    falls back to the trailing integer), so this is a rename, not a protocol
+    change — but there is now ONE name, which is the point.
+    """
+    return f"{doc_id}-{page:02d}"
+
+
 def crop_url(rect, page: PageNode, doc_id: str, base: str,
              px_per_pt: float = DEFAULT_PX_PER_PT) -> str:
     """A Mathpix-syntax crop URL for a rect given in PDF points (y up)."""
-    x0, y0, x1, y1 = rect
-    page_top = page.rect[3]
-    left = int(round(x0 * px_per_pt))
-    top = int(round((page_top - y1) * px_per_pt))
-    width = max(1, int(round((x1 - x0) * px_per_pt)))
-    height = max(1, int(round((y1 - y0) * px_per_pt)))
-    return (f"{base.rstrip('/')}/cropped/{doc_id}g-{page.page}.jpg"
+    left, top, width, height = crop_box(rect, page, px_per_pt)
+    return (f"{base.rstrip('/')}/cropped/{crop_id(doc_id, page.page)}.jpg"
             f"?height={height}&width={width}"
             f"&top_left_y={top}&top_left_x={left}")
 
@@ -2139,8 +2167,19 @@ def to_latex(pages: list[PageNode], doc_id: str = "pdfdrill",
              base: str = "http://localhost:8000",
              px_per_pt: float = DEFAULT_PX_PER_PT,
              preamble: bool = True,
-             unicode_fonts: bool = False) -> str:
-    """LaTeX using the same crop URLs inside \\includegraphics, as Mathpix does.
+             unicode_fonts: bool = False,
+             crop_ref=None) -> str:
+    r"""LaTeX for these pages, with a PREAMBLE derived from the symbols used.
+
+    836, seam 2 of the integration spec — `crop_ref(rect, page)` decides what
+    goes inside `\includegraphics{}`. A COMPILED DOCUMENT NEEDS FILES: with no
+    `crop_ref` this emitted 324 of 324 images as `http://localhost:8000/...`
+    URLs, so the `.tex` compiled in nonstopmode with every image missing and
+    looked like it had worked. The Markdown keeps the URLs — a reader with a
+    server is the point there — and only the LaTeX is given files.
+
+    A `crop_ref` returning "" or None drops the figure rather than emitting a
+    reference to a file that was not written.
 
     With a PREAMBLE derived from the symbols actually used. We can do this
     because every symbol we emit was chosen from a known font, and the font
@@ -2228,15 +2267,22 @@ def to_latex(pages: list[PageNode], doc_id: str = "pdfdrill",
                     raw.append(balance_delims(tex))
                 else:
                     only_math = False
-                    url = crop_url(sp.rect, p, doc_id, base, px_per_pt)
-                    parts.append(
-                        "\n".join([
-                            r"\begin{figure}[H]",
-                            rf"  \includegraphics[alt={{}},max width=\textwidth]{{{url}}}",
-                            rf"  % unprojected: {sp.id} {docmodel.span_reason(sp)}",
-                            r"\end{figure}",
-                        ])
-                    )
+                    ref = (crop_ref(sp.rect, p) if crop_ref is not None
+                           else crop_url(sp.rect, p, doc_id, base, px_per_pt))
+                    if not ref:
+                        # the crop was not written; say so rather than point
+                        # `\includegraphics` at a file that is not there
+                        parts.append(
+                            rf"% uncropped: {sp.id} {docmodel.span_reason(sp)}")
+                    else:
+                        parts.append(
+                            "\n".join([
+                                r"\begin{figure}[H]",
+                                rf"  \includegraphics[alt={{}},max width=\textwidth]{{{ref}}}",
+                                rf"  % unprojected: {sp.id} {docmodel.span_reason(sp)}",
+                                r"\end{figure}",
+                            ])
+                        )
             body = " ".join(x for x in parts if x)
             # 751 — THE LaTeX PROJECTION HAD NO DISPLAY EQUATIONS AT ALL.
             #

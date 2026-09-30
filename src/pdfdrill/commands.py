@@ -15103,7 +15103,8 @@ def cmd_glyphlines(pdf: Path, force: bool = False) -> str:
     # pdfminer it needs is the one this environment already has.
     from pdfreader import docmodel_six as _dm
     try:
-        data = _dm.to_lines_json(_dm.build(str(pdf)), doc_id=key)
+        pages = _dm.build(str(pdf))
+        data = _dm.to_lines_json(pages, doc_id=key)
     except Exception as e:                                   # noqa: BLE001
         return f"glyphlines: could not read {pdf.name} — {e}"
 
@@ -15119,14 +15120,87 @@ def cmd_glyphlines(pdf: Path, force: bool = False) -> str:
     for pg in data["pages"]:
         for ln in pg["lines"]:
             counts[ln["type"]] = counts.get(ln["type"], 0) + 1
+    proj = _glyph_projections(pdf, pages, key)
     sc.set_evidence("glyphlines", {"lines": n_lines, "types": counts})
     sc.save()
     shape = ", ".join(f"{k} {v}" for k, v in
                       sorted(counts.items(), key=lambda kv: -kv[1]))
     return (f"glyphlines: read {pdf.name} with the glyph reader — {len(data['pages'])} "
             f"page(s), {n_lines} typed line(s) ({shape}). Wrote "
-            f"{lines_path.name}. Next: `pdfdrill model {pdf.name}` builds the "
-            f"docmodel from it; every projection follows.")
+            f"{lines_path.name}{proj}. Next: `pdfdrill model {pdf.name}` builds "
+            f"the docmodel from it; every projection follows.")
+
+
+def _glyph_projections(pdf: Path, pages, key: str) -> str:
+    r"""The glyph reader's OWN .md and .tex, beside its lines.json.
+
+    836, seams 2 and 5. These were produced only by `src/pdfreader/pdf2mmd.py`,
+    whose `main()` no longer has a console script or a CLI route — 835 retired
+    the program and left its projections unreachable. They are worth having:
+    the Markdown is the reading as a reader sees it, and the LaTeX is the one
+    output that can be COMPILED and therefore checked.
+
+    THE LaTeX GETS FILES, THE MARKDOWN KEEPS URLS. Measured before the change:
+    the `.tex` emitted 324 of 324 images as `http://localhost:8000/cropped/...`,
+    so it compiled in nonstopmode with every image missing and looked like it
+    had worked. A reader with a server is the point of the Markdown; a
+    document that compiles is the point of the LaTeX.
+
+    Named `.glyphs.md` / `.glyphs.tex` so they never stand where `markdown`
+    and `latex` (projections of the Document, a different artefact) write.
+    """
+    from pdfreader import project_mmd as _mmd
+    out = []
+    stem = pdf.with_suffix("")
+    try:
+        (stem.parent / (stem.name + ".glyphs.md")).write_text(
+            _mmd.to_markdown(pages, doc_id=key), encoding="utf-8")
+        out.append(f"{stem.name}.glyphs.md")
+    except Exception:                                        # noqa: BLE001
+        pass
+    # The crops the LaTeX will point at, cut from the PDF by the one cutter.
+    dest = pdf.parent / "glyph-crops"
+    want: dict = {}
+    by_rect: dict = {}          # (page, rect) -> the path the .tex will name
+    for pg in pages:
+        for ln in getattr(pg, "lines", []):
+            for sp in ln.spans:
+                if sp.kind != "math" or _mmd.docmodel.span_latex(sp) is not None:
+                    continue
+                name = "%s-%s.jpg" % (_mmd.crop_id(key, pg.page), sp.id)
+                by_rect[(pg.page, tuple(sp.rect))] = "glyph-crops/" + name
+                want.setdefault(pg.page, []).append(
+                    (dest / name, _mmd.crop_box(sp.rect, pg), None))
+    rendered = 0
+    if want:
+        from . import pdf_reading as _pr
+        # `crop_box` scales PDF points by PX_PER_PT, so the page dimensions
+        # must be scaled by the SAME factor — `render_regions` reads the two
+        # as one coordinate space and a mismatch lands every rectangle off
+        # the page while still looking plausible.
+        dims = {pg.page: (int(round(pg.rect[2] * _mmd.DEFAULT_PX_PER_PT)),
+                          int(round(pg.rect[3] * _mmd.DEFAULT_PX_PER_PT)))
+                for pg in pages}
+        try:
+            rendered, _sk = _pr.render_regions(pdf, dest, want, dims, dpi=400)
+        except Exception:                                    # noqa: BLE001
+            rendered = 0
+
+    def _ref(rect, page, _m=by_rect):
+        """The file, or "" — checked ON DISK. A reference to a crop that was
+        not written is the defect this seam exists to remove, and emitting one
+        for a rectangle `render_regions` skipped would just move it."""
+        r = _m.get((page.page, tuple(rect)))
+        return r if r and (pdf.parent / r).is_file() else ""
+
+    try:
+        (stem.parent / (stem.name + ".glyphs.tex")).write_text(
+            _mmd.to_latex(pages, doc_id=key, crop_ref=_ref), encoding="utf-8")
+        out.append("%s.glyphs.tex (%d crop%s)"
+                   % (stem.name, rendered, "" if rendered == 1 else "s"))
+    except Exception:                                        # noqa: BLE001
+        pass
+    return (", " + ", ".join(out)) if out else ""
 
 
 def cmd_fonts(pdf: Path, force: bool = False) -> str:
