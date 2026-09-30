@@ -27,11 +27,11 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import docmodel_six as docmodel
-import provenance
-import docpack
-import equations as eqmod                                            # noqa: E402
-import project_mmd as mmd                                  # noqa: E402
+from pdfreader import docmodel_six as docmodel
+from pdfreader import provenance
+from pdfreader import docpack
+from pdfreader import equations as eqmod                                            # noqa: E402
+from pdfreader import project_mmd as mmd                                  # noqa: E402
 
 
 def parse_pages(spec: str | None, total: int):

@@ -27,7 +27,7 @@ Measured on that document, pdf2mmd only:
 Checked against MathPix on the same file, which is the reason this is worth
 having: the paid route reads the same document with the same two failures.
 """
-import texmap
+from pdfreader import texmap
 
 
 def fam(name):

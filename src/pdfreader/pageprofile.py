@@ -46,7 +46,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-import texmap
+from pdfreader import texmap
 
 #: Below this many loose monospace glyphs, a page is not "inline code" --
 #: a single `\texttt{n}` in a paragraph is not a property of the page.

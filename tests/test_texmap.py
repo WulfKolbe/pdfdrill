@@ -7,8 +7,8 @@ assert behaviour.
 
 import pytest
 
-import texmap
-from texmap import UNKNOWN, project
+from pdfreader import texmap
+from pdfreader.texmap import UNKNOWN, project
 
 
 class TestFamilySelectsTheAlphabet:
@@ -238,26 +238,26 @@ class TestGreekLivesInTheRomanFont:
     """
 
     def test_uppercase_greek_from_any_font(self):
-        from texmap import greek_latex
+        from pdfreader.texmap import greek_latex
         for name, want in (("Gamma", r"\Gamma"), ("Phi", r"\Phi"),
                            ("Omega", r"\Omega"), ("Lambda", r"\Lambda")):
             assert greek_latex(name) == want, name
 
     def test_lowercase_and_variants_too(self):
-        from texmap import greek_latex
+        from pdfreader.texmap import greek_latex
         assert greek_latex("alpha") == r"\alpha"
         assert greek_latex("theta1") == r"\vartheta"
 
     def test_non_greek_names_are_not_claimed(self):
-        from texmap import greek_latex
+        from pdfreader.texmap import greek_latex
         for name in ("star", "lscript", "A", "circlemultiply", None, ""):
             assert greek_latex(name) is None, name
 
 
 class TestGreekGlyphsAreMaths:
     def test_greek_in_a_text_font_counts_as_maths(self):
-        from docmodel_six import GlyphNode
-        from texmap import project
+        from pdfreader.docmodel_six import GlyphNode
+        from pdfreader.texmap import project
         n = GlyphNode(id="g", page=1, rect=(0, 0, 8, 12), text="\u0393",
                       cid=0, glyphname="Gamma", fontname="ABC+CMR12",
                       family="text-cm", size=12.0,
@@ -265,8 +265,8 @@ class TestGreekGlyphsAreMaths:
         assert n.is_math, "a Greek letter is maths whatever font carries it"
 
     def test_it_projects_to_the_command(self):
-        from docmodel_six import GlyphNode, glyph_latex
-        from texmap import project
+        from pdfreader.docmodel_six import GlyphNode, glyph_latex
+        from pdfreader.texmap import project
         n = GlyphNode(id="g", page=1, rect=(0, 0, 8, 12), text="\u0393",
                       cid=0, glyphname="Gamma", fontname="ABC+CMR12",
                       family="text-cm", size=12.0,
@@ -300,18 +300,18 @@ class TestAccentSizesAndSlantedRelations:
 
 class TestMonospaceDetection:
     def test_tex_typewriter_faces(self):
-        from texmap import is_monospace
+        from pdfreader.texmap import is_monospace
         for name in ("CMTT10", "ABC+CMTT9", "CMSLTT10", "CMITT10"):
             assert is_monospace(name), name
 
     def test_common_mono_faces(self):
-        from texmap import is_monospace
+        from pdfreader.texmap import is_monospace
         for name in ("Courier", "Courier-Bold", "Consolas", "Inconsolata",
                      "DejaVuSansMono", "Menlo"):
             assert is_monospace(name), name
 
     def test_proportional_faces_are_not(self):
-        from texmap import is_monospace
+        from pdfreader.texmap import is_monospace
         for name in ("CMR10", "CMMI7", "CMBX12", "Times-Roman", "Helvetica"):
             assert not is_monospace(name), name
 
@@ -332,20 +332,20 @@ class TestMeasuredMonospace:
         return out
 
     def test_a_uniform_face_is_monospace(self):
-        from texmap import measure_monospace
+        from pdfreader.texmap import measure_monospace
         s = self._samples("lmt-regular", [0.525] * 9 + [0.344],
                           "abcdefghijklmnop")
         assert "lmt-regular" in measure_monospace(s)
 
     def test_a_proportional_face_is_not(self):
-        from texmap import measure_monospace
+        from pdfreader.texmap import measure_monospace
         s = self._samples("t1-uni-regular", [0.556, 0.611, 0.278, 0.333],
                           "abcdefghijklmnop")
         assert "t1-uni-regular" not in measure_monospace(s)
 
     def test_a_font_used_only_for_spaces_is_not(self):
         """Uniform by accident: 517 glyphs, all of them spaces."""
-        from texmap import measure_monospace
+        from pdfreader.texmap import measure_monospace
         s = [("ABC+LMRoman10", 3.33, 10.0, " ")] * 200
         assert "LMRoman10" not in measure_monospace(s)
 
@@ -353,12 +353,12 @@ class TestMeasuredMonospace:
         """Measured: CMR8 is 0.930 uniform with only 4 letters among its 17
         characters -- uniform by accident. Uniformity alone cannot tell it
         from a real typewriter face at 0.920; the alphabet can."""
-        from texmap import measure_monospace
+        from pdfreader.texmap import measure_monospace
         s = self._samples("CMR8", [0.5], "()+012345678=dmo")
         assert "CMR8" not in measure_monospace(s)
 
     def test_measurement_overrides_the_name(self):
-        from texmap import is_monospace, set_measured_monospace
+        from pdfreader.texmap import is_monospace, set_measured_monospace
         try:
             set_measured_monospace({"t1-uni-regular"})
             assert is_monospace("ABC+t1-uni-regular")
@@ -376,47 +376,47 @@ class TestUnicodeNamedGlyphs:
     """
 
     def test_codepoint_is_read_from_the_name(self):
-        from texmap import codepoint_of
+        from pdfreader.texmap import codepoint_of
         assert codepoint_of("u1D460") == 0x1D460
         assert codepoint_of("uni2032") == 0x2032
 
     def test_a_variant_suffix_is_tolerated(self):
         """`uni2032.var` is how a font names a second design of one
         character."""
-        from texmap import codepoint_of
+        from pdfreader.texmap import codepoint_of
         assert codepoint_of("uni2032.var") == 0x2032
 
     def test_a_postscript_name_is_not_a_codepoint(self):
-        from texmap import codepoint_of
+        from pdfreader.texmap import codepoint_of
         assert codepoint_of("alpha") is None
         assert codepoint_of("space") is None
 
     def test_mathematical_italic_letters_decompose(self):
         """U+1D460 is MATHEMATICAL ITALIC SMALL S; maths italic is already
         the default, so the letter alone is right."""
-        from texmap import unicode_latex
+        from pdfreader.texmap import unicode_latex
         assert unicode_latex("u1D460") == "s"
         assert unicode_latex("u1D454") == "g"
 
     def test_mathematical_italic_greek_decomposes(self):
-        from texmap import unicode_latex
+        from pdfreader.texmap import unicode_latex
         assert unicode_latex("u1D708") == r"\nu"
         assert unicode_latex("u1D6FF") == r"\delta"
 
     def test_styled_alphabets_keep_their_style(self):
-        from texmap import unicode_latex
+        from pdfreader.texmap import unicode_latex
         assert unicode_latex("u1D538") == r"\mathbb{A}"
         assert unicode_latex("u1D49C") == r"\mathcal{A}"
         assert unicode_latex("u1D400") == r"\mathbf{A}"
 
     def test_ordinary_maths_operators(self):
-        from texmap import unicode_latex
+        from pdfreader.texmap import unicode_latex
         assert unicode_latex("uni2032") == r"\prime"
         assert unicode_latex("uni2264") == r"\leq"
         assert unicode_latex("uni2208") == r"\in"
 
     def test_an_unknown_codepoint_defers(self):
-        from texmap import unicode_latex
+        from pdfreader.texmap import unicode_latex
         assert unicode_latex("uniE000") is None      # private use area
 
 
@@ -438,17 +438,17 @@ class TestMathSpacing:
     """
 
     def test_a_negative_gap_is_an_explicit_kern(self):
-        from texmap import math_space
+        from pdfreader.texmap import math_space
         assert math_space(-0.167) == r"\!"
 
     def test_abutting_glyphs_get_no_space(self):
         """`$ab$` must not become `$a b$`."""
-        from texmap import math_space
+        from pdfreader.texmap import math_space
         assert math_space(0.0) == ""
         assert math_space(0.05) == ""
 
     def test_an_ordinary_gap_is_an_ordinary_space(self):
-        from texmap import math_space
+        from pdfreader.texmap import math_space
         assert math_space(0.167) == " "
         assert math_space(0.333) == " "
 
@@ -456,12 +456,12 @@ class TestMathSpacing:
         """4mu and 5mu are what TeX puts round a binary operator and a
         relation; emitting `\\:`/`\\;` there would double the spacing on
         recompile."""
-        from texmap import math_space
+        from pdfreader.texmap import math_space
         assert math_space(0.222) == " "
         assert math_space(0.278) == " "
 
     def test_an_alignment_gap_is_not_a_quad(self):
-        from texmap import math_space
+        from pdfreader.texmap import math_space
         assert math_space(1.0) == " "
         assert math_space(2.0) == " "
 
@@ -476,24 +476,24 @@ class TestLatinModernIsMaths:
     """
 
     def test_lm_maths_italic(self):
-        from texmap import family_of
+        from pdfreader.texmap import family_of
         assert family_of("ABC+LMMathItalic8-Regular") == "math-italic"
 
     def test_lm_maths_symbols(self):
-        from texmap import family_of
+        from pdfreader.texmap import family_of
         assert family_of("ABC+LMMathSymbols8-Regular") == "math-symbol"
 
     def test_lm_maths_extension(self):
-        from texmap import family_of
+        from pdfreader.texmap import family_of
         assert family_of("ABC+LMMathExtension10-Regular") == "math-extension"
 
     def test_lm_text_faces_stay_text(self):
-        from texmap import family_of
+        from pdfreader.texmap import family_of
         assert family_of("ABC+LMRoman10-Regular") == "text-cm"
         assert family_of("ABC+LMSans10-Regular") == "text-cm"
 
     def test_the_names_now_project(self):
-        from texmap import family_of, project
+        from pdfreader.texmap import family_of, project
         for name, want in (("prime", r"\prime"), ("element", r"\in"),
                            ("asteriskmath", r"\ast")):
             fam = family_of("LMMathSymbols8-Regular")
@@ -509,24 +509,24 @@ class TestAmsNamesFromTheCorpus:
     def test_defines_was_identified_by_rendering(self):
         """Rendered at 500dpi out of a real page: a triangle over an equals
         sign. Not inferred from the name."""
-        from texmap import project
+        from pdfreader.texmap import project
         assert project("ams-symbol", "defines").latex == r"\triangleq"
 
     def test_the_similar_relations(self):
-        from texmap import project
+        from pdfreader.texmap import project
         assert project("ams-symbol", "lessorsimilar").latex == r"\lesssim"
         assert project("ams-symbol", "greaterorsimilar").latex == r"\gtrsim"
 
     def test_a_vendor_symbol_font_reaches_the_ams_names(self):
         """MathTime's MTSYN carries AMS names alongside the CMSY set, and
         refusing them there sent a symbol the table knows to a crop."""
-        from texmap import family_of, project
+        from pdfreader.texmap import family_of, project
         fam = family_of("MTSYN")
         assert fam == "math-symbol"
         assert project(fam, "subsetsqequal").latex == r"\sqsubseteq"
 
     def test_an_unknown_name_still_defers(self):
-        from texmap import project
+        from pdfreader.texmap import project
         assert project("ams-symbol", "notarealglyph").latex is None
 
 
@@ -541,47 +541,47 @@ class TestVendorMathsFonts:
     def test_mnsymbol_is_a_maths_font(self):
         """Unknown, it fell through to text: 3721 failures on one 476-page
         paper, 3239 of them a single glyph."""
-        from texmap import family_of
+        from pdfreader.texmap import family_of
         assert family_of("ABC+MnSymbol7") == "math-symbol"
         assert family_of("ABC+MnSymbol10") == "math-symbol"
 
     def test_minute_is_a_prime(self):
         """Verified by rendering `f'` at 500dpi, not inferred."""
-        from texmap import project
+        from pdfreader.texmap import project
         assert project("math-symbol", "minute").latex == r"\prime"
 
     def test_a_maths_font_supplies_its_brackets(self):
         """12333 parentheses from MnSymbol10 on one paper."""
-        from texmap import project
+        from pdfreader.texmap import project
         assert project("math-symbol", "parenleft").latex == "("
         assert project("math-symbol", "parenright").latex == ")"
 
     def test_a_variant_suffix_is_a_design_not_a_character(self):
         """`parenright.alt1` is a second design of the same bracket; 1464 of
         them were refused for carrying the suffix."""
-        from texmap import project
+        from pdfreader.texmap import project
         assert project("math-symbol", "parenright.alt1").latex == ")"
         assert project("math-symbol", "parenleft.alt1").latex == "("
 
     def test_a_fraktur_font_supplies_its_brackets(self):
         """A formula set in Euler emits its parentheses from EUFM10, not from
         the maths font beside it: 1200 failures on one paper."""
-        from texmap import family_of, project
+        from pdfreader.texmap import family_of, project
         fam = family_of("EUFM10")
         assert fam == "fraktur"
         assert project(fam, "parenleft").latex == "("
         assert project(fam, "equal").latex == "="
 
     def test_a_fraktur_letter_is_still_fraktur(self):
-        from texmap import project
+        from pdfreader.texmap import project
         assert project("fraktur", "A").latex == r"\mathfrak{A}"
 
     def test_a_script_letter_is_still_script(self):
-        from texmap import project
+        from pdfreader.texmap import project
         assert project("script", "B").latex == r"\mathcal{B}"
 
     def test_an_unknown_name_still_defers(self):
-        from texmap import project
+        from pdfreader.texmap import project
         assert project("math-symbol", "notarealglyphname").latex is None
 
 
@@ -602,7 +602,7 @@ class TestTexSpacingTableInverted:
     """
 
     def test_the_four_classes(self):
-        from texmap import space_class
+        from pdfreader.texmap import space_class
         assert space_class(0.0) == 0
         assert space_class(0.167) == 1
         assert space_class(0.222) == 2
@@ -610,33 +610,33 @@ class TestTexSpacingTableInverted:
 
     def test_a_gap_off_the_table_is_not_a_class(self):
         """An author's `\\quad`, an alignment, or a word space."""
-        from texmap import space_class
+        from pdfreader.texmap import space_class
         assert space_class(1.0) is None
         assert space_class(0.5) is None
 
     def test_thick_space_means_a_relation(self):
         """Every pair producing a thick space has Rel on one side."""
-        from texmap import class_pairs
+        from pdfreader.texmap import class_pairs
         pairs = class_pairs(3)
         assert pairs
         assert all("Rel" in p for p in pairs), pairs
 
     def test_medium_space_means_a_binary_operator(self):
-        from texmap import class_pairs
+        from pdfreader.texmap import class_pairs
         pairs = class_pairs(2)
         assert pairs
         assert all("Bin" in p or "Inner" in p for p in pairs), pairs
 
     def test_the_inverse_is_not_unique(self):
         """A constraint, not an answer: it narrows 64 pairs to a handful."""
-        from texmap import class_pairs
+        from pdfreader.texmap import class_pairs
         assert 1 < len(class_pairs(3)) < 12
         assert 1 < len(class_pairs(2)) < 12
 
     def test_impossible_pairs_are_absent(self):
         """A `*` in the table: TeX converts one atom first, so the pair
         never occurs."""
-        from texmap import class_pairs
+        from pdfreader.texmap import class_pairs
         for space in (0, 1, 2, 3):
             assert ("Bin", "Bin") not in class_pairs(space)
             assert ("Bin", "Rel") not in class_pairs(space)
@@ -662,41 +662,41 @@ class TestFontsWithNoEncoding:
     """
 
     def test_a_latin_letter_in_a_symbol_font_is_the_fallback(self):
-        from texmap import untrusted_name
+        from pdfreader.texmap import untrusted_name
         assert untrusted_name("ABC+TeX-matha10", "p")
         assert untrusted_name("ABC+CMEX10", "R")
 
     def test_a_text_punctuation_name_in_a_symbol_font_too(self):
-        from texmap import untrusted_name
+        from pdfreader.texmap import untrusted_name
         assert untrusted_name("ABC+TeX-matha10", "quotedblleft")
         assert untrusted_name("ABC+TeX-matha10", "perthousand")
 
     def test_a_letter_in_a_font_that_HAS_letters_is_trusted(self):
         """CMMI carries the maths italic alphabet at its ASCII slots, so `p`
         there really is `p`. Distrusting it would break every variable."""
-        from texmap import untrusted_name
+        from pdfreader.texmap import untrusted_name
         assert not untrusted_name("ABC+CMMI10", "p")
         assert not untrusted_name("ABC+CMSY10", "A")
 
     def test_a_real_symbol_name_is_trusted(self):
-        from texmap import untrusted_name
+        from pdfreader.texmap import untrusted_name
         assert not untrusted_name("ABC+CMEX10", "summationdisplay")
 
     def test_the_verified_slots(self):
         """Only slots rendered and read off the page are in the table."""
-        from texmap import tex_slot
+        from pdfreader.texmap import tex_slot
         assert tex_slot("ABC+TeX-matha10", 112) == "parenleft"
         assert tex_slot("ABC+TeX-matha10", 80) == "element"
         assert tex_slot("ABC+TeX-matha7", 82) == "notelement"
 
     def test_an_unverified_slot_yields_nothing(self):
         """Abstention, not a guess -- the bug being fixed here was a guess."""
-        from texmap import tex_slot
+        from pdfreader.texmap import tex_slot
         assert tex_slot("ABC+TeX-matha10", 99) is None
         assert tex_slot("ABC+CMMI10", 112) is None
 
     def test_the_tex_maths_fonts_are_maths(self):
-        from texmap import family_of
+        from pdfreader.texmap import family_of
         assert family_of("ABC+TeX-matha10") == "math-symbol"
         assert family_of("ABC+TeX-mathx10") == "math-extension"
 
@@ -778,7 +778,7 @@ def test_a_doublestroke_glyph_is_mathematics():
     """Left out of MATH_FAMILIES its glyphs land in TEXT spans, which carry no
     LaTeX -- so the one `\\mathds{1}` of wzlxjtu-026 that sits in an inline
     formula rather than a display was dropped without trace."""
-    import docmodel_six
+    from pdfreader import docmodel_six
     assert "doublestroke" in docmodel_six.MATH_FAMILIES
 
 

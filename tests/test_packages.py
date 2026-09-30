@@ -1,5 +1,5 @@
 """Tests for deriving a preamble from the symbols actually used."""
-import texpackages as T
+from pdfreader import texpackages as T
 
 
 class TestPackageDerivation:

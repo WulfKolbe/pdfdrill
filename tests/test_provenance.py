@@ -12,9 +12,11 @@ import os
 import shutil
 from pathlib import Path
 
-import provenance
+from pdfreader import provenance
 
-HERE = Path(__file__).resolve().parent
+# 834 — the sources this measures are the READER's, and the tests moved
+# to tests/ when it was absorbed. `Path(__file__).parent` used to be both.
+HERE = Path(__file__).resolve().parents[1] / "src" / "pdfreader"
 
 
 def _copy_sources(dest: Path) -> Path:

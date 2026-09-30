@@ -7,11 +7,11 @@ The measurements quoted here are `lst-004` of the gold set (1804.10694v5,
                    indent 2  16.83 (4 cells from the gutter glyph)
                    indent 4  25.31 (6 cells)
 """
-import listings as L
-import project_mmd as M
-import texmap
-from docmodel_six import GlyphNode, LineNode, PageNode
-from texmap import project
+from pdfreader import listings as L
+from pdfreader import project_mmd as M
+from pdfreader import texmap
+from pdfreader.docmodel_six import GlyphNode, LineNode, PageNode
+from pdfreader.texmap import project
 
 CELL = 4.23
 
@@ -218,7 +218,7 @@ class TestTheFrame:
     """
 
     def _rules(self):
-        from docmodel_six import RuleNode
+        from pdfreader.docmodel_six import RuleNode
         out = [RuleNode(id="t", page=1, rect=(56.69, 729.33, 555.31, 729.53)),
                RuleNode(id="b", page=1, rect=(56.69, 688.48, 555.31, 688.68))]
         for i, (lo, hi) in enumerate([(714.39, 725.34), (703.43, 714.39),
@@ -249,13 +249,13 @@ class TestTheFrame:
         assert abs(got[0][0] - 56.69) < 0.1 and abs(got[0][2] - 555.31) < 0.1
 
     def test_two_rules_too_close_are_not_a_box(self):
-        from docmodel_six import RuleNode
+        from pdfreader.docmodel_six import RuleNode
         rules = [RuleNode(id="a", page=1, rect=(56.0, 700.0, 555.0, 700.2)),
                  RuleNode(id="b", page=1, rect=(56.0, 695.0, 555.0, 695.2))]
         assert L.frames(rules, span_pt=8.0) == []
 
     def test_rules_of_different_widths_are_not_a_box(self):
-        from docmodel_six import RuleNode
+        from pdfreader.docmodel_six import RuleNode
         rules = [RuleNode(id="a", page=1, rect=(56.0, 729.0, 555.0, 729.2)),
                  RuleNode(id="b", page=1, rect=(90.0, 688.0, 400.0, 688.2))]
         assert L.frames(rules, span_pt=8.0) == []
@@ -396,34 +396,34 @@ class TestMarksThatTile:
     """
 
     def test_a_stack_of_equal_bands_is_tiling(self):
-        import docmodel_six as D
+        from pdfreader import docmodel_six as D
         rects = [(56.69, 715.48, 555.31, 725.35),
                  (56.69, 705.62, 555.31, 715.48),
                  (56.69, 695.76, 555.31, 705.62)]
         assert D._tiles(rects) == {0, 1, 2}
 
     def test_two_bands_are_not_a_stack(self):
-        import docmodel_six as D
+        from pdfreader import docmodel_six as D
         rects = [(56.69, 715.48, 555.31, 725.35),
                  (56.69, 705.62, 555.31, 715.48)]
         assert D._tiles(rects) == set()
 
     def test_a_gap_breaks_the_stack(self):
-        import docmodel_six as D
+        from pdfreader import docmodel_six as D
         rects = [(56.0, 700.0, 555.0, 710.0),
                  (56.0, 690.0, 555.0, 700.0),
                  (56.0, 600.0, 555.0, 610.0)]
         assert D._tiles(rects) == set()
 
     def test_scattered_marks_do_not_tile(self):
-        import docmodel_six as D
+        from pdfreader import docmodel_six as D
         rects = [(10.0, 700.0, 40.0, 710.0), (80.0, 660.0, 130.0, 690.0),
                  (200.0, 610.0, 260.0, 640.0), (35.0, 500.0, 300.0, 505.0),
                  (150.0, 520.0, 152.0, 600.0)]
         assert D._tiles(rects) == set()
 
     def test_the_two_sides_of_a_frame_are_two_stacks(self):
-        import docmodel_six as D
+        from pdfreader import docmodel_six as D
         rects = []
         for lo, hi in ((715.48, 725.35), (705.62, 715.48), (695.76, 705.62)):
             rects.append((51.51, lo, 51.71, hi))

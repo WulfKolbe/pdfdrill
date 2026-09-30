@@ -32,11 +32,11 @@ import collections
 import re
 from dataclasses import dataclass
 
-import docmodel_six as docmodel
-import listings
-import structure
-import texmap
-from docmodel_six import GlyphNode, LineNode, PageNode
+from pdfreader import docmodel_six as docmodel
+from pdfreader import listings
+from pdfreader import structure
+from pdfreader import texmap
+from pdfreader.docmodel_six import GlyphNode, LineNode, PageNode
 
 # Shared with `docmodel.to_lines_json`, deliberately: a crop URL and the
 # lines.json written by the same run must be in ONE coordinate space, or a
@@ -2285,7 +2285,7 @@ def to_latex(pages: list[PageNode], doc_id: str = "pdfdrill",
     if not preamble:
         return body
 
-    import texpackages
+    from pdfreader import texpackages
     # A Private Use codepoint is a FONT'S INTERNAL SLOT, not a character: the
     # PDF's ToUnicode said this glyph has no Unicode. No font outside that
     # document has it, so it sets nothing and LaTeX only warns -- the

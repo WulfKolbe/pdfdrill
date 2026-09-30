@@ -38,9 +38,9 @@ from pdfminer.pdfparser import PDFParser
 from pdfminer.pdftypes import resolve1
 from pdfminer.layout import LTChar, LTCurve, LTImage, LTLine, LTRect
 
-import listings
-import texmap
-from texmap import (TexToken, family_of, greek_latex, is_drawing, space_class,
+from pdfreader import listings
+from pdfreader import texmap
+from pdfreader.texmap import (TexToken, family_of, greek_latex, is_drawing, space_class,
                     tex_slot, untrusted_name,
                     is_italic, is_monospace, measure_monospace, project,
                     set_measured_monospace, unicode_latex)
@@ -374,7 +374,7 @@ def _spans(line: "LineNode") -> list[Span]:
     #
     # Both go into the maths span: the overlay, and the one glyph beside it
     # that it can actually negate.
-    from structure import _NEGATED
+    from pdfreader.structure import _NEGATED
     for _i, _g in enumerate(ordered):
         if _g.tex.kind != "overlay":
             continue
@@ -1582,7 +1582,7 @@ def _line_bands(path: str, pages) -> dict[int, list[float]]:
     """
     out: dict[int, list[float]] = {}
     try:
-        import psstream
+        from pdfreader import psstream
         from pdfminer.pdfparser import PDFParser
         from pdfminer.pdfdocument import PDFDocument
         from pdfminer.pdfpage import PDFPage
@@ -2074,7 +2074,7 @@ def _merge_operator_names(glyphs: list["GlyphNode"]) -> list["GlyphNode"]:
     because turning a variable name into an operator would be the confident
     wrong answer this project refuses.
     """
-    from texmap import operator_name
+    from pdfreader.texmap import operator_name
     # BY LINE, not page-wide.
     #
     # This pass walks a SEQUENCE and asks whether consecutive entries spell a
@@ -2175,7 +2175,7 @@ def _merge_enclosures(glyphs: list["GlyphNode"]) -> list["GlyphNode"]:
     text -- and no pass that works inside a span can ever see them together.
     It has to happen here, on the raw glyphs, before spans exist.
     """
-    from texmap import OVERLAY_PAIRS
+    from pdfreader.texmap import OVERLAY_PAIRS
     inner_of: dict[int, int] = {}
     for i, g in enumerate(glyphs):
         if not g.glyphname:
@@ -3733,7 +3733,7 @@ def to_lines_json(pages: list[PageNode],
     # A failure here must not cost the geometry, which is the part that is
     # always right: fall back to the node's own type.
     try:
-        from project_mmd import classify_lines
+        from pdfreader.project_mmd import classify_lines
         _types = classify_lines(pages)
     except Exception:                                    # noqa: BLE001
         _types = {}
@@ -3913,7 +3913,7 @@ def _add_table_containers(out: dict, pages: list["PageNode"], k: float) -> None:
     that makes it a child has to pick one. Naming it leaves the order on the
     page where it belongs.
     """
-    from project_mmd import table_regions
+    from pdfreader.project_mmd import table_regions
     for page_rec, p in zip(out["pages"], pages):
         try:
             regions = table_regions(p)
@@ -3974,7 +3974,7 @@ def _add_column_containers(out: dict, pages: list["PageNode"], k: float) -> None
     invented without a measurement behind it is a structure the document does
     not have.
     """
-    from project_mmd import column_membership
+    from pdfreader.project_mmd import column_membership
     for page_rec, p in zip(out["pages"], pages):
         try:
             member = column_membership(p)
@@ -4112,7 +4112,7 @@ def span_reason(sp: Span) -> str:
     Every count in 709 rested on this string. It now names the pass that
     actually returned None, established by running them.
     """
-    from structure import _attach_scripts, _split_fractions
+    from pdfreader.structure import _attach_scripts, _split_fractions
 
     # RUN THE MERGES FIRST. This checked the RAW glyphs, so a span holding an
     # accent reported `accent-not-composed` whether or not the accent had
@@ -4123,7 +4123,7 @@ def span_reason(sp: Span) -> str:
     #
     # The docstring above promises the pass that ACTUALLY returned None,
     # established by running them. Step 1 was the one place that did not.
-    from structure import (_merge_accents, _merge_mapsto, _merge_negations,
+    from pdfreader.structure import (_merge_accents, _merge_mapsto, _merge_negations,
                            _merge_operator_runs)
     ordered = sorted(sp.glyphs, key=lambda g: g.rect[0])
     try:
@@ -4176,7 +4176,7 @@ def span_reason(sp: Span) -> str:
     if bars and not fracs:
         return "fraction-unresolved"
     for f in fracs:
-        from structure import to_tex
+        from pdfreader.structure import to_tex
         if to_tex(f.num, []) is None or to_tex(f.den, []) is None:
             return "fraction-part-unprojectable"
 
@@ -4199,7 +4199,7 @@ def span_latex(sp: Span) -> str | None:
     """
     if sp.kind != "math" or not sp.glyphs:
         return None
-    from structure import span_to_tex
+    from pdfreader.structure import span_to_tex
 
     tex = span_to_tex(sp)
     if tex:

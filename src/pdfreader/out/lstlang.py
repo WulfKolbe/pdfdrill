@@ -105,7 +105,7 @@ def coloured_words(stem: str) -> dict:
     if not pdf.is_file():
         return {}
     try:
-        import docmodel_six as dm
+        from pdfreader import docmodel_six as dm
         pages = dm.build(str(pdf))
     except Exception:                                       # noqa: BLE001
         return {}
@@ -133,7 +133,7 @@ def from_keywords(stem: str, table: dict) -> str:
     for _rgb, words in coloured_words(stem).items():
         if len(words) < 2:
             continue
-        import lstlangs as lstkeywords
+        from pdfreader import lstlangs as lstkeywords
         r = lstkeywords.rank(words, table, top=2)
         if not r:
             continue
@@ -224,7 +224,7 @@ def main() -> None:
             print("       %-12s guessed %-14s %d" % (want, g, c))
 
     # --- the keyword route, against listings' OWN language names ---------
-    import lstlangs as lstkeywords
+    from pdfreader import lstlangs as lstkeywords
     table = lstkeywords.load()
     kw_truth = {k: v for k, v in own.items() if v in table}
     with ThreadPoolExecutor(max_workers=4) as ex:

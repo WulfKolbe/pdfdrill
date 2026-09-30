@@ -7,9 +7,9 @@
 Lower case sets the non-stroking colour -- the fill, which paints text --
 and upper case the stroking colour, which paints rules and borders.
 """
-import docmodel_six as D
-import project_mmd as M
-import texpackages as T
+from pdfreader import docmodel_six as D
+from pdfreader import project_mmd as M
+from pdfreader import texpackages as T
 
 
 class TestColourOperands:
@@ -45,7 +45,7 @@ class TestColourInLatexNotMarkdown:
     Mathpix does with its .md as well. The LaTeX carries it."""
 
     def _page(self, color=None, fill=None):
-        from texmap import project
+        from pdfreader.texmap import project
         page = D.PageNode(page=1, rect=(0, 0, 612, 792))
         gl = []
         x = 100.0

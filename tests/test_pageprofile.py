@@ -4,9 +4,9 @@ The instrument exists because COUNTING MISLEADS: `pdftc_900k_1018.pdf`
 carries 10,368 monospace glyphs and 170 rows of listing, so a count of
 glyphs calls it code and a count of rows calls it prose.
 """
-import pageprofile as pr
-from docmodel_six import FillNode, GlyphNode, LineNode, PageNode
-from texmap import project
+from pdfreader import pageprofile as pr
+from pdfreader.docmodel_six import FillNode, GlyphNode, LineNode, PageNode
+from pdfreader.texmap import project
 
 
 def g(ch, x, font="TEST+NimbusMonL-Regu", size=8.0, y=100.0):
@@ -25,7 +25,7 @@ def line(text, x0=50.0, y=100.0, font="TEST+NimbusMonL-Regu"):
 
 def page(lines, **kw):
     p = PageNode(page=1, rect=(0, 0, 595, 842), lines=lines, **kw)
-    import listings
+    from pdfreader import listings
     p.listings = listings.accumulate(p)
     return p
 

@@ -28,7 +28,7 @@ from pdfminer.layout import LTChar
 # Font-family classification lives in `texmap`: it is part of mapping an
 # identity to an alphabet, not part of this analysis tool. Re-exported here so
 # the tool reads the same way it always did.
-from texmap import FAMILY_RULES, family_of  # noqa: F401
+from pdfreader.texmap import FAMILY_RULES, family_of  # noqa: F401
 
 def inventory(paths, skip_invisible: bool = True):
     pairs: collections.Counter = collections.Counter()

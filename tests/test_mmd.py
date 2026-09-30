@@ -14,10 +14,10 @@ from urllib.request import urlopen
 
 import pytest
 
-import docmodel_six as docmodel
-import inspectserver
-import testpaths
-import project_mmd as M
+from pdfreader import docmodel_six as docmodel
+from pdfreader import inspectserver
+from pdfreader import testpaths
+from pdfreader import project_mmd as M
 
 MIELKE = testpaths.CORPUS_PDF
 LINES = testpaths.CORPUS_LINES
@@ -233,13 +233,13 @@ class TestRotatedText:
     """
 
     def _page(self):
-        import docmodel_six as docmodel
+        from pdfreader import docmodel_six as docmodel
         return docmodel.build(testpaths.CORPUS_ROTATED, range(0, 1))
 
     @pytest.mark.skipif(not os.path.exists(testpaths.CORPUS_ROTATED),
                         reason="needs a PDF with rotated text")
     def test_rotated_line_is_separated_and_ordered(self):
-        import docmodel_six as docmodel
+        from pdfreader import docmodel_six as docmodel
         pages = self._page()
         rot = [ln for ln in pages[0].lines if ln.rotated]
         assert rot, "the rotated run was not detected"
@@ -293,11 +293,11 @@ class TestMarkdownIntegrity:
         assert "$$" not in md.replace("\n$$\n", "\n")
 
     def test_literal_dollar_in_prose_is_escaped(self):
-        from project_mmd import _escape_text
+        from pdfreader.project_mmd import _escape_text
         assert _escape_text("costs $5") == r"costs \$5"
 
     def test_empty_tex_is_not_wrapped(self):
-        from project_mmd import _inline
+        from pdfreader.project_mmd import _inline
         assert _inline("") == "" and _inline(None) == "" and _inline("  ") == ""
         assert _inline("x") == "$x$"
 
@@ -322,7 +322,7 @@ class TestOperatorNames:
     """Upright letter runs inside maths are operator names, not variables."""
 
     def test_upright_run_becomes_one_token(self):
-        import structure
+        from pdfreader import structure
         from test_structure import g as mkg
 
         run = [mkg(None, 10.0, 100.0, x, family="text", text=c)
@@ -335,7 +335,7 @@ class TestOperatorNames:
         assert merged[0].tex.latex == r"\mathbf{Spin}"
 
     def test_roman_run_is_mathrm(self):
-        import structure
+        from pdfreader import structure
         from test_structure import g as mkg
 
         run = [mkg(None, 10.0, 100.0, x, family="text", text=c)
@@ -348,7 +348,7 @@ class TestOperatorNames:
 
     def test_italic_letters_are_not_merged(self):
         """Italic letters are variables; each can carry its own script."""
-        import structure
+        from pdfreader import structure
         from test_structure import g as mkg
 
         run = [mkg(None, 10.0, 100.0, x, family="text", text=c)
@@ -358,7 +358,7 @@ class TestOperatorNames:
         assert len(structure._merge_operator_runs(run)) == 2
 
     def test_single_letter_is_not_merged(self):
-        import structure
+        from pdfreader import structure
         from test_structure import g as mkg
 
         one = mkg(None, 10.0, 100.0, 0.0, family="text", text="d")
@@ -378,7 +378,7 @@ class TestCoordinateSpaceIsShared:
 
     @needs_corpus
     def test_lines_json_page_size_is_pixels(self, pages):
-        import docmodel_six as docmodel
+        from pdfreader import docmodel_six as docmodel
         lj = docmodel.to_lines_json(pages)
         for p, src in zip(lj["pages"], pages):
             pt_w = src.rect[2] - src.rect[0]
@@ -389,7 +389,7 @@ class TestCoordinateSpaceIsShared:
     @needs_corpus
     def test_crop_url_and_lines_json_agree(self, pages):
         """A region taken from lines.json must reproduce the crop URL."""
-        import docmodel_six as docmodel
+        from pdfreader import docmodel_six as docmodel
         lj = docmodel.to_lines_json(pages)
         page = pages[0]
         line = page.lines[0]
@@ -400,7 +400,7 @@ class TestCoordinateSpaceIsShared:
             assert from_url == pytest.approx(rec["region"][key], abs=1)
 
     def test_projection_constant_is_shared(self):
-        import docmodel_six as docmodel
+        from pdfreader import docmodel_six as docmodel
         assert M.DEFAULT_PX_PER_PT == docmodel.PX_PER_PT
 
 
@@ -414,8 +414,8 @@ class TestOverlappingCropsAreMerged:
     """
 
     def _page(self, rects):
-        from docmodel_six import LineNode, PageNode, Span
-        import docmodel_six as D
+        from pdfreader.docmodel_six import LineNode, PageNode, Span
+        from pdfreader import docmodel_six as D
 
         class _Sp(Span):
             pass
@@ -430,8 +430,8 @@ class TestOverlappingCropsAreMerged:
         return page, lines
 
     def test_overlapping_boxes_collapse_to_one(self):
-        import docmodel_six as docmodel
-        from docmodel_six import LineNode, PageNode, Span
+        from pdfreader import docmodel_six as docmodel
+        from pdfreader.docmodel_six import LineNode, PageNode, Span
 
         page = PageNode(page=1, rect=(0, 0, 612, 792))
         boxes = [(181, 319, 473, 335), (202, 309, 258, 328),
@@ -458,8 +458,8 @@ class TestOverlappingCropsAreMerged:
         assert (x0, y0, x1, y1) == (134, 294, 473, 335)
 
     def test_disjoint_boxes_stay_separate(self):
-        import docmodel_six as docmodel
-        from docmodel_six import PageNode, Span
+        from pdfreader import docmodel_six as docmodel
+        from pdfreader.docmodel_six import PageNode, Span
 
         page = PageNode(page=1, rect=(0, 0, 612, 792))
         spans = [Span(id="a", kind="math", rect=(100, 700, 150, 715),
@@ -543,7 +543,7 @@ class TestCropCoveredContentIsNotDuplicated:
     def test_text_inside_a_crop_is_suppressed(self, pages):
         """Scoped to ONE page: a word covered by a crop here may appear
         perfectly legitimately somewhere else in the document."""
-        import docmodel_six as docmodel
+        from pdfreader import docmodel_six as docmodel
         for p in pages:
             md = M.to_markdown([p])
             crops = M._crop_clusters(p)
@@ -576,17 +576,17 @@ class TestLineNumberGuttersAreNotScripts:
     """
 
     def _g(self, text, x, baseline, size):
-        import docmodel_six as D
+        from pdfreader import docmodel_six as D
         n = D.GlyphNode(id=f"g{x}", page=1,
                         rect=(x, baseline, x + 0.5 * size, baseline + size),
                         text=text, cid=1, glyphname=None,
                         fontname="ABC+Helv", family="text", size=size,
-                        tex=__import__("texmap").project("text", None),
+                        tex=__import__("pdfreader.texmap", fromlist=["x"]).project("text", None),
                         matrix=(size, 0, 0, size, x, baseline))
         return n
 
     def test_long_small_run_is_not_absorbed(self):
-        from docmodel_six import LineNode
+        from pdfreader.docmodel_six import LineNode
         caption = [self._g(c, 100.0 + i * 6.0, 500.0, 10.0)
                    for i, c in enumerate("Listing")]
         gutter = [self._g(str(i % 10), 160.0 + i * 5.0, 497.0, 7.0)
@@ -607,7 +607,7 @@ class TestLinkAnnotations:
     """
 
     def _page_with_link(self, uri=None, dest=None):
-        import docmodel_six as D
+        from pdfreader import docmodel_six as D
 
         class FakeSpan:
             kind = "text"
@@ -619,8 +619,8 @@ class TestLinkAnnotations:
         return page
 
     def _glyphs(self, text, x0=100.0, baseline=200.0, size=10.0):
-        import docmodel_six as D
-        from texmap import project
+        from pdfreader import docmodel_six as D
+        from pdfreader.texmap import project
         out = []
         x = x0
         for c in text:
@@ -633,7 +633,7 @@ class TestLinkAnnotations:
         return out
 
     def _span(self, glyphs):
-        import docmodel_six as D
+        from pdfreader import docmodel_six as D
         return D.Span(id="s", kind="text",
                       rect=(glyphs[0].rect[0], glyphs[0].rect[1],
                             glyphs[-1].rect[2], glyphs[-1].rect[3]),
@@ -661,7 +661,7 @@ class TestLinkAnnotations:
         assert out.startswith("[22](#cite.polly)") and out.endswith(",")
 
     def test_no_links_leaves_text_alone(self):
-        import docmodel_six as D
+        from pdfreader import docmodel_six as D
         page = D.PageNode(page=1, rect=(0, 0, 612, 792))
         span = self._span(self._glyphs("22"))
         assert M._linked_text(span, page, 2.0) == "22"
@@ -678,8 +678,8 @@ class TestRaisedMarkers:
     """
 
     def _g(self, text, x, baseline, size, page=None):
-        import docmodel_six as D
-        from texmap import project
+        from pdfreader import docmodel_six as D
+        from pdfreader.texmap import project
         return D.GlyphNode(
             id=f"g{x}", page=1, rect=(x, baseline, x + 0.5 * size,
                                       baseline + size),
@@ -688,7 +688,7 @@ class TestRaisedMarkers:
             matrix=(size, 0, 0, size, x, baseline))
 
     def _span(self, glyphs, line_size):
-        import docmodel_six as D
+        from pdfreader import docmodel_six as D
         return D.Span(id="s", kind="text",
                       rect=(glyphs[0].rect[0], glyphs[0].rect[1],
                             glyphs[-1].rect[2], glyphs[-1].rect[3]),
@@ -696,7 +696,7 @@ class TestRaisedMarkers:
                       word_gap=2.0)
 
     def _page(self):
-        import docmodel_six as D
+        from pdfreader import docmodel_six as D
         return D.PageNode(page=1, rect=(0, 0, 612, 792))
 
     def test_marker_becomes_a_superscript(self):
@@ -754,8 +754,8 @@ class TestHeadingsAreNotStrayGlyphs:
     """
 
     def _line(self, text, size=8.9, font="Arial-BoldMT", baseline=616.0):
-        import docmodel_six as D
-        from texmap import project
+        from pdfreader import docmodel_six as D
+        from pdfreader.texmap import project
         gl = []
         x = 451.0
         for c in text:
@@ -808,8 +808,8 @@ class TestListingBlankLines:
     """
 
     def _line(self, text, size, font, x0=305.0, baseline=400.0):
-        import docmodel_six as D
-        from texmap import project
+        from pdfreader import docmodel_six as D
+        from pdfreader.texmap import project
         gl = []
         x = x0
         for c in text:
@@ -881,8 +881,8 @@ class TestParagraphsOnNarrowBlocks:
     """
 
     def _line(self, x0, x1, y, page=1):
-        import docmodel_six as D
-        from texmap import project
+        from pdfreader import docmodel_six as D
+        from pdfreader.texmap import project
         gl = []
         x = x0
         while x < x1:
@@ -897,7 +897,7 @@ class TestParagraphsOnNarrowBlocks:
                           rect=(x0, y, x1, y + 10.0), type="text", glyphs=gl)
 
     def _page(self):
-        import docmodel_six as D
+        from pdfreader import docmodel_six as D
         page = D.PageNode(page=1, rect=(0, 0, 612, 792))
         # a narrow block, justified to 300, inside a page that runs to 560
         page.lines = [self._line(48.0, 300.0, 700.0 - i * 12.0)
@@ -917,7 +917,7 @@ class TestParagraphsOnNarrowBlocks:
         assert M._column_margin(page, page.lines[0], 560.0) == 300.0
 
     def test_too_few_lines_falls_back_to_the_page(self):
-        import docmodel_six as D
+        from pdfreader import docmodel_six as D
         page = D.PageNode(page=1, rect=(0, 0, 612, 792))
         page.lines = [self._line(48.0, 300.0, 700.0)]
         assert M._column_margin(page, page.lines[0], 560.0) == 560.0
@@ -937,49 +937,49 @@ class TestDisplayBlocksMustSaySomething:
     """
 
     def test_empty_content_has_none(self):
-        from project_mmd import has_content
+        from pdfreader.project_mmd import has_content
         assert not has_content("")
-        from project_mmd import has_content
+        from pdfreader.project_mmd import has_content
         assert not has_content("   ")
-        from project_mmd import has_content
+        from pdfreader.project_mmd import has_content
         assert not has_content(None)
 
     def test_a_lone_delimiter_has_none(self):
-        from project_mmd import has_content
+        from pdfreader.project_mmd import has_content
         assert not has_content(r"\bigl(")
-        from project_mmd import has_content
+        from pdfreader.project_mmd import has_content
         assert not has_content(r"\bigr)")
-        from project_mmd import has_content
+        from pdfreader.project_mmd import has_content
         assert not has_content(r"\biggl[")
 
     def test_a_matched_empty_pair_has_none(self):
-        from project_mmd import has_content
+        from pdfreader.project_mmd import has_content
         assert not has_content(r"\bigl( \bigr)")
-        from project_mmd import has_content
+        from pdfreader.project_mmd import has_content
         assert not has_content(r"\left( \right)")
 
     def test_spacing_alone_has_none(self):
-        from project_mmd import has_content
+        from pdfreader.project_mmd import has_content
         assert not has_content(r"\quad")
-        from project_mmd import has_content
+        from pdfreader.project_mmd import has_content
         assert not has_content(r"\mid")
 
     def test_a_real_expression_has_content(self):
-        from project_mmd import has_content
+        from pdfreader.project_mmd import has_content
         assert has_content("x + y")
-        from project_mmd import has_content
+        from pdfreader.project_mmd import has_content
         assert has_content(r"\alpha")
-        from project_mmd import has_content
+        from pdfreader.project_mmd import has_content
         assert has_content("a")
 
     def test_an_operator_name_has_content(self):
         """`\\log` alone is a FRAGMENT, not noise. It says something, and
         removing it needs the segmentation fix rather than this gate."""
-        from project_mmd import has_content
+        from pdfreader.project_mmd import has_content
         assert has_content(r"\log")
 
     def test_a_delimiter_with_content_inside_is_kept(self):
-        from project_mmd import has_content
+        from pdfreader.project_mmd import has_content
         assert has_content(r"\bigl( x \bigr)")
 
 
@@ -996,8 +996,8 @@ class TestEquationNumbersAreNotMaths:
     """
 
     def _line(self, texts, xs, size=12.0, baseline=700.0):
-        import docmodel_six as D
-        import texmap
+        from pdfreader import docmodel_six as D
+        from pdfreader import texmap
         gl = []
         for t, x in zip(texts, xs):
             n = D.GlyphNode(id=f"g{x}", page=1, rect=(x, baseline, x + 5.0,
@@ -1077,8 +1077,8 @@ class TestDisplayRunsDecidedInOnePass:
 
     def _page(self, rows):
         """A page with body lines at the margin and indented display rows."""
-        import docmodel_six as D
-        import texmap
+        from pdfreader import docmodel_six as D
+        from pdfreader import texmap
         pg = D.PageNode(page=1, rect=(0, 0, 612, 792))
         lines = []
 
@@ -1111,14 +1111,14 @@ class TestDisplayRunsDecidedInOnePass:
 
     def test_two_overlapping_display_rows_make_ONE_block(self):
         """A script row overlaps its base row: one equation, one block."""
-        import project_mmd as M
+        from pdfreader import project_mmd as M
         pg = self._page([(200.0, 700.0, "ab", 12.0),
                          (200.0, 701.0, "cd", 8.0)])
         md = M.to_markdown([pg], doc_id="t")
         assert md.count("$$") == 2
 
     def test_two_separated_display_rows_make_TWO_blocks(self):
-        import project_mmd as M
+        from pdfreader import project_mmd as M
         pg = self._page([(200.0, 700.0, "ab", 12.0),
                          (200.0, 600.0, "cd", 12.0)])
         md = M.to_markdown([pg], doc_id="t")
@@ -1127,7 +1127,7 @@ class TestDisplayRunsDecidedInOnePass:
     def test_no_placeholder_survives_into_the_output(self):
         """A placeholder left in the text would print as a control character
         in the reader's document."""
-        import project_mmd as M
+        from pdfreader import project_mmd as M
         pg = self._page([(200.0, 700.0, "ab", 12.0),
                          (200.0, 701.0, "cd", 8.0)])
         assert "\x00" not in M.to_markdown([pg], doc_id="t")
@@ -1138,8 +1138,8 @@ def test_private_use_warning_is_formattable():
     so emitting it raised `unsupported format character 'W'` and the whole
     document failed to project. Caught by a run outside the corpus, not by a
     test: nothing here had ever produced a private-use codepoint."""
-    import project_mmd
-    import texpackages
+    from pdfreader import project_mmd
+    from pdfreader import texpackages
     body = "Windkanal  text"
     stripped, private = texpackages.strip_private_use(body)
     assert private
@@ -1155,15 +1155,15 @@ def test_private_use_warning_is_formattable():
 def test_a_pdf_with_no_text_says_so_on_the_page():
     """733 -- a body of only `\\newpage` compiles to "No pages of output",
     which reads as a LaTeX fault and not as "nothing was extracted"."""
-    import project_mmd
+    from pdfreader import project_mmd
     out = project_mmd.to_latex([], doc_id="empty")
     assert "No text was read" in out
     assert r"\begin{document}" in out
 
 
 def test_a_document_with_text_gets_no_such_note():
-    import project_mmd
-    from docmodel_six import PageNode
+    from pdfreader import project_mmd
+    from pdfreader.docmodel_six import PageNode
     out = project_mmd.to_latex([], doc_id="x")
     assert out.count("No text was read") == 1
 
@@ -1184,8 +1184,8 @@ class TestDisplayContinuation:
     """
 
     def _mathline(self, lid, x0, baseline, texts):
-        import docmodel_six as D
-        import texmap
+        from pdfreader import docmodel_six as D
+        from pdfreader import texmap
         size = 12.0
         gl, x = [], x0
         for t in texts:
@@ -1202,7 +1202,7 @@ class TestDisplayContinuation:
         return ln
 
     def _page(self):
-        import docmodel_six as D
+        from pdfreader import docmodel_six as D
         # body text fixing the column margin at x=100, then the two rows of
         # one display: the head barely indented, the continuation far more.
         head = self._mathline("p1l1", 104.0, 600.0, list("y=a"))
@@ -1240,8 +1240,8 @@ class TestAWideDisplayIsStillCentred:
     LEFT, RIGHT, SIZE = 100.0, 345.0, 9.96
 
     def _line(self, x0, x1):
-        import docmodel_six as D
-        import texmap
+        from pdfreader import docmodel_six as D
+        from pdfreader import texmap
         gl, x = [], x0
         while x < x1:
             w = min(6.0, x1 - x)

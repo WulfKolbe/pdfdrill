@@ -23,7 +23,7 @@ import sys
 
 sys.path.insert(0, __file__.rsplit("/", 1)[0])
 
-import docmodel_six as docmodel  # noqa: E402
+from pdfreader import docmodel_six as docmodel  # noqa: E402
 
 TOKEN = re.compile(r"\\[a-zA-Z]+|[A-Za-z0-9]|[^\s{}]")
 # Spacing and font wrappers differ by convention, not by content.

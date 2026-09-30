@@ -40,8 +40,8 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass, field
 
-import docmodel_six as docmodel
-import project_mmd as mmd
+from pdfreader import docmodel_six as docmodel
+from pdfreader import project_mmd as mmd
 
 
 @dataclass

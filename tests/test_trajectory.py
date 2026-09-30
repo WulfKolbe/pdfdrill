@@ -7,8 +7,8 @@ import os
 
 import pytest
 
-import testpaths
-import trajectory as T
+from pdfreader import testpaths
+from pdfreader import trajectory as T
 
 DOC = os.environ.get("PDF2MMD_TEST_TWOCOL", testpaths.CORPUS_PDF)
 HAVE = os.path.exists(DOC)

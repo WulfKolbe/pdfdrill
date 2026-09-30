@@ -14942,36 +14942,10 @@ def _invalidate_font_caches(sc) -> None:
 
 
 # ---------------------------------------------------------------- profile
-#: pdf2mmd is a SEPARATE INSTALL with a PATCHED pdfminer (the glyph-identity
-#: fork). It cannot be imported here and must not be: the fork is what makes
-#: its glyph names trustworthy, and pulling it into this environment would
-#: change what every other pdfminer caller in this package sees. So it is a
-#: TOOL, spoken to over a pipe — the same shape as the language detector in
-#: pdf2mmd's own `out/langdetect.py`.
-#:
-#: $PDF2MMD_HOME   where it lives (default ~/pdf2mmd)
-_PROFILE_RUNNER = r'''
-import json, sys
-sys.path.insert(0, sys.argv[1])
-import docmodel_six as dm, pageprofile as pr
-pages = dm.build(sys.argv[2])
-out = {"pages": len(pages), "where": {}, "page_props": {}}
-for p in pages:
-    f = pr.page_profile(p)
-    if f.props:
-        out["page_props"][str(p.page)] = f.props
-for k, v in pr.document_profile(pages).items():
-    out["where"][k] = v
-print(json.dumps(out))
-'''
-
-
-def _pdf2mmd_home() -> Path:
-    import os
-    return Path(os.environ.get("PDF2MMD_HOME",
-                               str(Path.home() / "pdf2mmd"))).expanduser()
-
-
+#: 834 — the glyph reader is `src/pdfreader/`, imported. It was a
+#: separate install on a patched pdfminer, reached over a pipe through
+#: $PDF2MMD_HOME; the patch is additive (+461/-0) so the fork is simply
+#: the pdfminer this environment has, and there is one reader.
 @_writes("profile")
 def cmd_profile(pdf: Path, pages: str | None = None, json_only: bool = False) -> str:
     """WHAT IS ON EACH PAGE, and on what evidence — the triage layer (781o).
@@ -14994,25 +14968,27 @@ def cmd_profile(pdf: Path, pages: str | None = None, json_only: bool = False) ->
     for content that is on 37. `route` and `mathpix` can consult
     `<stem>.profile.json` before anyone spends a key.
 
-    Free, keyless, offline. Needs pdf2mmd installed ($PDF2MMD_HOME, default
-    ~/pdf2mmd) because the reading is its glyph model, on its patched
-    pdfminer; absent, this says so rather than half-answering.
+    Free, keyless, offline, and in this tree: the reading is the glyph model
+    in `src/pdfreader/`, absorbed by 834. Nothing to install.
     """
-    home = _pdf2mmd_home()
-    py = home / ".pdfmm-venv" / "bin" / "python"
-    if not py.is_file():
-        return (f"pdf2mmd not found at {home} (set $PDF2MMD_HOME). "
-                f"`profile` reads with pdf2mmd's glyph model, which lives on a "
-                f"patched pdfminer and is not importable here.")
+    # 834 — ONE READER, IN THIS TREE. This used to spawn
+    # `$PDF2MMD_HOME/.pdfmm-venv/bin/python` because the glyph model lived on a
+    # patched pdfminer that "is not importable here". It is importable here:
+    # the patch is purely additive (+461/-0, gated by
+    # tests/test_pdfminer_fork_is_additive.py), it is the pdfminer this
+    # environment already has, and the reader is now `src/pdfreader/`.
+    from pdfreader import docmodel_six as _dm, pageprofile as _pr
     try:
-        r = subprocess.run([str(py), "-c", _PROFILE_RUNNER, str(home), str(pdf)],
-                           capture_output=True, text=True, timeout=900)
-    except subprocess.TimeoutExpired:
-        return f"profile: pdf2mmd did not finish within 900s on {pdf.name}."
-    if r.returncode != 0 or not r.stdout.strip():
-        why = (r.stderr or "").strip().split("\n")[-1][:160]
-        return f"profile: pdf2mmd could not read {pdf.name} — {why}"
-    data = json.loads(r.stdout)
+        pages = _dm.build(str(pdf))
+    except Exception as e:                                   # noqa: BLE001
+        return f"profile: could not read {pdf.name} — {e}"
+    data = {"pages": len(pages), "where": {}, "page_props": {}}
+    for _p in pages:
+        f = _pr.page_profile(_p)
+        if f.props:
+            data["page_props"][str(_p.page)] = f.props
+    for k, v in _pr.document_profile(pages).items():
+        data["where"][k] = v
 
     out = pdf.with_suffix(".profile.json")
     out.write_text(json.dumps(data, indent=1), encoding="utf-8")
@@ -15040,19 +15016,6 @@ def cmd_profile(pdf: Path, pages: str | None = None, json_only: bool = False) ->
 #: The runner writes to a FILE, not to stdout. A lines.json for a long
 #: document is megabytes, and a pipe that large is the one failure mode a
 #: tool boundary adds over an import.
-_GLYPHLINES_RUNNER = r'''
-import json, sys
-sys.path.insert(0, sys.argv[1])
-import docmodel_six as dm
-pages = dm.build(sys.argv[2])
-data = dm.to_lines_json(pages, doc_id=sys.argv[4])
-with open(sys.argv[3], "w", encoding="utf-8") as fh:
-    json.dump(data, fh)
-print(json.dumps({"pages": len(data["pages"]),
-                  "lines": sum(len(p["lines"]) for p in data["pages"])}))
-'''
-
-
 @_writes("glyphlines")
 def cmd_glyphlines(pdf: Path, force: bool = False) -> str:
     """Read the PDF with pdf2mmd's glyph model and write a TYPED lines.json.
@@ -15079,17 +15042,11 @@ def cmd_glyphlines(pdf: Path, force: bool = False) -> str:
     projector — latex, tiddlers, markdown, report, compare — works unchanged,
     because they read the Document, not the lines.
 
-    Free, keyless, offline. Needs pdf2mmd ($PDF2MMD_HOME, default ~/pdf2mmd):
-    its reading is a glyph model on a patched pdfminer and is not importable
-    here. A MathPix lines.json is never overwritten without --force — it is
+    Free, keyless, offline, and in this tree: the glyph model is
+    `src/pdfreader/`, absorbed by 834, and nothing needs installing.
+    A MathPix lines.json is never overwritten without --force — it is
     the richest source and this is not a replacement for it.
     """
-    home = _pdf2mmd_home()
-    py = home / ".pdfmm-venv" / "bin" / "python"
-    if not py.is_file():
-        return (f"pdf2mmd not found at {home} (set $PDF2MMD_HOME). "
-                f"`glyphlines` reads with pdf2mmd's glyph model, which lives "
-                f"on a patched pdfminer and is not importable here.")
     lines_path = _lines_json_path(pdf)
     if lines_path.exists() and not force:
         src = str(_lines_json_source(lines_path) or "")
@@ -15103,19 +15060,14 @@ def cmd_glyphlines(pdf: Path, force: bool = False) -> str:
 
     sc = Sidecar(pdf)
     key = resolve_bibkey(pdf, None, sc)
-    with tempfile.TemporaryDirectory() as td:
-        tmp = Path(td) / "lines.json"
-        try:
-            r = subprocess.run(
-                [str(py), "-c", _GLYPHLINES_RUNNER, str(home), str(pdf),
-                 str(tmp), key],
-                capture_output=True, text=True, timeout=1800)
-        except subprocess.TimeoutExpired:
-            return f"glyphlines: pdf2mmd did not finish within 1800s on {pdf.name}."
-        if r.returncode != 0 or not tmp.is_file():
-            why = (r.stderr or "").strip().split("\n")[-1][:200]
-            return f"glyphlines: pdf2mmd could not read {pdf.name} — {why}"
-        data = json.loads(tmp.read_text(encoding="utf-8"))
+    # 834 — ONE READER, IN THIS TREE. No subprocess, no temp file, no
+    # `$PDF2MMD_HOME`: the glyph model is `src/pdfreader/` and the patched
+    # pdfminer it needs is the one this environment already has.
+    from pdfreader import docmodel_six as _dm
+    try:
+        data = _dm.to_lines_json(_dm.build(str(pdf)), doc_id=key)
+    except Exception as e:                                   # noqa: BLE001
+        return f"glyphlines: could not read {pdf.name} — {e}"
 
     n_lines = sum(len(p["lines"]) for p in data["pages"])
     if n_lines < 2:

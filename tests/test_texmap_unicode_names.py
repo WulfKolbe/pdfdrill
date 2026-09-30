@@ -16,7 +16,7 @@ Abstaining is right where the identity is NOT stated: a nameless glyph, an
 untrusted font name, a CID with no table. Here the font said which character it
 is. Refusing that is not caution, it is discarding evidence.
 """
-import texmap
+from pdfreader import texmap
 
 
 #: The Mathematical Italic Greek run: alpha (U+1D6FC) through varpi (U+1D71B).

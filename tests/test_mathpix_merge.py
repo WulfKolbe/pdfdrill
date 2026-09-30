@@ -10,7 +10,7 @@ import os
 
 import pytest
 
-import mathpix_merge as MM
+from pdfreader import mathpix_merge as MM
 
 
 @pytest.fixture

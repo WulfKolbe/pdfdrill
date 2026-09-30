@@ -11,10 +11,10 @@ import os
 
 import pytest
 
-import docmodel_six as docmodel
-import testpaths
-from docmodel_six import GlyphNode, RuleNode, Span, _is_level, glyph_latex
-from texmap import TexToken, project
+from pdfreader import docmodel_six as docmodel
+from pdfreader import testpaths
+from pdfreader.docmodel_six import GlyphNode, RuleNode, Span, _is_level, glyph_latex
+from pdfreader.texmap import TexToken, project
 
 
 # --- corpus fixtures -------------------------------------------------------
@@ -242,7 +242,7 @@ class TestScriptPullsInItsBase:
     """
 
     def test_base_and_subscript_share_a_span(self):
-        from docmodel_six import LineNode, _spans
+        from pdfreader.docmodel_six import LineNode, _spans
         base = g("e", family="text", size=10.0, baseline=100.0, x=0.0,
                  text="e")
         base.fontname = "ABC+CMTI10"
@@ -257,7 +257,7 @@ class TestScriptPullsInItsBase:
 
     def test_rotated_line_is_never_parsed_as_maths(self):
         """A stamp is text. Parsing it turns `arXiv:0805` into LaTeX."""
-        from docmodel_six import LineNode, _spans
+        from pdfreader.docmodel_six import LineNode, _spans
         gl = [g(None, family="text", size=8.0, baseline=100.0, x=float(i),
                 text=c) for i, c in enumerate("arXiv:0805")]
         line = LineNode(id="r", page=1, rect=(0, 90, 20, 110), type="text",
@@ -282,13 +282,13 @@ class TestDiagramRegions:
         return n
 
     def test_dash_stamps_become_one_region(self):
-        from docmodel_six import _diagram_regions
+        from pdfreader.docmodel_six import _diagram_regions
         marks = [self._mark(100.0 + 4 * i, 200.0 - 2 * i) for i in range(11)]
         regions = _diagram_regions(marks)
         assert len(regions) == 1
 
     def test_labels_are_absorbed(self):
-        from docmodel_six import _diagram_regions
+        from pdfreader.docmodel_six import _diagram_regions
         marks = [self._mark(100.0 + 4 * i, 200.0 - 2 * i) for i in range(11)]
         label = g("E", family="math-italic", size=12.0, baseline=205.0, x=95.0,
                   text="E")
@@ -300,7 +300,7 @@ class TestDiagramRegions:
     def test_absorption_does_not_cascade(self):
         """Growing iteratively swallowed the whole page: a label extends the
         box, which then reaches further, and so on."""
-        from docmodel_six import _diagram_regions
+        from pdfreader.docmodel_six import _diagram_regions
         marks = [self._mark(100.0 + 4 * i, 200.0 - 2 * i) for i in range(11)]
         far = [g("x", family="math-italic", size=10.0, baseline=200.0,
                  x=300.0 + 30 * i, text="x") for i in range(6)]
@@ -308,7 +308,7 @@ class TestDiagramRegions:
         assert regions[0][2] < 250.0, f"region ran away: {regions[0]}"
 
     def test_no_drawing_font_no_region(self):
-        from docmodel_six import _diagram_regions
+        from pdfreader.docmodel_six import _diagram_regions
         plain = [g("alpha", family="math-italic", size=10.0, baseline=100.0,
                    x=float(i) * 6) for i in range(8)]
         assert _diagram_regions(plain) == []
@@ -323,11 +323,11 @@ class TestRuleRoleUsesBaselines:
     """
 
     def _rule(self, x0, x1, y):
-        from docmodel_six import RuleNode
+        from pdfreader.docmodel_six import RuleNode
         return RuleNode(id="r", page=1, rect=(x0, y, x1, y))
 
     def test_overline_has_a_base_below_only(self):
-        from docmodel_six import _rule_role
+        from pdfreader.docmodel_six import _rule_role
         base = g("x", family="math-italic", size=10.0, baseline=417.7, x=247.7)
         base.rect = (247.7, 417.7, 253.4, 427.7)      # box top is ABOVE the bar
         r = self._rule(247.7, 253.4, 425.85)
@@ -335,7 +335,7 @@ class TestRuleRoleUsesBaselines:
 
     def test_fraction_has_both_sides(self):
         """Geometry from a real page: numerator +4.58, denominator -9.50."""
-        from docmodel_six import _rule_role
+        from pdfreader.docmodel_six import _rule_role
         num = g(None, family="text", size=10.0, baseline=602.78, x=252.0,
                 text="1")
         den = g(None, family="text", size=10.0, baseline=588.70, x=252.0,
@@ -346,7 +346,7 @@ class TestRuleRoleUsesBaselines:
     def test_window_scales_with_type_size(self):
         """The window is VERTICAL, so it must scale by size, not by the
         rule's width -- a 5.7pt-wide overline once got a 14pt window."""
-        from docmodel_six import _rule_role
+        from pdfreader.docmodel_six import _rule_role
         far = g("x", family="math-italic", size=10.0, baseline=300.0, x=247.7)
         r = self._rule(247.7, 253.4, 425.85)
         assert _rule_role(r, [far], 10.0) == "unknown"
@@ -355,16 +355,16 @@ class TestRuleRoleUsesBaselines:
 class TestUnconsumedRulesDefer:
     def test_a_rule_that_is_not_a_fraction_blocks_projection(self):
         """Ignoring an unmodelled rule is how `\\overline{x}` became `x`."""
-        import structure
-        from docmodel_six import RuleNode
+        from pdfreader import structure
+        from pdfreader.docmodel_six import RuleNode
         a = g("alpha", family="math-italic", size=10.0, baseline=100.0, x=0.0)
         bar = RuleNode(id="r", page=1, rect=(0.0, 130.0, 5.0, 130.0),
                        role="unknown")
         assert structure.to_tex([a], [bar]) is None
 
     def test_overline_is_composed_not_dropped(self):
-        import structure
-        from docmodel_six import RuleNode
+        from pdfreader import structure
+        from pdfreader.docmodel_six import RuleNode
         x = g("x", family="math-italic", size=10.0, baseline=100.0, x=0.0)
         bar = RuleNode(id="r", page=1, rect=(0.0, 110.0, 5.0, 110.0),
                        role="overline")
@@ -383,7 +383,7 @@ class TestFractionVersusOverline:
     """
 
     def _rule(self, x0, x1, y):
-        from docmodel_six import RuleNode
+        from pdfreader.docmodel_six import RuleNode
         return RuleNode(id="r", page=1, rect=(x0, y, x1, y))
 
     def _row(self, baseline, xs, size=12.0):
@@ -391,14 +391,14 @@ class TestFractionVersusOverline:
                   x=x, text="o") for x in xs]
 
     def test_numerator_contained_by_the_bar_is_a_fraction(self):
-        from docmodel_six import _rule_role
+        from pdfreader.docmodel_six import _rule_role
         bar = self._rule(251.7, 256.7, 598.2)
         num = self._row(602.78, [252.0])
         den = self._row(588.70, [252.0])
         assert _rule_role(bar, num + den, 12.0) == "fraction"
 
     def test_text_line_across_the_page_is_not_a_numerator(self):
-        from docmodel_six import _rule_role
+        from pdfreader.docmodel_six import _rule_role
         bar = self._rule(300.0, 308.9, 400.0)
         # a running line at the same offset a numerator would occupy
         line_above = self._row(404.57, [200.0, 240.0, 300.0, 360.0, 420.0])
@@ -406,14 +406,14 @@ class TestFractionVersusOverline:
         assert _rule_role(bar, line_above + base, 12.0) == "overline"
 
     def test_neither_side_gives_unknown(self):
-        from docmodel_six import _rule_role
+        from pdfreader.docmodel_six import _rule_role
         bar = self._rule(300.0, 308.9, 400.0)
         assert _rule_role(bar, [], 12.0) == "unknown"
 
     def test_a_narrow_mark_under_a_wide_bar_is_not_its_base(self):
         """TeX draws an accent to the width of what it accents, so something
         far narrower than the bar is not what the bar covers."""
-        from docmodel_six import _rule_role
+        from pdfreader.docmodel_six import _rule_role
         bar = self._rule(300.0, 340.0, 400.0)
         tiny = [g(None, family="text", size=12.0, baseline=390.0, x=302.0,
                   text=".")]
@@ -438,7 +438,7 @@ class TestWordGapIsMeasured:
         """Measured on a real 12pt line: within-word 0.07-0.87,
         between-word 2.04-4.92. The fixed 0.22em threshold was 2.64 --
         inside the word cluster, so `any quaternion` lost its space."""
-        from docmodel_six import _word_gap
+        from pdfreader.docmodel_six import _word_gap
         run = self._run([(5, 0.1), (5, 0.1), (5, 2.6), (5, 0.1), (5, 2.6),
                          (5, 0.1), (5, 0.1), (5, 3.0)])
         wg = _word_gap(run)
@@ -448,21 +448,21 @@ class TestWordGapIsMeasured:
         """When letters touch, every gap is ~0 except the word spaces.
         Filtering those out left only word gaps and put the threshold ABOVE
         a real space -- `oneofthemaingoalsofthesenotes`."""
-        from docmodel_six import _word_gap
+        from pdfreader.docmodel_six import _word_gap
         run = self._run([(5, 0.0), (5, 0.0), (5, 2.3), (5, 0.0), (5, 2.3),
                          (5, 0.0), (5, 0.0), (5, 2.3)])
         wg = _word_gap(run)
         assert wg < 2.3, wg
 
     def test_falls_back_when_there_is_no_split(self):
-        from docmodel_six import _word_gap
+        from pdfreader.docmodel_six import _word_gap
         run = self._run([(5, 1.0)] * 8)
         assert _word_gap(run) == pytest.approx(0.22 * 12.0, abs=0.5)
 
     def test_spaces_appear_where_the_gaps_are(self):
         """Needs enough gaps to measure: under four the function documents
         a fallback to the fixed fraction, and says so."""
-        from docmodel_six import _run_text, _word_gap
+        from pdfreader.docmodel_six import _run_text, _word_gap
         run = self._run([(5, 0.1), (5, 0.1), (5, 2.6), (5, 0.1), (5, 2.6),
                          (5, 0.1), (5, 3.0)])
         assert _run_text(run, _word_gap(run)).count(" ") == 2
@@ -485,13 +485,13 @@ class TestTallGlyphsDoNotReachAcrossLines:
         return n
 
     def test_run_on_the_line_below_is_not_absorbed(self):
-        from docmodel_six import LineNode
+        from pdfreader.docmodel_six import LineNode
         o = self._at("o", 192.0, 197.8, 273.7, 285.7, 276.72)
         n = self._at("n", 197.9, 204.4, 273.7, 285.7, 276.72)
         rad = self._at("", 202.0, 213.9, 244.1, 256.0, 272.28,
                        family="math-extension")
         rad.glyphname = "radicalbig"
-        from texmap import project
+        from pdfreader.texmap import project
         rad.tex = project("math-extension", "radicalbig")
         line = LineNode(id="l", page=1, rect=(190, 244, 215, 286),
                         type="formula", glyphs=[o, n, rad])
@@ -502,13 +502,13 @@ class TestTallGlyphsDoNotReachAcrossLines:
 
     def test_overlapping_runs_still_absorb(self):
         """The guard must not block a genuine operator name."""
-        from docmodel_six import LineNode
+        from pdfreader.docmodel_six import LineNode
         c = self._at("C", 100.0, 106.0, 200.0, 212.0, 200.0)
         l = self._at("l", 106.0, 110.0, 200.0, 212.0, 200.0)
         sub = self._at("n", 110.5, 114.0, 198.0, 206.0, 197.0, size=8.0,
                        family="math-italic")
         sub.glyphname = "n"
-        from texmap import project
+        from pdfreader.texmap import project
         sub.tex = project("math-italic", "n")
         line = LineNode(id="l", page=1, rect=(99, 197, 115, 212),
                         type="formula", glyphs=[c, l, sub])
@@ -535,8 +535,8 @@ class TestFractionInsideAnExpression:
         return n
 
     def test_host_row_is_merged_in(self):
-        from docmodel_six import build  # noqa: F401  (documented behaviour)
-        from docmodel_six import _dominant_size
+        from pdfreader.docmodel_six import build  # noqa: F401  (documented behaviour)
+        from pdfreader.docmodel_six import _dominant_size
         # three rows, as measured
         num = [self._g("1", 216.0, 255.4)]
         den = [self._g("2", 216.0, 239.2)]
@@ -548,7 +548,7 @@ class TestFractionInsideAnExpression:
                        for n in main)
 
     def test_display_line_with_a_fraction_is_one_span(self):
-        from docmodel_six import LineNode, RuleNode
+        from pdfreader.docmodel_six import LineNode, RuleNode
         num = self._g("1", 216.0, 255.4)
         den = self._g("2", 216.0, 239.2)
         rest = [self._g(c, 170.0 + 6 * i, 247.3, family="math-italic")
@@ -585,13 +585,13 @@ class TestWordGapIsOutlierRobust:
         return out
 
     def test_single_outlier_is_ignored(self):
-        from docmodel_six import _word_gap
+        from pdfreader.docmodel_six import _word_gap
         gaps = [0.0] * 12 + [2.7, 0.0, 2.8, 0.0, 3.0, 0.0, 2.9, 0.0] + [15.2]
         wg = _word_gap(self._run(gaps))
         assert wg < 2.7, f"the outlier defined the split: {wg}"
 
     def test_spaces_survive_the_outlier(self):
-        from docmodel_six import _run_text, _word_gap
+        from pdfreader.docmodel_six import _run_text, _word_gap
         gaps = [0.0] * 12 + [2.7, 0.0, 2.8, 0.0, 3.0, 0.0, 2.9, 0.0] + [15.2]
         run = self._run(gaps)
         text = _run_text(run, _word_gap(run))
@@ -609,13 +609,13 @@ class TestCmexBoxesAreRepaired:
     """
 
     def test_implausible_descent_is_replaced(self):
-        from docmodel_six import _sane_rect
+        from pdfreader.docmodel_six import _sane_rect
         fixed = _sane_rect((459.4, 475.2, 472.0, 487.2), 503.4, 12.0)
         assert fixed[0] == 459.4 and fixed[2] == 472.0, "x must not change"
         assert fixed[1] < 503.4 < fixed[3], "the box must straddle the origin"
 
     def test_ordinary_descent_is_left_alone(self):
-        from docmodel_six import _sane_rect
+        from pdfreader.docmodel_six import _sane_rect
         box = (100.0, 97.6, 106.0, 109.6)       # descent -0.2em at 12pt
         assert _sane_rect(box, 100.0, 12.0) == box
 
@@ -630,7 +630,7 @@ class TestRaisedBigOperators:
     """
 
     def _g(self, name, x, baseline, size=12.0, family="math-extension"):
-        from texmap import project
+        from pdfreader.texmap import project
         n = g(name, family=family, size=size, baseline=baseline, x=x)
         n.rect = (x, baseline - 0.3 * size, x + 12.6, baseline + size)
         n.matrix = (size, 0, 0, size, x, baseline)
@@ -638,7 +638,7 @@ class TestRaisedBigOperators:
         return n
 
     def test_bigop_groups_with_the_lower_row(self):
-        from docmodel_six import _group_lines
+        from pdfreader.docmodel_six import _group_lines
         upper = [g(None, family="text", size=12.0, baseline=508.8,
                    x=float(i) * 6, text="a") for i in range(5)]
         lower = [g(None, family="text", size=12.0, baseline=494.4,
@@ -653,7 +653,7 @@ class TestRaisedBigOperators:
             raise AssertionError("the operator was not placed in a row")
 
     def test_bigop_takes_its_subscript(self):
-        import structure
+        from pdfreader import structure
         sigma = self._g("summationtext", 459.4, 503.4)
         sub = g("J", family="math-italic", size=8.0, baseline=490.9,
                 x=472.0)
@@ -662,7 +662,7 @@ class TestRaisedBigOperators:
 
 class TestOverlineEdges:
     def _rule(self, x0, x1, y, role="overline"):
-        from docmodel_six import RuleNode
+        from pdfreader.docmodel_six import RuleNode
         return RuleNode(id="r", page=1, rect=(x0, y, x1, y), role=role)
 
     def test_bar_over_several_narrow_glyphs(self):
@@ -671,7 +671,7 @@ class TestOverlineEdges:
         Requiring one glyph as wide as the bar found nothing under it and
         left the rule classified "unknown", which deferred the whole span.
         """
-        from docmodel_six import _rule_role
+        from pdfreader.docmodel_six import _rule_role
         run = []
         for i in range(6):
             n = g(None, family="math-italic", size=10.0, baseline=199.4,
@@ -683,7 +683,7 @@ class TestOverlineEdges:
     def test_a_bar_below_the_baseline_is_not_this_line_s(self):
         """An overline goes ABOVE what it covers. Rules from the line below
         were being attached and deferring spans with no accent at all."""
-        from docmodel_six import _rule_role
+        from pdfreader.docmodel_six import _rule_role
         n = g("x", family="math-italic", size=10.0, baseline=328.0, x=440.0)
         n.rect = (440.0, 328.0, 447.0, 338.0)
         # the bar sits 8pt BELOW this glyph's baseline
@@ -714,11 +714,11 @@ class TestTheOverlineIsHigherThanEightTenthsOfAnEm:
         return n
 
     def _rule(self, x0, x1, y, role="overline"):
-        from docmodel_six import RuleNode
+        from pdfreader.docmodel_six import RuleNode
         return RuleNode(id="r", page=1, rect=(x0, y, x1, y), role=role)
 
     def _covers(self, rule, glyphs):
-        from docmodel_six import _covers_as_overline
+        from pdfreader.docmodel_six import _covers_as_overline
         return _covers_as_overline(rule, 0.5 * (rule.rect[1] + rule.rect[3]),
                                    glyphs)
 
@@ -763,7 +763,7 @@ class TestAbsorptionOrder:
     def _g(self, text, x, baseline, size, family, font="ABC+CMR10"):
         # A glyphname is required: absorption refuses to merge into a maths
         # run it cannot identify, which is the point of `_solid`.
-        from texmap import project
+        from pdfreader.texmap import project
         name = text if family.startswith("math") else None
         n = g(name, family=family, size=size, baseline=baseline, x=x,
               text=text)
@@ -774,7 +774,7 @@ class TestAbsorptionOrder:
         return n
 
     def test_subscript_run_stays_whole(self):
-        from docmodel_six import LineNode
+        from pdfreader.docmodel_six import LineNode
         # Cl  p  +  1  ,  q   -- `Cl` roman, scripts at 8pt
         gl = [self._g("C", 100.0, 200.0, 12.0, "text"),
               self._g("l", 106.0, 200.0, 12.0, "text"),
@@ -802,7 +802,7 @@ class TestFenceFragmentsBlockProjection:
     """
 
     def _g(self, text, x, baseline, size=12.0, family="text", name=None):
-        from texmap import project
+        from pdfreader.texmap import project
         n = g(name, family=family, size=size, baseline=baseline, x=x,
               text=text)
         n.rect = (x, baseline, x + 0.5 * size, baseline + size)
@@ -811,7 +811,7 @@ class TestFenceFragmentsBlockProjection:
         return n
 
     def test_adjacent_fragment_makes_its_span_defer(self):
-        from docmodel_six import LineNode, span_latex
+        from pdfreader.docmodel_six import LineNode, span_latex
         piece = self._g("", 112.0, 200.0, family="math-extension",
                         name="vextendsingle")
         assert piece.tex.kind == "fragment"
@@ -826,7 +826,7 @@ class TestFenceFragmentsBlockProjection:
     def test_distant_fragment_does_not_poison_a_run(self):
         """A radical from another row abuts nothing here; attaching it to the
         nearest maths run made that span defer and its crop cover prose."""
-        from docmodel_six import LineNode, span_latex
+        from pdfreader.docmodel_six import LineNode, span_latex
         far = self._g("", 400.0, 200.0, family="math-extension",
                       name="vextendsingle")
         x = self._g("X", 100.0, 200.0, family="math-italic", name="X")
@@ -852,7 +852,7 @@ class TestDiagramDetectionScales:
     def test_many_marks_are_clustered_quickly(self):
         import time
 
-        from docmodel_six import _diagram_regions
+        from pdfreader.docmodel_six import _diagram_regions
         marks = [(100.0 + (i % 200) * 0.5, 200.0 + (i // 200) * 0.5,
                   100.5 + (i % 200) * 0.5, 200.5 + (i // 200) * 0.5)
                  for i in range(20000)]
@@ -881,7 +881,7 @@ class TestFramesAreNotFigures:
         return out
 
     def test_frame_around_text_is_rejected(self):
-        from docmodel_six import _diagram_regions
+        from pdfreader.docmodel_six import _diagram_regions
         text = self._glyphs(850)
         frame = [(95.0, 195.0, 100.0, 440.0), (300.0, 195.0, 305.0, 440.0),
                  (95.0, 195.0, 305.0, 200.0), (95.0, 435.0, 305.0, 440.0),
@@ -890,13 +890,13 @@ class TestFramesAreNotFigures:
         assert _diagram_regions(text, frame) == []
 
     def test_a_sliver_is_rejected(self):
-        from docmodel_six import _diagram_regions
+        from pdfreader.docmodel_six import _diagram_regions
         sliver = [(100.0, 200.0, 103.0, 300.0), (100.5, 210.0, 103.0, 320.0),
                   (100.0, 220.0, 102.0, 340.0)]
         assert _diagram_regions([], sliver) == []
 
     def test_a_real_figure_survives(self):
-        from docmodel_six import _diagram_regions
+        from pdfreader.docmodel_six import _diagram_regions
         strokes = [(200.0 + i * 2.0, 300.0 + (i % 7) * 3.0,
                     204.0 + i * 2.0, 306.0 + (i % 7) * 3.0)
                    for i in range(40)]
@@ -926,7 +926,7 @@ class TestSmallerBlocksKeepTheirOwnRows:
         return out
 
     def test_listing_rows_stay_separate(self):
-        from docmodel_six import _group_lines
+        from pdfreader.docmodel_six import _group_lines
         body = (self._row(700.0, 40, 10.0) + self._row(688.0, 40, 10.0))
         listing = (self._row(600.0, 30, 9.0) + self._row(589.0, 30, 9.0)
                    + self._row(578.0, 30, 9.0))
@@ -936,7 +936,7 @@ class TestSmallerBlocksKeepTheirOwnRows:
 
     def test_scripts_still_join_their_base(self):
         """The fix must not turn every subscript into its own row."""
-        from docmodel_six import _group_lines
+        from pdfreader.docmodel_six import _group_lines
         base = self._row(500.0, 10, 12.0)
         sub = self._row(497.0, 1, 8.0, x0=150.0)
         rows = _group_lines(base + sub)
@@ -953,7 +953,7 @@ class TestWideRulesAreNotFractions:
     """
 
     def test_a_frame_width_rule_is_a_separator(self):
-        from docmodel_six import RuleNode, _rule_role
+        from pdfreader.docmodel_six import RuleNode, _rule_role
         above = g(None, family="text", size=9.0, baseline=306.0, x=100.0,
                   text="a")
         below = g(None, family="text", size=9.0, baseline=294.0, x=100.0,
@@ -962,7 +962,7 @@ class TestWideRulesAreNotFractions:
         assert _rule_role(frame, [above, below], 9.0) == "separator"
 
     def test_a_real_fraction_bar_still_classifies(self):
-        from docmodel_six import RuleNode, _rule_role
+        from pdfreader.docmodel_six import RuleNode, _rule_role
         num = g(None, family="text", size=12.0, baseline=602.78, x=252.0,
                 text="1")
         den = g(None, family="text", size=12.0, baseline=588.70, x=252.0,
@@ -980,7 +980,7 @@ class TestRowClusteringDoesNotDrift:
     """
 
     def test_evenly_spaced_lines_stay_separate(self):
-        from docmodel_six import _group_lines
+        from pdfreader.docmodel_six import _group_lines
         gl = []
         for row in range(6):
             base = 600.0 - row * 11.0
@@ -1009,7 +1009,7 @@ class TestGluedRelationsArePunctuation:
         return n
 
     def _line(self, glyphs):
-        from docmodel_six import LineNode
+        from pdfreader.docmodel_six import LineNode
         return LineNode(id="l", page=1,
                         rect=(glyphs[0].rect[0], 99.0,
                               glyphs[-1].rect[2], 108.0),
@@ -1058,7 +1058,7 @@ class TestVerbatimLines:
         return n
 
     def _line(self, glyphs):
-        from docmodel_six import LineNode
+        from pdfreader.docmodel_six import LineNode
         return LineNode(id="l", page=1, rect=(0, 99, 400, 110),
                         type="text", glyphs=glyphs)
 
@@ -1105,13 +1105,13 @@ class TestListingFrames:
         """A frame edge draws a zero-width, line-high rule once PER LINE --
         76 on one page -- and each was an unmodelled rule that made every
         span on the page defer."""
-        from docmodel_six import RuleNode, _rule_role
+        from pdfreader.docmodel_six import RuleNode, _rule_role
         edge = RuleNode(id="r", page=1, rect=(108.0, 300.0, 108.0, 311.0))
         assert _rule_role(edge, [], 10.0) == "separator"
 
     def test_separators_neither_compose_nor_block(self):
-        import structure
-        from docmodel_six import RuleNode
+        from pdfreader import structure
+        from pdfreader.docmodel_six import RuleNode
         a = g("alpha", family="math-italic", size=10.0, baseline=300.0,
               x=120.0)
         edge = RuleNode(id="r", page=1, rect=(108.0, 300.0, 108.0, 311.0),
@@ -1121,7 +1121,7 @@ class TestListingFrames:
     def test_frame_marks_do_not_make_it_a_figure(self):
         """The per-line rules inflated the mark count, so the frame test
         stopped recognising a listing box as a frame."""
-        from docmodel_six import _diagram_regions
+        from pdfreader.docmodel_six import _diagram_regions
         text = []
         for i in range(200):
             gl = g(None, family="text", size=9.0,
@@ -1138,7 +1138,7 @@ class TestListingFrames:
 
 class TestMonospaceIsNeverMaths:
     def test_typewriter_glyph_forced_to_text(self):
-        from docmodel_six import LineNode
+        from pdfreader.docmodel_six import LineNode
         gl = []
         for i, c in enumerate("fermion"):
             n = g(None, family="text", size=10.9, baseline=373.2,
@@ -1184,7 +1184,7 @@ class TestColumnLayout:
     def test_edge_is_found(self):
         """The boundary must lie BETWEEN the columns -- that is the property
         that matters, not any particular coordinate."""
-        from docmodel_six import _column_edge
+        from pdfreader.docmodel_six import _column_edge
         rows = self._two_column_rows()
         edge = _column_edge(rows, (0, 0, 612, 792))
         assert edge is not None
@@ -1193,12 +1193,12 @@ class TestColumnLayout:
         assert left_end <= edge <= right_start, (left_end, edge, right_start)
 
     def test_single_column_has_no_edge(self):
-        from docmodel_six import _column_edge
+        from pdfreader.docmodel_six import _column_edge
         rows = [self._row(48.0, 60, 700.0 - k * 12.0) for k in range(12)]
         assert _column_edge(rows, (0, 0, 612, 792)) is None
 
     def test_straddling_row_is_split(self):
-        from docmodel_six import _column_edge, _split_at_columns
+        from pdfreader.docmodel_six import _column_edge, _split_at_columns
         rows = self._two_column_rows()
         merged = rows[0] + rows[1]
         edge = _column_edge(rows, (0, 0, 612, 792))
@@ -1207,7 +1207,7 @@ class TestColumnLayout:
 
     def test_full_width_row_is_left_whole(self):
         """A title or caption runs straight across and must stay one row."""
-        from docmodel_six import _column_edge, _split_at_columns
+        from pdfreader.docmodel_six import _column_edge, _split_at_columns
         rows = self._two_column_rows()
         edge = _column_edge(rows, (0, 0, 612, 792))
         wide = self._row(48.0, 100, 740.0)          # crosses the boundary
@@ -1236,7 +1236,7 @@ class TestSmallCapsStayOnTheirLine:
         return n
 
     def test_small_caps_stay_with_their_word(self):
-        from docmodel_six import _group_lines
+        from pdfreader.docmodel_six import _group_lines
         # the word, on one baseline, in two sizes
         word = [self._g("T", 100.0, 120.489, 10.0)]
         word += [self._g(c, 106.0 + i * 5.0, 120.489, 8.0)
@@ -1255,7 +1255,7 @@ class TestSmallCapsStayOnTheirLine:
         raise AssertionError("the word was split across rows")
 
     def test_columns_at_different_baselines_stay_apart(self):
-        from docmodel_six import _group_lines
+        from pdfreader.docmodel_six import _group_lines
         left = [self._g(c, 100.0 + i * 5.0, 120.489, 10.0)
                 for i, c in enumerate("left column")]
         right = [self._g(c, 330.0 + i * 5.0, 123.376, 10.0)
@@ -1285,7 +1285,7 @@ class TestColumnsDoNotShareBaselines:
 
     def test_one_point_offset_keeps_columns_apart(self):
         """The tighter of the two measured offsets."""
-        from docmodel_six import _group_lines
+        from pdfreader.docmodel_six import _group_lines
         heading = [self._g("I", 394.7, 660.135, 9.96),
                    self._g("I", 398.5, 660.135, 9.96),
                    self._g("R", 410.3, 660.135, 9.96)]
@@ -1299,7 +1299,7 @@ class TestColumnsDoNotShareBaselines:
             assert len(base) == 1, f"row spans baselines {base}"
 
     def test_small_caps_word_survives_a_near_column(self):
-        from docmodel_six import _group_lines
+        from pdfreader.docmodel_six import _group_lines
         heading = [self._g("R", 410.3, 660.135, 9.96)]
         heading += [self._g(c, 417.5 + i * 5.0, 660.135, 7.97)
                     for i, c in enumerate("ELATED")]
@@ -1329,7 +1329,7 @@ class TestCaptionsAreNotAbsorbedByFigures:
         return n
 
     def test_caption_running_past_the_figure_is_left_out(self):
-        from docmodel_six import _diagram_regions
+        from pdfreader.docmodel_six import _diagram_regions
         strokes = [(200.0 + i * 3.0, 600.0 + (i % 5) * 4.0,
                     204.0 + i * 3.0, 606.0 + (i % 5) * 4.0)
                    for i in range(40)]
@@ -1342,7 +1342,7 @@ class TestCaptionsAreNotAbsorbedByFigures:
         assert x0 > 100.0, f"the region swallowed the caption: {regions[0]}"
 
     def test_a_real_label_inside_the_figure_is_absorbed(self):
-        from docmodel_six import _diagram_regions
+        from pdfreader.docmodel_six import _diagram_regions
         strokes = [(200.0 + i * 3.0, 600.0 + (i % 5) * 4.0,
                     204.0 + i * 3.0, 606.0 + (i % 5) * 4.0)
                    for i in range(40)]
@@ -1363,7 +1363,7 @@ class TestBandReadingOrder:
     """
 
     def _row(self, x0, x1, y, page=1):
-        from docmodel_six import LineNode
+        from pdfreader.docmodel_six import LineNode
         gl = []
         x = x0
         while x < x1:
@@ -1427,7 +1427,7 @@ class TestStreamSeparatesPanels:
 
     def test_a_row_spanning_two_runs_is_split(self):
         """Both conditions: the run changes AND the page shows a space."""
-        from docmodel_six import _split_by_stream
+        from pdfreader.docmodel_six import _split_by_stream
         left = [self._g(c, 60.0 + i * 5.0, 480.0, 100 + i)
                 for i, c in enumerate("panelA")]
         right = [self._g(c, 320.0 + i * 5.0, 480.0, 900 + i)
@@ -1438,19 +1438,19 @@ class TestStreamSeparatesPanels:
 
     def test_a_genuine_line_is_not_split(self):
         """Within a real line the producer emits glyphs consecutively."""
-        from docmodel_six import _split_by_stream
+        from pdfreader.docmodel_six import _split_by_stream
         row = [self._g(c, 60.0 + i * 5.0, 480.0, 100 + i)
                for i, c in enumerate("one continuous line of text")]
         assert len(_split_by_stream([row])) == 1
 
     def test_rows_without_stream_data_are_untouched(self):
-        from docmodel_six import _split_by_stream
+        from pdfreader.docmodel_six import _split_by_stream
         row = [self._g(c, 60.0 + i * 5.0, 480.0, -1)
                for i, c in enumerate("no stream")]
         assert len(_split_by_stream([row])) == 1
 
     def test_line_reports_its_earliest_stream_position(self):
-        from docmodel_six import LineNode
+        from pdfreader.docmodel_six import LineNode
         gl = [self._g("a", 60.0, 480.0, 500),
               self._g("b", 65.0, 480.0, 300),
               self._g("c", 70.0, 480.0, 400)]
@@ -1461,14 +1461,14 @@ class TestStreamSeparatesPanels:
     def test_a_stream_jump_without_a_gap_does_not_split(self):
         """A display equation legitimately jumps in the stream while staying
         one line. Splitting on that alone cost 16 extra crops."""
-        from docmodel_six import _split_by_stream
+        from pdfreader.docmodel_six import _split_by_stream
         row = [self._g("a", 60.0, 480.0, 100), self._g("b", 64.5, 480.0, 900)]
         assert len(_split_by_stream([row])) == 1
 
     def test_a_gap_without_a_stream_jump_does_not_split(self):
         """A listing's line-number gutter is its own stream run but sits
         close to its code; splitting there cut the numbers off."""
-        from docmodel_six import _split_by_stream
+        from pdfreader.docmodel_six import _split_by_stream
         row = [self._g("1", 60.0, 480.0, 100),
                self._g("x", 100.0, 480.0, 101)]
         assert len(_split_by_stream([row])) == 1
@@ -1481,7 +1481,7 @@ class TestStreamSeparatesPanels:
         earlier, was split off -- five lines came out as bare numbers with
         their code in a fence of its own.
         """
-        from docmodel_six import _split_by_stream
+        from pdfreader.docmodel_six import _split_by_stream
         num = self._g("26", 314.0, 204.0, 1418, size=4.98)
         num.fontname = "ABC+NimbusRomNo9L-Regu"
         code = []
@@ -1496,7 +1496,7 @@ class TestStreamSeparatesPanels:
     def test_two_panels_are_still_split(self):
         """The gutter exception must not reopen the panel case: both sides
         of a panel boundary are monospace."""
-        from docmodel_six import _split_by_stream
+        from pdfreader.docmodel_six import _split_by_stream
         left, right = [], []
         for i, c in enumerate("panelA"):
             gl = self._g(c, 60.0 + i * 5.0, 480.0, 100 + i)
@@ -1515,13 +1515,13 @@ class TestSpaceIsNotAnUnmappedGlyph:
     symbols."""
 
     def test_a_named_space_projects(self):
-        from docmodel_six import glyph_latex
+        from pdfreader.docmodel_six import glyph_latex
         gl = g("space", family="text", size=10.0, baseline=100.0, x=50.0,
                text=" ")
         assert glyph_latex(gl) == " "
 
     def test_a_space_character_projects(self):
-        from docmodel_six import glyph_latex
+        from pdfreader.docmodel_six import glyph_latex
         gl = g(None, family="math-italic", size=10.0, baseline=100.0,
                x=50.0, text=" ")
         assert glyph_latex(gl) == " "
@@ -1542,21 +1542,21 @@ class TestSpanGapsAreReported:
         b = g("beta", family="math-italic", size=size, baseline=100.0,
               x=55.0 + gap_pt)
         b.rect = (55.0 + gap_pt, 100.0, 60.0 + gap_pt, 100.0 + size)
-        import docmodel_six as D
+        from pdfreader import docmodel_six as D
         return D.Span(id="s", kind="math",
                       rect=(50.0, 100.0, 60.0 + gap_pt, 110.0),
                       glyphs=[a, b], rules=[], line_size=size)
 
     def test_a_negative_gap_is_reported(self):
         """`\\!` measures -0.167 em."""
-        from docmodel_six import span_gaps
+        from pdfreader.docmodel_six import span_gaps
         got = span_gaps(self._pair(-1.67))
         assert len(got) == 1 and got[0]["kind"] == "negative"
         assert got[0]["em"] == -0.167
 
     def test_a_wide_gap_is_reported(self):
         """`\\quad` measures +1.0 em."""
-        from docmodel_six import span_gaps
+        from pdfreader.docmodel_six import span_gaps
         got = span_gaps(self._pair(10.0))
         assert got and got[0]["kind"] == "wide" and got[0]["em"] == 1.0
 
@@ -1569,21 +1569,21 @@ class TestSpanGapsAreReported:
         This test asserted the opposite until 705. That was the third test
         this session to encode a limitation as a requirement.
         """
-        from docmodel_six import span_gaps
+        from pdfreader.docmodel_six import span_gaps
         got = span_gaps(self._pair(2.22))
         assert len(got) == 1 and got[0]["tex_class"] == 2
 
     def test_a_gap_off_the_table_is_still_skipped(self):
         """0.35em is neither 4mu nor 5mu nor wide enough to matter."""
-        from docmodel_six import span_gaps
+        from pdfreader.docmodel_six import span_gaps
         assert span_gaps(self._pair(3.5)) == []
 
     def test_abutting_glyphs_are_not_reported(self):
-        from docmodel_six import span_gaps
+        from pdfreader.docmodel_six import span_gaps
         assert span_gaps(self._pair(0.0)) == []
 
     def test_the_entry_names_both_sides(self):
-        from docmodel_six import span_gaps
+        from pdfreader.docmodel_six import span_gaps
         got = span_gaps(self._pair(10.0))[0]
         assert set(got) == {"after", "em", "pt", "left", "right", "kind",
                             "tex_class"}
@@ -1602,7 +1602,7 @@ class TestUnderscoreIsContent:
     """
 
     def _rule(self, y, x0=72.0, x1=75.2):
-        from docmodel_six import RuleNode
+        from pdfreader.docmodel_six import RuleNode
         return RuleNode(id="r", page=1, rect=(x0, y, x1, y))
 
     def _glyph(self, x=75.2, baseline=638.2, size=10.0):
@@ -1612,24 +1612,24 @@ class TestUnderscoreIsContent:
         return n
 
     def test_a_baseline_rule_is_an_underscore(self):
-        from docmodel_six import _rule_role
+        from pdfreader.docmodel_six import _rule_role
         assert _rule_role(self._rule(638.4), [self._glyph()], 10.0) \
             == "underscore"
 
     def test_a_bar_on_the_maths_axis_is_not(self):
         """A quarter em above the baseline is a fraction bar's height."""
-        from docmodel_six import _rule_role
+        from pdfreader.docmodel_six import _rule_role
         assert _rule_role(self._rule(640.9), [self._glyph()], 10.0) \
             != "underscore"
 
     def test_a_wide_rule_is_not_an_underscore(self):
-        from docmodel_six import _rule_role
+        from pdfreader.docmodel_six import _rule_role
         wide = self._rule(638.4, x0=50.0, x1=250.0)
         assert _rule_role(wide, [self._glyph()], 10.0) != "underscore"
 
     def test_it_reaches_the_latex(self):
-        import structure
-        from docmodel_six import RuleNode
+        from pdfreader import structure
+        from pdfreader.docmodel_six import RuleNode
         r = RuleNode(id="r", page=1, rect=(72.0, 638.4, 75.2, 638.4),
                      role="underscore")
         out = structure.to_tex([self._glyph()], [r])
@@ -1650,7 +1650,7 @@ class TestAccentsRejoinTheirBase:
     """
 
     def _g(self, name, x0, x1, baseline, stream, size=9.96, kind="atom"):
-        from texmap import TexToken
+        from pdfreader.texmap import TexToken
         n = g(name, family="math-extension" if kind == "accent"
               else "math-italic", size=size, baseline=baseline, x=x0)
         n.rect = (x0, baseline, x1, baseline + size)
@@ -1660,7 +1660,7 @@ class TestAccentsRejoinTheirBase:
         return n
 
     def test_an_accent_joins_its_stream_neighbour(self):
-        from docmodel_six import _rejoin_accents
+        from pdfreader.docmodel_six import _rejoin_accents
         acc = self._g("tildewide", 165.2, 170.7, 94.65, 2635, kind="accent")
         base = self._g("O", 163.2, 170.8, 92.13, 2636)
         rows = _rejoin_accents([[acc], [base]])
@@ -1669,20 +1669,20 @@ class TestAccentsRejoinTheirBase:
     def test_it_must_overlap_the_base_in_x(self):
         """An accent sits OVER its base; a glyph elsewhere on the line is not
         its base however close in the stream."""
-        from docmodel_six import _rejoin_accents
+        from pdfreader.docmodel_six import _rejoin_accents
         acc = self._g("tildewide", 165.2, 170.7, 94.65, 2635, kind="accent")
         far = self._g("O", 300.0, 308.0, 92.13, 2636)
         rows = _rejoin_accents([[acc], [far]])
         assert len(rows) == 2
 
     def test_it_must_sit_above_the_base(self):
-        from docmodel_six import _rejoin_accents
+        from pdfreader.docmodel_six import _rejoin_accents
         acc = self._g("tildewide", 165.2, 170.7, 88.0, 2635, kind="accent")
         base = self._g("O", 163.2, 170.8, 92.13, 2636)
         assert len(_rejoin_accents([[acc], [base]])) == 2
 
     def test_an_ordinary_glyph_is_not_moved(self):
-        from docmodel_six import _rejoin_accents
+        from pdfreader.docmodel_six import _rejoin_accents
         a = self._g("x", 165.2, 170.7, 94.65, 2635)
         b = self._g("O", 163.2, 170.8, 92.13, 2636)
         assert len(_rejoin_accents([[a], [b]])) == 2
@@ -1693,14 +1693,14 @@ class TestAccentsRejoinTheirBase:
         reached this branch. And a producer may emit the accent several
         positions from its base: `tildewide` at stream 2337 whose base `U`
         was neither 2336 nor 2338."""
-        from docmodel_six import _rejoin_accents
+        from pdfreader.docmodel_six import _rejoin_accents
         acc = self._g("tildewide", 165.2, 170.7, 94.65, -1, kind="accent")
         base = self._g("O", 163.2, 170.8, 92.13, -1)
         rows = _rejoin_accents([[acc], [base]])
         assert len(rows) == 1 and len(rows[0]) == 2
 
     def test_a_far_stream_neighbour_still_resolves(self):
-        from docmodel_six import _rejoin_accents
+        from pdfreader.docmodel_six import _rejoin_accents
         acc = self._g("tildewide", 221.3, 227.3, 138.94, 2337, kind="accent")
         base = self._g("U", 219.7, 227.2, 136.30, 2500)
         rows = _rejoin_accents([[acc], [base]])
@@ -1708,7 +1708,7 @@ class TestAccentsRejoinTheirBase:
 
     def test_a_base_too_far_below_is_not_its_base(self):
         """The accent sits just above its base, not a line away."""
-        from docmodel_six import _rejoin_accents
+        from pdfreader.docmodel_six import _rejoin_accents
         acc = self._g("tildewide", 165.2, 170.7, 130.0, -1, kind="accent")
         base = self._g("O", 163.2, 170.8, 92.13, -1)
         assert len(_rejoin_accents([[acc], [base]])) == 2
@@ -1732,7 +1732,7 @@ class TestDelimiterExtenders:
         return n
 
     def test_a_stack_becomes_one_delimiter(self):
-        from docmodel_six import _merge_extenders
+        from pdfreader.docmodel_six import _merge_extenders
         stack = [self._ext(214.0, 302.1), self._ext(214.0, 296.1),
                  self._ext(214.0, 290.1)]
         out = _merge_extenders(stack)
@@ -1740,39 +1740,39 @@ class TestDelimiterExtenders:
 
     def test_it_keeps_the_full_extent(self):
         """The extent is what tells a later pass what the delimiter spans."""
-        from docmodel_six import _merge_extenders
+        from pdfreader.docmodel_six import _merge_extenders
         stack = [self._ext(214.0, 302.1), self._ext(214.0, 296.1),
                  self._ext(214.0, 290.1)]
         d = _merge_extenders(stack)[0]
         assert d.rect[1] == 290.1 and d.rect[3] == 312.1
 
     def test_it_projects_as_a_bar(self):
-        from docmodel_six import _merge_extenders, glyph_latex
+        from pdfreader.docmodel_six import _merge_extenders, glyph_latex
         d = _merge_extenders([self._ext(214.0, 302.1),
                               self._ext(214.0, 296.1)])[0]
         assert glyph_latex(d) == "|"
 
     def test_two_columns_are_two_delimiters(self):
         """A left and a right bar of the same construct."""
-        from docmodel_six import _merge_extenders
+        from pdfreader.docmodel_six import _merge_extenders
         both = [self._ext(214.0, 296.1), self._ext(214.0, 290.1),
                 self._ext(468.7, 296.1), self._ext(468.7, 290.1)]
         assert len(_merge_extenders(both)) == 2
 
     def test_a_gap_in_the_column_starts_a_new_delimiter(self):
         """Two separate bars in one column, not one tall one."""
-        from docmodel_six import _merge_extenders
+        from pdfreader.docmodel_six import _merge_extenders
         apart = [self._ext(214.0, 400.0), self._ext(214.0, 300.0)]
         assert len(_merge_extenders(apart)) == 2
 
     def test_ordinary_glyphs_are_untouched(self):
-        from docmodel_six import _merge_extenders
+        from pdfreader.docmodel_six import _merge_extenders
         a = g("alpha", family="math-italic", size=10.0, baseline=300.0,
               x=100.0)
         assert _merge_extenders([a]) == [a]
 
     def test_a_double_bar_extender(self):
-        from docmodel_six import _merge_extenders, glyph_latex
+        from pdfreader.docmodel_six import _merge_extenders, glyph_latex
         d = _merge_extenders([self._ext(214.0, 296.1, "vextenddouble"),
                               self._ext(214.0, 290.1, "vextenddouble")])[0]
         assert glyph_latex(d) == r"\|"
@@ -1805,32 +1805,32 @@ class TestEnclosureOverlays:
         return [ring, c]
 
     def test_the_pair_composes(self):
-        from docmodel_six import _merge_enclosures
+        from pdfreader.docmodel_six import _merge_enclosures
         out = _merge_enclosures(self._pair())
         assert len(out) == 1 and out[0].tex.latex == "©"
 
     def test_the_result_is_text_not_maths(self):
         """Left in the maths family it came out as `$©$` in a copyright
         line."""
-        from docmodel_six import _merge_enclosures
+        from pdfreader.docmodel_six import _merge_enclosures
         assert _merge_enclosures(self._pair())[0].family == "text"
 
     def test_a_glyph_outside_the_ring_is_not_enclosed(self):
-        from docmodel_six import _merge_enclosures
+        from pdfreader.docmodel_six import _merge_enclosures
         ring = self._g("circlecopyrt", "(cid:2)", 177.6, 185.6,
                        "math-symbol")
         far = self._g(None, "c", 200.0, 204.0, "text")
         assert len(_merge_enclosures([ring, far])) == 2
 
     def test_a_different_letter_is_not_a_copyright(self):
-        from docmodel_six import _merge_enclosures
+        from pdfreader.docmodel_six import _merge_enclosures
         ring = self._g("circlecopyrt", "(cid:2)", 177.6, 185.6,
                        "math-symbol")
         z = self._g(None, "z", 179.8, 183.4, "text")
         assert len(_merge_enclosures([ring, z])) == 2
 
     def test_ordinary_glyphs_are_untouched(self):
-        from docmodel_six import _merge_enclosures
+        from pdfreader.docmodel_six import _merge_enclosures
         a = self._g(None, "a", 100.0, 105.0, "text")
         b = self._g(None, "b", 105.0, 110.0, "text")
         assert _merge_enclosures([a, b]) == [a, b]
@@ -1860,45 +1860,45 @@ class TestLogLikeOperatorNames:
         return out
 
     def test_a_run_spelling_min_becomes_one_token(self):
-        from docmodel_six import _merge_operator_names
+        from pdfreader.docmodel_six import _merge_operator_names
         out = _merge_operator_names(self._run("min"))
         assert len(out) == 1 and out[0].tex.latex == r"\min"
 
     def test_the_longest_name_wins(self):
         """`limsup` is not `lim` followed by `sup`."""
-        from docmodel_six import _merge_operator_names
+        from pdfreader.docmodel_six import _merge_operator_names
         out = _merge_operator_names(self._run("limsup"))
         assert len(out) == 1 and out[0].tex.latex == r"\limsup"
 
     def test_a_near_miss_is_left_alone(self):
         """`supp` is a variable name. Turning it into an operator would be
         the confident wrong answer this project refuses."""
-        from docmodel_six import _merge_operator_names
+        from pdfreader.docmodel_six import _merge_operator_names
         assert len(_merge_operator_names(self._run("supp"))) == 4
 
     def test_a_gap_breaks_the_run(self):
-        from docmodel_six import _merge_operator_names
+        from pdfreader.docmodel_six import _merge_operator_names
         gl = self._run("min")
         gl[2].rect = (gl[2].rect[0] + 6.0, gl[2].rect[1],
                       gl[2].rect[2] + 6.0, gl[2].rect[3])
         assert len(_merge_operator_names(gl)) == 3
 
     def test_a_size_change_breaks_the_run(self):
-        from docmodel_six import _merge_operator_names
+        from pdfreader.docmodel_six import _merge_operator_names
         gl = self._run("min")
         gl[2].size = 7.0
         assert len(_merge_operator_names(gl)) == 3
 
     def test_italic_letters_are_not_an_operator(self):
         """`min` in maths italic is three variables m, i, n."""
-        from docmodel_six import _merge_operator_names
+        from pdfreader.docmodel_six import _merge_operator_names
         gl = self._run("min")
         for x in gl:
             x.family = "math-italic"
         assert len(_merge_operator_names(gl)) == 3
 
     def test_the_merged_token_keeps_the_full_extent(self):
-        from docmodel_six import _merge_operator_names
+        from pdfreader.docmodel_six import _merge_operator_names
         out = _merge_operator_names(self._run("sup"))[0]
         assert out.rect[0] == 100.0 and out.rect[2] == 115.0
 
@@ -1927,7 +1927,7 @@ class TestOperatorRunsAreGroupedByLine:
 
     def test_a_run_interleaved_by_another_line_still_merges(self):
         """The other line's glyphs fall between the letters in x-order."""
-        from docmodel_six import _merge_operator_names
+        from pdfreader.docmodel_six import _merge_operator_names
         line_a = self._run("sup", baseline=427.7, x0=100.0)
         line_b = self._run("xyz", baseline=400.0, x0=102.0)
         out = _merge_operator_names(line_a + line_b)
@@ -1936,7 +1936,7 @@ class TestOperatorRunsAreGroupedByLine:
 
     def test_letters_on_different_lines_do_not_form_a_run(self):
         """`s` on one line and `up` on the next is not `\\sup`."""
-        from docmodel_six import _merge_operator_names
+        from pdfreader.docmodel_six import _merge_operator_names
         gl = self._run("s", baseline=427.7, x0=100.0) \
             + self._run("up", baseline=400.0, x0=105.0)
         assert all(x.tex.latex != r"\sup" for x in _merge_operator_names(gl))
@@ -1944,7 +1944,7 @@ class TestOperatorRunsAreGroupedByLine:
     def test_the_merged_token_is_maths_not_text(self):
         """Left in the text family it came out as `\\text{\\max}`, which
         renders the command literally."""
-        from docmodel_six import _merge_operator_names
+        from pdfreader.docmodel_six import _merge_operator_names
         out = _merge_operator_names(self._run("max", baseline=400.0,
                                               x0=100.0))
         assert out[0].family == "math-symbol"
@@ -1977,32 +1977,32 @@ class TestStreamLineMerge:
 
     def test_rows_inside_one_band_merge(self):
         """A numerator, a baseline and a denominator are ONE line."""
-        from docmodel_six import _merge_stream_lines
+        from pdfreader.docmodel_six import _merge_stream_lines
         rows = [self._row(706.0), self._row(700.0), self._row(694.0)]
         out = _merge_stream_lines(rows, [690.0])
         assert len(out) == 1 and len(out[0]) == 6
 
     def test_rows_across_a_boundary_stay_apart(self):
-        from docmodel_six import _merge_stream_lines
+        from pdfreader.docmodel_six import _merge_stream_lines
         rows = [self._row(706.0), self._row(680.0)]
         assert len(_merge_stream_lines(rows, [690.0])) == 2
 
     def test_no_bands_changes_nothing(self):
         """dvips places absolutely (703), so its stream yields no bands and
         the geometric clustering must survive untouched."""
-        from docmodel_six import _merge_stream_lines
+        from pdfreader.docmodel_six import _merge_stream_lines
         rows = [self._row(706.0), self._row(700.0)]
         assert _merge_stream_lines(rows, []) == rows
 
     def test_it_only_ever_joins(self):
         """It must never split a row that clustering produced."""
-        from docmodel_six import _merge_stream_lines
+        from pdfreader.docmodel_six import _merge_stream_lines
         rows = [self._row(706.0, n=3), self._row(700.0, n=3)]
         out = _merge_stream_lines(rows, [690.0])
         assert sum(len(r) for r in out) == 6 and len(out) <= len(rows)
 
     def test_the_merged_row_is_in_x_order(self):
-        from docmodel_six import _merge_stream_lines
+        from pdfreader.docmodel_six import _merge_stream_lines
         rows = [self._row(700.0, x0=200.0), self._row(706.0, x0=100.0)]
         out = _merge_stream_lines(rows, [690.0])[0]
         assert [gg.rect[0] for gg in out] == sorted(gg.rect[0] for gg in out)
@@ -2027,7 +2027,7 @@ class TestAWideFractionBar:
     """
 
     def _rule(self, x0, x1, y):
-        from docmodel_six import RuleNode
+        from pdfreader.docmodel_six import RuleNode
         return RuleNode(id="r", page=1, rect=(x0, y, x1, y))
 
     def _row(self, baseline, x0, x1, size=12.0, n=20):
@@ -2036,14 +2036,14 @@ class TestAWideFractionBar:
                   x=x0 + i * step, text="o") for i in range(n)]
 
     def test_a_long_denominator_still_makes_a_fraction(self):
-        from docmodel_six import _rule_role
+        from pdfreader.docmodel_six import _rule_role
         bar = self._rule(188.4, 348.7, 672.6)        # 160.2pt, 13.35 em
         num = self._row(677.2, 265.0, 272.0, n=1)    # a lone `1`, centred
         den = self._row(663.0, 188.4, 348.7)         # reaches both ends
         assert _rule_role(bar, num + den, 12.0) == "fraction"
 
     def test_a_listing_border_is_still_a_separator(self):
-        from docmodel_six import _rule_role
+        from pdfreader.docmodel_six import _rule_role
         # the frame runs the block; the code inside is inset from both margins
         bar = self._rule(85.0, 510.0, 672.6)
         above = self._row(677.2, 110.0, 300.0)
@@ -2075,11 +2075,11 @@ class TestABandIsOffRowMaterialNotJustSmallType:
         return g("x", size=size, baseline=baseline, x=x)
 
     def _bar(self, x0, x1, y, role="fraction"):
-        from docmodel_six import RuleNode
+        from pdfreader.docmodel_six import RuleNode
         return RuleNode(id="r", page=1, rect=(x0, y, x1, y), role=role)
 
     def _off(self, grp, rules):
-        from docmodel_six import _off_row_band
+        from pdfreader.docmodel_six import _off_row_band
         return _off_row_band(grp, rules, self.SPAN)
 
     def test_a_band_of_scripts_is_one(self):
@@ -2143,7 +2143,7 @@ class TestAScriptIsNotATextLineRunningAcrossTheBar:
     AXIS = 185.30
 
     def _rule(self, x0=None, x1=None):
-        from docmodel_six import RuleNode
+        from pdfreader.docmodel_six import RuleNode
         x0 = self.BAR[0] if x0 is None else x0
         x1 = self.BAR[1] if x1 is None else x1
         return RuleNode(id="r", page=1, rect=(x0, self.AXIS, x1, self.AXIS))
@@ -2156,7 +2156,7 @@ class TestAScriptIsNotATextLineRunningAcrossTheBar:
         return [self._g(210.10, 190.38), self._g(210.10, 174.09)]
 
     def _role(self, extra):
-        from docmodel_six import _rule_role
+        from pdfreader.docmodel_six import _rule_role
         r = self._rule()
         return _rule_role(r, self._parts() + extra, self.SIZE, [r])
 
@@ -2202,7 +2202,7 @@ class TestASingleItalicLetterOnADisplayLineIsAVariable:
         return n
 
     def _line(self, glyphs, type_="formula"):
-        from docmodel_six import LineNode
+        from pdfreader.docmodel_six import LineNode
         return LineNode(id="l", page=1, type=type_, glyphs=glyphs,
                         rect=(0, 95, 400, 115))
 
@@ -2293,7 +2293,7 @@ class TestAFlippedMatrixIsNotARotation:
 
     def test_the_flipped_glyph_reaches_the_reading(self):
         """End to end on the page it was found on."""
-        import docmodel_six as D
+        from pdfreader import docmodel_six as D
         pdf = "/home/wkolbe/pdfdrill-library/2002.06055/2002.06055.pdf"
         if not os.path.exists(pdf):
             pytest.skip("library PDF not present")
@@ -2308,7 +2308,7 @@ class TestAFlippedMatrixIsNotARotation:
         r"""Nothing advances sixty-eight times its own height. The
         contradiction is inside the glyph; the page supplies the replacement
         and the matrix supplies the baseline."""
-        import docmodel_six as D
+        from pdfreader import docmodel_six as D
         pdf = "/home/wkolbe/pdfdrill-library/2002.06055/2002.06055.pdf"
         if not os.path.exists(pdf):
             pytest.skip("library PDF not present")
@@ -2351,7 +2351,7 @@ class TestACodeListingIsNotABandOfScripts:
                 for i, c in enumerate("def f(x):")]
 
     def _is_band(self, row):
-        from docmodel_six import _off_row_band
+        from pdfreader.docmodel_six import _off_row_band
         return _off_row_band(row, [], self.SPAN)
 
     def test_a_typewriter_row_is_never_a_band(self):
@@ -2373,7 +2373,7 @@ class TestACodeListingIsNotABandOfScripts:
         assert self._is_band(row) is False
 
     def test_the_listing_survives_end_to_end(self):
-        import docmodel_six as D
+        from pdfreader import docmodel_six as D
         pdf = "/home/wkolbe/pdfdrill-library/2604.22294/2604.22294.pdf"
         if not os.path.exists(pdf):
             pytest.skip("library PDF not present")

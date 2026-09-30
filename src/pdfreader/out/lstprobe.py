@@ -113,7 +113,7 @@ def one(tex: Path) -> dict:
         if not pdf.exists():
             return {"id": tex.stem, "ok": False, "why": "did not compile"}
         sys.path.insert(0, str(CODE))
-        import docmodel_six as dm
+        from pdfreader import docmodel_six as dm
         page = dm.build(str(pdf))[0]
         if tex.stem.startswith("c-"):
             return one_cell(tex, page)

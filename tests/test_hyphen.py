@@ -2,7 +2,7 @@
 
 Measured against pdftotext on one paper: 138 words left broken here, 0 there.
 """
-import project_mmd as M
+from pdfreader import project_mmd as M
 
 
 class TestDehyphenate:
@@ -49,6 +49,6 @@ class TestDehyphenate:
         assert M.dehyphenate(t, set()) == t
 
     def test_it_can_be_turned_off(self):
-        import docmodel_six as D
+        from pdfreader import docmodel_six as D
         page = D.PageNode(page=1, rect=(0, 0, 612, 792))
         assert M.to_markdown([page], join_hyphens=False) is not None

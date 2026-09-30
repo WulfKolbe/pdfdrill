@@ -34,8 +34,8 @@ TIMEOUT = 180
 def one(path: str) -> dict:
     row = {"file": os.path.basename(path)}
     try:
-        import docmodel_six as dm
-        import pageprofile as pr
+        from pdfreader import docmodel_six as dm
+        from pdfreader import pageprofile as pr
         pages = dm.build(path)
         row["pages"] = len(pages)
         where = pr.document_profile(pages)

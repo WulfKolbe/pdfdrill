@@ -5,9 +5,9 @@ source, Rendered, Image -- and inkdrill compares the rendered LaTeX against
 the crop as INK. Every row has to be honest about what it is, because a
 comparison is only as good as the row it is given.
 """
-import docmodel_six as D
-import equations as E
-from texmap import project
+from pdfreader import docmodel_six as D
+from pdfreader import equations as E
+from pdfreader.texmap import project
 
 
 _GREEK = {"a": "alpha", "b": "beta", "c": "gamma", "d": "delta",

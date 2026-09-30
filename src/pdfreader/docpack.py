@@ -35,7 +35,7 @@ import datetime
 import hashlib
 import json
 
-import docmodel_six as docmodel
+from pdfreader import docmodel_six as docmodel
 
 VERSION = "0.1.0"
 STREAM = "pdfminer_lines"

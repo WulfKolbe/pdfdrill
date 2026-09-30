@@ -32,7 +32,7 @@ def _add(package: str, *names: str) -> None:
 # compile -- and `unknown_commands` would otherwise warn about every one.
 def _add_mathabx():
     try:
-        from texmap import MATHABX
+        from pdfreader.texmap import MATHABX
     except Exception:
         return
     names = sorted({n for f in MATHABX for n in MATHABX[f].values()})

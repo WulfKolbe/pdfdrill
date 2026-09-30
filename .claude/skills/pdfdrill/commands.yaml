@@ -133,7 +133,7 @@ commands:
     absorbed into its display, math, diagram (clustered vector art), text for everything not
     established. Nothing is guessed: an unmeasured line stays text. Then `model` ingests it as
     it ingests MathPix''s and every projector — latex, tiddlers, markdown, report, compare —
-    works unchanged. Free, keyless, offline; needs pdf2mmd ($PDF2MMD_HOME, default ~/pdf2mmd),
+    works unchanged. Free, keyless, offline, and in this tree (src/pdfreader, 834);
     whose patched pdfminer is not importable here. A MathPix lines.json is never overwritten
     without --force.'
   offline_ok: true
@@ -161,7 +161,7 @@ commands:
     ABSENT, not false — a guess is what sends a file to a paid API. It PRICES the decision: over
     that 132-page manual the listings live on 37 pages, so a paid pass bills 132 for content on
     37, which is what route/mathpix can consult before anyone spends a key. Free, keyless,
-    offline; reads with pdf2mmd''s glyph model ($PDF2MMD_HOME, default ~/pdf2mmd) because that
+    offline; reads with the glyph model in src/pdfreader (834) because that
     model is on a patched pdfminer and is not importable here.'
   offline_ok: true
   positionals:

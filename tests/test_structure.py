@@ -10,11 +10,11 @@ import os
 
 import pytest
 
-import docmodel_six as docmodel
-import structure
-import testpaths
-from docmodel_six import GlyphNode, RuleNode
-from texmap import project
+from pdfreader import docmodel_six as docmodel
+from pdfreader import structure
+from pdfreader import testpaths
+from pdfreader.docmodel_six import GlyphNode, RuleNode
+from pdfreader.texmap import project
 
 
 # --- corpus fixtures -------------------------------------------------------
@@ -361,7 +361,7 @@ class TestBigDelimitersAreMainGlyphs:
     """
 
     def _d(self, name, x, baseline, size=12.0):
-        from texmap import TexToken
+        from pdfreader.texmap import TexToken
         gl = g(name, size, baseline, x)
         gl.tex = TexToken(r"\left(", "delimiter", None, "corpus")
         return gl

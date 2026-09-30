@@ -18,8 +18,8 @@ from urllib.request import urlopen
 import numpy as np
 import pytest
 
-import inspectserver
-import testpaths
+from pdfreader import inspectserver
+from pdfreader import testpaths
 
 MIELKE = testpaths.CORPUS_PDF
 LINES = testpaths.CORPUS_LINES
@@ -31,20 +31,20 @@ class TestTopologyPrimitive:
     """`dpitopo.topology` must count what inkdrill counts."""
 
     def test_solid_block(self):
-        from dpitopo import topology
+        from pdfreader.dpitopo import topology
         m = np.zeros((20, 20), bool)
         m[5:15, 5:15] = True
         assert topology(m) == (1, 0)
 
     def test_ring_has_one_hole(self):
-        from dpitopo import topology
+        from pdfreader.dpitopo import topology
         m = np.zeros((20, 20), bool)
         m[5:15, 5:15] = True
         m[8:12, 8:12] = False
         assert topology(m) == (1, 1)
 
     def test_two_rings(self):
-        from dpitopo import topology
+        from pdfreader.dpitopo import topology
         m = np.zeros((20, 40), bool)
         for dx in (0, 20):
             m[5:15, 5 + dx:15 + dx] = True
@@ -52,12 +52,12 @@ class TestTopologyPrimitive:
         assert topology(m) == (2, 2)
 
     def test_empty(self):
-        from dpitopo import topology
+        from pdfreader.dpitopo import topology
         assert topology(np.zeros((10, 10), bool)) == (0, 0)
 
     def test_diagonal_touch_is_one_component(self):
         """8-connected foreground, as inkdrill uses (nest: fg conn=8)."""
-        from dpitopo import topology
+        from pdfreader.dpitopo import topology
         m = np.zeros((10, 10), bool)
         m[2, 2] = m[3, 3] = True
         assert topology(m)[0] == 1

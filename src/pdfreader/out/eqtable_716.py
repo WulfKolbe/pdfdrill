@@ -690,7 +690,7 @@ def provenance() -> str:
     import datetime
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    import provenance as prov
+    from pdfreader import provenance as prov
     built = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     return "%s — table built %s" % (prov.stamp(), built)
 

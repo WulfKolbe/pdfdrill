@@ -48,8 +48,8 @@ import re
 import statistics
 from dataclasses import dataclass, field
 
-import lstlangs
-import texmap
+from pdfreader import lstlangs
+from pdfreader import texmap
 
 #: An advance is a whole number of cells to within this fraction of one.
 #: Measured over the gold set: the worst residual on a true grid is 0.07
@@ -1077,7 +1077,7 @@ def _cell_split(page) -> None:
     this page they did not. The cost is 3 lines of one block; the other
     four listings on that page are read exactly.
     """
-    from docmodel_six import LineNode
+    from pdfreader.docmodel_six import LineNode
 
     for run in _blocks(page):
         for x in _cell_boundaries(run):

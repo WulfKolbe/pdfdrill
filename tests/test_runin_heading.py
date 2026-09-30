@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import texmap                                              # noqa: E402
+from pdfreader import texmap                                              # noqa: E402
 
 
 # ── the bold face nobody recognised ──────────────────────────────────────────
@@ -81,7 +81,7 @@ def _mk(head, rest, sep=10.0, advance=5.0, bold_rest=False, size=BODY):
 
 
 def _split(line):
-    import project_mmd as P
+    from pdfreader import project_mmd as P
     return P.runin_heading(line, _FP())
 
 
@@ -141,7 +141,7 @@ def test_a_line_with_no_bold_prefix_is_untouched():
                              "2510.04618.pdf").is_file(),
                     reason="corpus document not present")
 def test_the_split_reaches_the_lines_json_with_its_own_rectangle():
-    import docmodel_six as dm
+    from pdfreader import docmodel_six as dm
     pages = dm.build("/home/wkolbe/pdfdrill-library/2510.04618/2510.04618.pdf")
     d = dm.to_lines_json(pages, doc_id="t")
     lvl4 = [(p["page"], i, l) for p in d["pages"]

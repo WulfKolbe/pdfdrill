@@ -4,9 +4,9 @@ The shape is four sections and the separation is the point: an object never
 holds text, it holds ANCHOR RANGES into a stream. That is what lets two
 sources describe the same object without either being rewritten.
 """
-import docmodel_six as D
-import docpack
-from texmap import project
+from pdfreader import docmodel_six as D
+from pdfreader import docpack
+from pdfreader.texmap import project
 
 
 def _page(page_no=1, texts=("hello world", "second line")):

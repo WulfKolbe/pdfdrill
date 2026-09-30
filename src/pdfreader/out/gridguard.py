@@ -43,7 +43,7 @@ ratio, or measure nothing.
 import glob, statistics, sys
 sys.path.insert(0, "/home/wkolbe/pdf2mmd")
 from concurrent.futures import ThreadPoolExecutor
-import docmodel_six as dm
+from pdfreader import docmodel_six as dm
 
 def cv(v):
     if len(v) < 3: return None

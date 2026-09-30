@@ -13,10 +13,10 @@ the half that was already right and must stay right.
 """
 import collections
 
-import docmodel_six as docmodel
-import project_mmd as mmd
-from docmodel_six import GlyphNode, LineNode, PageNode
-from texmap import project
+from pdfreader import docmodel_six as docmodel
+from pdfreader import project_mmd as mmd
+from pdfreader.docmodel_six import GlyphNode, LineNode, PageNode
+from pdfreader.texmap import project
 
 
 def g(ch, x, y=700.0, size=10.0, font="TEST+NimbusRomNo9L-Regu"):
@@ -375,7 +375,7 @@ class TestCaptionsAndTables:
         assert mmd.table_regions(p) == []
 
     def test_one_rule_is_a_separator_not_a_table(self):
-        from docmodel_six import RuleNode
+        from pdfreader.docmodel_six import RuleNode
         p = page([line("Table 1: a caption above one rule", y=700.0)] +
                  [line(f"body {i}", y=680.0 - 12 * i) for i in range(6)])
         p.lines[0].rules = [RuleNode(id="r", page=1,

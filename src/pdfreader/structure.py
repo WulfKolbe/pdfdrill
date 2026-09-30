@@ -27,10 +27,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, replace
 
-from docmodel_six import MATH_FAMILIES, GlyphNode, RuleNode, glyph_latex
+from pdfreader.docmodel_six import MATH_FAMILIES, GlyphNode, RuleNode, glyph_latex
 import os as _os
-import texmap
-from texmap import TexToken, math_space
+from pdfreader import texmap
+from pdfreader.texmap import TexToken, math_space
 
 # A script is smaller than its base. Measured on the corpus: 6.97pt scripts
 # under 9.96pt bases, a ratio of 0.70, so 0.92 separates them with margin.
@@ -772,8 +772,8 @@ def _merge_operator_runs(glyphs: list[GlyphNode]) -> list[GlyphNode]:
     Italic letters are NOT merged: those are variables, and each can carry its
     own script.
     """
-    from project_mmd import _is_bold
-    from texmap import is_italic
+    from pdfreader.project_mmd import _is_bold
+    from pdfreader.texmap import is_italic
 
     def upright(g: GlyphNode) -> bool:
         if g.family in MATH_FAMILIES:

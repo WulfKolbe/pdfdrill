@@ -14,7 +14,7 @@ restoring it afterwards:
     /F18 TD [0.89,0]          ',A'     still inside
     /F5  Tm a=9.96 f=405.76   ''       scale restored: the script closes
 """
-import psstream
+from pdfreader import psstream
 
 
 class TestTokenizer:

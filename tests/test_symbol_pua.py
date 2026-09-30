@@ -15,7 +15,7 @@ WRAP_tolerance_design_and_kinematic_calibration deferred 97 of its 205 maths
 spans; 61 were these slots — U+F065 (ε) 22 times, U+F071 (θ) 15, U+F064 (δ) 15,
 then μ, σ, ρ, φ, −, {, ∈. `pdffonts` lists a CID TrueType named `Symbol`.
 """
-import texmap
+from pdfreader import texmap
 
 
 def tex(ch, font="Symbol"):
