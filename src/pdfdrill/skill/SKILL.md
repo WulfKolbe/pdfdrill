@@ -579,13 +579,13 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 
 | Command | Returns |
 |---|---|
-| `pdfdrill glyphlines <pdf> [--force FORCE]` | Read the PDF with pdf2mmd's glyph model and write a TYPED <stem>.lines.json — the docmodel every projection is built from. pdfdrill's own keyless reader emits TWO line types (text, math: 910/5 on 2609.24972), so the twenty modules that build Table, Diagram, CodeListing and Section from typed lines have nothing to work with and the keyless lane tops out at paragraphs; MathPix emits sixteen on a comparable paper and reaches 530 of 530 objects boxed. This hands the SAME pipeline a richer stream: code with its language (the monospace grid plus the drawn frame — the one reading pdf2mmd does better than MathPix), section_header with its level, equation (indent past the body margin), equation_number absorbed into its display, math, diagram (clustered vector art), text for everything not established. Nothing is guessed: an unmeasured line stays text. Then `model` ingests it as it ingests MathPix's and every projector — latex, tiddlers, markdown, report, compare — works unchanged. Free, keyless, offline, and in this tree (src/pdfreader, 834); whose patched pdfminer is not importable here. A MathPix lines.json is never overwritten without --force. |
+| `pdfdrill glyphlines <pdf> [--force FORCE]` | Read the PDF with our glyph reader and write a TYPED <stem>.lines.json — the docmodel every projection is built from. pdfdrill's own keyless reader emits TWO line types (text, math: 910/5 on 2609.24972), so the twenty modules that build Table, Diagram, CodeListing and Section from typed lines have nothing to work with and the keyless lane tops out at paragraphs; MathPix emits sixteen on a comparable paper and reaches 530 of 530 objects boxed. This hands the SAME pipeline a richer stream: code with its language (the monospace grid plus the drawn frame — the one reading the glyph reader does better than MathPix), section_header with its level, equation (indent past the body margin), equation_number absorbed into its display, math, diagram (clustered vector art), text for everything not established. Nothing is guessed: an unmeasured line stays text. Then `model` ingests it as it ingests MathPix's and every projector — latex, tiddlers, markdown, report, compare — works unchanged. Free, keyless, offline, and in this tree (src/pdfreader, 834); whose patched pdfminer is not importable here. A MathPix lines.json is never overwritten without --force. |
 
 ### Extraction
 
 | Command | Returns |
 |---|---|
-| `pdfdrill md <pdf> [--pages PAGES] [--image-base IMAGE_BASE]` | Markdown from the unified model — headings, prose, IMAGES as links and TABLES as pipe tables, no transclusions (R3). Prefers a genuine MathPix .md, then the model, then the text layer. --image-base points MathPix-shaped crop URLs at a local crop server (pdf2mmd/inspectserver.py or tools/imageserver/mathpix_server.py) so a figure with no fetched crop still resolves in a Markdown reader. |
+| `pdfdrill md <pdf> [--pages PAGES] [--image-base IMAGE_BASE]` | Markdown from the unified model — headings, prose, IMAGES as links and TABLES as pipe tables, no transclusions (R3). Prefers a genuine MathPix .md, then the model, then the text layer. --image-base points MathPix-shaped crop URLs at a local crop server (pdfreader/inspectserver.py or tools/imageserver/mathpix_server.py) so a figure with no fetched crop still resolves in a Markdown reader. |
 | `pdfdrill page <pdf> <n>` | Single page text extraction |
 | `pdfdrill distill <pdf> [--embed]` | A distill-structured single-file reading view (<bibkey>.distill.html): the Anthropic/Distill v2 article skeleton (named-column grid, runtime TOC, LATE-BOUND ?? figure/eq refs, hover cite/footnote popovers) rebuilt from the docmodel — self-contained, no template JS, KaTeX from data-latex. Auto-chains model; --embed inlines CDN crops. Citation popovers need bibliography/bibsource first (else graceful). |
 | `pdfdrill repoinit <dir> [--username USERNAME] [--title TITLE]` | Scaffold a GitHub-repo TiddlyWiki document-set layout (tiddlywiki.info with katex+markdown, package.json, .gitignore, .nojekyll, pdfdrill-repo.json, tiddlers/, files/). Offline; the standalone index.html is built later by `npx tiddlywiki . --output . --build index`. |
@@ -677,6 +677,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-2a97f2db` before any build/extract command.
-DRILL-2a97f2db
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-bdf0c33e` before any build/extract command.
+DRILL-bdf0c33e
 <!-- PREFLIGHT-TOKEN:END -->

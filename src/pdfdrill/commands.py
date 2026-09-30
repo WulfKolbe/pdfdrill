@@ -683,7 +683,7 @@ _INTERPOLATABLE = ("Formula", "Equation",
 #: No box overlapped another, so an overlap check saw nothing wrong.
 #:
 #: A float's rectangle comes from a MEASUREMENT or not at all: the drawn rules
-#: and the caption (pdf2mmd's `table_regions`), or the crop a source lane
+#: and the caption (the glyph reader's `table_regions`), or the crop a source lane
 #: records. No box is worse to look at and better to trust than a wrong one,
 #: because a wrong one cannot be detected downstream.
 _FLOAT_TYPES = ("Table", "Picture", "Diagram", "Figure", "Chart")
@@ -10450,7 +10450,7 @@ def _inspect_pages_dir(pdf: Path, sc: "Sidecar", pages: str | None,
 def _write_pages_manifest(out: Path, pdf: Path, dpi: int) -> None:
     """Name the document these page images were rendered from, and index them.
 
-    819e — the crop servers (`pdf2mmd/inspectserver.py`,
+    819e — the crop servers (`pdfreader/inspectserver.py`,
     `tools/imageserver/mathpix_server.py`) check this before serving anything,
     because "page images used to share one folder across documents, so a crop
     could show a figure from an entirely different book under the right
@@ -10463,7 +10463,7 @@ def _write_pages_manifest(out: Path, pdf: Path, dpi: int) -> None:
     was built to test one document and serves one: a second document means a
     second process on a second port. It does not have to. Measured over 400
     corpus documents: 12,742 distinct `image_id`s and ZERO collisions, because a
-    MathPix id is a per-conversion UUID plus a page number and pdf2mmd's carries
+    MathPix id is a per-conversion UUID plus a page number and the glyph reader's carries
     the stem — so an id already identifies (document, page) library-wide, and a
     server that can look one up serves every document WITHOUT ANY URL CHANGING.
 
@@ -15018,7 +15018,7 @@ def cmd_profile(pdf: Path, pages: str | None = None, json_only: bool = False) ->
 #: tool boundary adds over an import.
 @_writes("glyphlines")
 def cmd_glyphlines(pdf: Path, force: bool = False) -> str:
-    """Read the PDF with pdf2mmd's glyph model and write a TYPED lines.json.
+    """Read the PDF with our glyph reader and write a TYPED lines.json.
 
     The model every projection is built on comes from a lines.json, and what
     a lines.json can express is line TYPES. pdfdrill's own keyless reader
@@ -15085,7 +15085,7 @@ def cmd_glyphlines(pdf: Path, force: bool = False) -> str:
     sc.save()
     shape = ", ".join(f"{k} {v}" for k, v in
                       sorted(counts.items(), key=lambda kv: -kv[1]))
-    return (f"glyphlines: read {pdf.name} with pdf2mmd — {len(data['pages'])} "
+    return (f"glyphlines: read {pdf.name} with the glyph reader — {len(data['pages'])} "
             f"page(s), {n_lines} typed line(s) ({shape}). Wrote "
             f"{lines_path.name}. Next: `pdfdrill model {pdf.name}` builds the "
             f"docmodel from it; every projection follows.")
