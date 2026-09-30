@@ -137,15 +137,39 @@ one defect at a time.
 Each phase leaves the tree working and the suite green.
 
 1. **Vendor + gate.** Patch into the repo, dependency declared, additivity
-   test. No behaviour change. *(This phase is executed below.)*
+   test. No behaviour change. **Done, 833.**
 2. **Move.** `src/pdfreader/`, tests relocated, `PDF2MMD_HOME` deleted,
-   `glyphlines`/`profile` call imports instead of subprocesses.
-3. **Seams.** Preamble, crops, crop id — one implementation each, each with the
-   before/after measured on `arxiv.1102.1889` and `CG_2008___51_7_0`.
-4. **Default.** `route` and `model` prefer the glyph reader; `readme` records
-   it; `--no-glyphs` for the caller who wants the old lane.
+   `glyphlines`/`profile` call imports instead of subprocesses. **Done,
+   834–835.**
+3. **Seams.** Preamble, crops, crop id — one implementation each. **Done,
+   836 + 838**, measured on `arxiv.1102.1889`:
+
+   | seam | before | after |
+   |---|---|---|
+   | preamble (836) | `evidence-equation`: 12 pages, 1,029 errors | **25 pages, 0 errors** |
+   | crops (838) | `.tex`: 324 URLs, 324 images missing | **0 URLs, 0 missing**; xelatex 111 pages, 0 errors |
+   | crop id (838) | `{doc_id}g-{page}`, 404 against the crop server | **`<bibkey>-<page:02d>`**, the manifest's own |
+
+   The preamble seam carried a lesson worth keeping: injecting the document's
+   packages ALONE made things worse, not better — 0 pages, because with `xy`
+   finally loaded the 64 `\xymatrix` equations stopped being undefined and
+   started executing inside a `longtable` cell, where the first of them ends
+   the table and takes every following row with it. `needs_own_document()`
+   sends those to `standalone_math`, and a failed separate compile refuses
+   ONE row rather than falling back to the cell.
+
+4. **Default.** **Partly done, 837:** `model --reader glyphs|mathpix` names
+   the reading, implies `--no-source` (or an arXiv paper is read from its
+   e-print and reported under the reader's name), and refuses a paid reader
+   rather than buying one. Measured, same PDF and command: 1,080 objects from
+   the e-print source against 1,584 from the glyph reader. What is NOT done is
+   making the glyph lane the automatic choice in `route`; that is a separate
+   judgement and wants the comparison this flag now makes possible.
 5. **Retire.** `inspectserver` becomes `pdfdrill imageserve`; `pdf2mmd.sh`
-   becomes `pdfdrill glyphlines` in truth rather than by delegation.
+   becomes `pdfdrill glyphlines` in truth rather than by delegation. **Partly
+   done, 838:** `glyphlines` writes the `.md` and `.tex` itself, so
+   `pdf2mmd.py main()` is no longer the only route to them. `inspectserver`
+   is still its own module.
 
 ## Two things the user has flagged for later, recorded so they are not lost
 
