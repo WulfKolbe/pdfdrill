@@ -33,6 +33,72 @@ from typing import Any, Optional
 # Pure helpers
 # ---------------------------------------------------------------------------
 
+class NotAPDF(Exception):
+    """The file is not a PDF. Carries a one-line, human-readable diagnosis."""
+
+
+#: poppler tolerates junk before the header, so we look for `%PDF` within the
+#: first KB rather than demanding it at byte 0 — one real book in this library
+#: starts `\n\n%PDF-1.4` and reads perfectly.
+_PDF_SNIFF_BYTES = 1024
+
+
+def pdf_header_problem(path) -> "str | None":
+    r"""None when the file looks like a PDF, else one line saying what it is.
+
+    842 — CHECK THE HEADER BEFORE SHELLING OUT. A failed download keeps the
+    name it was saved under, so a `.pdf` is not a PDF just because of its
+    extension, and every tool downstream reports the consequence instead of the
+    cause: `pdfinfo` says "Couldn't open file", the abstract search says "no
+    abstract block detected", and the document is recorded as a paper that
+    happens to have no abstract. Measured in this library: 30 doc folders whose
+    main `.pdf` had no header — 24 HTML error pages (`410 Gone`, a Cloudflare
+    challenge, an XHTML landing page), a 9-byte file containing `not found`, a
+    92-byte `Bad token #1: …`, and a 0-byte stub beside a half-downloaded
+    `.pdf.part`. One of them nearly cost a MathPix conversion of an error page.
+
+    The diagnosis names what the file ACTUALLY is, because "not a PDF" sends a
+    reader looking for a parser bug while "an HTML error page (410 Gone)" sends
+    them to re-download.
+    """
+    from pathlib import Path as _P
+    f = _P(path)
+    try:
+        size = f.stat().st_size
+    except OSError as e:
+        return f"cannot be read ({e.strerror})"
+    if size == 0:
+        part = next(iter(sorted(f.parent.glob(f"{_glob_escape(f.stem)}*.pdf.part"))), None)
+        extra = (f" — an interrupted download is beside it ({part.name})"
+                 if part is not None else "")
+        return f"is EMPTY (0 bytes){extra}"
+    try:
+        with open(f, "rb") as fh:
+            head = fh.read(_PDF_SNIFF_BYTES)
+    except OSError as e:
+        return f"cannot be read ({e.strerror})"
+    if b"%PDF" in head:
+        return None
+    low = head.lower()
+    if b"<html" in low or b"<!doctype html" in low:
+        import re as _re
+        m = _re.search(rb"<title>([^<]{1,80})</title>", head, _re.I)
+        what = m.group(1).decode("utf-8", "replace").strip() if m else "no title"
+        return (f"is an HTML page, not a PDF ({what}) — the download returned a "
+                f"web page and it was saved under a .pdf name")
+    text = head[:120].decode("utf-8", "replace").replace("\n", " ").strip()
+    if size < 4096:
+        return (f"is {size} bytes and has no %PDF header — it begins {text!r}, "
+                f"so the download failed and the error was saved as the file")
+    return (f"has no %PDF header in its first {_PDF_SNIFF_BYTES} bytes — "
+            f"it begins {text[:60]!r}")
+
+
+def _glob_escape(s: str) -> str:
+    import glob as _g
+    return _g.escape(s)
+
+
 def parse_pages(spec: Optional[str], total: Optional[int] = None) -> Optional[list[int]]:
     """Parse a page spec into a sorted unique page list (1-based). `None`/"all"
     → None (meaning *all pages*). Accepts "N", "N-M", and comma lists

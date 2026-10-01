@@ -213,6 +213,23 @@ def _probe_on_acquire(p: Path) -> Path:
     probing those would store a failed pdfinfo AND mark them probed, so nothing
     would ever look again.
     """
+    # 842 — IS IT A PDF AT ALL? Before any probe, before pdfinfo, before the
+    # folder tidying below. A failed download keeps the name it was saved
+    # under, so the extension proves nothing, and every tool downstream reports
+    # the CONSEQUENCE instead of the cause — pdfinfo "Couldn't open file", the
+    # abstract search "no abstract block detected", and the document ends up
+    # recorded as a paper that merely happens to have no abstract. 30 folders
+    # in this library were HTML error pages, a 9-byte "not found", a 92-byte
+    # "Bad token", or a 0-byte stub beside a half-finished `.pdf.part`.
+    #
+    # Only files we are treating AS PDFs: `markdown`/`latexbook` resolve .md
+    # and .tex through here too, and those are not PDFs by design.
+    if p.suffix.lower() == ".pdf" and p.is_file():
+        from . import pdf_reading as _pr
+        why = _pr.pdf_header_problem(p)
+        if why:
+            raise _pr.NotAPDF(f"{p.name} {why}")
+
     # ONE FOLDER PER DOCUMENT, everything under it — the layout a download
     # already gets. A PDF copied into the library by hand stayed at the root,
     # and `blob_dir_for` then chose the legacy layout, so a single document
