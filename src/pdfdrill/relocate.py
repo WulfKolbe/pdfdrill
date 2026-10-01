@@ -29,6 +29,28 @@ import shutil
 from pathlib import Path
 
 
+def legacy_remnants(pdf: Path) -> bool:
+    r"""True when a PDF still has the pre-migration furniture beside it —
+    `X.pdf.drill.json` and/or an `X.pdf.drill/` blob directory.
+
+    839 — THE FOLDER'S NAME IS NOT THE LAYOUT. `plan_relocation` and
+    `find_docs` both treated "the parent folder is named after the PDF" as
+    "already migrated", and the two came apart on three documents moved in
+    from ~/Downloads: each was `<stem>/<stem>.pdf`, correctly named, with
+    `<stem>.pdf.drill/` and `<stem>.pdf.drill.json` still inside it. pdfdrill
+    looks for `<stem>.drill.json`, so `status` answered "No information
+    gathered yet" for documents carrying a model, tiddlers and a semantic
+    graph — 31 to 83 files of work, invisible, and `relocate` skipped them as
+    done.
+
+    The canonical layout has neither name (its sidecar is `X.drill.json`, with
+    no `.pdf` in it), so this is unambiguous and costs two stat calls.
+    """
+    d = pdf.parent
+    return ((d / f"{pdf.name}.drill.json").exists()
+            or (d / f"{pdf.name}.drill").is_dir())
+
+
 def plan_relocation(pdf: str | Path, library: str | Path) -> list[tuple[Path, Path]]:
     """The ordered (src, dst) moves that migrate `pdf` into `<library>/<stem>/`.
 
@@ -40,14 +62,18 @@ def plan_relocation(pdf: str | Path, library: str | Path) -> list[tuple[Path, Pa
     library = Path(library).resolve()
     stem = pdf.stem
     target = library / stem
-    if pdf.parent == target:
+    if pdf.parent == target and not legacy_remnants(pdf):
         return []                                   # already self-contained
 
     d = pdf.parent
     sidecar = d / f"{pdf.name}.drill.json"
     blob = d / f"{pdf.name}.drill"
 
-    moves: list[tuple[Path, Path]] = [(pdf, target / pdf.name)]
+    # A PDF already sitting in its own folder does not move; only the legacy
+    # layout AROUND it does (839).
+    moves: list[tuple[Path, Path]] = []
+    if pdf.parent != target:
+        moves.append((pdf, target / pdf.name))
     if sidecar.exists():
         moves.append((sidecar, target / f"{stem}.drill.json"))
     if blob.is_dir():
@@ -108,6 +134,12 @@ def _inside_a_doc_folder(pdf: Path, root: Path) -> bool:
     for anc in pdf.parents:
         if anc == root or root not in anc.parents:
             break                                   # at or above the library
+        if anc / f"{anc.name}.pdf" == pdf:
+            continue        # 839 — its OWN folder. The guard is about being
+            # inside SOMEONE ELSE's document; a half-migrated doc sits in a
+            # folder named after itself and was excluded by its own PDF, so
+            # `find_docs` returned nothing for exactly the documents that
+            # needed migrating.
         if (anc / f"{anc.name}.pdf").exists():
             return True
     return False
@@ -115,12 +147,13 @@ def _inside_a_doc_folder(pdf: Path, root: Path) -> bool:
 
 def find_docs(root: str | Path) -> list[Path]:
     """Every legacy PDF under `root` that is NOT already self-contained — i.e.
-    PDFs whose parent folder isn't named after them AND which do not live
-    inside some other document's folder. Recursive."""
+    PDFs whose parent folder isn't named after them, OR which still carry the
+    legacy furniture beside them (`legacy_remnants`, 839), and which do not
+    live inside some other document's folder. Recursive."""
     root = Path(root).resolve()
     out: list[Path] = []
     for pdf in sorted(root.rglob("*.pdf")):
-        if pdf.parent.name == pdf.stem:
+        if pdf.parent.name == pdf.stem and not legacy_remnants(pdf):
             continue                                # already migrated
         if _inside_a_doc_folder(pdf, root):
             continue                                # an artifact, not a document
