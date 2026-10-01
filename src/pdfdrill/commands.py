@@ -15492,7 +15492,18 @@ def _abstract_body(pdf: Path) -> str:
             pass  # network blocked / parse miss → fall through to local routes
 
     prev_scope = sc.get_evidence("abstract_search_scope")
-    have_md = sc.has(MD_BUILT)
+    # 840 — ASK THE ARTEFACT, NOT THE FACT. This was `sc.has(MD_BUILT)`, and the
+    # markdown on disk and the fact in the sidecar disagree constantly: measured
+    # over the documents marked ABSTRACT_ABSENT at the narrow scope in one day,
+    # 72 of 128 had `<bibkey>.md` sitting beside the PDF with MD_BUILT UNSET —
+    # so this searched two pages while the full text was right there, and 16 of
+    # those 72 have a real abstract in that markdown. The planner already judged
+    # by the file (`done_when: file:{bibkey}.md`), which is why `steps abstract`
+    # reported md satisfied on the very documents this gate called md-less.
+    # `_read_md` reads the file and returns None when there is none, so asking
+    # it IS the question this wanted to ask.
+    md_blob = _read_md(pdf, sc) or ""
+    have_md = bool(md_blob.strip())
     desired_scope = "markdown" if have_md else "first2pages"
 
     # If the previous absent verdict was at a narrower scope than what is
@@ -15506,7 +15517,6 @@ def _abstract_body(pdf: Path) -> str:
     method_used = None
 
     if have_md:
-        md_blob = _read_md(pdf, sc) or ""
         abstract = _extract_abstract_from_markdown(md_blob)
         if abstract:
             method_used = "markdown-heading"
