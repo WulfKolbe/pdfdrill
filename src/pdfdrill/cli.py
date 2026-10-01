@@ -573,8 +573,15 @@ def _do_ls(args):
 
 
 def _do_abstract(args):
+    """pdfdrill abstract <pdf> [--force]
+
+    841 — `--force` re-evaluates an ABSTRACT_ABSENT at the SAME search scope.
+    Without it the scope guard holds the old verdict, which is right for data
+    and wrong after the extractor learns a new abstract shape.
+    """
     from .commands import cmd_abstract
-    return cmd_abstract(_pdf(args))
+    pdf_args = [a for a in args if a != "--force"]
+    return cmd_abstract(_pdf(pdf_args), force="--force" in args)
 
 
 def _do_toc(args):

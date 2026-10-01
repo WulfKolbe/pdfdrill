@@ -15410,12 +15410,18 @@ def _can_supersede(prev_scope: str | None, new_scope: str) -> bool:
     return _SCOPE_ORDER.get(new_scope, 0) > _SCOPE_ORDER.get(prev_scope, 0)
 
 
-def cmd_abstract(pdf: Path) -> str:
+def cmd_abstract(pdf: Path, force: bool = False) -> str:
     """Extract the abstract — TITLED, and fanned out over a multi-doc session.
 
     An abstract with no title is unusable in a session with several papers, so
     every result is prefixed with the document's title + bibkey. A combined
-    store is expanded member by member."""
+    store is expanded member by member.
+
+    `ABSTRACT_ABSENT` is a SCOPE-QUALIFIED negative, not a verdict: the scope is
+    recorded in `evidence.abstract_search_scope` (`first2pages` < `first3pages` <
+    `first5pages` < `markdown`) and `_can_supersede` re-searches when a wider one
+    becomes available. Only an ABSENT at `markdown` means the document has none.
+    `force` re-evaluates at the SAME scope — for after the extractor improves."""
     srcs = _store_sources(pdf)
     if srcs is not None:
         if not srcs:
@@ -15429,14 +15435,17 @@ def cmd_abstract(pdf: Path) -> str:
                            f"  (source file not found — cannot read the abstract)")
                 continue
             try:
-                out.append("\n" + cmd_abstract(p).strip())
+                # 841 — `force` reaches the MEMBERS too. A combined store is
+                # expanded member by member, so dropping it here made
+                # `abstract <store> --force` a no-op on every document in it.
+                out.append("\n" + cmd_abstract(p, force=force).strip())
             except Exception as e:                   # noqa: BLE001
                 out.append(f"\n## {sdoc.get('title') or bk}\n[{bk}]\n  (failed: {e})")
         return "\n".join(out)
     # body FIRST: the arXiv route caches the paper's title as a side effect, so
     # computing the header afterwards means the very first call already shows it
     # (not the bare id, with the real title only appearing on a second run).
-    body = _abstract_body(pdf)
+    body = _abstract_body(pdf, force=force)
     return _title_prefix(pdf) + body
 
 
@@ -15446,7 +15455,7 @@ def _title_prefix(pdf: Path) -> str:
     return f"## {doc_title(pdf, sc)}\n[{resolve_bibkey(pdf, None, sc)}]\n"
 
 
-def _abstract_body(pdf: Path) -> str:
+def _abstract_body(pdf: Path, force: bool = False) -> str:
     """Extract the abstract.
 
     Cheap path: pdftotext on the first two pages with regex match.
@@ -15461,7 +15470,7 @@ def _abstract_body(pdf: Path) -> str:
         cmd_size(pdf)
         sc = Sidecar(pdf)
 
-    if sc.has(ABSTRACT_KNOWN):
+    if sc.has(ABSTRACT_KNOWN) and not force:
         return _format_abstract(sc)
 
     # FREE arxiv route: the abstract lives on the abs page — no MathPix, no text
@@ -15508,7 +15517,15 @@ def _abstract_body(pdf: Path) -> str:
 
     # If the previous absent verdict was at a narrower scope than what is
     # available now, drop it and retry.
-    if sc.has(ABSTRACT_ABSENT) and not _can_supersede(prev_scope, desired_scope):
+    # 841 — `force` RE-EVALUATES AT THE SAME SCOPE. The scope guard is right about
+    # data (re-reading the same two pages cannot find more than it did), and wrong
+    # about CODE: when the extractor learns a new abstract shape, every document
+    # already marked ABSENT at that scope keeps the old verdict and the improvement
+    # reaches nothing. Four documents sat on a labelled page-1 abstract after the
+    # extractor was taught to read it, and the only way through was editing the
+    # sidecar JSON by hand.
+    if sc.has(ABSTRACT_ABSENT) and not force \
+            and not _can_supersede(prev_scope, desired_scope):
         return _format_abstract(sc)
 
     # Try the widest available source first.
@@ -15558,11 +15575,32 @@ def _abstract_body(pdf: Path) -> str:
     return _format_abstract(sc)
 
 
+#: `Abstract` alone on its line, body starting on the next — the original shape.
+_ABS_NEXT_LINE = re.compile(
+    r"(?i)abstract\s*\n(.*?)(?:\n\s*\n|\n\d+\s|\nIntroduction|\n1\s)",
+    re.DOTALL)
+
+#: 841 — `Abstract. We consider three-dimensional…`: the heading and the body on
+#: ONE line, separated by a full stop, colon or dash. `_ABS_NEXT_LINE` requires
+#: `abstract` to be followed by a newline, so every document in this very common
+#: house style read as having no abstract at all. Measured over the documents
+#: still marked ABSTRACT_ABSENT at the narrow scope after 840: 4 of 42, all with
+#: a labelled abstract on page 1 — sigma26-079, sigma26-085, sigma26-086 and
+#: 2019_TIP_Spaghetti_Labeling…, the SIGMA journal's standard layout.
+#:
+#: Anchored at line start and requiring a separator, so the word "abstract"
+#: inside a sentence cannot trigger it.
+_ABS_SAME_LINE = re.compile(
+    r"(?im)^[ \t]*abstract[ \t]*[.:\u2014\u2013-][ \t]*"
+    r"(\S.*?)(?:\n\s*\n|\n\d+\s|\nIntroduction|\n1\s)",
+    re.DOTALL)
+
+
 def _extract_abstract_text(text: str) -> str | None:
-    m = re.search(r"(?i)abstract\s*\n(.*?)(?:\n\s*\n|\n\d+\s|\nIntroduction|\n1\s)",
-                  text, re.DOTALL)
-    if m and len(m.group(1).strip()) > 30:
-        return m.group(1).strip()
+    for rx in (_ABS_NEXT_LINE, _ABS_SAME_LINE):
+        m = rx.search(text)
+        if m and len(m.group(1).strip()) > 30:
+            return m.group(1).strip()
     return None
 
 

@@ -105,3 +105,55 @@ def test_no_markdown_still_falls_back_to_the_narrow_scope(monkeypatch, tmp_path)
     on its first two pages rather than not at all."""
     monkeypatch.setattr(C, "_read_md", lambda pdf, sc: None)
     assert C._read_md(tmp_path / "x.pdf", None) is None
+
+
+# ---------------------------------------------------------------- 841
+
+def test_the_same_line_abstract_form_is_read():
+    r"""`Abstract. We consider three-dimensional…` — heading and body on ONE
+    line. The original pattern required `abstract` to be followed by a newline,
+    so the SIGMA journal's standard layout read as having no abstract at all.
+    Measured: 4 of the 42 documents still ABSENT at the narrow scope after 840."""
+    from pdfdrill.commands import _extract_abstract_text as E
+    got = E("      Abstract. We consider three-dimensional topological field "
+            "theories on manifolds with boundary defects.\n\n1 Introduction\n")
+    assert got and got.startswith("We consider three-dimensional")
+
+
+def test_the_next_line_form_still_works():
+    from pdfdrill.commands import _extract_abstract_text as E
+    got = E("Abstract\nWe consider three-dimensional topological field theories "
+            "on manifolds here.\n\nIntroduction\n")
+    assert got and got.startswith("We consider")
+
+
+def test_the_word_abstract_inside_a_sentence_is_not_a_heading():
+    """The same-line pattern is anchored at line start AND needs a separator, or
+    any prose containing 'abstract.' would become the abstract."""
+    from pdfdrill.commands import _extract_abstract_text as E
+    assert E("This paper is an abstract. consideration of matters at some "
+             "length indeed, friend.\n\n") is None
+
+
+def test_force_re_evaluates_at_the_same_scope():
+    """The scope guard is right about DATA and wrong about CODE: when the
+    extractor learns a new abstract shape, every document already marked ABSENT
+    at that scope keeps the old verdict. `--force` is the way through, instead
+    of editing the sidecar JSON by hand."""
+    import inspect
+    from pdfdrill.commands import cmd_abstract, _abstract_body
+    assert "force" in inspect.signature(cmd_abstract).parameters
+    assert "force" in inspect.signature(_abstract_body).parameters
+    # and it must actually be threaded — not just accepted and dropped
+    src = inspect.getsource(cmd_abstract)
+    assert "_abstract_body(pdf, force=force)" in src, src
+
+
+def test_force_is_in_the_manifest():
+    import yaml
+    from pathlib import Path
+    y = yaml.safe_load((Path(__file__).resolve().parents[1]
+                        / ".claude/skills/pdfdrill/commands.yaml")
+                       .read_text(encoding="utf-8"))
+    entry = [c for c in y["commands"] if c["name"] == "abstract"][0]
+    assert "--force" in {f["flag"] for f in entry.get("flags", [])}

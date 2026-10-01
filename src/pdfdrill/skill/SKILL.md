@@ -473,7 +473,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill corrections [-o OUT] [--lib LIB]` | corrections.html — every ACCEPTED correction in the corpus on one page: MathPix's reading above, the accepted one below, both against the SHARED scan, with the basis as a column and both ink numbers shown. Corpus-wide, where report.pdf is per document (509). Promoted out of tools/ by 510, because a generator nobody can see ships an artefact nobody rebuilds — this one went stale in a week and shipped untracked. |
 | `pdfdrill ls <dir> [--images]` | Shallow-scan a FOLDER: run pdfinfo (size) on every PDF, store it in each file's sidecar, and report a compact table led by the PRODUCER (the triage signal). The cheapest rung over a whole directory; size is cached so re-running is fast. --images adds the pdfimages count. |
 | `pdfdrill route <pdf> [--run]` | Auto-pick the OCR lane and (with --run) EXECUTE it: born-digital → pdfminer/text-layer (free); scanned & ≤20 pages → Gemma 4 (5-parallel); scanned & larger → MathPix (large books). Auto-chains size. Without --run reports the decision; with --run runs the chosen lane (paid/keyed lanes degrade gracefully when creds are absent). |
-| `pdfdrill abstract <pdf>` | Abstract from first pages |
+| `pdfdrill abstract <pdf> [--force]` | Abstract from the widest source available — the arXiv abs page, else the built markdown, else the first two pages. ABSTRACT_ABSENT is SCOPE-QUALIFIED (first2pages < first3pages < first5pages < markdown, recorded in evidence.abstract_search_scope): only an absent at markdown scope means the document has none, and re-running after `md` automatically re-searches. For a document that genuinely has no abstract, `conclusion` is the companion |
 | `pdfdrill toc <pdf>` | Table of contents |
 | `pdfdrill fonts <pdf> [--force]` | Font analysis, math font detection |
 | `pdfdrill status <pdf> [--html]` | What is already known. --html (652) writes the same report as `<bibkey>.status.html` beside the document instead of printing it, folding in the conservation check (646), the claim ledger (634), the 656 by-design/violation split behind the verdict line, a 655 evidence-artefact size note, and a 651 hand-work-merge record when one exists. Read-only like the text form: a stale or absent model is reported, never rebuilt. |
@@ -677,6 +677,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-7f5ea856` before any build/extract command.
-DRILL-7f5ea856
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-3b265955` before any build/extract command.
+DRILL-3b265955
 <!-- PREFLIGHT-TOKEN:END -->

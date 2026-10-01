@@ -65,7 +65,7 @@ def test_abstract_fans_out_over_a_session_with_titles(tmp_path, monkeypatch):
     ])
     (tmp_path / "a.pdf").write_bytes(b"%PDF-1.4\n")
     (tmp_path / "b.pdf").write_bytes(b"%PDF-1.4\n")
-    monkeypatch.setattr(C, "_abstract_body", lambda p: f"body of {Path(p).stem}")
+    monkeypatch.setattr(C, "_abstract_body", lambda p, force=False: f"body of {Path(p).stem}")
     monkeypatch.setattr(C, "doc_title",
                         lambda p, sc=None: {"a": "First Paper",
                                             "b": "Second Paper"}[Path(p).stem])
@@ -81,7 +81,7 @@ def test_abstract_fans_out_over_a_session_with_titles(tmp_path, monkeypatch):
 def test_single_document_abstract_is_titled(tmp_path, monkeypatch):
     pdf = tmp_path / "solo.pdf"
     pdf.write_bytes(b"%PDF-1.4\n")
-    monkeypatch.setattr(C, "_abstract_body", lambda p: "the abstract text")
+    monkeypatch.setattr(C, "_abstract_body", lambda p, force=False: "the abstract text")
     monkeypatch.setattr(C, "doc_title", lambda p, sc=None: "A Real Title")
     monkeypatch.setattr(C, "resolve_bibkey", lambda p, b, sc: "solo")
     out = C.cmd_abstract(pdf)

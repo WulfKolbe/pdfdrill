@@ -235,13 +235,23 @@ commands:
 - name: abstract
   accepts_combined: true
   section: Introspection (fast, no extraction)
-  summary: Abstract from first pages
+  summary: 'Abstract from the widest source available — the arXiv abs page, else the built
+    markdown, else the first two pages. ABSTRACT_ABSENT is SCOPE-QUALIFIED (first2pages <
+    first3pages < first5pages < markdown, recorded in evidence.abstract_search_scope): only
+    an absent at markdown scope means the document has none, and re-running after `md`
+    automatically re-searches. For a document that genuinely has no abstract, `conclusion`
+    is the companion'
   offline_ok: true
   positionals:
   - name: pdf
     type: pdf
     required: true
     help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: force
+    flag: --force
+    type: flag
+    help: re-evaluate even when the verdict was already taken at this same search scope — for after the extractor learns a new abstract shape; a widening scope re-searches on its own
   typed: true
 - name: toc
   section: Introspection (fast, no extraction)
