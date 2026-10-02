@@ -198,3 +198,51 @@ def test_the_warning_reaches_the_model(tmp_path, monkeypatch):
     LS._paras("x" * 5000, doc)
     assert "prose_split_warning" in doc.meta
     assert "ONE chunk" in doc.meta["prose_split_warning"]
+
+
+# ---------------------------------------------------------------- 853
+
+def test_the_denominator_is_prose_not_body():
+    r"""853 — a document that is one big table is not a separator failure.
+
+    Measured over the 1,310 library documents with a LaTeX source, the 851 check
+    fired on two that are perfectly correct: `percussion map` is 9.5 KB of one
+    `tabular` (a MIDI percussion map) and `wzlxjtu-093` is 5.1 KB of one
+    `\[ \begin{aligned} \]`. Both genuinely have one prose chunk, because almost
+    all of their body is structural and therefore blanked. Judging by raw body
+    characters called each of them a failure; judging by PROSE drops the false
+    positives from 3 to 1 of 1,311.
+    """
+    from pdfdrill.latex_source import prose_split_failed
+    table = ("\\begin{tabular}{|l|l|}\n" + "a & b \\\\\n" * 900 +
+             "\\end{tabular}\n")
+    assert len(table) > 4000
+    assert prose_split_failed(table, 1) is None, "one big table is not a failure"
+    prose = "running text that goes on and on. " * 200
+    assert prose_split_failed(prose, 1) is not None, "pure prose this long is"
+
+
+def test_the_longest_chunk_is_not_a_usable_signal():
+    """RECORDED BECAUSE IT WAS THE FIRST CANDIDATE ON BOTH SIDES. On twenty
+    documents it looked usable — at most 38.9% healthy against 100% for the
+    defect. Over the 1,310 library documents with a LaTeX source the healthy
+    maximum is 100.0% and 24 exceed 38.9%: the populations do not merely touch,
+    they coincide, so no cut exists.
+
+    Asserted structurally — the check cannot consult a measure it is not given.
+    """
+    import inspect
+    from pdfdrill.latex_source import prose_split_failed
+    params = list(inspect.signature(prose_split_failed).parameters)
+    assert params == ["body", "n_chunks"], params
+
+
+def test_a_body_that_is_entirely_one_display_is_not_a_failure():
+    r"""`wzlxjtu-093`: 5.1 KB of one `\[ \begin{aligned} \]`. Its longest chunk
+    is 100% of the body, which the rejected signal would have flagged, and its
+    prose is almost nothing, which is why the prose denominator does not."""
+    from pdfdrill.latex_source import prose_split_failed
+    display = "\\[\n\\begin{aligned}\n" + "& x_{%d} + y \\\\\n" % 1 * 600 + \
+              "\\end{aligned}\n\\]\n"
+    assert len(display) > 4000
+    assert prose_split_failed(display, 1) is None

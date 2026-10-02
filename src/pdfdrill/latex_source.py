@@ -1814,11 +1814,17 @@ def _clean_prose(s: str) -> str:
 #: keeps every character offset valid AND stops the blank-line rule firing.
 _BLANKED = "\x01"
 
-#: 851 — below this a body genuinely can be one paragraph (a note, an
-#: abstract-only stub). Above it, one chunk means the separator failed.
-#: The smallest sigma26 body is 20 KB and the smallest real LaTeX paper
-#: in this library is well over 2 KB, so the floor only has to exclude
-#: fragments.
+#: 851/853 — below this much PROSE a body genuinely can be one paragraph.
+#:
+#: Measured over the 1,310 library documents carrying a LaTeX source, the check
+#: fires on exactly ONE: `wzlxjtu-047`, 2,598 characters of continuous running
+#: text with no interior blank line — a mid-document fragment that starts
+#: "of the respective estimators of …". That is a true single paragraph and a
+#: false positive, and the floor is NOT raised to hide it, because the cost is
+#: asymmetric: a false positive is an advisory note in the model's meta that a
+#: reader can see and dismiss, while a false negative is a silent
+#: one-paragraph document — the defect 850 found after it had been shipped.
+#: One note per 1,311 documents is the right price for that.
 _SPLIT_MIN_BODY = 2000
 
 
@@ -1886,20 +1892,44 @@ def prose_split_failed(body: str, n_chunks: int) -> "str | None":
     loses coverage; mine gains it. One instrument does not see both.
 
     What does separate mine needs no tuned constant: a body of several kilobytes
-    is never one paragraph. Across the twenty, the longest single chunk is at
-    most 38.9% of its body; the defect is 100%. So the signature is the chunk
-    COUNT, not the coverage, and it is checked against a size floor rather than
-    a threshold anyone has to place.
+    is never one paragraph. So the signature is the chunk COUNT, not the
+    coverage, and it is checked against a size floor rather than a threshold
+    anyone has to place.
+
+    853 — AND NOT THE LONGEST CHUNK EITHER, which was the first candidate on
+    both sides. On twenty documents it looked usable: at most 38.9% healthy
+    against 100% for the defect. Over the 1,310 library documents with a LaTeX
+    source the healthy maximum is 100.0% and 24 exceed 38.9%, so there is no
+    safe cut anywhere. inkdrill reached the same conclusion from 60.8% on one
+    appendix-bearing paper; the full corpus says it is not close.
     """
-    if n_chunks == 0 and len(body.strip()) > _SPLIT_MIN_BODY:
+    # 853 — THE DENOMINATOR IS PROSE, NOT BODY. Measured over the 1,310 library
+    # documents that carry a LaTeX source, this fired on two that are perfectly
+    # correct: `percussion map` is 9.5 KB of one `tabular` (a MIDI percussion
+    # map) and `wzlxjtu-093` is 5.1 KB of one `\[ \begin{aligned} \]`. Both
+    # genuinely have one prose chunk, because almost all of their body is
+    # structural and blanked. Counting raw body characters called each of them a
+    # separator failure.
+    prose = len(_prose_only(body))
+    if n_chunks == 0 and prose > _SPLIT_MIN_BODY:
         return ("the paragraph splitter produced NO chunks from %d characters of "
-                "body — the separator did not fire" % len(body))
-    if n_chunks == 1 and len(body.strip()) > _SPLIT_MIN_BODY:
+                "PROSE — the separator did not fire" % prose)
+    if n_chunks == 1 and prose > _SPLIT_MIN_BODY:
         return ("the paragraph splitter produced ONE chunk from %d characters of "
-                "body — a blank-line separator this size of document must "
+                "PROSE — a blank-line separator this much running text must "
                 "contain was not matched (CRLF line endings were one such cause, "
-                "850)" % len(body))
+                "850)" % prose)
     return None
+
+
+def _prose_only(body: str) -> str:
+    """`body` with every structural block removed outright.
+
+    The same blanking `_prose_chunks` does, then the placeholder dropped — so
+    what is left is the running text a paragraph count should be judged against.
+    A document that is one big table has almost none of it.
+    """
+    return _STRUCT_RE.sub("", body)
 
 
 def _paras(prose_body: str, doc) -> list:
