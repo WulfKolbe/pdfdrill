@@ -20,6 +20,7 @@ make the naming mean something:
     report it under the glyph reader's name. The comparison would be
     source-against-source and would look fine.
 """
+import json
 import sys
 from pathlib import Path
 
@@ -127,3 +128,67 @@ def test_the_flag_is_in_the_manifest():
     entry = [c for c in y["commands"] if c["name"] == "model"][0]
     flags = {f["flag"] for f in entry.get("flags", [])}
     assert "--reader" in flags, flags
+
+
+# ---------------------------------------------------------------- 845
+
+def test_a_forced_glyph_read_backs_up_a_mathpix_reading(tmp_path, monkeypatch):
+    """845 — THE ONE ARTEFACT THAT CANNOT BE REBUILT FOR FREE.
+
+    `glyphlines` refuses to replace a MathPix lines.json — and `--force` walks
+    past the refusal, which `model --reader glyphs` does on every call because
+    naming a reader IS the instruction to re-read (837). So a paid layer was one
+    flag away from being overwritten by a free reading, silently. inkdrill hit it
+    regenerating 20 documents: sigma26-075 was the only one with a MathPix
+    reading and it went.
+
+    `cmd_ocr` already solved this — "the named command executes, the paid layer
+    stays recoverable as <name>.mathpix.bak.json" — so this uses that name
+    rather than inventing a second one.
+    """
+    d = tmp_path / "paper"
+    d.mkdir()
+    pdf = d / "paper.pdf"
+    pdf.write_bytes(b"%PDF-1.7\n%%EOF\n")
+    lines = d / "paper.lines.json"
+    # MathPix output is identified by the ABSENCE of a `source` key (the
+    # keyless routes stamp one) plus MathPix-only line types.
+    mathpix = {"pages": [{"page": 1, "lines": [
+        {"type": "math", "text": r"\\[ x^2 \\]"},
+        {"type": "equation_number", "text": "(1)"}]}]}
+    lines.write_text(json.dumps(mathpix), encoding="utf-8")
+
+    assert C._is_mathpix_lines(lines), "fixture must look like MathPix output"
+
+    # the glyph read itself is irrelevant here; only the backup is under test
+    monkeypatch.setattr(
+        "pdfreader.docmodel_six.build", lambda *a, **kw: (_ for _ in ()).throw(
+            RuntimeError("stop after the backup")))
+
+    out = C.cmd_glyphlines(pdf, force=True)
+    bak = d / "paper.lines.mathpix.bak.json"
+    assert bak.is_file(), out
+    saved = json.loads(bak.read_text())
+    assert saved["pages"][0]["lines"][0]["type"] == "math"
+    assert "source" not in saved, "the backup must be the MathPix file verbatim"
+
+
+def test_the_backup_is_never_overwritten_by_a_second_run(tmp_path, monkeypatch):
+    """A second forced read must not replace the backup with the FREE reading
+    it made on the first — that would lose the paid layer one run later."""
+    d = tmp_path / "paper"
+    d.mkdir()
+    (d / "paper.pdf").write_bytes(b"%PDF-1.7\n%%EOF\n")
+    bak = d / "paper.lines.mathpix.bak.json"
+    bak.write_text('{"pages": [{"page": 1, "lines": ['
+                   '{"type": "math", "text": "THE PAID ONE"}]}]}',
+                   encoding="utf-8")
+    (d / "paper.lines.json").write_text(
+        '{"pages": [{"page": 1, "lines": ['
+        '{"type": "math", "text": "a later reading"}]}]}', encoding="utf-8")
+    monkeypatch.setattr(
+        "pdfreader.docmodel_six.build", lambda *a, **kw: (_ for _ in ()).throw(
+            RuntimeError("stop")))
+    before = bak.read_bytes()
+    C.cmd_glyphlines(d / "paper.pdf", force=True)
+    assert bak.read_bytes() == before

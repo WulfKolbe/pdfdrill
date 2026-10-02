@@ -15096,6 +15096,28 @@ def cmd_glyphlines(pdf: Path, force: bool = False) -> str:
             return (f"{lines_path.name} already read by pdf2mmd. "
                     f"`glyphlines --force {pdf.name}` to re-read.")
 
+    # 845 — A PAID LAYER IS BACKED UP BEFORE A FREE ONE REPLACES IT.
+    #
+    # The refusal above is the whole protection, and `--force` walks straight
+    # past it — which `model --reader glyphs` does on every call, because naming
+    # a reader IS the instruction to re-read (837). So the one artefact in a
+    # folder that cannot be rebuilt for free (`readme.py` says exactly that) was
+    # one flag away from being overwritten by a free reading, silently. inkdrill
+    # hit it regenerating 20 documents: sigma26-075 was the only one carrying a
+    # MathPix reading and it went.
+    #
+    # `cmd_ocr` already solved this and its own docstring states the rule — "a
+    # non-tesseract (MathPix) lines.json is BACKED UP first (guard became a
+    # note, never a refusal): the named command executes, the paid layer stays
+    # recoverable as <name>.mathpix.bak.json". Same convention here, so there is
+    # one name for a displaced MathPix reading and not two.
+    mathpix_backup = None
+    if lines_path.exists() and _is_mathpix_lines(lines_path):
+        bak = lines_path.with_suffix(".mathpix.bak.json")
+        if not bak.exists():
+            bak.write_bytes(lines_path.read_bytes())
+        mathpix_backup = bak
+
     sc = Sidecar(pdf)
     key = resolve_bibkey(pdf, None, sc)
     # 834 — ONE READER, IN THIS TREE. No subprocess, no temp file, no
@@ -15125,10 +15147,13 @@ def cmd_glyphlines(pdf: Path, force: bool = False) -> str:
     sc.save()
     shape = ", ".join(f"{k} {v}" for k, v in
                       sorted(counts.items(), key=lambda kv: -kv[1]))
+    kept = (f" The MathPix reading it replaced is kept as "
+            f"{mathpix_backup.name} — it cost money and cannot be rebuilt."
+            if mathpix_backup else "")
     return (f"glyphlines: read {pdf.name} with the glyph reader — {len(data['pages'])} "
             f"page(s), {n_lines} typed line(s) ({shape}). Wrote "
-            f"{lines_path.name}{proj}. Next: `pdfdrill model {pdf.name}` builds "
-            f"the docmodel from it; every projection follows.")
+            f"{lines_path.name}{proj}.{kept} Next: `pdfdrill model {pdf.name}` "
+            f"builds the docmodel from it; every projection follows.")
 
 
 def _glyph_projections(pdf: Path, pages, key: str) -> str:
