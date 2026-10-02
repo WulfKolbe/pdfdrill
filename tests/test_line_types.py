@@ -82,9 +82,16 @@ class TestTheVocabulary:
 
 class TestTheEmitter:
     def test_the_type_reaches_the_lines_json(self):
+        """844 — and it reaches it in MATHPIX'S vocabulary. A `formula` node is
+        a line of prose carrying an inline expression; the classifier calls
+        that `math` internally and the export calls it `text`, which is the
+        word MathPix uses and the word every consumer in `src/docmodel/` was
+        written against. It used to come out as `math`, which pdfdrill reads as
+        DISPLAY maths — so the line was skipped by `inlinectx.load_spans` and
+        excluded from prose by `paragraph.py`."""
         p = page([line("x plus y", kind="formula")])
         out = docmodel.to_lines_json([p])
-        assert content(out["pages"][0]["lines"])[0]["type"] == "math"
+        assert content(out["pages"][0]["lines"])[0]["type"] == "text"
 
     def test_every_line_still_carries_a_rectangle(self):
         """The geometry is the half that was always right. A classifier that
@@ -105,7 +112,10 @@ class TestTheEmitter:
                             lambda pages: (_ for _ in ()).throw(RuntimeError("boom")))
         p = page([line("x plus y", kind="formula")])
         out = content(docmodel.to_lines_json([p])["pages"][0]["lines"])[0]
-        assert out["type"] == "formula"          # the node's own verdict
+        # the node's own verdict (`formula`), still translated for export (844):
+        # `formula` is a maths-font glyph run, not a display equation, so it
+        # exports as `text` and stays a legal prose host.
+        assert out["type"] == "text"
         assert out["region"]["width"] > 0
 
 
@@ -436,3 +446,89 @@ class TestFootnotes:
         pages[0].lines.insert(10, line("Figure 3: the apparatus", y=110.0, size=8.0))
         t = mmd.classify_lines(pages)
         assert t[(1, 10)][0] == "caption"
+
+
+class TestTheExportVocabulary:
+    r"""844 — the lines.json EXPORT speaks MathPix's vocabulary.
+
+    A `lines.json` is MathPix's format. Every consumer in `src/docmodel/` was
+    written against their 31 types, and `docmodel/line_types.py` is built out of
+    them. Two of ours collided with theirs BY NAME while meaning the opposite,
+    which is worse than a type they have never seen:
+
+        ours `math`     = prose carrying inline maths
+        MathPix `math`  = display maths, `\[ … \]`
+        ours `equation` = display maths (MathPix emits no `equation` at all)
+
+    `inlinectx.load_spans` skips `type == "math"` as display maths and
+    `paragraph.py` excludes both `math` and `equation` from prose, so a prose
+    line with one inline expression was dropped twice over and our real display
+    maths was mined as prose. Measured, arXiv 1102.1889 against the author's
+    own LaTeX as gold:
+
+                        Equation   Formula   Paragraph
+        gold                  83       418         332
+        glyph, before        961        61         377
+        glyph, after          89       815         132
+
+    961 -> 89 against a gold of 83, and the five worst "Equations" before were
+    the paper's abstract. No prose was lost in the Paragraph drop: 101.3% of
+    the `text` lines' characters are in the 132 paragraphs, which are the 377
+    fragments joined (median 499 chars). That segmentation is coarse against
+    gold's 332 and is a SEPARATE weakness this change merely stops masking.
+    """
+
+    def test_our_prose_type_exports_as_mathpix_text(self):
+        from pdfreader.docmodel_six import _MP_TYPE
+        assert _MP_TYPE["math"] == "text"
+
+    def test_our_display_type_exports_as_mathpix_math(self):
+        from pdfreader.docmodel_six import _MP_TYPE
+        assert _MP_TYPE["equation"] == "math"
+
+    def test_caption_exports_as_figure_label(self):
+        """MathPix has no `caption`; `figure_label` is the type the host rule
+        and the transclusion exclusion already know (line_types.py)."""
+        from pdfreader.docmodel_six import _MP_TYPE
+        assert _MP_TYPE["caption"] == "figure_label"
+
+    def test_rotated_text_is_deliberately_not_renamed(self):
+        """MathPix has no such type, and `text` would be WRONG: it is the arXiv
+        stamp down the left margin, and `paragraph.py` excludes it by that name
+        because "an arXiv stamp down the left margin is not a sentence in
+        section 1"."""
+        from pdfreader.docmodel_six import _MP_TYPE
+        assert "rotated_text" not in _MP_TYPE
+
+    def test_no_exported_type_is_outside_mathpix_s_vocabulary(self):
+        """The point of the exercise: after translation the type set is a
+        SUBSET of MathPix's, so no consumer needs a producer switch."""
+        from pdfreader.docmodel_six import _MP_TYPE
+        from pdfreader.project_mmd import LINE_TYPES
+        exported = {_MP_TYPE.get(t, t) for t in LINE_TYPES}
+        # `rotated_text` is ours by design, named and handled in paragraph.py
+        assert exported - {"rotated_text"} <= {
+            "text", "math", "equation_number", "section_header", "code",
+            "diagram", "page_info", "title", "authors", "abstract",
+            "figure_label", "table", "footnote",
+        }, sorted(exported)
+
+    def test_every_exported_line_carries_text_display(self):
+        """MathPix puts it on every line and `load_spans` reads
+        `text_display or text`; we emitted none, so a consumer trusting the
+        field got None."""
+        p = page([line("We propose a method that learns a metric")])
+        for ln in content(docmodel.to_lines_json([p])["pages"][0]["lines"]):
+            assert "text_display" in ln
+
+    def test_font_size_is_in_mathpix_pixels_not_points(self):
+        """Same NAME, different UNIT is worse than a missing field: MathPix
+        reports 29 where we reported 9 (ratio == px_per_pt). Safe to change
+        because `type_contract` records font_size as consumed by RANK within a
+        document, never by value."""
+        p = page([line("We propose a method that learns a metric")])
+        out = docmodel.to_lines_json([p])
+        pg = out["pages"][0]
+        ln = content(pg["lines"])[0]
+        assert ln["font_size"] > 20, ln["font_size"]
+        assert pg["px_per_pt"] > 1

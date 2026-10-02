@@ -2973,8 +2973,16 @@ def classify_lines(pages: list[PageNode]) -> dict:
             # prose with one inline expression in it. Dropping to a literal
             # "text" here lost all 23 formula lines of 1107.2723 — a
             # classifier that knows less than the node it is classifying.
-            # `formula` is spelled `math` because that is the word pdfdrill's
-            # modules read; `equation` above is the display case.
+            # `formula` is spelled `math` HERE, in our own vocabulary, and
+            # `to_lines_json` translates it to MathPix's `text` on the way out
+            # (844, `_mp_type`). The sentence that used to stand here —
+            # "`math` … is the word pdfdrill's modules read" — was exactly
+            # backwards and is the whole defect: pdfdrill's `math` means
+            # DISPLAY maths, `inlinectx.load_spans` skips it as such, and
+            # `paragraph.py` excludes it from prose. So every prose line with
+            # an inline expression was dropped as an equation AND mined as
+            # one. Measured on arXiv 1102.1889: 961 Equations against the
+            # author LaTeX's 83, the first five being the abstract.
             out[(p.page, i)] = ("math" if ln.type == "formula" else "text", {})
     return out
 

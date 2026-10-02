@@ -3714,6 +3714,17 @@ def _px_region(rect: Rect, page: PageNode, k: float) -> dict:
     }
 
 
+#: 844 — our line types in MathPix's export vocabulary. See `_mp_type`.
+_MP_TYPE = {
+    "math": "text",            # ours is PROSE carrying inline maths
+    "equation": "math",        # ours is DISPLAY maths; theirs is called `math`
+    "caption": "figure_label",  # they have no `caption`; `figure_label` is the
+                               # type the host rule and the transclusion
+                               # exclusion already know (line_types.py)
+    "formula": "text",         # a maths-font glyph run, not a display equation
+}
+
+
 def to_lines_json(pages: list[PageNode],
                   px_per_pt: float = PX_PER_PT,
                   doc_id: str = "pdfdrill") -> dict:
@@ -3740,6 +3751,46 @@ def to_lines_json(pages: list[PageNode],
 
     def _line_type(p, i, ln) -> tuple:
         return _types.get((p.page, i)) or (ln.type, {})
+
+    def _mp_type(t: str) -> str:
+        r"""Our internal line type, in MATHPIX's export vocabulary.
+
+        844 — THE EXPORT SPEAKS MATHPIX, THE READER KEEPS ITS OWN WORDS. A
+        `lines.json` is MathPix's format; every consumer in `src/docmodel/` was
+        written against their 31 types and `docmodel/line_types.py` is built out
+        of them. Two of ours collided with theirs by NAME while meaning the
+        opposite, which is worse than a type they have never seen:
+
+          ours `math`      = PROSE carrying inline maths
+          MathPix `math`   = DISPLAY maths, `\[ … \]`
+          ours `equation`  = display maths (MathPix emits no `equation` at all)
+
+        So `inlinectx.load_spans` skips `type == "math"` as display maths and
+        threw away the host line of nearly every inline formula we produced,
+        while mining our real display maths as if it were prose. The error ran
+        in both directions. Measured by inkdrill over 20 sigma26 documents:
+        29,172 of 36,813 inline spans (79.2%) invisible; the one document with a
+        MathPix reading lost 0 of 565. Measured here on arXiv 1102.1889: the
+        glyph lane produced 961 Equations against the author LaTeX's 83, and the
+        first five are the paper's ABSTRACT and prose sentences — "Abstract. In
+        this paper we introduce the $\mathrm{o}\log,$ …" filed as display maths.
+        `paragraph.py` excludes `math` AND `equation` from prose, so those lines
+        were lost as paragraphs too.
+
+        `formula` maps to `text`, not `math`: it is the raw pre-classification
+        type for a glyph run in a maths font, and the 166 that survive
+        `_line_type` are things like "Josef $\mathrm{Ba}\ker$ , Alan Sexton and
+        $\mathrm{Vol}\ker$ Sorge" — an author line misread, not an equation.
+        `text` also preserves today's behaviour exactly, since `paragraph.py`
+        never excluded `formula`.
+
+        `rotated_text` is DELIBERATELY NOT renamed although MathPix has no such
+        type. It is the arXiv stamp down the left margin, `paragraph.py` excludes
+        it by that name, and its comment there says why: "An arXiv stamp down the
+        left margin is not a sentence in section 1." Calling it `text` would
+        make it one.
+        """
+        return _MP_TYPE.get(t, t)
 
     out = {
         "pages": [
@@ -3771,10 +3822,19 @@ def to_lines_json(pages: list[PageNode],
                         # the region's corners, which is what they emit for
                         # printed text too.
                         "id": ln.id,
-                        "type": _line_type(p, i, ln)[0],
+                        "type": _mp_type(_line_type(p, i, ln)[0]),
                         "line": i + 1,
                         "column": 0,
-                        "font_size": round(line_font_size(ln)),
+                        # 844 — MATHPIX'S UNIT. Theirs is 250-dpi page pixels
+                        # (29 where we said 9, ratio == px_per_pt); every other
+                        # geometry key here is already scaled by `k` and this
+                        # one was not, so the SAME NAME meant a different
+                        # thing. Safe to change: `type_contract` records that
+                        # font_size is "consumed by RANK within a document,
+                        # never by value" (header.levels_by_font_size), and the
+                        # pixel scale is the granularity that module was built
+                        # for — point-rounding merged headings it can now rank.
+                        "font_size": round(line_font_size(ln) * k),
                         "is_printed": True,
                         "is_handwritten": False,
                         "conversion_output": False,
@@ -3792,6 +3852,15 @@ def to_lines_json(pages: list[PageNode],
                             "height": max(1, round((ln.rect[3] - ln.rect[1]) * k)),
                         },
                         "text": (" ".join(span_text(sp) for sp in ln.spans)),
+                        # 844 — MathPix puts `text_display` on EVERY line and
+                        # `inlinectx.load_spans` reads `text_display or text`
+                        # (676 review B3). We emitted none, so a consumer that
+                        # trusts the field got None. Ours already carries its
+                        # `$…$` spans in `text`, so the two are the same string
+                        # — emitting it is what makes that true rather than
+                        # something a reader has to know.
+                        "text_display": (
+                            " ".join(span_text(sp) for sp in ln.spans)),
                         "complete": all(
                             sp.kind == "text" or span_latex(sp) is not None
                             for sp in ln.spans
