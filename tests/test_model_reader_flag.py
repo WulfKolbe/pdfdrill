@@ -192,3 +192,47 @@ def test_the_backup_is_never_overwritten_by_a_second_run(tmp_path, monkeypatch):
     before = bak.read_bytes()
     C.cmd_glyphlines(d / "paper.pdf", force=True)
     assert bak.read_bytes() == before
+
+
+# ---------------------------------------------------------------- 854
+
+def test_our_own_output_is_never_promoted_to_a_document(tmp_path):
+    r"""854 — `_has_a_second_document` asks whether the SIBLINGS are artefacts.
+    Nothing asked whether the SUBJECT is.
+
+    So writing `evidence-formula.pdf` into a folder that also holds the document
+    promoted the artefact into `evidence-formula/evidence-formula.pdf` with an
+    empty sidecar — and the next build wrote a fresh flat one beside it, leaving
+    the first orphaned where a reader was still looking at it.
+
+    Measured in the library: 2,667 nested artefact folders, nine in 0902.0431
+    alone (`report/` 32 MB, `B/` 38.8 MB), every sidecar carrying `facts: []`
+    because nothing ever drilled them. Those date from 09-17 and predate this
+    function, so it was not the cause — but it reproduced on the first try, so it
+    was the next one.
+    """
+    from pdfdrill.doclock import ensure_doc_folder
+    d = tmp_path / "0902.0431"
+    d.mkdir()
+    for n in ("0902.0431.pdf", "evidence-formula.pdf", "evidence-equation.pdf",
+              "report.pdf", "residuals.pdf", "B.pdf", "formula-report.pdf",
+              "compare.pdf"):
+        (d / n).write_bytes(PDF)
+    for n in ("evidence-formula.pdf", "evidence-equation.pdf", "report.pdf",
+              "residuals.pdf", "B.pdf", "formula-report.pdf", "compare.pdf"):
+        got = ensure_doc_folder(d / n)
+        assert Path(got) == d / n, f"{n} was promoted"
+        assert not (d / Path(n).stem).is_dir(), f"{n} got its own folder"
+
+
+def test_a_real_second_document_is_still_promoted(tmp_path):
+    """The behaviour 830 exists for must survive: two real documents in one
+    directory DO collide, because every build writes the same fixed names."""
+    from pdfdrill.doclock import ensure_doc_folder
+    d = tmp_path / "downloads"
+    d.mkdir()
+    (d / "paper_one.pdf").write_bytes(PDF)
+    (d / "paper_two.pdf").write_bytes(PDF)
+    ensure_doc_folder(d / "paper_one.pdf")
+    assert (d / "paper_one").is_dir()
+    assert (d / "paper_one" / "paper_one.pdf").is_file()

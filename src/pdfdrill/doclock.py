@@ -257,6 +257,20 @@ def ensure_doc_folder(pdf):
     # `evidence-*.pdf`, `residuals.pdf` and `B.pdf` are artefacts of the
     # document already there; counting them would make the first build
     # promote the folder it had just written into.
+    # 854 — AND NEVER PROMOTE OUR OWN OUTPUT. `_has_a_second_document` asks
+    # whether the SIBLINGS are artefacts; nothing asked whether the SUBJECT is.
+    # So writing `evidence-formula.pdf` into a folder that also holds the
+    # document promoted the artefact: `0902.0431/evidence-formula/
+    # evidence-formula.pdf` plus an empty sidecar, and the next build wrote a
+    # fresh flat one beside it, leaving the first orphaned where a reader was
+    # still looking. Measured: 2,667 such nested folders across the library,
+    # nine in 0902.0431 alone (`report/` 32 MB, `B/` 38.8 MB), every sidecar
+    # with `facts: []` because nothing ever drilled them.
+    #
+    # The 09-17 damage predates this function, so it was not the cause — but it
+    # reproduced here on the first try, so it was the next cause.
+    if _GENERATED_PDF.search(p.name):
+        return pdf
     if not _has_a_second_document(p):
         return pdf
     target = p.parent / p.stem
