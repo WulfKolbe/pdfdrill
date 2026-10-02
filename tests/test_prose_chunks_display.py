@@ -131,3 +131,70 @@ def test_a_crlf_display_still_does_not_break_the_paragraph():
 def test_crlf_positions_still_point_at_prose():
     pos, text = next(iter(_prose_chunks(CRLF)))
     assert CRLF[pos:pos + 8] == "We first", CRLF[pos:pos + 20]
+
+
+# ---------------------------------------------------------------- 851
+
+def test_crlf_and_lf_give_the_same_chunks_around_a_display():
+    r"""851 — `\r` survives blanking alongside `\n`.
+
+    Blanking replaced every non-newline with the sentinel, so in a CRLF file the
+    `\r` INSIDE a blanked block became a sentinel and the block's line structure
+    was destroyed: two blank lines around a display stopped separating and the
+    block merged with the prose beside it. The tell was in the corpus — the five
+    CRLF documents held the five HIGHEST coverage figures (99.0-99.7% against a
+    median of 89.4%), which is the opposite of what a defect usually looks like.
+    """
+    lf = (f"We first observe that the measure is finite.\n\n{DISPLAY}\n\n"
+          f"and therefore the bound follows immediately.\n")
+    crlf = lf.replace("\n", "\r\n")
+    assert len(chunks(crlf)) == len(chunks(lf)) == 2
+
+
+def test_the_splitter_complains_when_it_plainly_did_not_fire():
+    """A body of several kilobytes is never one paragraph."""
+    from pdfdrill.latex_source import prose_split_failed
+    big = "word " * 500
+    assert prose_split_failed(big, 40) is None
+    assert "ONE chunk" in (prose_split_failed(big, 1) or "")
+    assert "NO chunks" in (prose_split_failed(big, 0) or "")
+
+
+def test_a_genuinely_short_body_is_not_complained_about():
+    """A note or an abstract-only stub really is one paragraph."""
+    from pdfdrill.latex_source import prose_split_failed
+    assert prose_split_failed("a short note about one thing", 1) is None
+
+
+def test_coverage_would_not_have_caught_this_class_and_the_count_does():
+    """RECORDED BECAUSE IT WAS THE SUGGESTED INSTRUMENT. inkdrill's defect lost
+    coverage (27% of the body); mine GAINED it — one chunk spans everything
+    including the blanked blocks, so the CRLF failure scores ~100%, above the
+    89.4% median of twenty healthy documents. An instrument that flags "under
+    60%" sees theirs and never sees mine. The chunk count sees both."""
+    import re as _re
+    body = ("para one is long enough to be counted here.\r\n\r\n"
+            "para two is also long enough to be counted.\r\n") * 40
+    # the pre-850 separator, reconstructed
+    broken = [m.group(0) for m in
+              _re.finditer(r"(?s)\S.*?(?=\n[ \t]*\n|\Z)", body)]
+    assert len(broken) == 1
+    assert sum(len(c) for c in broken) / len(body) > 0.95, "it covers nearly all of it"
+    from pdfdrill.latex_source import prose_split_failed
+    assert prose_split_failed(body, len(broken)) is not None
+
+
+def test_the_warning_reaches_the_model(tmp_path, monkeypatch):
+    """A note is on the Document, so `readme` and the model's meta carry it and
+    the next reader is told why rather than inferring it from a plausible count."""
+    from pdfdrill import latex_source as LS
+
+    class _Doc:
+        def __init__(self):
+            self.meta = {}
+
+    doc = _Doc()
+    monkeypatch.setattr(LS, "_prose_chunks", lambda body: [(0, body)])
+    LS._paras("x" * 5000, doc)
+    assert "prose_split_warning" in doc.meta
+    assert "ONE chunk" in doc.meta["prose_split_warning"]

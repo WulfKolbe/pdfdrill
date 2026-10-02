@@ -1814,6 +1814,13 @@ def _clean_prose(s: str) -> str:
 #: keeps every character offset valid AND stops the blank-line rule firing.
 _BLANKED = "\x01"
 
+#: 851 — below this a body genuinely can be one paragraph (a note, an
+#: abstract-only stub). Above it, one chunk means the separator failed.
+#: The smallest sigma26 body is 20 KB and the smallest real LaTeX paper
+#: in this library is well over 2 KB, so the floor only has to exclude
+#: fragments.
+_SPLIT_MIN_BODY = 2000
+
 
 def _prose_chunks(body: str):
     r"""Yield (pos, raw_prose) for each blank-line-separated prose block, with
@@ -1834,8 +1841,14 @@ def _prose_chunks(body: str):
     The yielded text has the sentinel mapped back to spaces, so a caller doing
     `pos + text.index(...)` is unaffected; only the SPLIT sees the difference.
     """
+    # `\r` survives blanking alongside `\n`, or a CRLF file's line structure is
+    # destroyed INSIDE a blanked block: the `\r` became the sentinel, so two
+    # blank lines around a display no longer separated and the block merged with
+    # the prose beside it. Measured before the fix: the five CRLF documents held
+    # the five highest coverage figures in the corpus (99.0-99.7% against a
+    # median of 89.4%) for exactly that reason.
     cleaned = _STRUCT_RE.sub(
-        lambda m: re.sub(r"[^\n]", _BLANKED, m.group(0)), body)
+        lambda m: re.sub(r"[^\n\r]", _BLANKED, m.group(0)), body)
     # a chunk must START at real prose, never at a blanked block, or `pos`
     # would point into the equation instead of the sentence
     # 850 — `\r` IS IN THE CLASS. A blank line in a CRLF file is `\r\n\r\n`, and
@@ -1852,6 +1865,56 @@ def _prose_chunks(body: str):
         chunk = m.group(0).replace(_BLANKED, " ")
         if chunk.strip():
             yield m.start(), chunk
+
+
+def prose_split_failed(body: str, n_chunks: int) -> "str | None":
+    r"""A one-line complaint when the paragraph separator plainly did not fire.
+
+    851 — WHAT NEITHER SUITE ASSERTED. inkdrill and I shipped the same class of
+    defect one character apart: my separator was `\n[ \t]*\n`, which does not
+    allow the `\r` of a CRLF file, so a whole paper came back as ONE paragraph;
+    theirs was `\end\{`, which does not allow the legal space in
+    `\end {pmatrix}`, so a document was read to 27%. Both failed silently and
+    both returned a plausible number — one enormous paragraph, or thirty
+    ordinary ones — and neither test suite noticed, because nothing asserted that
+    the splitter had consumed the source.
+
+    They made their instrument report coverage, and suggested the same here.
+    MEASURED, IT WOULD NOT HAVE CAUGHT MINE: a single chunk spans everything
+    including the blanked blocks, so the CRLF defect scores ~100% coverage,
+    HIGHER than the 89.4% median of twenty healthy documents. Their failure mode
+    loses coverage; mine gains it. One instrument does not see both.
+
+    What does separate mine needs no tuned constant: a body of several kilobytes
+    is never one paragraph. Across the twenty, the longest single chunk is at
+    most 38.9% of its body; the defect is 100%. So the signature is the chunk
+    COUNT, not the coverage, and it is checked against a size floor rather than
+    a threshold anyone has to place.
+    """
+    if n_chunks == 0 and len(body.strip()) > _SPLIT_MIN_BODY:
+        return ("the paragraph splitter produced NO chunks from %d characters of "
+                "body — the separator did not fire" % len(body))
+    if n_chunks == 1 and len(body.strip()) > _SPLIT_MIN_BODY:
+        return ("the paragraph splitter produced ONE chunk from %d characters of "
+                "body — a blank-line separator this size of document must "
+                "contain was not matched (CRLF line endings were one such cause, "
+                "850)" % len(body))
+    return None
+
+
+def _paras(prose_body: str, doc) -> list:
+    """`_prose_chunks`, with the 851 health check recorded on the model.
+
+    A note here is not an error — the build continues and produces whatever the
+    splitter found — but it is on the Document, so `readme` and the model's own
+    meta carry it and the next reader of a one-paragraph paper is told why
+    instead of inferring it from a count that looks plausible.
+    """
+    out = list(_prose_chunks(prose_body))
+    note = prose_split_failed(prose_body, len(out))
+    if note:
+        doc.meta["prose_split_warning"] = note
+    return out
 
 
 def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
@@ -1937,7 +2000,7 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
              + ([("abstract", _ab["pos"], _ab)] if _ab else [])
              + [("theorem", t["pos"], t) for t in thm["theorems"]]
              + [("proof", p["pos"], p) for p in thm["proofs"]]
-             + [("para", pos, raw) for pos, raw in _prose_chunks(prose_body)])
+             + [("para", pos, raw) for pos, raw in _paras(prose_body, doc)])
     items.sort(key=lambda t: t[1])
     pos_to_theorem_id: dict = {}        # theorem source pos -> Theorem object id
     pending_proofs: list = []           # (proof dict, Proof object) to pair after
