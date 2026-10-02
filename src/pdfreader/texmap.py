@@ -1390,6 +1390,52 @@ def class_pairs(space: int) -> list:
 _NO_LATIN = re.compile(r"TeX-math[a-z]\d*|CMEX\d*|LMMathExtension\d*"
                        r"|MSAM\d*|MSBM\d*", re.I)
 
+#: 852 — CMEX IS A FAMILY, NOT A SUBSTRING, and the name arrives in six shapes.
+#:
+#: `_NO_LATIN` matched `CMEX\d*` ANCHORED, which was safe but incomplete: it
+#: missed the dvips spelling `TeX-cmex9` (26 instances here, 19 documents by
+#: inkdrill's count) and the double subset tag `GGHPMO+VpqhhbCMEX10`, whose base
+#: after stripping one tag is still `VpqhhbCMEX10` (4 instances here).
+#:
+#: THE OBVIOUS FIX WOULD HAVE BEEN WRONG. Switching to `.search()` catches both
+#: and also catches `Yhcmex` (yhmath) and `lcmex8` (lxfonts) — extension fonts by
+#: NAME and ordinary alphabets by CONTENT. inkdrill measured the Type 1 programs:
+#:
+#:     cmex10/9/8/7   141 glyphs each,   1 StandardEncoding name:  space
+#:     cmexb10        128 glyphs,        0
+#:     yhcmex         262 glyphs,      149   A AE B C D ...
+#:     lcmex8         128 glyphs,      122   A B C D E F ...
+#:     cmr10          132 glyphs,      113   (why the rule must not spread)
+#:
+#: so a substring test would mark every `A`, `B`, `C` in a yhmath document
+#: untrusted. Five documents here embed it — 1712.05204 and annals-v174-n3-p05-s
+#: carry `YINZZB+Yhcmex` and `BSQKFK+Yhcmex`.
+#:
+#: Measured shapes, all from this corpus's own `probe-pdffonts.txt`:
+#:
+#:     CMEX10 CMEX9 CMEX8 CMEX7     1,496    cmex9 Cmex10   case varies
+#:     TeX-cmex9/8/7                   26    dvips
+#:     VpqhhbCMEX10 + three more        4    a tag glued on, after one is stripped
+#:     CMEX102 … CMEX1048                   an INSTANCE COUNTER, not a point size
+#:     CMEX10~154                           tilde and a number
+#:     Yhcmex                           5    MUST NOT MATCH
+#:
+#: Trailing digits are REQUIRED, which is the second line of defence against
+#: `Yhcmex` and `lcmex8`: a real TeX extension font always carries its size.
+_CMEX_FAMILY = re.compile(
+    r"^(?:[A-Za-z]{6})?(?:tex-)?cmexb?\d+(?:~\d+)?$", re.I)
+
+#: The one StandardEncoding name a CMEX font legitimately has (all four sizes).
+#: Distrusting it would throw away every space in every large-operator run.
+_CMEX_REAL_NAMES = frozenset({"space"})
+
+
+def is_cmex_family(fontname: str) -> bool:
+    """True for a Computer Modern maths-extension font, by FAMILY not substring."""
+    base = (fontname or "").split("+")[-1]
+    return bool(_CMEX_FAMILY.match(base))
+
+
 # StandardEncoding names that such a font can never legitimately carry.
 _STANDARD_TEXT_NAMES = {
     "quoteleft", "quoteright", "quotedblleft", "quotedblright",
@@ -1423,7 +1469,13 @@ def untrusted_name(fontname: str, glyphname: str | None) -> bool:
     if not glyphname:
         return False
     base = fontname.split("+")[-1]
-    if not _NO_LATIN.match(base):
+    cmex = is_cmex_family(base)
+    if not (cmex or _NO_LATIN.match(base)):
+        return False
+    # 852 — `space` is a REAL glyph in cmex10/9/8/7, the only StandardEncoding
+    # name they carry. Distrusting it would discard every space in every
+    # large-operator run.
+    if cmex and glyphname in _CMEX_REAL_NAMES:
         return False
     if len(glyphname) == 1 and glyphname.isalpha():
         return True
