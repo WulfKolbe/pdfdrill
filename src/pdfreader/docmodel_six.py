@@ -4016,7 +4016,12 @@ def _add_table_containers(out: dict, pages: list["PageNode"], k: float) -> None:
                     "width": max(1, round((x1 - x0) * k)),
                     "height": max(1, round((y1 - y0) * k)),
                 },
-                "text": "", "children_ids": kids,
+                # 844 — a container IS a line, so it carries `text_display`
+                # like every other one. "MathPix has it on every line" is the
+                # reason `load_spans` may read `text_display or text` without
+                # checking, and 13-19 container lines per document were the
+                # exception that made that false.
+                "text": "", "text_display": "", "children_ids": kids,
                 "caption_id": cap["id"] if cap else None,
                 "caption_number": t["caption"]["number"],
             })
@@ -4086,6 +4091,7 @@ def _add_column_containers(out: dict, pages: list["PageNode"], k: float) -> None
                     "height": max(1, round((y1 - y0) * k)),
                 },
                 "text": "",
+                "text_display": "",                      # 844, as above
                 "children_ids": [recs[i]["id"] for i in idxs],
             })
         # Containers FIRST, as MathPix orders them: a reader building a tree in

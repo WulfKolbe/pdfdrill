@@ -518,8 +518,8 @@ class TestTheExportVocabulary:
         `text_display or text`; we emitted none, so a consumer trusting the
         field got None."""
         p = page([line("We propose a method that learns a metric")])
-        for ln in content(docmodel.to_lines_json([p])["pages"][0]["lines"]):
-            assert "text_display" in ln
+        for ln in docmodel.to_lines_json([p])["pages"][0]["lines"]:
+            assert "text_display" in ln, ln.get("type")
 
     def test_font_size_is_in_mathpix_pixels_not_points(self):
         """Same NAME, different UNIT is worse than a missing field: MathPix
