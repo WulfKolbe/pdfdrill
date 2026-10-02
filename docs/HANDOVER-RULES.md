@@ -611,3 +611,49 @@ folder names contain spaces. Such a path is correct in a line-based file and
 drillui's scanner, which splits on whitespace, cannot open it. `inspect_list`
 returns them under `whitespace` and the printed block counts them. The fix is
 in the scanner, not in the file.
+
+## 2026-10-02 — the failure shape of the day: a claim no instrument could contradict
+
+Eleven fixes landed (836-863). Not one of the five worst errors was caught by a
+test, a gate or a corpus scan. All five were caught by a person or a peer opening
+the actual artefact.
+
+1. **`0.625`** — I predicted the value of a field (`scale`) from the quantity I had
+   just computed myself. Two quantities share that name: the page factor (1.6,
+   mine) and the published crop's own factor (0.71-0.73, inkdrill's). The number
+   was plausible, the band was plausible, and nothing in the file disambiguates
+   them. Settled by inkdrill drawing six marks on a page and LOOKING at them.
+
+2. **`54%`** — correcting someone else's denominator, I built a wrong one by
+   reading the largest suppression class (7,454) as the whole suppressed set
+   (11,788). Understated the instrument 2.7x: the true figure is 83% of pointable
+   rows, not 31%. The five classes are exclusive and sum exactly to the measured
+   count — checking that identity would have caught it, and I did not.
+
+3. **"0 .tex files contain a localhost crop URL"** — from `grep -rl` in
+   pdfdrill-library. `grep` here is **ugrep**, which honours `.gitignore`, and that
+   library's is DENY-BY-DEFAULT. The real count was 78. Worse, the blindness is
+   SELECTIVE: `evidence-formula.tex` is searched and `<doc>.tex` is not, under the
+   same command in the same directory — uniform blindness announces itself, a
+   plausible non-zero answer never does. **Use `find … -exec grep` in that tree.**
+
+4. **A plausible absence** — inkdrill read `counts.not_measured` (a summary by
+   reason), saw no ids, and concluded the per-id mapping was missing. It was at the
+   top level of the same file, in all 39 mark sets, 237 rows.
+
+5. **A plausible AGREEMENT, the one worth remembering.** I had printed both fields
+   side by side and built 858 against the per-id mapping. When inkdrill said the
+   field was missing I replied "my reader takes `{id: reason}` already" — the
+   disproof — and agreed anyway, treating the current form as a future one. We
+   planned a 39-file re-emission around a defect that did not exist. A peer states
+   a cause, it fits a real symptom, and agreeing costs nothing in the moment.
+   Their own check read the same field they misread, so it "would have gone on
+   agreeing forever": **a check written from the same misreading as the conclusion
+   is not a second opinion.**
+
+The through-line: every one produced a number or a conclusion that was internally
+consistent and externally wrong. The defences that worked were an independent
+implementation (two golds found one defect each), an identity that must close
+(`rows + not_measured == evidence_rows`), and a human opening the file. The
+defences that failed were every test and scan written by the same person who held
+the misconception.
