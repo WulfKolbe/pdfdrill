@@ -272,11 +272,24 @@ def apply(rows: dict, marks_path: "Path | str | None", doc_dir: "Path | str",
 
     doc_dir = Path(doc_dir)
     by_id = {r["id"]: r for r in (data.get("rows") or [])}
+    # 858 — A ROW THE MEASUREMENT COULD NOT PLACE IS NOT A MISSING ROW. The file
+    # carries `not_measured: {id: reason}` beside `rows`, so an id absent from
+    # `rows` is usually PRESENT here with an explanation. Saying "no row of this
+    # id in the file" of such an id reports drift where there is none, and that
+    # is not cosmetic: on `Lie Groups` it was 116 ids against 2-8 elsewhere, we
+    # both read it as a stale row set, and inkdrill queued an hour of
+    # re-measurement for a document whose `counts.evidence_rows` (2,970) already
+    # matched this build's row count exactly. Their file had said why all along:
+    # "not placed (at every scale of the refit band the rendering is wider than
+    # its host line, or under 4 px)".
+    not_measured = data.get("not_measured") or {}
     out_formula = []
     for row in formula:
         mrow = by_id.get(row.identifier)
         if mrow is None:
-            _refuse("not offered a mark (no row of this id in the file)")
+            why = not_measured.get(row.identifier)
+            _refuse("not measured: %s" % why if why
+                    else "not offered a mark (no row of this id in the file)")
             out_formula.append(row)
             continue
         if not mrow.get("mark"):

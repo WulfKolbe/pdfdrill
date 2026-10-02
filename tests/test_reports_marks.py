@@ -460,3 +460,74 @@ def test_the_evidence_tex_is_written_atomically():
     assert "_atomic_write(out," in src
     # and nothing writes either artefact the unsafe way
     assert "write_text(" not in src.replace("_atomic_write", "")
+
+
+# ---------------------------------------------------------------- 858
+
+def test_a_row_the_measurement_could_not_place_reports_its_reason(tmp_path):
+    r"""858 — A ROW THE MEASUREMENT COULD NOT PLACE IS NOT A MISSING ROW.
+
+    The marks file carries `not_measured: {id: reason}` beside `rows`, so an id
+    absent from `rows` is usually PRESENT there with an explanation. Saying "no
+    row of this id in the file" of such an id reports drift where there is none.
+
+    That is not cosmetic. On `Lie Groups` it was 116 ids against 2-8 elsewhere;
+    both sides read it as a stale row set, I wrote to inkdrill that "that
+    document's row set has moved", and they queued an hour of contended
+    re-measurement — for a document whose `counts.evidence_rows` (2,970) already
+    matched the build's row count exactly. Their file had said why all along:
+    "not placed (at every scale of the refit band the rendering is wider than its
+    host line, or under 4 px)".
+    """
+    import json as _json
+    import sys
+    from pathlib import Path as _P
+    sys.path.insert(0, str(_P(__file__).resolve().parents[1] / "src"))
+    from pdfdrill.reports import marks as MK
+
+    class _Row:
+        def __init__(self, ident):
+            self.identifier = ident
+            self.crop = None
+
+    reason = ("not placed (at every scale of the refit band the rendering is "
+              "wider than its host line, or under 4 px)")
+    mp = tmp_path / "marks.json"
+    mp.write_text(_json.dumps({
+        "rows": [{"id": "doc_FO0001", "mark": False}],
+        "not_measured": {"doc_FO0002": reason},
+        "counts": {"marked": 0, "evidence_rows": 3},
+    }), encoding="utf-8")
+
+    rows = {"formula": [_Row("doc_FO0001"), _Row("doc_FO0002"), _Row("doc_FO0003")]}
+    _out, counts = MK.apply(rows, mp, tmp_path, None)
+    refused = counts["refused"]
+    assert any(reason in k for k in refused), refused
+    # the id that is in NEITHER rows nor not_measured still says so
+    assert any("no row of this id in the file" in k for k in refused), refused
+
+
+def test_the_two_absences_are_counted_separately(tmp_path):
+    """"could not place it" and "never heard of it" are different findings and
+    must not share a bucket — sharing one is what made 116 look like drift."""
+    import json as _json
+    import sys
+    from pathlib import Path as _P
+    sys.path.insert(0, str(_P(__file__).resolve().parents[1] / "src"))
+    from pdfdrill.reports import marks as MK
+
+    class _Row:
+        def __init__(self, ident):
+            self.identifier = ident
+            self.crop = None
+
+    mp = tmp_path / "marks.json"
+    mp.write_text(_json.dumps({
+        "rows": [],
+        "not_measured": {"doc_FO0001": "too small", "doc_FO0002": "too small"},
+        "counts": {"marked": 0},
+    }), encoding="utf-8")
+    rows = {"formula": [_Row("doc_FO0001"), _Row("doc_FO0002"), _Row("doc_FO0009")]}
+    _out, counts = MK.apply(rows, mp, tmp_path, None)
+    assert counts["refused"]["not measured: too small"] == 2
+    assert counts["refused"]["not offered a mark (no row of this id in the file)"] == 1
