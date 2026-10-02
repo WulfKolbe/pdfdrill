@@ -532,3 +532,56 @@ class TestTheExportVocabulary:
         ln = content(pg["lines"])[0]
         assert ln["font_size"] > 20, ln["font_size"]
         assert pg["px_per_pt"] > 1
+
+
+class TestProvenanceIsStatedAtTheTop:
+    r"""846 — a reading's provenance belongs to the DOCUMENT, not to each page.
+
+    We wrote `source` only per page. `cmd_ocr`'s backup guard read
+    `lj.get("source")` at the TOP level, found None, and concluded MathPix — so
+    it would file one of OUR readings as `<stem>.lines.mathpix.bak.json`, and
+    `if not bak.exists()` would make the mislabel permanent. A real MathPix
+    reading displaced afterwards then could not be backed up at all: the slot
+    taken, by the wrong reader, under MathPix's name. Found by inkdrill.
+
+    `_lines_json_source` happened to be right anyway because it regexes the
+    first 8 KB and page 1's key falls inside it — key ordering, not a contract.
+    """
+
+    def test_the_top_level_source_names_the_reader(self):
+        out = docmodel.to_lines_json([page([line("some running prose here")])])
+        assert out["source"] == "pdfminer-docmodel"
+
+    def test_the_per_page_source_is_kept(self):
+        """A merged reading can carry pages from two readers, and the page is
+        the only place that can say which."""
+        out = docmodel.to_lines_json([page([line("some running prose here")])])
+        assert all(p.get("source") for p in out["pages"])
+
+    def test_the_shared_detector_does_not_call_our_reading_mathpix(self, tmp_path):
+        """The defect in one line. Before 846 this was True for every reading
+        we produced."""
+        import json as _json
+        import sys
+        from pathlib import Path as _P
+        sys.path.insert(0, str(_P(__file__).resolve().parents[1] / "src"))
+        from pdfdrill.commands import _is_mathpix_lines
+        f = tmp_path / "x.lines.json"
+        out = docmodel.to_lines_json([page([line("some running prose here")])])
+        f.write_text(_json.dumps(out), encoding="utf-8")
+        assert _is_mathpix_lines(f) is False
+
+    def test_the_top_level_key_is_found_whatever_the_head_size(self, tmp_path):
+        """`_lines_json_source` reads only the first 8 KB. With `source` stated
+        at the top it cannot fall outside that window however big page 1 is."""
+        import json as _json
+        import sys
+        from pathlib import Path as _P
+        sys.path.insert(0, str(_P(__file__).resolve().parents[1] / "src"))
+        from pdfdrill.commands import _lines_json_source
+        out = docmodel.to_lines_json([page([line("some running prose here")])])
+        # a page fat enough to push any per-page key past the window
+        out["pages"][0]["padding"] = "x" * 20000
+        f = tmp_path / "x.lines.json"
+        f.write_text(_json.dumps(out), encoding="utf-8")
+        assert _lines_json_source(f) == "pdfminer-docmodel"

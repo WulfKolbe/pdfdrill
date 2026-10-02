@@ -9818,7 +9818,17 @@ def _fold_eq_records_into_lines_json(lines_path: Path, records: list,
     note, never a refusal): the named command executes, the paid layer stays
     recoverable as <name>.mathpix.bak.json."""
     lj = json.loads(lines_path.read_text(encoding="utf-8"))
-    if lj.get("source") not in ("tesseract", "visionocr"):
+    # 846 — ONE DETECTOR. This asked `lj.get("source") not in (…)` itself, a
+    # second answer to a question `_is_mathpix_lines` already answers, and it
+    # got it wrong: a pdf2mmd reading wrote its `source` per page, so the
+    # top-level read was None and every one of our own readings looked like
+    # MathPix. It would then save a pdf2mmd reading as
+    # `<stem>.lines.mathpix.bak.json` and `if not bak.exists()` would make the
+    # mislabel permanent — so a real MathPix reading displaced afterwards could
+    # not be backed up at all. Found by inkdrill. The emitter now states
+    # `source` at the top as well, and this defers to the shared detector so
+    # there is no second place to get it wrong.
+    if _is_mathpix_lines(lines_path):
         bak = lines_path.with_suffix(".mathpix.bak.json")
         if not bak.exists():
             bak.write_bytes(lines_path.read_bytes())

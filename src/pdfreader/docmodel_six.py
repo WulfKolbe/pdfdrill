@@ -3793,6 +3793,21 @@ def to_lines_json(pages: list[PageNode],
         return _MP_TYPE.get(t, t)
 
     out = {
+        # 846 — PROVENANCE BELONGS TO THE DOCUMENT, NOT TO EACH OF ITS PAGES.
+        # inkdrill found the consequence: `cmd_ocr`'s backup guard reads
+        # `lj.get("source")` at the TOP level, we wrote it only per page, so
+        # every reading of ours looked like MathPix to it — and it would file a
+        # pdf2mmd reading as `<stem>.lines.mathpix.bak.json`, permanently,
+        # because `if not bak.exists()` then refuses to correct it. A real
+        # MathPix reading displaced later could not be backed up: the slot taken,
+        # by the wrong reader, under MathPix's name.
+        #
+        # `_lines_json_source` happened to work anyway — it regexes the first
+        # 8 KB and page 1's key falls inside that — but that is key ordering, not
+        # a contract. Stating it at the top makes both readers right by
+        # construction. The per-page key stays: a merged reading can carry pages
+        # from two readers, and that is the only place that can say so.
+        "source": "pdfminer-docmodel",
         "pages": [
             {
                 # MathPix's own page keys first, so a consumer written

@@ -1806,13 +1806,43 @@ def _clean_prose(s: str) -> str:
     return re.sub(r"[ \t]+", " ", s).strip()
 
 
+#: 847 — a blanked structural block is not a blank line. Blanking to SPACES
+#: left a display equation on its own line looking exactly like a paragraph
+#: separator to `\n[ \t]*\n`, so it broke the prose run. In LaTeX it does not:
+#: `text \begin{equation}…\end{equation} text` is ONE paragraph and only a
+#: blank line or `\par` ends it. A non-whitespace sentinel of the same length
+#: keeps every character offset valid AND stops the blank-line rule firing.
+_BLANKED = "\x01"
+
+
 def _prose_chunks(body: str):
-    """Yield (pos, raw_prose) for each blank-line-separated prose block, with
-    structural blocks blanked out (length preserved → positions stay valid)."""
-    cleaned = _STRUCT_RE.sub(lambda m: re.sub(r"[^\n]", " ", m.group(0)), body)
-    for m in re.finditer(r"(?s)\S.*?(?=\n[ \t]*\n|\Z)", cleaned):
-        if m.group(0).strip():
-            yield m.start(), m.group(0)
+    r"""Yield (pos, raw_prose) for each blank-line-separated prose block, with
+    structural blocks blanked out (length preserved → positions stay valid).
+
+    847 — A DISPLAY DOES NOT END A PARAGRAPH. Blanking replaced the block with
+    spaces, newlines included, so a display on its own line became a
+    whitespace-only line and `\n[ \t]*\n` read it as a blank-line separator.
+    Measured on arXiv 1102.1889: 408 chunks against LaTeX's 382, a 7%
+    over-count, and that number was being quoted as the GOLD a reader is scored
+    against. inkdrill found the same shape in their own paragraph gold (17% over
+    three documents) and said so before I had looked.
+
+    The tell they offered, worth keeping: the median indent at a claimed
+    paragraph boundary came out at 0.02 line heights. A gold that says
+    paragraphs are not indented is not reporting on LaTeX.
+
+    The yielded text has the sentinel mapped back to spaces, so a caller doing
+    `pos + text.index(...)` is unaffected; only the SPLIT sees the difference.
+    """
+    cleaned = _STRUCT_RE.sub(
+        lambda m: re.sub(r"[^\n]", _BLANKED, m.group(0)), body)
+    # a chunk must START at real prose, never at a blanked block, or `pos`
+    # would point into the equation instead of the sentence
+    for m in re.finditer(r"(?s)[^\s" + _BLANKED + r"].*?(?=\n[ \t]*\n|\Z)",
+                         cleaned):
+        chunk = m.group(0).replace(_BLANKED, " ")
+        if chunk.strip():
+            yield m.start(), chunk
 
 
 def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
