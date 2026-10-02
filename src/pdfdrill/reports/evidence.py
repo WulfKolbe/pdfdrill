@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ..model_io import _atomic_write
+
 from .. import report_tex as rt
 from . import KINDS
 from . import budget as _budget
@@ -58,9 +60,11 @@ def build(rows_by_kind: dict, kind: str, fmt: str, *, doc_dir, pdf, bibkey,
         summary = _refined_summary(refined)
         if summary:
             meta.append(summary)
-        out.write_text(H.render_page(rows, kind, title=title, doc_dir=doc_dir,
-                                     meta_lines=tuple(meta)),
-                       encoding="utf-8")
+        # 855 — ATOMIC, so a reader never sees a half-written file. See the
+        # .tex write below for why this is not merely tidiness.
+        _atomic_write(out, H.render_page(rows, kind, title=title,
+                                         doc_dir=doc_dir,
+                                         meta_lines=tuple(meta)))
         return {"out": out, "rows": len(rows), "pages": None, "errors": 0,
                 "demoted": 0}
     widths = T.widths_for(paper, landscape, with_image=True)
@@ -79,9 +83,17 @@ def build(rows_by_kind: dict, kind: str, fmt: str, *, doc_dir, pdf, bibkey,
     # 836 — the document's own packages travel with its evidence. Without
     # them a report of a document written in XY-pic compiles `\xymatrix` with
     # no xy loaded: 1,029 errors on arXiv 1102.1889, 503 of them one message.
-    tex_path.write_text(T.document(body, paper=paper, landscape=landscape,
-                                   pages=None, title=title, meta=meta),
-                        encoding="utf-8")
+    # 855 — ATOMIC. A 4,003-row evidence .tex is several MB and plain
+    # `write_text` is visible to a reader while it is still being written, so a
+    # consumer that parses the row list gets a SHORT one and measures against
+    # rows that do not exist. inkdrill's driver guards this with "unmodified for
+    # 20 seconds", which is the right defence against a non-atomic writer and
+    # the wrong thing to need: `os.replace` makes the file appear whole or not
+    # at all, and their wait then costs nothing. The failure it prevents is the
+    # shape this whole exchange keeps finding — a plausible number with nothing
+    # to flag it.
+    _atomic_write(tex_path, T.document(body, paper=paper, landscape=landscape,
+                                       pages=None, title=title, meta=meta))
     res = {"out": tex_path.with_suffix(".pdf"), "rows": len(rows),
            "pages": None, "errors": 0, "demoted": 0}
     if compile_pdf:

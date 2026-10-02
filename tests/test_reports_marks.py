@@ -394,3 +394,69 @@ def test_marks_line_shows_unknown_marked_count_as_a_question_mark_not_none():
                         "drawn": 0, "refused": {}})
     assert "? marked in the file" in line
     assert "None" not in line
+
+
+# ---------------------------------------------------------------- 855
+
+def test_a_trailing_unpaired_backslash_does_not_eat_the_closing_dollar():
+    r"""855 — every emitter writes `\FitMath{$\displaystyle %s$}`, so a value
+    ending in an ODD run of backslashes turns the template's closing dollar into
+    a LITERAL one: `100, more_than_\` + `$}` reads as `100, more_than_\$}`, math
+    never closes, and LaTeX says "Missing $ inserted" two lines later with no
+    hint of the cause.
+
+    Measured on `An Invitation to Applied Category Theory`: 2 of 4,002 cells, and
+    they were that 148-page build's only 2 compile errors. Found because inkdrill
+    asked what the 2 errors were instead of accepting "612 of 612 marks drawn".
+    """
+    import sys
+    from pathlib import Path as _P
+    sys.path.insert(0, str(_P(__file__).resolve().parents[1] / "src"))
+    from pdfdrill.report_tex import display_safe
+    B = chr(92)
+    for reading in ("100, more_than_" + B, "500K given " + B):
+        cell = "\\FitMath{$\\displaystyle %s$}" % display_safe(reading)
+        unescaped = cell.count("$") - cell.count(B + "$")
+        assert unescaped % 2 == 0, cell
+
+
+def test_an_escaped_dollar_is_left_alone():
+    r"""`\$` is an EVEN run and a legitimate escaped dollar — the rows that look
+    identical in the .tex (`\FitMath{$\displaystyle \$$}`) compile fine and must
+    not be touched."""
+    import sys
+    from pathlib import Path as _P
+    sys.path.insert(0, str(_P(__file__).resolve().parents[1] / "src"))
+    from pdfdrill.report_tex import _no_dangling_backslash
+    B = chr(92)
+    for v in (B + "$", "a " + B * 2 + " b", "ends with " + B * 2, "x^2", ""):
+        assert _no_dangling_backslash(v) == v, v
+
+
+def test_only_one_backslash_is_dropped_from_an_odd_run():
+    import sys
+    from pathlib import Path as _P
+    sys.path.insert(0, str(_P(__file__).resolve().parents[1] / "src"))
+    from pdfdrill.report_tex import _no_dangling_backslash
+    B = chr(92)
+    assert _no_dangling_backslash("odd " + B * 3) == "odd " + B * 2
+
+
+def test_the_evidence_tex_is_written_atomically():
+    r"""855 — a 4,003-row evidence .tex is several MB, and plain `write_text` is
+    visible to a reader while still being written: a consumer parsing the row
+    list gets a SHORT one and measures against rows that do not exist.
+
+    inkdrill's driver guards this with "unmodified for 20 seconds" — the right
+    defence against a non-atomic writer, and the wrong thing to need.
+    """
+    import inspect
+    import sys
+    from pathlib import Path as _P
+    sys.path.insert(0, str(_P(__file__).resolve().parents[1] / "src"))
+    from pdfdrill.reports import evidence
+    src = inspect.getsource(evidence)
+    assert "_atomic_write(tex_path" in src
+    assert "_atomic_write(out," in src
+    # and nothing writes either artefact the unsafe way
+    assert "write_text(" not in src.replace("_atomic_write", "")

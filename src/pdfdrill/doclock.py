@@ -200,8 +200,16 @@ def writer(op: str):
 
 
 #: 830 — pdfdrill's own PDFs, which are never a reason to promote a folder.
+#: 856 — the SPLIT PARTS are our output too. `evidence-[a-z]+` admits
+#: `evidence-formula` and nothing else, so `evidence-formula-01.pdf` read as a
+#: second document and 854 would have promoted it into its own folder — the
+#: defect 854 had just closed, walked straight back into by a new file name.
+#: Caught before any part was built, because inkdrill asked for the naming
+#: convention first. `-\d+` and `-part\d+` are both admitted, since their glob
+#: accepts either and the choice should not be able to reintroduce this.
 _GENERATED_PDF = __import__("re").compile(
-    r"^(report|B|residuals|evidence-[a-z]+|formula-report|compare)\.pdf$|"
+    r"^(report|B|residuals|formula-report|compare"
+    r"|evidence-[a-z]+(?:-(?:part)?\d+)?)\.pdf$|"
     r"\.(formelregister|beamer)\.pdf$", __import__("re").I)
 
 

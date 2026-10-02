@@ -2011,7 +2011,34 @@ def display_safe(latex: str) -> str:
     (formulas inside a code listing, a narrower and much rarer shape than
     a display equation; left unchanged, not measured to carry one).
     """
-    return renderable(to_inline_env(latex)) if latex else ""
+    return _no_dangling_backslash(renderable(to_inline_env(latex))) if latex else ""
+
+
+def _no_dangling_backslash(safe: str) -> str:
+    r"""Drop a trailing UNPAIRED backslash, which would escape the cell's own
+    closing `$`.
+
+    855 — every emitter writes `\FitMath{$\displaystyle %s$}`. A value ending
+    in an ODD run of backslashes turns the template's closing dollar into a
+    LITERAL one: `100, more_than_\` + `$}` reads as `100, more_than_\$}`, math
+    never closes, and LaTeX reports "Missing $ inserted" two lines later with no
+    hint of the cause.
+
+    Measured on `An Invitation to Applied Category Theory`: 2 of 4,002 cells, and
+    they are the document's only 2 compile errors in a 148-page build. Both
+    readings are OCR noise with a stray trailing backslash (`100, more_than_\`,
+    `500K given \`), so dropping it costs nothing — and `\$` as a legitimate
+    escaped dollar is an EVEN run and is left alone, which is why the rows that
+    look identical in the .tex (`\FitMath{$\displaystyle \$$}`) compile fine
+    and are untouched.
+
+    Found by inkdrill asking what 2 errors in an otherwise clean build were,
+    rather than accepting 612 of 612 marks drawn as "it worked".
+    """
+    if not safe:
+        return safe
+    tail = len(safe) - len(safe.rstrip("\\"))
+    return safe[:-1] if tail % 2 else safe
 
 
 def breakable_ident(title: str) -> str:
@@ -3462,6 +3489,14 @@ _DOCPRE_NEVER = frozenset({
     "geometry", "fontspec", "inputenc", "fontenc", "hyperref", "babel",
     "polyglossia", "biblatex", "natbib", "caption", "subcaption",
     "graphicx", "xcolor", "color", "amsmath", "amssymb", "longtable", "array",
+    # 857 — INCOMPATIBLE WITH THE COMPILER, not merely redundant. Every other
+    # name here is something the report already owns; `microtype` is something
+    # the report cannot have: "Package microtype Error: Font expansion does not
+    # work with xetex", and the projected LaTeX compiles with xelatex by
+    # standing rule (models carry raw Unicode). It was 0707.4470's only compile
+    # error out of twenty rebuilt documents, and the `\IfFileExists` guard
+    # cannot catch it — the .sty is present, it simply refuses this engine.
+    "microtype",
 })
 
 

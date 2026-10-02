@@ -236,3 +236,31 @@ def test_a_real_second_document_is_still_promoted(tmp_path):
     ensure_doc_folder(d / "paper_one.pdf")
     assert (d / "paper_one").is_dir()
     assert (d / "paper_one" / "paper_one.pdf").is_file()
+
+
+def test_a_split_evidence_part_is_also_our_output(tmp_path):
+    """856 — `evidence-[a-z]+` admitted `evidence-formula` and nothing else, so a
+    split part `evidence-formula-01.pdf` read as a second DOCUMENT and 854 would
+    have promoted it into its own folder: the defect 854 had just closed,
+    reintroduced by a new file name. Caught before any part was built, because
+    inkdrill asked for the naming convention before building against it."""
+    from pdfdrill.doclock import ensure_doc_folder
+    d = tmp_path / "cardona"
+    d.mkdir()
+    names = ["cardona.pdf", "evidence-formula-01.pdf", "evidence-formula-02.pdf",
+             "evidence-formula-1.pdf", "evidence-formula-part1.pdf",
+             "evidence-equation-02.pdf"]
+    for n in names:
+        (d / n).write_bytes(PDF)
+    for n in names[1:]:
+        assert Path(ensure_doc_folder(d / n)) == d / n, n
+        assert not (d / Path(n).stem).is_dir(), n
+
+
+def test_a_real_document_whose_name_merely_starts_with_evidence_is_not_exempt():
+    """The guard must not become a prefix match: `evidence.pdf` on its own is
+    not one of our artefacts."""
+    from pdfdrill.doclock import _GENERATED_PDF
+    assert not _GENERATED_PDF.match("evidence.pdf")
+    assert not _GENERATED_PDF.match("arXiv-0902.0431v1.pdf")
+    assert _GENERATED_PDF.match("evidence-formula-01.pdf")
