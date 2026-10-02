@@ -64,11 +64,16 @@ def main(argv=None) -> int:
     ap.add_argument("--separator", default="---",
                     help="page separator; 'ff' for a pdftotext form feed, "
                          "'' for none")
+    ap.add_argument("--exports-only", action="store_true",
+                    help="write ONLY <stem>.md and <stem>.tex; leave the "
+                         "lines.json, model and reports alone (863: a reading "
+                         "is hashed by consumers, so regenerating an export "
+                         "must not invalidate a measurement made against it)")
     ap.add_argument("--crop-urls", action="store_true",
                     help="emit crop URLs in the .tex instead of a comment "
                          "(862: only usable with inspectserver running; LaTeX "
                          "cannot fetch a URL, so the default writes the "
-                         "`% uncropped:` comment alone)")
+                         "`%% uncropped:` comment alone)")
     ap.add_argument("--no-crops", action="store_true",
                     help="leave unprojected maths as a comment, not an image")
     ap.add_argument("--quiet", action="store_true")
@@ -142,6 +147,22 @@ def main(argv=None) -> int:
     with open(base + ".tex", "w", encoding="utf-8") as fh:
         fh.write(mmd.to_latex(pages, doc_id=doc_id, base=args.image_base,
                               crop_ref=_ref))
+    # 863 — `--exports-only` STOPS HERE. Everything below rewrites the READING,
+    # and a reading is hashed by consumers: inkdrill's every mark set carries
+    # `measured_against: {"<stem>.lines.json": "<sha256>"}`, so rewriting it
+    # invalidates the set even when the new reading means the same thing — and
+    # after 846 it would not even be byte-identical, because the top-level
+    # `source` key is new. Regenerating the two EXPORTS to drop 862's dead crop
+    # URLs must therefore not touch the reading, or fixing a broken link costs
+    # a re-measurement of nineteen documents.
+    #
+    # The exports above are pure functions of `pages`; nothing below them feeds
+    # back into the .md or the .tex.
+    if args.exports_only:
+        say(f"  exports only: wrote {stem}.md and {stem}.tex; the reading, "
+            f"model and reports were left untouched")
+        return 0
+
     with open(base + ".lines.json", "w", encoding="utf-8") as fh:
         json.dump(docmodel.to_lines_json(pages, doc_id=stem), fh, indent=1)
     # The pdfdrill docmodel: meta / streams / objects / alignments, with

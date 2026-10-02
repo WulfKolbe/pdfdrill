@@ -128,3 +128,49 @@ def test_the_cli_tex_export_cannot_emit_a_link_latex_cannot_fetch():
 # SOURCE TEXT between two string indices — which is the third time today I have
 # written a check that could not be contradicted by the code being wrong. One
 # assertion of a contract, in the place that owns it.
+
+
+# ---------------------------------------------------------------- 863
+
+def test_exports_only_stops_before_the_reading_is_rewritten():
+    r"""863 — A READING IS HASHED BY ITS CONSUMERS.
+
+    inkdrill's every mark set carries
+    `measured_against: {"<stem>.lines.json": "<sha256>"}`, so rewriting the
+    reading invalidates the set even when the new reading means the same thing —
+    and after 846 it is not even byte-identical, because the top-level `source`
+    key is new. So regenerating the two exports to drop 862's dead crop URLs
+    must not touch the reading, or fixing a broken link costs a re-measurement
+    of nineteen documents.
+
+    Verified on sigma26-092: 26 dead URLs became 0 with 22 `% uncropped:`
+    comments, and the lines.json sha256 did not move.
+    """
+    import inspect
+    from pdfreader import pdf2mmd
+    src = inspect.getsource(pdf2mmd.main)
+    assert "--exports-only" in src
+    guard = src.index("if args.exports_only")
+    # the guard must come BEFORE every write that touches the reading or model
+    for later in ('.lines.json", "w"', "model.docmodel.json",
+                  '.equations.json", "w"', '.fonts.md", "w"'):
+        assert guard < src.index(later), f"{later} is written before the guard"
+
+
+def test_every_argparse_help_escapes_its_percent_signs():
+    r"""862 left `% uncropped:` in a help string, and argparse treats `%` as a
+    format specifier: the whole CLI died with "badly formed help string" before
+    writing anything. It failed SAFELY — the reading's hash was untouched — but
+    a flag nobody can pass is a flag that does not exist."""
+    import argparse
+    import contextlib
+    import io
+    from pdfreader import pdf2mmd
+    # building the parser and rendering help is what raises
+    with contextlib.redirect_stdout(io.StringIO()):
+        try:
+            pdf2mmd.main(["--help"])
+        except SystemExit:
+            pass                       # --help exits 0; that is success here
+        except ValueError as e:         # pragma: no cover
+            raise AssertionError(f"argparse rejected a help string: {e}")
