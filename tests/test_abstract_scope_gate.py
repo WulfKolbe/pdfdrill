@@ -157,3 +157,63 @@ def test_force_is_in_the_manifest():
                        .read_text(encoding="utf-8"))
     entry = [c for c in y["commands"] if c["name"] == "abstract"][0]
     assert "--force" in {f["flag"] for f in entry.get("flags", [])}
+
+
+# ---------------------------------------------------------------- 843
+
+def test_the_wider_scope_is_a_superset(monkeypatch, tmp_path):
+    r"""`markdown` outranks `first2pages` in `_SCOPE_ORDER` on the assumption
+    that the markdown contains everything the first pages do. A PROJECTION CAN
+    DROP A SECTION: four of twelve EJC papers have a labelled `Abstract` on page
+    1 of the PDF and no Abstract heading anywhere in their generated markdown,
+    so searching only the markdown recorded ABSTRACT_ABSENT at the WIDEST scope
+    — a final verdict on a document whose abstract was two lines into page 1.
+
+    Widening the search must never lose a result, so the page scan runs when the
+    markdown finds nothing.
+    """
+    import subprocess as sp
+    from pdfdrill import commands as C
+
+    seen = {}
+    monkeypatch.setattr(C, "_read_md", lambda pdf, sc: "# Paper\n\n# 1 Introduction\n")
+    monkeypatch.setattr(C, "_extract_abstract_from_markdown", lambda md: None)
+
+    class _Done:
+        returncode = 0
+        stderr = ""
+        stdout = ("                 Abstract\n"
+                  "   The celebrated theorem of Kechris, Pestov and Todorcevic "
+                  "connecting structural Ramsey theory to dynamics.\n\n"
+                  "1 Introduction\n")
+
+    def _run(*a, **kw):
+        seen["ran"] = True
+        return _Done()
+
+    monkeypatch.setattr(sp, "run", _run)
+
+    class _SC:
+        facts = set()
+        _data = {"facts": []}
+        def has(self, f): return False
+        def get_evidence(self, k, d=None): return None
+        def set_evidence(self, k, v): seen[k] = v
+        def add_fact(self, f): seen.setdefault("facts", []).append(f)
+        def log_transition(self, *a, **kw): pass
+        def save(self): pass
+
+    monkeypatch.setattr(C, "Sidecar", lambda *a, **kw: _SC())
+    monkeypatch.setattr(C, "_store_sources", lambda pdf: None)
+    monkeypatch.setattr(C, "_format_abstract", lambda sc: "formatted")
+    monkeypatch.setattr(C, "_arxiv_id_for", lambda pdf, sc=None: None)
+    pdf = tmp_path / "paper.pdf"
+    pdf.write_bytes(b"%PDF-1.7\n%%EOF\n")
+
+    C.cmd_abstract(pdf)
+
+    assert seen.get("ran"), "the page scan must run when the markdown finds nothing"
+    assert seen.get("abstract_method") == "pdftotext-2pages"
+    assert "ABSTRACT_KNOWN" in (seen.get("facts") or [])
+    # the recorded scope stays the WIDEST searched, because both were
+    assert seen.get("abstract_search_scope") == "markdown", seen.get("abstract_search_scope")

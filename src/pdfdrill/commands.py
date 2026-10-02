@@ -15538,7 +15538,19 @@ def _abstract_body(pdf: Path, force: bool = False) -> str:
         if abstract:
             method_used = "markdown-heading"
         actual_scope = "markdown"
-    else:
+
+    # 843 — THE WIDER SCOPE MUST BE A SUPERSET, or widening can LOSE an
+    # abstract. `markdown` sits above `first2pages` in `_SCOPE_ORDER` on the
+    # assumption that the markdown contains everything the first pages do. A
+    # PROJECTION CAN DROP A SECTION: four of the twelve EJC papers have a
+    # labelled `Abstract` on page 1 of the PDF and no Abstract heading anywhere
+    # in their generated markdown, so searching only the markdown recorded
+    # ABSTRACT_ABSENT at the WIDEST scope — a final verdict, on a document
+    # whose abstract was plainly there two lines into page 1.
+    #
+    # So the page scan runs when the markdown found nothing, and the recorded
+    # scope stays `markdown`, because both were searched. One pdftotext call.
+    if not abstract:
         out = subprocess.run(
             ["pdftotext", "-f", "1", "-l", "2", "-layout", str(pdf), "-"],
             capture_output=True, text=True, timeout=30,
@@ -15546,7 +15558,8 @@ def _abstract_body(pdf: Path, force: bool = False) -> str:
         abstract = _extract_abstract_text(out.stdout)
         if abstract:
             method_used = "pdftotext-2pages"
-        actual_scope = "first2pages"
+        if not have_md:
+            actual_scope = "first2pages"
 
     # Re-load the sidecar in case earlier state changed
     sc = Sidecar(pdf)
