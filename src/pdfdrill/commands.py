@@ -36,6 +36,7 @@ SIZE_KNOWN = "SIZE_KNOWN"
 FONTS_KNOWN = "FONTS_KNOWN"
 TOC_KNOWN = "TOC_KNOWN"
 TOC_ABSENT = "TOC_ABSENT"
+PROVENANCE_KNOWN = "PROVENANCE_KNOWN"
 ABSTRACT_KNOWN = "ABSTRACT_KNOWN"
 ABSTRACT_ABSENT = "ABSTRACT_ABSENT"
 MD_BUILT = "MD_BUILT"
@@ -11799,10 +11800,25 @@ def _locate_latex_source(pdf: Path, sc: "Sidecar", tex: str | None):
         remember_latex_source(sc, src)
     remembered = None
     if src is None:
+        # 861 — AND UNDER THE ARXIV ID, not only the PDF's stem. An e-print
+        # downloaded from arXiv is named by its ID (`1102.1889.gz`), and the
+        # folder is named by the bibkey (`arxiv.1102.1889/`) — so after the
+        # host-prefix migration, and in any `<id> (1)` duplicate folder, the
+        # source sits right there and this could not see it. Measured: 6 of 637
+        # arXiv documents, each holding its own `.tgz`/`.gz` while reporting no
+        # author LaTeX, which sends the document down the MathPix lane for a
+        # source it already has.
+        names = [pdf.stem]
+        _aid = sc.get_evidence("source_arxiv_id") if sc else None
+        if _aid:
+            names += [_aid.split("/")[-1], _aid.replace("/", "")]
         for ext in (".tex", ".tex.zip", ".tgz", ".tar.gz", ".gz"):   # .gz — 689
-            cand = pdf.parent / f"{pdf.stem}{ext}"
-            if cand.exists():
-                src = cand
+            for nm in names:
+                cand = pdf.parent / f"{nm}{ext}"
+                if cand.exists():
+                    src = cand
+                    break
+            if src is not None:
                 break
     if src is None:
         remembered = remembered_latex_source(pdf, sc)
@@ -15236,6 +15252,120 @@ def _glyph_projections(pdf: Path, pages, key: str) -> str:
     except Exception:                                        # noqa: BLE001
         pass
     return (", " + ", ".join(out)) if out else ""
+
+
+#: 860 — the arXiv stamp arXiv puts down the left margin of every e-print it
+#: serves. `rotated_text` in the glyph reader's vocabulary, and the only place a
+#: document carries its OWN provenance: a paper acquired as a file — from Google
+#: Scholar, a co-author, a Z-Library dump — has no URL left to read it from.
+_ARXIV_STAMP = re.compile(
+    r"arXiv:\s*("
+    r"\d{4}\.\d{4,5}(?:v\d+)?"                      # 2405.08011v1
+    r"|[a-z-]+(?:\.[A-Z]{2})?/\d{7}(?:v\d+)?"        # hep-th/0001124v2
+    r")", re.I)
+
+
+def _page_text_for_stamp(pdf: Path, sc) -> str:
+    """The first pages' text, from the probe if it is there and pdftotext if not.
+
+    The stamp is on page 1 of an e-print, but a scanned-then-OCR'd copy can put
+    it anywhere, so the probe's whole text is used when available — it is already
+    on disk and costs nothing.
+    """
+    probe = pdf.parent / "probe-page-text.json"
+    if probe.is_file():
+        try:
+            return probe.read_text(encoding="utf-8", errors="replace")[:600_000]
+        except OSError:
+            pass
+    try:
+        return subprocess.run(
+            ["pdftotext", "-f", "1", "-l", "2", str(pdf), "-"],
+            capture_output=True, text=True, timeout=60).stdout
+    except Exception:                                        # noqa: BLE001
+        return ""
+
+
+@_writes("provenance")
+def cmd_provenance(pdf: Path, verify: bool = False) -> str:
+    """Recover a document's origin from the DOCUMENT, not from how it arrived.
+
+    860 — provenance was recorded in exactly one place: `cli.py`, at download
+    time, from the URL. A paper handed to pdfdrill as a FILE therefore has none —
+    and `_arxiv_id_for`'s only fallback is the filename, which a Google Scholar
+    download never shapes like an id. Measured over the library: 239 documents
+    carry `source_arxiv_id`, and 585 MORE have the arXiv stamp in their own page
+    text with nothing recorded. 71% of the arXiv papers here were anonymous.
+
+    THE STAMP SUPPLIES WHAT THE FILENAME CANNOT. `0001124.pdf` is a bare number;
+    the stamp says `arXiv:hep-th/0001124v2`, and without that archive prefix no
+    free arXiv route can resolve the paper. Guessing the archive from the id's
+    SHAPE is what put fourteen viXra e-prints in this library labelled as arXiv
+    (805/806), so a prefix read off the page is not a convenience, it is the
+    difference between a correct citation and a wrong one.
+
+    What it records, and the distinction that matters: `source_arxiv_id`,
+    `source_kind`, and `source_provenance = "stamp"` — because an id read from
+    the page is weaker evidence than one read from the URL the file came from. A
+    stamp is the version arXiv served; the PDF may since have been revised, and a
+    later reader must be able to tell which kind of claim it is looking at. An
+    existing URL-derived id is never overwritten.
+
+    `verify` confirms the id against the arXiv API — free and keyless (the whole
+    point of `sources`), but it is NETWORK, so it is off by default.
+    """
+    sc = Sidecar(pdf)
+    if not sc.has(SIZE_KNOWN):
+        cmd_size(pdf)
+        sc = Sidecar(pdf)
+
+    existing = sc.get_evidence("source_arxiv_id")
+    how = sc.get_evidence("source_provenance")
+    if existing and how != "stamp":
+        return (f"{pdf.name} already carries arXiv:{existing} from its source "
+                f"URL — stronger evidence than a stamp, so nothing was changed.")
+
+    text = _page_text_for_stamp(pdf, sc)
+    if not text.strip():
+        return (f"provenance: no text to read on {pdf.name} — a scan with no OCR "
+                f"layer carries no stamp either. `ocr` or `mathpix` first.")
+
+    m = _ARXIV_STAMP.search(text)
+    if not m:
+        sc.add_fact(PROVENANCE_KNOWN)
+        sc.set_evidence("source_provenance", "none-found")
+        sc.save()
+        return (f"provenance: no arXiv stamp in {pdf.name} — it was not served by "
+                f"arXiv, or the stamp is not in the text layer. Nothing claimed.")
+
+    stamped = m.group(1)
+    bare = re.sub(r"v\d+$", "", stamped)
+    sc.set_evidence("source_arxiv_id", bare)
+    sc.set_evidence("source_arxiv_version", stamped)
+    sc.set_evidence("source_kind", "arxiv")
+    sc.set_evidence("source_provenance", "stamp")
+    sc.add_fact(PROVENANCE_KNOWN)
+
+    note = ""
+    if verify:
+        try:
+            from . import sources as _src
+            meta = _src.fetch_arxiv_metadata(bare)
+            title = (meta.get("title") or "").strip()
+            if title:
+                sc.set_evidence("arxiv_title", title)
+            if meta.get("authors"):
+                sc.set_evidence("arxiv_authors", meta["authors"])
+            note = f" Confirmed on arXiv: {title[:70]!r}."
+        except Exception as e:                               # noqa: BLE001
+            note = (f" Could NOT confirm on arXiv ({type(e).__name__}) — the id "
+                    f"is what the page says, unverified.")
+
+    sc.save()
+    return (f"provenance: {pdf.name} was served by arXiv as {stamped} — read from "
+            f"the page's own stamp, not from a URL (`source_provenance=stamp`)."
+            f"{note} The FREE author-LaTeX route is now reachable: "
+            f"`pdfdrill latex {pdf.stem}` builds from the e-print source.")
 
 
 def cmd_fonts(pdf: Path, force: bool = False) -> str:

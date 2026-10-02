@@ -1037,6 +1037,17 @@ def _do_model(args):
         no_source="--no-source" in args, reader=reader)
 
 
+def _do_provenance(args):
+    """pdfdrill provenance <pdf> [--verify]
+
+    860 — recover the document's origin from the DOCUMENT. `--verify` confirms
+    the recovered id against the arXiv API (free, keyless, but network).
+    """
+    from .commands import cmd_provenance
+    pdf_args = [a for a in args if a != "--verify"]
+    return cmd_provenance(_pdf(pdf_args), verify="--verify" in args)
+
+
 def _do_compare(args):
     """pdfdrill compare <pdf> [--force] [--embed]"""
     from .commands import cmd_compare
@@ -2452,6 +2463,7 @@ HANDLERS = {
         "sre": _do_sre,
         "status": _do_status,
         "corpusstatus": _do_corpusstatus,
+        "provenance": _do_provenance,
         "md": _do_md,
         "page": _do_page,
         "fetch": _do_fetch,

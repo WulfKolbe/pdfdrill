@@ -95,3 +95,36 @@ def test_the_latex_projector_takes_a_reference_maker():
     assert "crop_ref" in inspect.signature(mmd.to_latex).parameters
     # and the markdown does NOT: a reader with a server is the point there
     assert "crop_ref" not in inspect.signature(mmd.to_markdown).parameters
+
+
+# ---------------------------------------------------------------- 862
+
+def test_the_cli_tex_export_cannot_emit_a_link_latex_cannot_fetch():
+    r"""862 — 838 gave `to_latex` a `crop_ref` and wired a file-writing one into
+    `pdfdrill glyphlines`, so `.glyphs.tex` holds real paths. `pdf2mmd.py main()`
+    was left passing none and kept emitting
+    `\includegraphics{http://localhost:8000/cropped/...}` — and it is still the
+    entry point inkdrill invokes: 2,783 dead links across 20 sigma26 `.tex`
+    files, 698 in sigma26-086 alone, each wrapped in `\begin{figure}[H]` where an
+    inline formula belongs.
+
+    LaTeX cannot fetch a URL. The document does not typeset there on any machine
+    without that server running, so the default is the comment alone: a missing
+    figure is better than a broken one.
+    """
+    import inspect
+    from pdfreader import pdf2mmd
+    src = inspect.getsource(pdf2mmd.main)
+    assert "crop_ref" in src, "the tex export must pass a crop_ref"
+    assert "--crop-urls" in src, "URLs must be opt-in, not the default"
+    # the default branch yields the empty reference, which to_latex turns into
+    # `% uncropped: …` rather than a figure
+    assert 'lambda rect, page: ""' in src
+
+
+# NOT ADDED: a second assertion that `to_latex`'s no-crop branch emits a comment
+# rather than a figure. 838's `test_a_crop_ref_that_has_no_file_drops_the_figure`
+# already holds that contract, and my first attempt here sliced the function's
+# SOURCE TEXT between two string indices — which is the third time today I have
+# written a check that could not be contradicted by the code being wrong. One
+# assertion of a contract, in the place that owns it.

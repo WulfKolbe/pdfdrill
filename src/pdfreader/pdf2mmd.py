@@ -64,6 +64,11 @@ def main(argv=None) -> int:
     ap.add_argument("--separator", default="---",
                     help="page separator; 'ff' for a pdftotext form feed, "
                          "'' for none")
+    ap.add_argument("--crop-urls", action="store_true",
+                    help="emit crop URLs in the .tex instead of a comment "
+                         "(862: only usable with inspectserver running; LaTeX "
+                         "cannot fetch a URL, so the default writes the "
+                         "`% uncropped:` comment alone)")
     ap.add_argument("--no-crops", action="store_true",
                     help="leave unprojected maths as a comment, not an image")
     ap.add_argument("--quiet", action="store_true")
@@ -116,8 +121,27 @@ def main(argv=None) -> int:
         fh.write(mmd.to_markdown(pages, doc_id=doc_id, base=args.image_base,
                                  page_separator=sep,
                                  crop_deferred=not args.no_crops))
+    # 862 — THE .tex MUST NOT CARRY A LINK LaTeX CANNOT FETCH. 838 gave
+    # `to_latex` a `crop_ref` and wired a file-writing one into
+    # `pdfdrill glyphlines`, whose `.glyphs.tex` therefore holds real paths. This
+    # entry point was left passing none, so it kept emitting
+    # `\includegraphics{http://localhost:8000/cropped/...}` — and it is still the
+    # one inkdrill invokes: 2,783 dead links across the 20 sigma26 `.tex` files,
+    # 698 in sigma26-086 alone, each wrapped in `\begin{figure}[H]` where an
+    # inline formula belongs. LaTeX cannot fetch a URL, so the document does not
+    # typeset there, on any machine without that server running.
+    #
+    # The default is now the COMMENT ALONE: `% uncropped: <span> <reason>` tells a
+    # reader exactly what is missing and why, and a missing figure is better than
+    # a broken one. `--crop-urls` restores the URLs for someone who IS running
+    # `inspectserver`, which is the only situation they ever worked in.
+    #
+    # For local crop FILES, use `pdfdrill glyphlines` — it renders them through
+    # the one cutter (`pdf_reading.render_regions`) and writes `.glyphs.tex`.
+    _ref = None if args.crop_urls else (lambda rect, page: "")
     with open(base + ".tex", "w", encoding="utf-8") as fh:
-        fh.write(mmd.to_latex(pages, doc_id=doc_id, base=args.image_base))
+        fh.write(mmd.to_latex(pages, doc_id=doc_id, base=args.image_base,
+                              crop_ref=_ref))
     with open(base + ".lines.json", "w", encoding="utf-8") as fh:
         json.dump(docmodel.to_lines_json(pages, doc_id=stem), fh, indent=1)
     # The pdfdrill docmodel: meta / streams / objects / alignments, with

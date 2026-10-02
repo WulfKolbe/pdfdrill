@@ -473,6 +473,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill corrections [-o OUT] [--lib LIB]` | corrections.html — every ACCEPTED correction in the corpus on one page: MathPix's reading above, the accepted one below, both against the SHARED scan, with the basis as a column and both ink numbers shown. Corpus-wide, where report.pdf is per document (509). Promoted out of tools/ by 510, because a generator nobody can see ships an artefact nobody rebuilds — this one went stale in a week and shipped untracked. |
 | `pdfdrill ls <dir> [--images]` | Shallow-scan a FOLDER: run pdfinfo (size) on every PDF, store it in each file's sidecar, and report a compact table led by the PRODUCER (the triage signal). The cheapest rung over a whole directory; size is cached so re-running is fast. --images adds the pdfimages count. |
 | `pdfdrill route <pdf> [--run]` | Auto-pick the OCR lane and (with --run) EXECUTE it: born-digital → pdfminer/text-layer (free); scanned & ≤20 pages → Gemma 4 (5-parallel); scanned & larger → MathPix (large books). Auto-chains size. Without --run reports the decision; with --run runs the chosen lane (paid/keyed lanes degrade gracefully when creds are absent). |
+| `pdfdrill provenance <pdf> [--verify]` | Recover where a document CAME FROM by reading its own arXiv margin stamp, not the URL it arrived by. Provenance was recorded only at download time, so a paper handed over as a file — Google Scholar, a co-author, a dump — had none: 239 documents here carry source_arxiv_id and 585 MORE have the stamp in their page text with nothing recorded. The stamp also supplies the ARCHIVE PREFIX a bare filename cannot (0001124 is really hep-th/0001124v2), without which no free arXiv route resolves. Records source_provenance=stamp, because an id read off the page is weaker evidence than one read from a URL and a later reader must be able to tell |
 | `pdfdrill abstract <pdf> [--force]` | Abstract from the widest source available — the arXiv abs page, else the built markdown, else the first two pages. ABSTRACT_ABSENT is SCOPE-QUALIFIED (first2pages < first3pages < first5pages < markdown, recorded in evidence.abstract_search_scope): only an absent at markdown scope means the document has none, and re-running after `md` automatically re-searches. For a document that genuinely has no abstract, `conclusion` is the companion |
 | `pdfdrill toc <pdf>` | Table of contents |
 | `pdfdrill fonts <pdf> [--force]` | Font analysis, math font detection |
@@ -677,6 +678,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-3b265955` before any build/extract command.
-DRILL-3b265955
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-341307b2` before any build/extract command.
+DRILL-341307b2
 <!-- PREFLIGHT-TOKEN:END -->

@@ -232,6 +232,31 @@ commands:
   typed: true
   requires:
   - size
+- name: provenance
+  typed: true
+  section: Introspection (fast, no extraction)
+  summary: 'Recover where a document CAME FROM by reading its own arXiv margin stamp, not the
+    URL it arrived by. Provenance was recorded only at download time, so a paper handed over as
+    a file — Google Scholar, a co-author, a dump — had none: 239 documents here carry
+    source_arxiv_id and 585 MORE have the stamp in their page text with nothing recorded. The
+    stamp also supplies the ARCHIVE PREFIX a bare filename cannot (0001124 is really
+    hep-th/0001124v2), without which no free arXiv route resolves. Records
+    source_provenance=stamp, because an id read off the page is weaker evidence than one read
+    from a URL and a later reader must be able to tell'
+  offline_ok: true
+  requires:
+  - size
+  done_when: fact:PROVENANCE_KNOWN
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: verify
+    flag: --verify
+    type: flag
+    help: confirm the recovered id against the arXiv API — free and keyless, but NETWORK, so off by default
 - name: abstract
   accepts_combined: true
   section: Introspection (fast, no extraction)
