@@ -271,7 +271,50 @@ def apply(rows: dict, marks_path: "Path | str | None", doc_dir: "Path | str",
         return rows, counts
 
     doc_dir = Path(doc_dir)
-    by_id = {r["id"]: r for r in (data.get("rows") or [])}
+    mrows = data.get("rows") or []
+    not_measured = data.get("not_measured") or {}
+
+    # 859 — CHECK THE FILE'S OWN ARITHMETIC BEFORE TRUSTING IT, on the READING
+    # side. inkdrill enforces `rows + not_measured == counts.evidence_rows` when
+    # it emits; this is the same identity checked where the file is CONSUMED,
+    # because the two catch different things. Theirs catches a bad emission;
+    # this catches a file that was fine when written and no longer describes
+    # the evidence beside it — a model rebuilt since, a delivery that landed in
+    # the wrong folder, a hand-edit.
+    #
+    # It is worth a named complaint rather than silence because of what the
+    # silence looked like: 116 ids absent from `rows` read as a moved row set,
+    # and an hour of re-measurement queued, when the arithmetic in the file
+    # already said the row sets agreed. Both sides had the numbers; neither
+    # added them up.
+    #
+    # AND IT CATCHES A MISNAMED KEY. `data.get("rows")` on a file that spells
+    # the array anything else yields EMPTY, so every row refuses as "not
+    # offered a mark" — a 100% refusal that looks exactly like total drift.
+    # inkdrill's own test fixture spelled it `marks` for weeks and nothing
+    # noticed, in a test file whose subject is verifying that artefacts say what
+    # they claim. A reader that checks the count cannot be fooled that way.
+    stated = (data.get("counts") or {}).get("evidence_rows")
+    if stated is not None and len(mrows) + len(not_measured) != stated:
+        _refuse("marks file does not account for its own rows: %d measured + %d "
+                "not_measured != %d evidence_rows it states (the file does not "
+                "describe this evidence; re-measure or re-deliver)"
+                % (len(mrows), len(not_measured), stated), 0)
+    # The misnamed-key test must name the mistake, not merely notice emptiness:
+    # a file with no rows and no not_measured is DEGENERATE BUT LEGAL (a document
+    # where nothing was measured). What is not legal is row data sitting under
+    # another key, so that is what this looks for.
+    if not mrows:
+        for key, val in data.items():
+            if key == "rows" or not isinstance(val, list) or not val:
+                continue
+            if isinstance(val[0], dict) and "id" in val[0]:
+                _refuse("marks file has no `rows`, but %d row-shaped entries sit "
+                        "under `%s` — the array is misnamed and every row would "
+                        "otherwise refuse as drift" % (len(val), key), 0)
+                break
+
+    by_id = {r["id"]: r for r in mrows}
     # 858 — A ROW THE MEASUREMENT COULD NOT PLACE IS NOT A MISSING ROW. The file
     # carries `not_measured: {id: reason}` beside `rows`, so an id absent from
     # `rows` is usually PRESENT here with an explanation. Saying "no row of this
@@ -282,7 +325,6 @@ def apply(rows: dict, marks_path: "Path | str | None", doc_dir: "Path | str",
     # matched this build's row count exactly. Their file had said why all along:
     # "not placed (at every scale of the refit band the rendering is wider than
     # its host line, or under 4 px)".
-    not_measured = data.get("not_measured") or {}
     out_formula = []
     for row in formula:
         mrow = by_id.get(row.identifier)

@@ -531,3 +531,78 @@ def test_the_two_absences_are_counted_separately(tmp_path):
     _out, counts = MK.apply(rows, mp, tmp_path, None)
     assert counts["refused"]["not measured: too small"] == 2
     assert counts["refused"]["not offered a mark (no row of this id in the file)"] == 1
+
+
+# ---------------------------------------------------------------- 859
+
+def _apply(tmp_path, payload, ids):
+    import json as _json
+    import sys
+    from pathlib import Path as _P
+    sys.path.insert(0, str(_P(__file__).resolve().parents[1] / "src"))
+    from pdfdrill.reports import marks as MK
+
+    class _Row:
+        def __init__(self, i):
+            self.identifier = i
+            self.crop = None
+
+    mp = tmp_path / "marks.json"
+    mp.write_text(_json.dumps(payload), encoding="utf-8")
+    return MK.apply({"formula": [_Row(i) for i in ids]}, mp, tmp_path, None)[1]
+
+
+def test_a_marks_file_that_does_not_account_for_its_own_rows_complains(tmp_path):
+    r"""859 — the identity `rows + not_measured == counts.evidence_rows`, checked
+    where the file is CONSUMED.
+
+    inkdrill enforces it when emitting; this catches a file that was fine when
+    written and no longer describes the evidence beside it — a model rebuilt
+    since, a delivery into the wrong folder, a hand-edit.
+
+    Worth a named complaint because of what the silence looked like: 116 ids
+    absent from `rows` read as a moved row set and an hour of re-measurement
+    queued, when the arithmetic in the file already said the row sets agreed.
+    Both sides had the numbers; neither added them up.
+    """
+    counts = _apply(tmp_path, {
+        "rows": [{"id": "d_FO0001", "mark": False}],
+        "not_measured": {},
+        "counts": {"marked": 0, "evidence_rows": 9},      # claims 9, accounts for 1
+    }, ["d_FO0001"])
+    assert any("does not account for its own rows" in k for k in counts["refused"]), \
+        counts["refused"]
+
+
+def test_a_file_that_adds_up_does_not_complain(tmp_path):
+    counts = _apply(tmp_path, {
+        "rows": [{"id": "d_FO0001", "mark": False}],
+        "not_measured": {"d_FO0002": "too small"},
+        "counts": {"marked": 0, "evidence_rows": 2},
+    }, ["d_FO0001", "d_FO0002"])
+    assert not any("does not account" in k for k in counts["refused"]), counts["refused"]
+
+
+def test_a_misnamed_row_array_is_caught_rather_than_read_as_total_drift(tmp_path):
+    r"""A file spelling the array anything but `rows` yields EMPTY, so every row
+    refuses as "not offered a mark" — a 100% refusal that looks exactly like
+    total drift. inkdrill's own fixture spelled it `marks` for weeks and nothing
+    noticed, in a test file whose subject is verifying that artefacts say what
+    they claim."""
+    counts = _apply(tmp_path, {
+        "marks": [{"id": "d_FO0001", "mark": True}],       # WRONG key
+        "counts": {"marked": 1, "evidence_rows": 1},
+    }, ["d_FO0001"])
+    assert any("misnamed" in k for k in counts["refused"]), counts["refused"]
+
+
+def test_the_complaint_does_not_consume_a_row(tmp_path):
+    """It is a note about the FILE, not a refusal of a row: the per-row
+    refusals must still add up to the rows actually refused."""
+    counts = _apply(tmp_path, {
+        "rows": [], "not_measured": {},
+        "counts": {"marked": 0, "evidence_rows": 5},
+    }, ["d_FO0001"])
+    per_row = sum(v for k, v in counts["refused"].items()
+                  if "does not account" not in k and "misnamed" not in k)
+    assert per_row == 1, counts["refused"]
