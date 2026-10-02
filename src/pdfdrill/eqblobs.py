@@ -133,7 +133,87 @@ def _overlap_frac(a_lo: float, a_hi: float, b_lo: float, b_hi: float) -> float:
     return (hi - lo) / max(1.0, min(a_hi - a_lo, b_hi - b_lo))
 
 
-def _group_lines(blobs: Sequence[Any], height: int) -> list[list[Any]]:
+#: 848 — a gutter is at least this fraction of the body wide, and carries at
+#: most this fraction of the page's peak ink. Measured at 300 dpi over five
+#: pages: a two-column page shows a 126 px blank run (4.5% of a 2,810 px body)
+#: and a single-column page shows ZERO, so the two populations do not touch and
+#: the constants sit in the middle of the gap rather than on either edge.
+_GUTTER_MIN_FRAC = 0.02
+_GUTTER_MAX_INK = 0.08
+
+
+def _gutter_x(blobs: Sequence[Any], width: int) -> Optional[float]:
+    r"""The x of a blank vertical gutter in the middle of the body, or None.
+
+    848 — THE QUESTION `_count_columns` COULD NOT ANSWER. It counted banded
+    LINES crossing the midline, and on a two-column page every band already
+    spans both columns, so the crossing count was always high and the answer was
+    always 1. Measured: `pfahler_morik_2020a` reported 1-column on all 9 pages
+    while the glyph reader found 2 column containers on every one of them and
+    `pdftotext -layout` prints the two blocks side by side.
+
+    Counting BLOBS that cross is no better — a connected component at 300 dpi is
+    a glyph, and 0.00% of them cross the midline on a single-column page OR a
+    two-column one. The signal is the vertical INK PROFILE: how many blobs cover
+    each x. A two-column page has a sustained near-zero run in the middle; a
+    single-column page has none at all.
+
+    Per page, not per document, with None meaning "band the whole page": a page
+    whose gutter is bridged by a full-width figure HAS no gutter, and banding it
+    as one column is then right. Cat2Type's page 3 is that case.
+    """
+    if not blobs:
+        return None
+    xs0 = min(b.min_x for b in blobs)
+    xs1 = max(b.max_x for b in blobs)
+    body = xs1 - xs0
+    if body <= 0:
+        return None
+    prof = [0] * (width + 2)
+    for b in blobs:
+        prof[int(max(0, b.min_x))] += 1
+        prof[int(min(width, b.max_x))] -= 1
+    acc, cov = 0, []
+    for x in range(width + 2):
+        acc += prof[x]
+        cov.append(acc)
+    peak = max(cov[int(xs0):int(xs1)] or [0])
+    if peak <= 0:
+        return None
+    lo = int(xs0 + 0.25 * body)
+    hi = int(xs0 + 0.75 * body)
+    best, run, at = 0, 0, None
+    for x in range(lo, hi):
+        if cov[x] <= _GUTTER_MAX_INK * peak:
+            run += 1
+            if run > best:
+                best, at = run, x - run // 2
+        else:
+            run = 0
+    return float(at) if best >= _GUTTER_MIN_FRAC * body else None
+
+
+def _bands(ys: "list[tuple[int, int]]", height: int) -> "list[tuple[int, int]]":
+    """Merge (lo, hi) ink spans into maximal non-overlapping bands."""
+    rows = [0] * (height + 2)
+    for lo, hi in ys:
+        rows[lo] += 1
+        rows[hi] += -1
+    out, run, acc = [], None, 0
+    for y in range(height + 2):
+        acc += rows[y]
+        if acc > 0 and run is None:
+            run = y
+        elif acc <= 0 and run is not None:
+            out.append((run, y))
+            run = None
+    if run is not None:
+        out.append((run, height))
+    return out
+
+
+def _group_lines(blobs: Sequence[Any], height: int,
+                 width: int = 0) -> list[list[Any]]:
     """Cluster blobs into visual lines via a horizontal ink-projection profile.
 
     Pairwise vertical overlap was tried first and is wrong here: a display
@@ -150,45 +230,65 @@ def _group_lines(blobs: Sequence[Any], height: int) -> list[list[Any]]:
               and b.max_x > b.min_x and b.max_y > b.min_y]
     if not usable:
         return []
-    rows = [0] * (height + 1)
-    for b in usable:
-        lo, hi = int(max(0, b.min_y)), int(min(height, b.max_y))
-        rows[lo] += 1
-        rows[hi] += -1            # difference array: one pass, no per-row loop
-    bands, run, acc = [], None, 0
-    for y in range(height + 1):
-        acc += rows[y]
-        if acc > 0 and run is None:
-            run = y
-        elif acc <= 0 and run is not None:
-            bands.append((run, y))
-            run = None
-    if run is not None:
-        bands.append((run, height))
-    if not bands:
-        return []
 
-    lines: list[list[Any]] = [[] for _ in bands]
-    for b in usable:
-        mid = (b.min_y + b.max_y) / 2.0
-        for i, (lo, hi) in enumerate(bands):
-            if lo <= mid <= hi:
-                lines[i].append(b)
-                break
-    return [ln for ln in lines if ln]
+    # 848 — PROJECT PER COLUMN, NOT PER PAGE. A projection over the whole page
+    # puts a left-column line and an unrelated right-column line in one band, so
+    # every band measures full-body-width and nothing is ever short-and-centred
+    # — which is the exact failure this projection was introduced to FIX (see
+    # above), reintroduced by the two-column case. inkdrill measured a
+    # row-profile band model at 18.8% recall on two-column pages against 92.9%
+    # on single-column, with no overlap: it does not degrade, it breaks. Seven
+    # of their twenty sampled library documents are two-column.
+    #
+    # A blob that spans the gutter is a full-width element — a rule, a wide
+    # figure, a spanning heading — and gets its own slab, so it still forms one
+    # band instead of being cut in half.
+    gx = _gutter_x(usable, width) if width else None
+    if gx is None:
+        slabs = [usable]
+    else:
+        left = [b for b in usable if b.max_x <= gx]
+        right = [b for b in usable if b.min_x >= gx]
+        full = [b for b in usable if b.min_x < gx < b.max_x]
+        slabs = [sl for sl in (full, left, right) if sl]
+
+    lines: list[list[Any]] = []
+    for slab in slabs:
+        bands = _bands([(int(max(0, b.min_y)), int(min(height, b.max_y)))
+                        for b in slab], height)
+        if not bands:
+            continue
+        buckets: list[list[Any]] = [[] for _ in bands]
+        for b in slab:
+            mid = (b.min_y + b.max_y) / 2.0
+            for i, (lo, hi) in enumerate(bands):
+                if lo <= mid <= hi:
+                    buckets[i].append(b)
+                    break
+        lines.extend(ln for ln in buckets if ln)
+    # document order within the page: top to bottom, then left to right
+    lines.sort(key=lambda ln: (min(b.min_y for b in ln), min(b.min_x for b in ln)))
+    return lines
 
 
 def _count_columns(lines: Sequence[Sequence[Any]], body_x0: float,
-                   body_x1: float) -> int:
-    """1 or 2, from whether the middle of the body column is persistently blank."""
+                   body_x1: float, gutter: Optional[float] = None) -> int:
+    """1 or 2 columns on this page.
+
+    848 — FROM THE GUTTER, which is measured on blobs before any banding. This
+    used to count banded LINES crossing the midline, and on a two-column page
+    every band already spanned both columns, so the crossing count was always
+    high and the answer was always 1: `pfahler_morik_2020a` reported 1-column on
+    all 9 pages while the glyph reader found 2 column containers on each. The
+    question was being asked of data that had already lost the answer.
+
+    `gutter` is None for a page with no blank middle — a genuinely
+    single-column page, or one whose gutter a full-width figure bridges — and
+    both are correctly one column's worth of banding.
+    """
     if not lines:
         return 1
-    mid = (body_x0 + body_x1) / 2.0
-    band = (body_x1 - body_x0) * 0.04
-    crossing = sum(1 for ln in lines
-                   if min(b.min_x for b in ln) < mid - band
-                   and max(b.max_x for b in ln) > mid + band)
-    return 1 if crossing > len(lines) * 0.25 else 2
+    return 2 if gutter is not None else 1
 
 
 # ---------------------------------------------------------------------------
@@ -210,7 +310,7 @@ def analyse_page(pgm_path: str, page: int, dpi: int) -> PageGeometry:
     if skew is None or not math.isfinite(skew):
         skew = 0.0
 
-    lines = _group_lines(blobcc.scan(binary, w, h, axis="row"), h)
+    lines = _group_lines(blobcc.scan(binary, w, h, axis="row"), h, w)
     geo = PageGeometry(page=page, width_pt=w * to_pt, height_pt=h * to_pt,
                        skew_deg=float(skew), body_x0=0.0, body_x1=w * to_pt,
                        line_count=len(lines), median_line_height=0.0, columns=1)
@@ -227,7 +327,9 @@ def analyse_page(pgm_path: str, page: int, dpi: int) -> PageGeometry:
     med_h = statistics.median(heights) or 1.0
     geo.body_x0, geo.body_x1 = body_x0 * to_pt, body_x1 * to_pt
     geo.median_line_height = med_h * to_pt
-    geo.columns = _count_columns(lines, body_x0, body_x1)
+    geo.columns = _count_columns(
+        lines, body_x0, body_x1,
+        _gutter_x([b for ln in lines for b in ln], int(w)))
 
     inset = max(1.0, (body_x1 - body_x0) * _INSET_FRAC)
     for ln, l, r, ht in zip(lines, lefts, rights, heights):
