@@ -115,3 +115,60 @@ def test_the_column_count_comes_from_the_gutter():
     lines = _group_lines(blobs, height=400, width=1000)
     assert _count_columns(lines, 60, 940, _gutter_x(blobs, 1000)) == 2
     assert _count_columns(lines, 60, 940, None) == 1
+
+
+class TestTheGutterCutSitsInTheGap:
+    r"""849 — the cut is placed on inkdrill's thirty pages, not on my five.
+
+    Their column label is INDEPENDENT of this profile — it comes from where the
+    reader's prose lines start — so it is a real oracle and not a restatement of
+    the measurement:
+
+        1-column, 16 pages   0.00 every one. Not "small": exactly zero.
+        2-column, 14 pages   0.00 0.00 0.07 0.50 0.53 1.18 1.77
+                             4.21 4.35 4.39 4.41 4.41 4.41 4.45
+
+    The gap is 1.77 -> 4.21. Seven of the two-column pages have a figure or table
+    spanning the column break and genuinely have no gutter, which is why the
+    decision is per page and why those seven SHOULD fall below the cut.
+
+    The trap, which inkdrill asked about and was right to: 4.5% was the value
+    OBSERVED on one page and it is the two-column population's MAXIMUM. A cut
+    there finds 0 of 14. A gutter's share of the body shrinks as the body widens,
+    so the observed number is the worst available threshold.
+    """
+
+    ONE = [0.00] * 16
+    TWO = [0.00, 0.00, 0.07, 0.50, 0.53, 1.18, 1.77,
+           4.21, 4.35, 4.39, 4.41, 4.41, 4.41, 4.45]
+
+    def test_the_cut_is_three_percent(self):
+        from pdfdrill.eqblobs import _GUTTER_MIN_FRAC
+        assert _GUTTER_MIN_FRAC == 0.03
+
+    def test_no_single_column_page_is_misread(self):
+        from pdfdrill.eqblobs import _GUTTER_MIN_FRAC
+        cut = _GUTTER_MIN_FRAC * 100
+        assert [v for v in self.ONE if v >= cut] == []
+
+    def test_every_clean_gutter_is_found(self):
+        from pdfdrill.eqblobs import _GUTTER_MIN_FRAC
+        cut = _GUTTER_MIN_FRAC * 100
+        found = [v for v in self.TWO if v >= cut]
+        assert len(found) == 7, found
+        assert min(found) == 4.21
+
+    def test_the_cut_is_centred_in_the_gap(self):
+        """Not merely on the right side of it. 2% also separates these two
+        populations, with 0.23pp of margin above 1.77 against 2.21pp below
+        4.21 — correct, and one re-measurement away from being wrong."""
+        from pdfdrill.eqblobs import _GUTTER_MIN_FRAC
+        cut = _GUTTER_MIN_FRAC * 100
+        below = max(v for v in self.TWO if v < cut)
+        above = min(v for v in self.TWO if v >= cut)
+        assert cut - below > 1.0, f"only {cut - below:.2f}pp above {below}"
+        assert above - cut > 1.0, f"only {above - cut:.2f}pp below {above}"
+
+    def test_the_observed_value_would_have_found_nothing(self):
+        """Why the constant is not the number that was measured."""
+        assert [v for v in self.TWO if v >= 4.5] == []

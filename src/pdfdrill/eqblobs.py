@@ -133,12 +133,27 @@ def _overlap_frac(a_lo: float, a_hi: float, b_lo: float, b_hi: float) -> float:
     return (hi - lo) / max(1.0, min(a_hi - a_lo, b_hi - b_lo))
 
 
-#: 848 — a gutter is at least this fraction of the body wide, and carries at
-#: most this fraction of the page's peak ink. Measured at 300 dpi over five
-#: pages: a two-column page shows a 126 px blank run (4.5% of a 2,810 px body)
-#: and a single-column page shows ZERO, so the two populations do not touch and
-#: the constants sit in the middle of the gap rather than on either edge.
-_GUTTER_MIN_FRAC = 0.02
+#: 849 — a gutter is at least this fraction of the inked body wide, and carries
+#: at most this fraction of the page's peak ink.
+#:
+#: 848 set 3% from five pages; inkdrill then measured thirty with an INDEPENDENT
+#: column label (taken from where the reader's prose lines start, not from this
+#: profile), and the cut is placed on their data, not mine:
+#:
+#:     1-column, 16 pages   0.00 every one of them — not "small", exactly zero
+#:     2-column, 14 pages   0.00 0.00 0.07 0.50 0.53 1.18 1.77
+#:                          4.21 4.35 4.39 4.41 4.41 4.41 4.45
+#:
+#: So the gap is 1.77 -> 4.21 and 3% is its middle: 1.23pp of margin below,
+#: 1.21pp above, 0 of 16 single-column pages misread at either 2% or 3%. The
+#: seven low two-column pages have a figure or table spanning the column break
+#: and genuinely have NO gutter, which is why this is decided per page.
+#:
+#: NOT 4.5%. That was the value OBSERVED on one page, and it is the two-column
+#: population's MAXIMUM — a cut there finds 0 of the 14. A gutter's share of the
+#: body shrinks as the body widens, so the observed number is the worst possible
+#: choice of threshold and the only reason to write it down is to say so.
+_GUTTER_MIN_FRAC = 0.03
 _GUTTER_MAX_INK = 0.08
 
 
