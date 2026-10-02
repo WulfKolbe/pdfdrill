@@ -81,3 +81,53 @@ def test_the_yielded_text_keeps_its_offsets():
 def test_no_sentinel_leaks_into_the_prose():
     got = chunks(f"We observe {DISPLAY} and therefore it follows.")
     assert "\x01" not in got[0]
+
+
+# ---------------------------------------------------------------- 850
+
+CRLF = ("We first observe that the measure is finite.\r\n"
+        "\r\n"
+        "and therefore the bound follows immediately.\r\n")
+
+
+def test_a_crlf_file_still_splits_into_paragraphs():
+    r"""850 — THE WHOLE DOCUMENT CAME BACK AS ONE PARAGRAPH.
+
+    A blank line in a CRLF file is `\r\n\r\n`, and the separator was
+    `\n[ \t]*\n`, which does not allow the `\r` between the two newlines. So the
+    split never fired and every CRLF source yielded exactly one chunk.
+
+    Found by the cross-check against inkdrill's independent gold over 20 sigma26
+    papers: five returned 1 chunk where the gold had 170, 168, 314, 32 and 73 —
+    and those five files are pure CRLF (1,495 / 1,709 / 2,599 / 1,041 / 966 CRLF
+    and ZERO bare LF), while all fifteen that agreed are pure LF. Perfect
+    correlation. Agreement on the whole corpus went 77.5% -> 96.5%.
+
+    The defect predates 847: only this site used the narrow class, and every
+    other blank-line pattern in src/ uses `\s`, which already contains `\r`.
+    """
+    got = [c for _, c in _prose_chunks(CRLF)]
+    assert len(got) == 2, got
+    assert "We first observe" in got[0]
+    assert "and therefore" in got[1]
+
+
+def test_crlf_and_lf_agree_on_the_same_document():
+    """The two line endings must not give different paragraph counts."""
+    lf = CRLF.replace("\r\n", "\n")
+    assert len([c for _, c in _prose_chunks(CRLF)]) == \
+           len([c for _, c in _prose_chunks(lf)])
+
+
+def test_a_crlf_display_still_does_not_break_the_paragraph():
+    """847 and 850 together: the display is spanned AND the file is CRLF."""
+    src = ("We first observe that the measure is finite.\r\n"
+           + DISPLAY + "\r\n"
+           "and therefore the bound follows immediately.\r\n")
+    got = [c for _, c in _prose_chunks(src)]
+    assert len(got) == 1, got
+
+
+def test_crlf_positions_still_point_at_prose():
+    pos, text = next(iter(_prose_chunks(CRLF)))
+    assert CRLF[pos:pos + 8] == "We first", CRLF[pos:pos + 20]

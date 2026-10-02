@@ -1838,7 +1838,16 @@ def _prose_chunks(body: str):
         lambda m: re.sub(r"[^\n]", _BLANKED, m.group(0)), body)
     # a chunk must START at real prose, never at a blanked block, or `pos`
     # would point into the equation instead of the sentence
-    for m in re.finditer(r"(?s)[^\s" + _BLANKED + r"].*?(?=\n[ \t]*\n|\Z)",
+    # 850 — `\r` IS IN THE CLASS. A blank line in a CRLF file is `\r\n\r\n`, and
+    # `\n[ \t]*\n` does not allow the `\r` between them, so the separator never
+    # matched and the WHOLE DOCUMENT came back as one paragraph. Found by the
+    # cross-check against inkdrill's independent gold: 5 of 20 sigma26 papers
+    # returned exactly 1 chunk where the gold had 170, 168, 314, 32 and 73, and
+    # all five files are pure CRLF (1,495 / 1,709 / 2,599 / 1,041 / 966 CRLF and
+    # zero bare LF) while all fifteen that agreed are pure LF. Perfect
+    # correlation, and the defect predates 847 — only this site used the narrow
+    # class; everywhere else uses `\s`, which already contains `\r`.
+    for m in re.finditer(r"(?s)[^\s" + _BLANKED + r"].*?(?=\n[ \t\r]*\n|\Z)",
                          cleaned):
         chunk = m.group(0).replace(_BLANKED, " ")
         if chunk.strip():
