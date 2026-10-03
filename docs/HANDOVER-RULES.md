@@ -705,6 +705,34 @@ The rule: *name the instrument's blind spot in the same message as the results
 that rest on it,* not when someone asks. inkdrill did this unprompted, in the
 message reporting the figures the limitation applies to. That is the standard.
 
+**And then bounded, 2026-10-03 (inkdrill out/690), so "effect unknown" does not
+get carried indefinitely.** The question was narrowed first, which is what made
+it answerable: a grey rule *inside* a real gutter is harmless — the detector
+wants a blank column run and grey reads as blank, so the rule makes the gutter
+cleaner. The risk is the opposite, a FALSE gutter: a band blank at 128 and not
+blank in fact. Over 248 pages, one per document, of the 1,436 with renders:
+**79 pages (32%) carry mid-grey; 7 (2.8%) have a wide blank-at-128 run holding
+mid-grey; and in 0 of those 7 is the band greyer than its own page** (ratios
+0.02–1.23 — band density against page density). A ratio near 1 is grey *paper*,
+which is what a scan is; six of the seven are scans. Nothing is drawn in any
+band, so the threshold-128 gutter cut was never at risk on this corpus.
+
+What it does **not** say, stated because the bound is only as good as its
+scope: one page per *document*, so it bounds the rate at which documents carry
+the problem, not pages; it says nothing about grey *outside* gutters, which is
+common (the 32% is real, and 865's grey arrow lives in it, still invisible to
+every ink measurement); and a publisher using grey column rules as house style
+would change the answer completely — none is in this corpus.
+
+**The measurement's own first answer was wrong, and that is the transferable
+part.** The first pass reported 100% of pages carrying mid-grey. It used
+`magick -resize 25%`, which INTERPOLATES: every glyph edge becomes a grey pixel
+that was never on the page. `-sample 25%` is nearest-neighbour and invents
+nothing — 32%. A measurement pipeline that anti-aliases a rendering produced
+with `-dTextAlphaBits=1` is measuring its own resampler. *Check that the
+instrument did not create the quantity being measured,* especially when the
+first result is a round 100%.
+
 **And a classification error a measurement cannot fix.** sigma26-081 EQ0429 is
 listed as a display *equation* with `latex: "\varnothing [1, n]"`. It is a
 diagram: `∅ ⟵[grey ruler]⟶ [1,n]`. The LaTeX compiles and describes neither
