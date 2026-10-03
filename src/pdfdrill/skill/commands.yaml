@@ -3595,6 +3595,140 @@ commands:
     flag: --force
     type: flag
   typed: true
+- name: equations
+  section: Build / extract
+  summary: 'Write <stem>.equations.json — one row per equation with its LaTeX, its crop region (250 dpi,
+    y down) and what is known about how complete each is. 865: this artefact already existed and was produced
+    ONLY by src/pdfreader/pdf2mmd.py main(), which has had no console script and no CLI route since 835
+    — so the file every equation list is built from was invisible to the planner, to `status` and to `--ensure`,
+    and existed for 20 documents of the 1,699 with a model (audit A4''s shape, the one that had to promote
+    `reporttex` out of tools/). It reads with the glyph reader and writes ONE file: the <stem>.lines.json
+    reading is NOT rewritten, because every inkdrill mark set hashes it through `measured_against` and
+    re-emitting it would invalidate nineteen documents'' measurements to produce a table that does not
+    depend on it (863).'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: force
+    flag: --force
+    type: flag
+    help: re-read and replace an existing equations.json
+  typed: true
+  done_when: file:{stem}.equations.json
+- name: eqlist
+  section: Reporting
+  summary: 'Build an equation LIST whose subject is the LIST, not a document: `document, equation no,
+    page rectangle or crop link, LaTeX` drawn ACROSS the binary-generated PDFs in a library. Needed because
+    every reporting layer here takes one document, holds its lock and writes beside its PDF — and InftyDB
+    v1/v2 arrive as certified (image, LaTeX) pairs with no PDF at all, which are rows, not papers. IDENTITY
+    IS (document, page, region), unique by construction (34,317 of 34,317 rows across the 20 documents
+    that have an equations.json); `label` (EQnnnn) renumbers on a re-read and is never a key; `latex_sha16`
+    is a CHANGE DETECTOR, not a key, because 18,945 of 32,449 rows (58.4%) share their LaTeX with another
+    row in their own document (''V'' occurs 166 times in sigma26-086). The `ident` field looked unique
+    and is carried only as provenance: it mixes the LaTeX into the hash, so a re-read reads as a NEW row
+    rather than a changed one and a measurement against it is orphaned silently. BINARY-GENERATED IS A
+    PRODUCER-STRING TEST (pdfTeX/LuaTeX/XeTeX/dvips/Distiller/Ghostscript…), stated per document, deliberately
+    narrower than ''has a text layer'' (2,869 of 3,024 documents, which counts re-wrapped scans carrying
+    an OCR layer). Each listed document carries its FULL row count and its resolvable, hashed inputs:
+    SELECTION IS NOT CALIBRATION SCOPE. --verify re-hashes every named input and reports what moved.'
+  offline_ok: true
+  requires:
+  - equations
+  flags:
+  - name: library
+    flag: --library
+    type: str
+    help: library root (default ~/pdfdrill-library)
+  - name: out
+    flag: --out
+    type: str
+    help: where the list is written (default <library>/eqlists)
+  - name: name
+    flag: --name
+    type: str
+    help: list name; the file is <name>.eqlist.json (default eqlist)
+  - name: kind
+    flag: --kind
+    type: str
+    help: display or inline; omit for both. 94.6% of rows are inline fragments, so this changes the list
+      size by an order of magnitude
+  - name: per_document
+    flag: --per-document
+    type: int
+    help: at most N rows per document, spaced evenly through it (not the first N — the first rows of a
+      paper are its abstract)
+  - name: documents
+    flag: --documents
+    type: int
+    help: at most N documents, sampled with --seed
+  - name: only
+    flag: --only
+    type: str
+    help: comma-separated document names, instead of every candidate
+  - name: seed
+    flag: --seed
+    type: int
+    help: sampling seed (default 11)
+  - name: verify
+    flag: --verify
+    type: flag
+    help: re-hash every input the list names and report what moved, instead of building
+  typed: true
+  done_when: file:{name}.eqlist.json
+- name: eqreport
+  section: Reporting
+  summary: 'The report whose subject is a LIST: writes <name>.table.tex (document | eq no | page rectangle
+    | crop | LaTeX | rendered) and <name>.marks-request.json, the inkdrill update. Both land BESIDE THE
+    LIST and never in a document folder, which is why this takes no document lock — the one-writer rule
+    exists because build commands write fixed names beside a PDF, and a lock named after a PDF would serialise
+    two unrelated lists while two runs of the SAME list still collided. It reads documents and writes
+    only into its own output directory; no lines.json, model or equations.json is re-emitted. The marks
+    request separates `calibrate_on` (the document''s FULL row set) from `mark` (the listed subset): inkdrill
+    votes the scale per document on up to 400 rows and derives its thresholds from the confidently placed
+    ones, so a bare 20-row subset yields ~5 reference rows and refuses (sigma26-080 refused with n_ref
+    7). Crops are drawn at pixel-exact original size capped at the column — scaling every crop to the
+    column width turned a 29x38 px \blacksquare into a 50mm square that cost a whole page of the table.
+    Refuses to report on a list that does not validate. NO `requires:` ON PURPOSE: the planner''s currency is per-document FACTS held in a document''s sidecar, and a list has no document and no sidecar, so `requires: [eqlist]` would name a prerequisite `--ensure` could never discharge and `steps` could never evaluate (test_requires_closure_every_prereq_command_produces_facts catches exactly that). The dependency is real and is enforced where it can be: this command refuses, naming `pdfdrill eqlist --name <N>`, when the list is absent.'
+  offline_ok: true
+  flags:
+  - name: library
+    flag: --library
+    type: str
+    help: library root (default ~/pdfdrill-library)
+  - name: out
+    flag: --out
+    type: str
+    help: where the list lives and the report is written (default <library>/eqlists)
+  - name: name
+    flag: --name
+    type: str
+    help: list name (default eqlist)
+  - name: no_crops
+    flag: --no-crops
+    type: flag
+    help: skip cutting crops (much faster; the rectangle column still states the region)
+  - name: paper
+    flag: --paper
+    type: str
+    help: a3 (default) or a4
+  - name: portrait
+    flag: --portrait
+    type: flag
+    help: portrait instead of the default landscape
+  - name: dpi
+    flag: --dpi
+    type: int
+    help: rasterize dpi for the crops (default 400)
+  - name: compile
+    flag: --compile
+    type: flag
+    help: run the xelatex demote-fixpoint on the table
+  typed: true
+  done_when: file:{name}.table.tex
 help_intro: 'pdfdrill — portable PDF drill-down toolkit
 
 

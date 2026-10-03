@@ -58,6 +58,8 @@ class Equation:
     structural_ok: bool = True
     line_id: str = ""
     deferred: list = field(default_factory=list)
+    number_region: dict | None = None     # the right-margin (n), when present
+    number: str = ""                      # its text, e.g. "(1.1)"
 
     def as_row(self) -> dict:
         """The evidence table's row."""
@@ -73,6 +75,17 @@ class Equation:
             "spans": self.spans,
             "projected": self.projected,
             "deferred": self.deferred,
+            # 865 — THE REGION IS THE EQUATION; THE NUMBER IS ITS OWN BOX.
+            # inkdrill measured the defect from the ink: 37 of 200 display
+            # regions (18%) carried a blank run up to 1,946 px wide, which is
+            # the right-margin equation number sitting inside the same
+            # rectangle as the body. `sigma26-075 EQ0003` is
+            # `\phi_{xy} = \sin\phi.` with `(1.1)` nearly two thousand
+            # pixels away, under one region — so the rectangle said "column
+            # width" where the LaTeX said "equation", and a crop of it shows
+            # the number the LaTeX does not contain.
+            "number_region": self.number_region,
+            "number": self.number,
         }
 
 
@@ -132,9 +145,43 @@ def _build_multi(page, run, bibkey, px_per_pt) -> Equation:
     lines = [ln for ln, _ in run]
     spans = [sp for _, ms in run for sp in ms]
     eq = _build(page, lines[0], spans, "display", bibkey, px_per_pt)
-    rect = (min(ln.rect[0] for ln in lines), min(ln.rect[1] for ln in lines),
-            max(ln.rect[2] for ln in lines), max(ln.rect[3] for ln in lines))
+    # THE LINE RECT IS NOT THE EQUATION'S RECT. `_build` derives an inline
+    # row's region from its math SPANS, which already exclude a right-margin
+    # label; this path recomputed it from whole LINES, so every display row
+    # inherited whatever else sat on those lines — in practice the equation
+    # NUMBER, which `absorb_equation_numbers` has deliberately joined to the
+    # display by this point. The reader already knows which glyphs those are
+    # (`mmd.equation_number`, three conditions: parenthesised, ending at the
+    # column's right margin, behind a wide gap), so the box can be split here
+    # rather than inferred downstream from a gap in the ink.
+    tag_ids, tag_rects = set(), []
+    for ln in lines:
+        tag = mmd.equation_number(ln, mmd.column_of(page, ln)[1])
+        if tag:
+            tag_ids |= set(map(id, tag))
+            tag_rects.append((min(g.rect[0] for g in tag),
+                              min(g.rect[1] for g in tag),
+                              max(g.rect[2] for g in tag),
+                              max(g.rect[3] for g in tag)))
+    body = [g for ln in lines for g in ln.glyphs
+            if g.text.strip() and id(g) not in tag_ids]
+    if body:
+        rect = (min(g.rect[0] for g in body), min(g.rect[1] for g in body),
+                max(g.rect[2] for g in body), max(g.rect[3] for g in body))
+    else:
+        # Nothing but a number: keep the old behaviour rather than emit an
+        # empty box. A row with no body is a row worth seeing, not hiding.
+        rect = (min(ln.rect[0] for ln in lines), min(ln.rect[1] for ln in lines),
+                max(ln.rect[2] for ln in lines), max(ln.rect[3] for ln in lines))
     eq.region = docmodel._px_region(rect, page, px_per_pt)
+    if tag_rects:
+        nr = (min(r[0] for r in tag_rects), min(r[1] for r in tag_rects),
+              max(r[2] for r in tag_rects), max(r[3] for r in tag_rects))
+        eq.number_region = docmodel._px_region(nr, page, px_per_pt)
+        eq.number = "".join(
+            g.text for ln in lines
+            for g in sorted((x for x in ln.glyphs if id(x) in tag_ids),
+                            key=lambda x: x.rect[0])).strip()
     eq.ident = _ident(bibkey, page.page, eq.region, eq.latex)
     eq.line_id = ",".join(ln.id for ln in lines)
     return eq

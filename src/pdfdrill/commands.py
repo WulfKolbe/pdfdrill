@@ -39,6 +39,7 @@ TOC_ABSENT = "TOC_ABSENT"
 PROVENANCE_KNOWN = "PROVENANCE_KNOWN"
 ABSTRACT_KNOWN = "ABSTRACT_KNOWN"
 ABSTRACT_ABSENT = "ABSTRACT_ABSENT"
+EQUATIONS_BUILT = "EQUATIONS_BUILT"
 MD_BUILT = "MD_BUILT"
 MMD_BUILT = "MMD_BUILT"
 PDFINFO_KNOWN = "PDFINFO_KNOWN"
@@ -20331,3 +20332,220 @@ def _median(xs: list) -> float:
     if not n:
         return 0.0
     return float(s[n // 2]) if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2.0
+
+
+# ---------------------------------------------------------------------------
+# 865 — the equation list: rows across documents, and a report whose subject
+# is the list rather than a document. See `eqlist.py` for why the identity is
+# (document, page, region) and not the `ident` field that looked unique.
+# ---------------------------------------------------------------------------
+
+@_writes("equations")
+def cmd_equations(pdf: Path, force: bool = False) -> str:
+    """Write `<stem>.equations.json`: one row per equation, with the LaTeX,
+    the crop region and what is known about how complete each is.
+
+    THIS FILE ALREADY EXISTED AND WAS UNREACHABLE. It is written by
+    `src/pdfreader/pdf2mmd.py main()` (line 173) — a module entry point with
+    no console script and no CLI route since 835 retired the program. So the
+    artefact that every equation list is built from was produced by nothing
+    the planner, `status`, `steps` or `--ensure` could see, and existed for 20
+    documents of 1,699 with a model. That is audit A4's shape exactly: a
+    capability lands outside the manifest, is invisible, and gets rediscovered
+    by a user with a broken output. `reporttex` had to be promoted out of
+    `tools/` for the same reason.
+
+    It reads with the glyph reader and writes ONE file. It does NOT write a
+    `lines.json`: `pdf2mmd main()` writes the reading, the model and the
+    reports in the same pass, and every inkdrill mark set hashes the reading
+    through `measured_against` — so re-emitting it to obtain the equation
+    table would invalidate the measurement of nineteen documents to produce a
+    file that does not depend on it (863). The reading is read, not rewritten.
+    """
+    out = pdf.with_suffix("").parent / (pdf.with_suffix("").name
+                                        + ".equations.json")
+    if out.exists() and not force:
+        try:
+            have = json.load(open(out, encoding="utf-8"))
+            n = len(have.get("equations") or [])
+        except Exception:                                    # noqa: BLE001
+            n = 0
+        return (f"{out.name} already holds {n} equation row(s). "
+                f"`equations --force {pdf.name}` to re-read.")
+
+    sc = Sidecar(pdf)
+    key = resolve_bibkey(pdf, None, sc)
+    from pdfreader import docmodel_six as _dm
+    from pdfreader import equations as _eqmod
+    try:
+        pages = _dm.build(str(pdf))
+    except Exception as e:                                   # noqa: BLE001
+        return f"equations: could not read {pdf.name} — {e}"
+    data = _eqmod.to_json(pages, bibkey=key)
+    try:
+        from pdfreader import provenance as _prov
+        data["produced_by"] = _prov.identity()
+    except Exception:                                        # noqa: BLE001
+        pass
+    from . import model_io as _mio
+    _mio._atomic_write(out, json.dumps(data, indent=1))
+    c = data.get("counts") or {}
+    sc.set_evidence("equations", {"total": c.get("total"),
+                                  "display": c.get("display"),
+                                  "inline": c.get("inline")})
+    # The planner resolves a `requires:` through the FACTS a command produces,
+    # not through the file it happens to write — `test_requires_closure_every_
+    # prereq_command_produces_facts` fails otherwise, and it is right to: a
+    # prerequisite nothing can report as satisfied is a prerequisite
+    # `--ensure` can never discharge, which is the manifest version of a
+    # dependency that is not a dependency but a hope.
+    sc.add_fact(EQUATIONS_BUILT)
+    sc.save()
+    return (f"equations: {c.get('total', 0)} row(s) from {pdf.name} — "
+            f"{c.get('display', 0)} display, {c.get('inline', 0)} inline; "
+            f"{c.get('complete', 0)} complete, {c.get('unbalanced', 0)} "
+            f"unbalanced, {c.get('empty', 0)} empty. Wrote {out.name}. "
+            f"The reading ({pdf.with_suffix('').name}.lines.json) was NOT "
+            f"touched. Next: `pdfdrill eqlist` draws rows from this across "
+            f"documents.")
+
+
+def cmd_eqlist(library: Path | None = None, *, out: Path | None = None,
+               name: str = "eqlist", kind: str | None = None,
+               per_document: int | None = None, documents: int | None = None,
+               only: str | None = None, seed: int = 11,
+               verify: bool = False) -> str:
+    """Build (or verify) an equation LIST across documents.
+
+    `document, equation no, page rectangle or crop link, LaTeX` for the
+    binary-generated PDFs in a library — the subject is the list, not a
+    document, which is what InftyDB will need too: (image, LaTeX) pairs with
+    no PDF behind them are rows, not papers.
+
+    BINARY-GENERATED IS A PRODUCER-STRING TEST and the list says so per
+    document (`binary_generated_because`). Measured over 3,024 sidecars:
+    pdfTeX ~560 across 12 versions, dvips+Ghostscript 108, LuaTeX 31,
+    Distiller ~110, Adobe PDF Library ~80 — against 2,869 documents with a
+    text layer, which is a different and larger set because it includes
+    re-wrapped scans carrying an OCR layer (pikepdf 103, CVISION 26). A scan
+    with an OCR layer is a scan, so the metadata test is the narrower and
+    more honest one.
+
+    `--verify` re-hashes every input the list names instead of building, and
+    reports what moved. A list whose documents were rebuilt underneath it is
+    not a list of those documents.
+    """
+    from . import eqlist as _el
+    library = Path(library) if library else (Path.home() / "pdfdrill-library")
+    out = Path(out) if out else (library / "eqlists")
+
+    if verify:
+        path = out / f"{name}.eqlist.json"
+        if not path.exists():
+            return f"eqlist --verify: no list at {path}"
+        data = _el.load(path)
+        problems = _el.validate(data) + _el.verify_inputs(data)
+        if problems:
+            return ("eqlist --verify: %d problem(s) with %s\n  %s"
+                    % (len(problems), path.name, "\n  ".join(problems)))
+        c = data.get("counts") or {}
+        return (f"eqlist --verify: {path.name} holds — {c.get('rows')} row(s) "
+                f"across {len(data.get('documents') or [])} document(s), every "
+                f"identity distinct, every named input present and unchanged.")
+
+    if not library.is_dir():
+        return f"eqlist: no such library root: {library}"
+    data = _el.build(library, name=name, kind=kind,
+                     per_document=per_document, documents=documents,
+                     only=[s.strip() for s in only.split(",")] if only else None,
+                     seed=seed)
+    problems = _el.validate(data)
+    out.mkdir(parents=True, exist_ok=True)
+    path = out / f"{name}.eqlist.json"
+    from . import model_io as _mio
+    _mio._atomic_write(path, json.dumps(data, indent=1))
+
+    c = data.get("counts") or {}
+    nl = (data.get("not_listed") or {}).get("documents") or {}
+    lines = [
+        f"eqlist: {c.get('rows', 0)} row(s) across "
+        f"{len(data.get('documents') or [])} document(s) -> {path}",
+        f"  kind: {c.get('display', 0)} display, {c.get('inline', 0)} inline",
+        f"  LaTeX present {c.get('with_latex', 0)}, region present "
+        f"{c.get('with_region', 0)}, structural_ok {c.get('structural_ok', 0)}",
+        f"  identity: (document, page, region); label EQnnnn renumbers; "
+        f"latex_sha16 detects a re-read",
+        f"  frame: 250 dpi, y down, declared not inferred",
+    ]
+    if data.get("selection", {}).get("bounded"):
+        lines.append("  BOUNDED SUBSET — not a measurement of the corpus")
+    if nl:
+        lines.append("  not listed: " + ", ".join(
+            f"{v} {k}" for k, v in sorted(nl.items(), key=lambda kv: -kv[1])))
+    if problems:
+        lines.append("  PROBLEMS (%d):" % len(problems))
+        lines += ["    " + p for p in problems[:10]]
+    else:
+        lines.append("  validated: every identity distinct, every document "
+                     "reachable for calibration")
+    lines.append(f"  Next: `pdfdrill eqreport --name {name}` writes the LaTeX "
+                 f"table and the inkdrill marks request.")
+    return "\n".join(lines)
+
+
+def cmd_eqreport(library: Path | None = None, *, name: str = "eqlist",
+                 out: Path | None = None, no_crops: bool = False,
+                 paper: str = "a3", portrait: bool = False,
+                 dpi: int = 400, compile: bool = False) -> str:
+    """The report whose subject is the LIST: a LaTeX table + the inkdrill update.
+
+    Writes `<name>.table.tex` (document, eq no, page rectangle, crop, LaTeX,
+    rendered) and `<name>.marks-request.json` beside the list — never into a
+    document folder, so it takes no document lock and cannot collide with a
+    build. It reads documents; the only thing it writes into is its own output
+    directory.
+    """
+    from . import eqlist as _el
+    from .reports import eqtable as _et
+    library = Path(library) if library else (Path.home() / "pdfdrill-library")
+    out = Path(out) if out else (library / "eqlists")
+    path = out / f"{name}.eqlist.json"
+    if not path.exists():
+        return (f"eqreport: no list at {path}. `pdfdrill eqlist --name {name}` "
+                f"builds one.")
+    data = _el.load(path)
+    problems = _el.validate(data)
+    if problems:
+        return ("eqreport: refusing to report on a list that does not hold "
+                "(%d problem(s)) — a table built on it would look finished:\n  %s"
+                % (len(problems), "\n  ".join(problems[:10])))
+    moved = _el.verify_inputs(data)
+    stats = _et.write(data, out, crops=not no_crops, paper=paper,
+                      landscape=not portrait, dpi=dpi)
+    lines = [
+        f"eqreport: {stats['rows']} row(s) -> {stats['tex'].name}",
+        f"  rendered {stats['rendered']}, not rendered {stats['not_rendered']}, "
+        f"no LaTeX {stats['no_latex']}",
+        f"  crops cut {stats['cropped']}, uncropped {stats['uncropped']}",
+        f"  inkdrill update: {stats['marks_request'].name} — calibrate on each "
+        f"document's full set of the listed KIND, mark only the listed rows",
+    ]
+    if moved:
+        lines.append("  INPUTS MOVED SINCE THE LIST WAS BUILT (%d) — the table "
+                     "describes the list, not today's documents:" % len(moved))
+        lines += ["    " + m for m in moved[:6]]
+    if compile:
+        # The same fixpoint every other report uses: a malformed row is
+        # demoted to source-only rather than failing the document, and the
+        # compile runs in a private directory with cwd at the .tex's folder so
+        # the relative crop paths still resolve (297).
+        from . import report_tex as _rt
+        got = _rt.compile_fixpoint(stats["tex"])
+        if got is None:
+            lines.append("  xelatex: absent — the .tex is written, not compiled")
+        else:
+            pages, errors, demoted = got
+            lines.append(f"  xelatex: {pages} page(s), {errors} error(s), "
+                         f"{len(demoted) if hasattr(demoted, '__len__') else demoted}"
+                         f" row(s) demoted to source-only")
+    return "\n".join(lines)

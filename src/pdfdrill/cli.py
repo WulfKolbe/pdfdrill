@@ -2317,6 +2317,68 @@ def _do_marks(args):
                      marks_root=mroot, library=library)
 
 
+def _do_equations(args):
+    """pdfdrill equations <pdf> [--force] — write <stem>.equations.json: one
+    row per equation with its LaTeX, crop region and completeness. 865: this
+    file existed and was written only by `pdf2mmd.py main()`, which has had no
+    CLI route since 835 — so the artefact every equation list is built from was
+    invisible to the planner and present for 20 documents of 1,699 with a
+    model. It does NOT rewrite the reading."""
+    from .commands import cmd_equations
+    force = "--force" in args
+    args = [a for a in args if a != "--force"]
+    return cmd_equations(_drilled(args[:1]), force=force)
+
+
+def _do_eqlist(args):
+    """pdfdrill eqlist [--library DIR] [--out DIR] [--name N] [--kind K]
+    [--per-document N] [--documents N] [--only A,B] [--seed N] [--verify] —
+    865: build an equation LIST across documents (document, equation no, page
+    rectangle/crop link, LaTeX) for the binary-generated PDFs in a library.
+    The subject is the list, not a document. --verify re-hashes every input the
+    list names and reports what moved."""
+    from .commands import cmd_eqlist
+    library, args = _opt(args, "--library")
+    out, args = _opt(args, "--out")
+    name, args = _opt(args, "--name")
+    kind, args = _opt(args, "--kind")
+    per, args = _opt(args, "--per-document")
+    docs, args = _opt(args, "--documents")
+    only, args = _opt(args, "--only")
+    seed, args = _opt(args, "--seed")
+    verify = "--verify" in args
+    return cmd_eqlist(Path(library) if library else None,
+                      out=Path(out) if out else None,
+                      name=name or "eqlist", kind=kind,
+                      per_document=int(per) if per else None,
+                      documents=int(docs) if docs else None,
+                      only=only, seed=int(seed) if seed else 11,
+                      verify=verify)
+
+
+def _do_eqreport(args):
+    """pdfdrill eqreport [--library DIR] [--out DIR] [--name N] [--no-crops]
+    [--paper a3|a4] [--portrait] [--dpi N] [--compile] — 865: the report whose
+    subject is a LIST. Writes <name>.table.tex and <name>.marks-request.json
+    beside the list; takes no document lock because it writes into no document
+    folder."""
+    from .commands import cmd_eqreport
+    library, args = _opt(args, "--library")
+    out, args = _opt(args, "--out")
+    name, args = _opt(args, "--name")
+    paper, args = _opt(args, "--paper")
+    dpi, args = _opt(args, "--dpi")
+    no_crops = "--no-crops" in args
+    portrait = "--portrait" in args
+    comp = "--compile" in args
+    return cmd_eqreport(Path(library) if library else None,
+                        name=name or "eqlist",
+                        out=Path(out) if out else None,
+                        no_crops=no_crops, paper=paper or "a3",
+                        portrait=portrait, dpi=int(dpi) if dpi else 400,
+                        compile=comp)
+
+
 def _do_rename(args):
     """pdfdrill rename <pdf> <newname> [--bibkey K] [--dry-run] — rename a
     drilled FOLDER (and optionally its bibkey namespace) without a rebuild."""
@@ -2580,6 +2642,9 @@ HANDLERS = {
         "rename": _do_rename,
         "regionink": _do_regionink,
         "marks": _do_marks,
+        "equations": _do_equations,
+        "eqlist": _do_eqlist,
+        "eqreport": _do_eqreport,
         "figpairs": _do_figpairs,
         "texfigures": _do_texfigures,
         "occurrences": _do_occurrences,
