@@ -82,10 +82,73 @@ def test_it_adds_the_glyph_name_channel(lines):
         assert table in body, table
 
 
-def test_it_does_not_touch_get_encoding(lines):
-    """The Unicode channel every existing caller reads must be left exactly as
-    it is — that is what makes the fork safe to adopt globally."""
+def test_it_does_not_redefine_get_encoding(lines):
+    """The Unicode channel every existing caller reads must keep its meaning.
+
+    NARROWER THAN IT USED TO CLAIM. This test is named "does not touch" no
+    longer, because the fork DOES touch `get_encoding`: its body gains
+    `self._cid2name[cid] = cast(str, name)`. What this checks is that the
+    function is not REDEFINED; that the added line leaves the returned mapping
+    alone is checked in `test_fork_touches_no_other_function.py`, which is
+    where the real safety argument lives.
+    """
     added = [l[1:] for l in lines if l.startswith("+") and not l.startswith("+++")]
     for l in added:
         assert not re.match(r"\s*def get_encoding\b", l), (
             "the fork redefines get_encoding: %r" % l)
+
+
+# --------------------------------------------------------------------------
+# R1 — ONE patch, ONE installer. The repo carried two byte-identical copies of
+# each (`vendor/` and `src/pdfreader/`, md5 2a3d9c15…), and two more sat in
+# ~/Downloads. A second copy of a patch is not redundancy: it is a copy that
+# will not be rebased when the first one is, and the gate above only reads
+# `vendor/`, so a stale duplicate would pass every test while being the one
+# some script actually applies.
+# --------------------------------------------------------------------------
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def _repo_files(name: str) -> list:
+    return [p for p in ROOT.rglob(name)
+            if ".git" not in p.parts and ".pdfmm-build" not in p.parts
+            and ".pdfmm-venv" not in p.parts]
+
+
+def test_exactly_one_patch_in_the_repo():
+    found = _repo_files("pdfminer-glyph-identity.patch")
+    assert len(found) == 1, (
+        "the fork must have ONE copy; found %d: %s"
+        % (len(found), [str(p.relative_to(ROOT)) for p in found]))
+    assert found[0] == PATCH, found[0]
+
+
+def test_exactly_one_installer_in_the_repo():
+    found = _repo_files("install-pdfminer-fork.sh")
+    assert len(found) == 1, (
+        "one installer; found %d: %s"
+        % (len(found), [str(p.relative_to(ROOT)) for p in found]))
+    assert found[0].parent.name == "vendor", (
+        "the installer resolves the patch by $HERE, so it lives beside it")
+
+
+def test_the_installer_finds_the_patch_beside_it():
+    """`PATCH="$HERE/pdfminer-glyph-identity.patch"` — so moving one without
+    the other leaves an installer that exits 2 at a path nobody reads."""
+    sh = (ROOT / "vendor" / "install-pdfminer-fork.sh").read_text(
+        encoding="utf-8", errors="replace")
+    assert 'PATCH="$HERE/pdfminer-glyph-identity.patch"' in sh
+    assert (PATCH.parent / "install-pdfminer-fork.sh").exists()
+
+
+def test_nothing_still_points_at_the_old_location():
+    """`pdf2mmd.sh` invoked `$HERE/install-pdfminer-fork.sh` from
+    src/pdfreader/. After R1 that path does not exist, and a launcher that
+    silently fails to build the fork is how a machine ends up running stock
+    pdfminer and reporting `(cid:7)`."""
+    for rel in ("src/pdfreader/pdf2mmd.sh",):
+        text = (ROOT / rel).read_text(encoding="utf-8", errors="replace")
+        for line in text.splitlines():
+            if "install-pdfminer-fork.sh" in line and not line.strip().startswith("#"):
+                assert "vendor/" in line, (rel, line)

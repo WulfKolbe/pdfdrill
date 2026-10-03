@@ -2326,8 +2326,9 @@ def _do_equations(args):
     model. It does NOT rewrite the reading."""
     from .commands import cmd_equations
     force = "--force" in args
-    args = [a for a in args if a != "--force"]
-    return cmd_equations(_drilled(args[:1]), force=force)
+    glyphs = "--glyphs" in args
+    args = [a for a in args if a not in ("--force", "--glyphs")]
+    return cmd_equations(_drilled(args[:1]), force=force, glyphs=glyphs)
 
 
 def _do_eqlist(args):
@@ -2368,15 +2369,18 @@ def _do_eqreport(args):
     name, args = _opt(args, "--name")
     paper, args = _opt(args, "--paper")
     dpi, args = _opt(args, "--dpi")
+    sample, args = _opt(args, "--sample")
     no_crops = "--no-crops" in args
     portrait = "--portrait" in args
     comp = "--compile" in args
+    csvout = "--csv" in args
     return cmd_eqreport(Path(library) if library else None,
                         name=name or "eqlist",
                         out=Path(out) if out else None,
                         no_crops=no_crops, paper=paper or "a3",
                         portrait=portrait, dpi=int(dpi) if dpi else 400,
-                        compile=comp)
+                        compile=comp, csv=csvout,
+                        sample=int(sample) if sample else 0)
 
 
 def _do_rename(args):

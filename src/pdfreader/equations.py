@@ -40,8 +40,10 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass, field
 
+from pdfreader import build_identity
 from pdfreader import docmodel_six as docmodel
 from pdfreader import project_mmd as mmd
+from pdfreader import texmap
 
 
 @dataclass
@@ -267,4 +269,89 @@ def to_json(pages: list, bibkey: str = "pdfdrill") -> dict:
             "empty": sum(1 for e in eqs if e.confidence == 0),
         },
         "equations": [e.as_row() for e in eqs],
+    }
+
+def glyph_table(pages: list, eqs: list, px_per_pt: float = 250.0/72.0) -> dict:
+    """The per-GLYPH table, keyed by equation identity. A second table, not
+    more columns on the first: one equation has many glyphs, and flattening
+    them into the equation row would denormalise the thing every consumer
+    joins on.
+
+    WHY IT MUST BE WRITTEN IN THE SAME PASS. Every field here is already in
+    memory while the PDF is being read; none of it survives into
+    `equations.json`. Recovering it later is not a transformation, it is a
+    second full read of the corpus — 78 h of CPU to re-derive what this pass
+    is holding and discarding.
+
+    WHAT `rect` IS, AND IS NOT. It is pdfminer's box: the font's line box by
+    height and the ADVANCE width, in PDF points, y UP. It is not the glyph's
+    ink. Measured on sigma26-078: 5,108 glyphs, SIX distinct heights — one per
+    font size — so the height carries no per-glyph information at all. A
+    consumer wanting ink must rasterise or read the font program; this field
+    will not substitute and the name says `rect`, not `ink_box`, for that
+    reason.
+
+    `order` is the content-stream position, which is DRAWING ORDER and is only
+    meaningful because the reader walks `extract_pages(laparams=None)`
+    (docmodel_six:1554) — pdfminer's layout analysis reorders glyphs, and a
+    reordered stream makes the field a plausible lie rather than an absence.
+    """
+    by_page = {p.page: p for p in pages}
+    out = []
+    for e in eqs:
+        page = by_page.get(e.page)
+        if page is None:
+            continue
+        r = e.region
+        top = page.rect[3]
+        # The region is px@250dpi y-down; select in points, y-up.
+        x0, x1 = r["top_left_x"] / px_per_pt, (r["top_left_x"] + r["width"]) / px_per_pt
+        y1 = top - r["top_left_y"] / px_per_pt
+        y0 = top - (r["top_left_y"] + r["height"]) / px_per_pt
+        gs = [g for ln in page.lines for g in ln.glyphs
+              if g.text.strip()
+              and g.rect[0] >= x0 - 1 and g.rect[2] <= x1 + 1
+              and g.rect[1] >= y0 - 1 and g.rect[3] <= y1 + 1]
+        out.append({
+            # The join key is the equation's IDENTITY, not its label: the
+            # label renumbers on a re-read and would silently re-point.
+            "identity": {"page": e.page, "region": e.region},
+            "label": e.label,
+            "glyphs": [{
+                "text": g.text,
+                "glyphname": g.glyphname,
+                # R2 — the name is a restatement of the character code and
+                # carries no font-program identity. A FLAG, not a gate: the
+                # glyph and its text stay, and nothing is suppressed.
+                "name_synthesised": texmap.synthesised_name(g.glyphname),
+                "font": g.fontname,
+                "family": g.family,
+                "size": round(g.size, 3),
+                "baseline": round(g.baseline, 3),
+                "order": g.stream,
+                "rect_pt": [round(v, 3) for v in g.rect],
+                "upright": g.upright,
+            } for g in gs],
+        })
+    return {
+        "schema": "pdfdrill.eqglyphs/1",
+        # R6 — WHICH pdfminer wrote this. A machine running STOCK pdfminer
+        # emits a complete-looking file with glyph identity silently missing;
+        # without this, that is indistinguishable after the fact.
+        "built_with": build_identity.identity(),
+        "coordinates": {
+            "rect_pt": "PDF points, y UP, origin page bottom-left",
+            "rect_pt_is_not_ink": "pdfminer's box: font line box by height, "
+                                  "ADVANCE width. 5,108 glyphs on one document "
+                                  "have six distinct heights.",
+            "order": "content-stream position = drawing order "
+                     "(extract_pages(laparams=None))",
+            "baseline": "text-space origin, not the box bottom",
+        },
+        "pages": {str(p.page): {"width_pt": round(p.rect[2] - p.rect[0], 3),
+                                "height_pt": round(p.rect[3] - p.rect[1], 3)}
+                  for p in pages},
+        "counts": {"equations": len(out),
+                   "glyphs": sum(len(r["glyphs"]) for r in out)},
+        "equations": out,
     }

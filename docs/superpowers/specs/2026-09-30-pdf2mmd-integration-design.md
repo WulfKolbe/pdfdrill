@@ -48,7 +48,9 @@ That is the reason the two programs are two programs. It is measurably wrong.
 `win2name` / `pdf2name` tables and a `get_encoding_names()` classmethod, whose
 own docstring calls it *"the twin of `get_encoding`"*, and threads `cid` and
 `textstate_render` through converter → device → layout. `get_encoding` — what
-every existing caller uses — is untouched.
+every existing caller uses — keeps its RETURN VALUE unchanged. Its body does
+gain one line, filling a new private dict; "untouched" was wrong, and
+`tests/test_fork_touches_no_other_function.py` now checks the real claim.
 
 A purely additive patch cannot change what existing callers see. The 33 files
 in `src/` that import pdfminer are at risk only if the patch removes or alters

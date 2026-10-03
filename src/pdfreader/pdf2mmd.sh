@@ -78,7 +78,7 @@ your PDF would come out as (cid:N) with no LaTeX at all.
 pdf2mmd needs a small patch to pdfminer.six (~160 additive lines, five files,
 no change to existing behaviour). Build it once:
 
-  $HERE/install-pdfminer-fork.sh
+  $HERE/../../vendor/install-pdfminer-fork.sh
 
 That creates an isolated venv at $HERE/.pdfmm-venv and leaves your system
 pdfminer.six alone; pdf2mmd.sh then finds it automatically. If you keep it
@@ -88,7 +88,7 @@ elsewhere:
 
 To check an existing install:
 
-  $HERE/install-pdfminer-fork.sh --check
+  $HERE/../../vendor/install-pdfminer-fork.sh --check
 EOF
     exit 2
 fi
@@ -108,8 +108,11 @@ Missing module(s) next to pdf2mmd.sh:$missing
 
 The converter needs all of these in one folder:
   pdf2mmd.sh  pdf2mmd.py  docmodel_six.py  structure.py  texmap.py  project_mmd.py
-and, for the crop server and the installer:
-  inspectserver.py  install-pdfminer-fork.sh  pdfminer-glyph-identity.patch
+and, for the crop server:
+  inspectserver.py
+The patched pdfminer is built by the ONE installer (R1), which lives with the
+ONE copy of the patch and is not expected here:
+  ../../vendor/install-pdfminer-fork.sh
 EOF
     exit 2
 fi

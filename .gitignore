@@ -74,3 +74,8 @@ dist/
 /*.tex.zip
 /*.route-matrix.md
 .last-session-id
+
+# R1 — the patched pdfminer is BUILT, never committed. One patch and one
+# installer live in vendor/; these are their scratch and output dirs.
+.pdfmm-venv/
+.pdfmm-build/

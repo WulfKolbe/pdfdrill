@@ -43,8 +43,8 @@ fails — `pdf2mmd.sh` checks for them by name before it starts.
 
 | file | |
 |---|---|
-| `install-pdfminer-fork.sh` | builds the patched pdfminer |
-| `pdfminer-glyph-identity.patch` | the patch itself |
+| `../../vendor/install-pdfminer-fork.sh` | builds the patched pdfminer |
+| `../../vendor/pdfminer-glyph-identity.patch` | the patch itself (ONE copy, R1) |
 
 **Optional**
 
@@ -58,7 +58,7 @@ fails — `pdf2mmd.sh` checks for them by name before it starts.
 ## Install (once)
 
 ```bash
-./install-pdfminer-fork.sh
+../../vendor/install-pdfminer-fork.sh
 ```
 
 Clones pdfminer.six, applies `pdfminer-glyph-identity.patch`, installs it into
@@ -69,9 +69,9 @@ version keeps running.
 Other forms:
 
 ```bash
-./install-pdfminer-fork.sh --user            # pip --user; replaces pdfminer for your user
-./install-pdfminer-fork.sh --venv ~/.pdfmm   # a venv elsewhere
-./install-pdfminer-fork.sh --check           # verify an existing install
+../../vendor/install-pdfminer-fork.sh --user            # pip --user; replaces pdfminer for your user
+../../vendor/install-pdfminer-fork.sh --venv ~/.pdfmm   # a venv elsewhere
+../../vendor/install-pdfminer-fork.sh --check           # verify an existing install
 ```
 
 If the venv is not at `./.pdfmm-venv`, point the converter at it:

@@ -22,7 +22,7 @@ PDF to Markdown converter with LaTeX support for born-digital PDFs.
 ./install.sh                    # Full install (check deps, build venv, run tests)
 ./install.sh --check            # Check files only
 ./install.sh --rebuild          # Force rebuild venv
-./install-pdfminer-fork.sh      # Build patched pdfminer only
+../../vendor/install-pdfminer-fork.sh      # Build patched pdfminer only
 ```
 
 Requirements: `python3` (3.10+), `git`, `ghostscript`

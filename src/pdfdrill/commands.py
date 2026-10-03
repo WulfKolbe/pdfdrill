@@ -20341,7 +20341,7 @@ def _median(xs: list) -> float:
 # ---------------------------------------------------------------------------
 
 @_writes("equations")
-def cmd_equations(pdf: Path, force: bool = False) -> str:
+def cmd_equations(pdf: Path, force: bool = False, glyphs: bool = False) -> str:
     """Write `<stem>.equations.json`: one row per equation, with the LaTeX,
     the crop region and what is known about how complete each is.
 
@@ -20362,9 +20362,13 @@ def cmd_equations(pdf: Path, force: bool = False) -> str:
     table would invalidate the measurement of nineteen documents to produce a
     file that does not depend on it (863). The reading is read, not rewritten.
     """
-    out = pdf.with_suffix("").parent / (pdf.with_suffix("").name
-                                        + ".equations.json")
-    if out.exists() and not force:
+    stem = pdf.with_suffix("")
+    out = stem.parent / (stem.name + ".equations.json")
+    gout = stem.parent / (stem.name + ".eqglyphs.json")
+    # A document with its equations but no glyph table is NOT done when glyphs
+    # were asked for. Getting this wrong is how a flag added mid-run produces a
+    # corpus where 25% of documents silently lack the new artefact.
+    if out.exists() and not force and (gout.exists() or not glyphs):
         try:
             have = json.load(open(out, encoding="utf-8"))
             n = len(have.get("equations") or [])
@@ -20382,13 +20386,37 @@ def cmd_equations(pdf: Path, force: bool = False) -> str:
     except Exception as e:                                   # noqa: BLE001
         return f"equations: could not read {pdf.name} — {e}"
     data = _eqmod.to_json(pages, bibkey=key)
+    # The page geometry the whole coordinate story hangs on. Three systems are
+    # in play — PDF points y-up (pdfminer/psred), 250 dpi pixels y-down
+    # (MathPix lines.json and this file's regions), and a crop's own pixel
+    # origin — and none of them can be mapped onto another without the page
+    # size in points. Recorded here so a consumer never has to re-open the PDF
+    # to convert a rectangle.
+    data["pages"] = {str(p.page): {"width_pt": round(p.rect[2] - p.rect[0], 3),
+                                   "height_pt": round(p.rect[3] - p.rect[1], 3)}
+                     for p in pages}
     try:
         from pdfreader import provenance as _prov
         data["produced_by"] = _prov.identity()
     except Exception:                                        # noqa: BLE001
         pass
+    # R6 — the git rev says which CODE ran; this says which pdfminer it ran
+    # ON, which is installed outside git and decides whether glyph names exist
+    # at all.
+    try:
+        from pdfreader import build_identity as _bi
+        data["built_with"] = _bi.identity()
+    except Exception:                                        # noqa: BLE001
+        pass
     from . import model_io as _mio
     _mio._atomic_write(out, json.dumps(data, indent=1))
+    gnote = ""
+    if glyphs:
+        eqs = _eqmod.equations(pages, key)
+        gt = _eqmod.glyph_table(pages, eqs)
+        _mio._atomic_write(gout, json.dumps(gt))
+        gnote = (f" Wrote {gout.name}: {gt['counts']['glyphs']} glyph(s) across "
+                 f"{gt['counts']['equations']} equation(s), keyed on identity.")
     c = data.get("counts") or {}
     sc.set_evidence("equations", {"total": c.get("total"),
                                   "display": c.get("display"),
@@ -20404,7 +20432,7 @@ def cmd_equations(pdf: Path, force: bool = False) -> str:
     return (f"equations: {c.get('total', 0)} row(s) from {pdf.name} — "
             f"{c.get('display', 0)} display, {c.get('inline', 0)} inline; "
             f"{c.get('complete', 0)} complete, {c.get('unbalanced', 0)} "
-            f"unbalanced, {c.get('empty', 0)} empty. Wrote {out.name}. "
+            f"unbalanced, {c.get('empty', 0)} empty. Wrote {out.name}.{gnote} "
             f"The reading ({pdf.with_suffix('').name}.lines.json) was NOT "
             f"touched. Next: `pdfdrill eqlist` draws rows from this across "
             f"documents.")
@@ -20502,7 +20530,8 @@ def cmd_eqlist(library: Path | None = None, *, out: Path | None = None,
 def cmd_eqreport(library: Path | None = None, *, name: str = "eqlist",
                  out: Path | None = None, no_crops: bool = False,
                  paper: str = "a3", portrait: bool = False,
-                 dpi: int = 400, compile: bool = False) -> str:
+                 dpi: int = 400, compile: bool = False,
+                 csv: bool = False, sample: int = 0) -> str:
     """The report whose subject is the LIST: a LaTeX table + the inkdrill update.
 
     Writes `<name>.table.tex` (document, eq no, page rectangle, crop, LaTeX,
@@ -20520,6 +20549,39 @@ def cmd_eqreport(library: Path | None = None, *, name: str = "eqlist",
         return (f"eqreport: no list at {path}. `pdfdrill eqlist --name {name}` "
                 f"builds one.")
     data = _el.load(path)
+    # --csv and --sample are READ-ONLY projections of the list and skip the
+    # table entirely: a benchmark harness wants rows, and cutting 59,476 crops
+    # to hand someone a field list is an hour for nothing.
+    if csv or sample:
+        import csv as _csv
+        out.mkdir(parents=True, exist_ok=True)
+        rows = list(_el.csv_rows(data))
+        made = []
+        if csv:
+            cp = out / f"{name}.rows.csv"
+            with open(cp, "w", newline="", encoding="utf-8",
+                      errors="surrogateescape") as fh:
+                w = _csv.writer(fh)
+                w.writerow(_el.CSV_FIELDS)
+                w.writerows(rows)
+            made.append(f"{cp.name} ({len(rows)} rows)")
+        if sample:
+            sp = out / f"{name}.sample.csv"
+            step = max(1, len(rows) // sample)
+            with open(sp, "w", newline="", encoding="utf-8",
+                      errors="surrogateescape") as fh:
+                w = _csv.writer(fh)
+                w.writerow(_el.CSV_FIELDS)
+                # SPREAD, not the first N: the first rows of a corpus list are
+                # all one document and one layout.
+                w.writerows(rows[::step][:sample])
+            made.append(f"{sp.name} ({min(sample, len(rows))} rows, spread)")
+        return ("eqreport: " + ", ".join(made) + "\n  fields: "
+                + ", ".join(_el.CSV_FIELDS)
+                + "\n  coordinates: px_* are 250 dpi, y DOWN from the page's "
+                  "top-left; *_pt are PDF points, y UP from the bottom-left, "
+                  "converted exactly with page_height_pt. Both are given so "
+                  "neither consumer has to trust the other's convention.")
     problems = _el.validate(data)
     if problems:
         return ("eqreport: refusing to report on a list that does not hold "

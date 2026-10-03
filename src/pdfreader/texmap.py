@@ -1460,6 +1460,45 @@ _TEX_SLOTS = {
 }
 
 
+#: R2 — A NAME THAT IS A NUMBER IS NOT A NAME.
+#:
+#: The glyph-identity fork exists to answer "what does the FONT call this
+#: glyph", because `parenleft` from CMR10 and `x` from CMMI10 carry identity
+#: that a codepoint does not. When the fork resolves nothing from the font
+#: program it falls back to a name synthesised from the character code, and
+#: the result LOOKS like an answer:
+#:
+#:     uni0028   CMR10    '('    the font calls it `parenleft`
+#:     u1D465    CMMI10   '𝑥'    the font calls it `x`
+#:     x65       unknown  'e'    hex 65
+#:
+#: Measured over 2.4M glyphs in 40 documents: ~148,000 carry one, and they
+#: concentrate in CMMI10/CMR10/CMSY10 — the maths fonts, where the name is
+#: the only thing distinguishing a mathematical italic x from a text x.
+#:
+#: Such a name is DERIVED FROM `text`, which the reader already has. It adds
+#: nothing and must not be read as evidence about the font.
+_PSEUDO_NAME = re.compile(
+    r"^(?:uni[0-9A-Fa-f]{4,6}"        # uni0028
+    r"|u[0-9A-Fa-f]{4,6}"             # u1D465
+    r"|x[0-9A-Fa-f]{2,6}"             # x65 (hex)
+    r"|g\d+|cid\d+|CID\d+"           # subset index
+    r"|index\d+|glyph\d+"
+    r")$")
+
+
+def synthesised_name(glyphname: str | None) -> bool:
+    """R2 — is this name a restatement of the character code?
+
+    A RELIABILITY FLAG, not a gate: it reports that the name carries no
+    font-program identity. It deliberately does NOT suppress anything —
+    `untrusted_name` is the function that abstains, and conflating "this name
+    tells me nothing extra" with "this glyph must not be emitted" would drop
+    ~148,000 glyphs whose `text` is perfectly good.
+    """
+    return bool(glyphname) and bool(_PSEUDO_NAME.match(glyphname))
+
+
 def untrusted_name(fontname: str, glyphname: str | None) -> bool:
     """Is this glyph name the StandardEncoding fallback rather than the font's?
 

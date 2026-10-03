@@ -305,9 +305,28 @@ def _document_entry(folder: Path, bibkey: str, n_rows: int, n_listed: int,
             return None
         return {"path": str(p), "sha256": _sha256(p), "bytes": p.stat().st_size}
 
+    w_pt, h_pt = page_size_pt(_sidecar_meta(folder, bibkey))
+    eqj = folder / f"{bibkey}.equations.json"
+    origin, rev = "glyph-reader", ""
+    try:
+        _d = json.load(open(eqj, encoding="utf-8"))
+        rev = ((_d.get("produced_by") or {}).get("rev") or "")
+        # THE ORACLE RULE. A reference derived from the same features being
+        # evaluated measures itself. This reading comes from the glyph reader,
+        # so it is NOT an independent reference for anything built on glyphs —
+        # MathPix would be (independent of the PDF stream, carrying its own
+        # errors), and the author's source is better still where it exists.
+        if (folder / f"{bibkey}.lines.mathpix.bak.json").exists():
+            origin = "glyph-reader (displaced a mathpix reading)"
+    except Exception:                                        # noqa: BLE001
+        pass
     return {
         "document": bibkey,
         "folder": str(folder),
+        "page_width_pt": w_pt,
+        "page_height_pt": h_pt,
+        "latex_origin": origin,
+        "reader_version": rev,
         "producer": producer,
         "creator": creator,
         "pages": pages,
@@ -579,3 +598,77 @@ def verify_inputs(data: dict) -> list:
 
 def load(path: Path) -> dict:
     return json.load(open(path, encoding="utf-8"))
+
+_PAGE_SIZE = re.compile(r"([\d.]+)\s*x\s*([\d.]+)\s*pts")
+
+
+def page_size_pt(meta: dict) -> tuple:
+    """(width, height) in points from the sidecar's `page_size`, or (0, 0).
+
+    THE ANCHOR THE WHOLE COORDINATE STORY HANGS ON. Three systems are in play
+    — PDF points y UP (pdfminer, psred), 250 dpi pixels y DOWN (MathPix
+    lines.json and this file's regions), and a crop's own pixel origin — and
+    no rectangle can be mapped from one to another without it. Recorded per
+    row rather than assumed, because a corpus is not one page size: measured
+    here, `612 x 792` sits beside `1974.86 x 1110.86`.
+    """
+    m = _PAGE_SIZE.search((meta or {}).get("page_size") or "")
+    return (float(m.group(1)), float(m.group(2))) if m else (0.0, 0.0)
+
+
+def rect_pt(region: dict, page_h_pt: float) -> tuple:
+    """A 250 dpi y-down region as (x0, y0, x1, y1) in PDF points, y UP.
+
+    Exact, not approximate: the frame is declared (250/72 px per pt) and the
+    only other quantity is the page height. This is why the pixel regions are
+    not a lossy choice — the conversion is reversible and the list carries
+    what it needs to reverse it.
+    """
+    if not region or not page_h_pt:
+        return ()
+    k = PX_PER_PT
+    x0 = region["top_left_x"] / k
+    x1 = (region["top_left_x"] + region["width"]) / k
+    y1 = page_h_pt - region["top_left_y"] / k
+    y0 = page_h_pt - (region["top_left_y"] + region["height"]) / k
+    return (round(x0, 3), round(y0, 3), round(x1, 3), round(y1, 3))
+
+
+#: The flat row a benchmark harness ingests. Deliberately NOT the JSON row:
+#: a CSV consumer wants one table with every coordinate stated, not a nested
+#: identity it has to reassemble.
+CSV_FIELDS = [
+    "document", "label", "page",
+    "page_width_pt", "page_height_pt",
+    "x0_pt", "y0_pt", "x1_pt", "y1_pt",
+    "px_x", "px_y", "px_w", "px_h",
+    "kind", "number", "confidence", "structural_ok", "lost_operand",
+    "latex_sha16", "latex_origin", "reader_version", "pdf_path", "crop_id",
+    "latex",
+]
+
+
+def csv_rows(data: dict):
+    """Yield CSV_FIELDS-ordered tuples. `latex` is last because it is the only
+    unbounded field, so a truncated line still loses only the LaTeX."""
+    docs = {d["document"]: d for d in (data.get("documents") or [])}
+    for r in data.get("rows") or []:
+        d = docs.get(r.get("document")) or {}
+        w, h = d.get("page_width_pt") or 0.0, d.get("page_height_pt") or 0.0
+        reg = (r.get("identity") or {}).get("region") or {}
+        pts = rect_pt(reg, h)
+        yield (
+            r.get("document"), r.get("label"), (r.get("identity") or {}).get("page"),
+            w or "", h or "",
+            pts[0] if pts else "", pts[1] if pts else "",
+            pts[2] if pts else "", pts[3] if pts else "",
+            reg.get("top_left_x", ""), reg.get("top_left_y", ""),
+            reg.get("width", ""), reg.get("height", ""),
+            r.get("kind"), r.get("number") or "", r.get("confidence"),
+            r.get("structural_ok"), r.get("lost_operand") or "",
+            r.get("latex_sha16") or "",
+            d.get("latex_origin") or "", d.get("reader_version") or "",
+            (d.get("inputs", {}).get("pdf") or {}).get("path") or "",
+            (r.get("crop") or {}).get("id") or "",
+            r.get("latex") or "",
+        )

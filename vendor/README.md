@@ -16,9 +16,8 @@ classmethod, and `cid` / `textstate_render` threaded through
 converter → device → layout.
 
 **Why it can be vendored.** It is **purely additive: +461 / −0.**
-`get_encoding` — the Unicode channel every existing caller reads — is not
-touched, so the 33 files under `src/` that import pdfminer see exactly what
-they saw before. `tests/test_pdfminer_fork_is_additive.py` is the gate on that
+`get_encoding` — the Unicode channel every existing caller reads — keeps its RETURN VALUE unchanged. Its body does gain one line (`self._cid2name[cid] = cast(str, name)`), which fills a new private dict; earlier wording here said the function was "not touched", which was wrong. Behaviour-preserving is the claim, and it is the one the tests check. So the 33 files under `src/` that import
+pdfminer see exactly what they saw before. `tests/test_pdfminer_fork_is_additive.py` is the gate on that
 and fails if a future rebase starts removing things.
 
 **Why it is here and not beside us.** It lived in `~/pdf2mmd` and was reached
