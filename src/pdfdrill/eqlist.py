@@ -171,6 +171,44 @@ def binary_generated(producer: str | None, creator: str | None = None) -> tuple:
     return False, f"producer not recognised as a generator: {blob[:60]}"
 
 
+#: A READING THAT LOST ITS SUBJECT. inkdrill found these in the ink — a
+#: cobordism or a surface standing where a symbol would be, which is ordinary
+#: in topology — and the reader drops the figure and emits the tokens around
+#: it. `Q = .` compiles and asserts that Q equals nothing; `K_{n} = \times I,`
+#: does not parse as maths at all. Both pass a structural check that only
+#: counts delimiters, and both claim CONFIDENCE 1.0, because confidence is the
+#: fraction of SPANS projected and a figure was never a span. A measure defined
+#: over spans cannot see something that never became one.
+#:
+#: A LEADING RELATION IS NOT ONE OF THESE. A continuation line of an aligned
+#: display legitimately starts with `=` — sigma26-076 EQ2371/2/3 are three
+#: consecutive lines of one block — and a first pass that flagged them counted
+#: 29 where the real number is 14.
+_LOST_OPERAND = [
+    (re.compile(r"(?:^|[^\\=<>])=\s*[.,;]?\s*$"), "nothing after ="),
+    (re.compile(r"=\s*\\(?:times|otimes|cdot|circ|oplus)\b"),
+     "= then a binary operator"),
+    (re.compile(r"=\s*,"), "= then a comma"),
+]
+
+
+def lost_operand(latex: str | None) -> str | None:
+    """Why this reading looks like it lost an operand, or None.
+
+    A LOWER BOUND, and the list says so: a figure dropped from between two
+    symbols that still leaves a syntactically plausible string is invisible
+    here, exactly as it is invisible to an ink gap when the figure sits tight
+    against the body. Two instruments, two blind spots, neither complete.
+    """
+    lx = (latex or "").strip()
+    if not lx:
+        return None
+    for rx, why in _LOST_OPERAND:
+        if rx.search(lx):
+            return why
+    return None
+
+
 def latex_sha16(latex: str | None) -> str | None:
     """The STABILITY field: 16 hex of sha256 over the LaTeX.
 
@@ -233,6 +271,10 @@ def _row(bibkey: str, eq: dict, no: int) -> dict:
         # STABILITY — same identity + different hash == stale mark.
         "latex_sha16": latex_sha16(latex),
         "latex": latex,
+        # Not a confidence and not a score: the NAME of the shape that makes
+        # this reading suspect, or absent. A consumer can act on "nothing
+        # after =" ; it cannot act on 0.97.
+        "lost_operand": lost_operand(latex),
         "kind": eq.get("kind"),
         "confidence": eq.get("confidence"),
         "structural_ok": eq.get("structural_ok"),
@@ -357,7 +399,7 @@ def build(library: Path, *, name: str = "eqlist", kind: str | None = None,
 
     rows, docs = [], []
     counts = {"rows": 0, "display": 0, "inline": 0, "with_latex": 0,
-              "structural_ok": 0, "with_region": 0}
+              "structural_ok": 0, "with_region": 0, "lost_operand": 0}
     dropped = {}
 
     for folder, bibkey, meta, why in listable:
@@ -393,6 +435,8 @@ def build(library: Path, *, name: str = "eqlist", kind: str | None = None,
                 counts["structural_ok"] += 1
             if r["crop"]:
                 counts["with_region"] += 1
+            if r["lost_operand"]:
+                counts["lost_operand"] += 1
         docs.append(_document_entry(folder, bibkey, len(eqs), len(chosen),
                                     meta.get("producer"), meta.get("creator"),
                                     meta.get("pages"), why,

@@ -387,3 +387,58 @@ def test_an_unnumbered_equation_has_no_number_rather_than_a_blank_one(tmp_path):
     row = EL.build(root, name="t")["rows"][0]
     assert row["number"] is None
     assert row["number_region"] is None
+
+
+# --------------------------------------------------------------------------
+# A reading that LOST ITS SUBJECT. inkdrill found these in the ink: an
+# equation whose operand is a picture — a cobordism, a surface — which is
+# ordinary in topology. The reader drops the figure and emits the tokens
+# around it.
+# --------------------------------------------------------------------------
+
+@pytest.mark.parametrize("latex,flagged", [
+    ("Q = .", True),                       # asserts Q equals nothing
+    ("K_{n} = \\times I,", True),          # does not parse as maths at all
+    ("P_{i} = ,", True),
+    ("\\sigma(i) =", True),
+    ("B = , \\mathbb{T}_{x}^{s} = ,", True),
+    # NOT defects. A continuation line of an aligned display legitimately
+    # starts with a relation — sigma26-076 EQ2371/2/3 are three consecutive
+    # lines of one block — and a first pass that flagged them counted 29 where
+    # the real number is 14.
+    ("= \\frac{1}{[n]_{t}!} \\sum x", False),
+    ("a = b", False),
+    ("x \\leq y", False),
+    ("", False),
+])
+def test_a_reading_that_lost_its_operand_is_named(latex, flagged):
+    assert bool(EL.lost_operand(latex)) is flagged, EL.lost_operand(latex)
+
+
+def test_the_flag_is_a_reason_not_a_score():
+    """A consumer can act on "nothing after ="; it cannot act on 0.97."""
+    why = EL.lost_operand("Q = .")
+    assert isinstance(why, str) and "=" in why
+
+
+def test_confidence_cannot_see_a_dropped_operand(tmp_path):
+    """THE POINT. All 14 such rows in the corpus claim confidence 1.0, because
+    confidence is the fraction of SPANS projected and a figure was never a
+    span. A measure defined over spans cannot see something that never became
+    one — so the flag has to come from the reading's shape, not its score."""
+    eq = _eq("EQ0001", 1, 10, 20, latex="Q = .")
+    eq["confidence"] = 1.0
+    eq["structural_ok"] = True
+    root = _library(tmp_path, {"doc": ([eq], "pdfTeX-1.40.25")})
+    data = EL.build(root, name="t")
+    row = data["rows"][0]
+
+    assert row["confidence"] == 1.0, "the score says the reading is perfect"
+    assert row["structural_ok"] is True, "and the delimiter check agrees"
+    assert row["lost_operand"] == "nothing after =", "only the shape disagrees"
+    assert data["counts"]["lost_operand"] == 1
+
+    tex, _ = ET.render(data, tmp_path / "o", crops=False)
+    assert "lost operand" in tex, (
+        "a reading that typesets as a tidy falsehood must say so where it is "
+        "read, not only in the JSON")

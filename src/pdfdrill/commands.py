@@ -20473,6 +20473,12 @@ def cmd_eqlist(library: Path | None = None, *, out: Path | None = None,
         f"  kind: {c.get('display', 0)} display, {c.get('inline', 0)} inline",
         f"  LaTeX present {c.get('with_latex', 0)}, region present "
         f"{c.get('with_region', 0)}, structural_ok {c.get('structural_ok', 0)}",
+        # Reported on its own line, never folded into a rate: these rows claim
+        # confidence 1.0 and pass the delimiter check, so a reader who sees
+        # only the aggregate sees a healthy list.
+        f"  LOST AN OPERAND: {c.get('lost_operand', 0)} row(s) read as a "
+        f"relation with nothing on one side (a figure standing where a symbol "
+        f"would be; the reading typesets and is false)",
         f"  identity: (document, page, region); label EQnnnn renumbers; "
         f"latex_sha16 detects a re-read",
         f"  frame: 250 dpi, y down, declared not inferred",

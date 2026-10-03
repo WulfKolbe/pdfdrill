@@ -172,6 +172,15 @@ def render(data: dict, out_dir: Path, *, crops: bool = True,
         latex = r.get("latex") or ""
         src = ("{\\ttfamily\\scriptsize %s}" % rt.esc_source(latex)
                if latex else "---")
+        # A READING THAT LOST ITS SUBJECT IS WORSE THAN ONE THAT FAILED, and
+        # the table must say so where it is read. `Q = .` typesets, so the
+        # rendered column shows a tidy equation asserting that Q equals
+        # nothing; nothing else on the row contradicts it, and the row claims
+        # confidence 1.0 because confidence counts projected SPANS and the
+        # dropped figure was never a span.
+        if r.get("lost_operand"):
+            src += ("\\par{\\footnotesize\\bfseries [lost operand: %s]}"
+                    % rt.esc_text(r["lost_operand"]))
         if not latex:
             stats["no_latex"] += 1
             ren = "---"
