@@ -1462,41 +1462,63 @@ _TEX_SLOTS = {
 
 #: R2 — A NAME THAT IS A NUMBER IS NOT A NAME.
 #:
-#: The glyph-identity fork exists to answer "what does the FONT call this
-#: glyph", because `parenleft` from CMR10 and `x` from CMMI10 carry identity
-#: that a codepoint does not. When the fork resolves nothing from the font
-#: program it falls back to a name synthesised from the character code, and
-#: the result LOOKS like an answer:
+#: The glyph-identity fork answers "what does the FONT call this glyph",
+#: because `parenleft` from CMR10 carries identity that a code point does not.
+#: Some fonts answer with a number dressed as a name, and the fork returns it
+#: faithfully — so the caller gets something that LOOKS like an answer.
 #:
-#:     uni0028   CMR10    '('    the font calls it `parenleft`
-#:     u1D465    CMMI10   '𝑥'    the font calls it `x`
-#:     x65       unknown  'e'    hex 65
+#: THE MEASURED CLASS (CR-pdfminer-single-version R2) is pdfTeX's Type 3 / PK
+#: bitmap fonts, whose `/Differences` names are `a44`, `a97`, `a111`. psred
+#: had to filter them or its "never guess" test failed:
+#: `fixtures/lang/text_t1.pdf` is 125 glyphs and every one is such a name.
 #:
-#: Measured over 2.4M glyphs in 40 documents: ~148,000 carry one, and they
-#: concentrate in CMMI10/CMR10/CMSY10 — the maths fonts, where the name is
-#: the only thing distinguishing a mathematical italic x from a text x.
+#: THE TRAP, and the reason this is `\d+` and not `\d*`: `fixtures/t1.pdf`
+#: contains REAL CM glyphs named `a` (21 of them) and `g` (9). A rule that
+#: made a bare letter unreliable would fail that fixture's half of the
+#: acceptance test — all 233 of its names must stay reliable.
 #:
-#: Such a name is DERIVED FROM `text`, which the reader already has. It adds
-#: nothing and must not be read as evidence about the font.
+#: AND ZAPFDINGBATS IS THE HONEST EXCEPTION. `a1`…`a191` are that font's OWN
+#: glyph names, not a pdfTeX index, so the same string means opposite things
+#: depending on the font. Exempted by font name rather than silently
+#: mis-flagged.
 _PSEUDO_NAME = re.compile(
-    r"^(?:uni[0-9A-Fa-f]{4,6}"        # uni0028
+    r"^(?:[a-zA-Z]\d+"                # a44, a97, g12 — an index with a letter
+    r"|cid\d+|CID\d+"                 # cid7
+    r"|index\d+|glyph\d+"             # index44, glyph3
+    r"|uni[0-9A-Fa-f]{4,6}"           # uni0028 — a code point restated
     r"|u[0-9A-Fa-f]{4,6}"             # u1D465
-    r"|x[0-9A-Fa-f]{2,6}"             # x65 (hex)
-    r"|g\d+|cid\d+|CID\d+"           # subset index
-    r"|index\d+|glyph\d+"
     r")$")
 
+_DINGBATS = re.compile(r"dingbat", re.I)
 
-def synthesised_name(glyphname: str | None) -> bool:
-    """R2 — is this name a restatement of the character code?
 
-    A RELIABILITY FLAG, not a gate: it reports that the name carries no
-    font-program identity. It deliberately does NOT suppress anything —
-    `untrusted_name` is the function that abstains, and conflating "this name
-    tells me nothing extra" with "this glyph must not be emitted" would drop
-    ~148,000 glyphs whose `text` is perfectly good.
+def glyphname_reliable(glyphname: str | None,
+                       fontname: str | None = None) -> bool:
+    """R2 — can this glyph name be read as the font's own name for the glyph?
+
+    False for a numbered pseudo-name. A RELIABILITY FLAG, not a gate: the name
+    stays raw and nothing is suppressed. `untrusted_name` is the separate
+    function that abstains, and conflating "this name tells me nothing extra"
+    with "this glyph must not be emitted" would discard glyphs whose `text` is
+    perfectly good.
+
+    A name that is absent is not unreliable — it is absent, and the caller can
+    see that for itself; `None` is reported as reliable=False only because
+    there is nothing to rely on.
     """
-    return bool(glyphname) and bool(_PSEUDO_NAME.match(glyphname))
+    if not glyphname:
+        return False
+    if _DINGBATS.search(fontname or ""):
+        # a1…a191 are ZapfDingbats' real names.
+        return True
+    return not _PSEUDO_NAME.match(glyphname)
+
+
+def synthesised_name(glyphname: str | None,
+                     fontname: str | None = None) -> bool:
+    """The inverse of `glyphname_reliable`, kept because the glyph table and
+    its tests read in that direction."""
+    return bool(glyphname) and not glyphname_reliable(glyphname, fontname)
 
 
 def untrusted_name(fontname: str, glyphname: str | None) -> bool:

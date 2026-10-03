@@ -320,10 +320,16 @@ def glyph_table(pages: list, eqs: list, px_per_pt: float = 250.0/72.0) -> dict:
             "glyphs": [{
                 "text": g.text,
                 "glyphname": g.glyphname,
-                # R2 — the name is a restatement of the character code and
-                # carries no font-program identity. A FLAG, not a gate: the
-                # glyph and its text stay, and nothing is suppressed.
-                "name_synthesised": texmap.synthesised_name(g.glyphname),
+                # R2 (CR-pdfminer-single-version) — can this name be read as
+                # the font's own name for the glyph? False for a numbered
+                # pseudo-name: pdfTeX Type 3/PK fonts state `/Differences`
+                # names like `a44`, which the fork returns faithfully, so a
+                # caller receives something shaped like an answer that names
+                # nothing. A FLAG, not a gate: the name stays raw and no glyph
+                # is suppressed. Font-aware, because `a44` is ZapfDingbats'
+                # own real name for a glyph.
+                "glyphname_reliable": texmap.glyphname_reliable(
+                    g.glyphname, g.fontname),
                 "font": g.fontname,
                 "family": g.family,
                 "size": round(g.size, 3),
