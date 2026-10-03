@@ -60,14 +60,25 @@ PATCH = Path(__file__).resolve().parents[1] / "vendor" / "pdfminer-glyph-identit
 #: Nothing else moved: no new file, no new class, and the gate printed exactly
 #: that before this list was edited — which is what the freeze is for. A
 #: future change that cannot be explained in these terms is a change that
+#: UPDATED AGAIN FOR R2's LTChar FLAG, and the gate confined it to ONE file:
+#:
+#:     layout.py, no class context     new, +1    `import re`
+#:     layout.py, before LTChar        new, +42   the predicate
+#:     LTChar hunk                    37 -> 43    self.glyphname_reliable
+#:
+#: pdffont.py, pdfdevice.py, converter.py and encodingdb.py are untouched by
+#: R2, which is what makes it a small change rather than a claim that it is.
+#:
 #: needs re-reading, not a list that needs updating.
 EXPECTED_FOOTPRINT = {
     ("pdfminer/converter.py", "class PDFLayoutAnalyzer(PDFTextDevice):", 2),
     ("pdfminer/encodingdb.py", "class EncodingDB:", 7),
     ("pdfminer/encodingdb.py", "class EncodingDB:", 8),
     ("pdfminer/encodingdb.py", "class EncodingDB:", 38),
+    ("pdfminer/layout.py", "", 1),
+    ("pdfminer/layout.py", "class LTAnno(LTItem, LTText):", 42),
     ("pdfminer/layout.py", "class LTChar(LTComponent, LTText):", 12),
-    ("pdfminer/layout.py", "class LTChar(LTComponent, LTText):", 37),
+    ("pdfminer/layout.py", "class LTChar(LTComponent, LTText):", 43),
     ("pdfminer/pdfdevice.py", "class PDFDevice:", 10),
     ("pdfminer/pdfdevice.py", "class PDFTextDevice(PDFDevice):", 1),
     ("pdfminer/pdffont.py", "FontWidthDict = dict[int | str, float]", 36),
@@ -91,6 +102,8 @@ NEW_NAMES = {
     # dictionary; `fontsize`/`scaling`/`rise` are the three values LTChar was
     # handed and dropped.
     "spec", "fontsize", "scaling", "rise",
+    # R2's LTChar flag and the predicate behind it.
+    "glyphname_reliable", "_PSEUDO_GLYPHNAME", "_DINGBAT_FONT",
 }
 
 _HDR = ("--- ", "+++ ", "diff --git", "index ", "new file", "deleted file",

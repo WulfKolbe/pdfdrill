@@ -110,3 +110,102 @@ def test_it_is_a_flag_and_not_a_gate():
     from pdfreader.texmap import untrusted_name
     assert glyphname_reliable("a44", "") is False
     assert untrusted_name("ABCDEF+CMR10", "a44") is False
+
+
+# --------------------------------------------------------------------------
+# R2's second half: the flag ON LTChar, which is what the CR actually proposes.
+# Read from the fork, not from a helper that happens to agree with it.
+# --------------------------------------------------------------------------
+
+import subprocess                                             # noqa: E402
+
+VENV_PY = Path(__file__).resolve().parents[1] / "vendor" / ".pdfmm-venv" / "bin" / "python"
+
+_LTCHAR_PROBE = r'''
+import json, sys
+from pdfminer.high_level import extract_pages
+from pdfminer.layout import LTChar, LTContainer
+def walk(o):
+    if isinstance(o, LTChar):
+        yield o
+    if isinstance(o, LTContainer):
+        for c in o:
+            yield from walk(c)
+out = []
+for pdf in sys.argv[1:]:
+    chars = [c for p in extract_pages(pdf, laparams=None) for c in walk(p)]
+    out.append({
+        "pdf": pdf.split("/")[-1],
+        "n": len(chars),
+        "reliable": sum(1 for c in chars if c.glyphname_reliable),
+        "names": [c.glyphname for c in chars[:5]],
+        "text": [c.get_text() for c in chars[:5]],
+    })
+print(json.dumps(out))
+'''
+
+
+def _ltchar(*pdfs):
+    if not VENV_PY.exists():
+        pytest.skip(f"fork venv not built: {VENV_PY}")
+    for p in pdfs:
+        if not Path(p).exists():
+            pytest.skip(f"psred fixture not checked out: {p}")
+    r = subprocess.run([str(VENV_PY), "-c", _LTCHAR_PROBE, *map(str, pdfs)],
+                       capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, r.stderr[-2000:]
+    import json
+    return json.loads(r.stdout)
+
+
+def test_the_flag_is_on_ltchar_and_meets_the_criteria():
+    """THE CR's actual proposal: `LTChar.glyphname_reliable`. Computed in the
+    fork at read time, so every consumer gets one rule instead of each
+    reimplementing it — which is the whole point of a single patched build."""
+    got = _ltchar(ALL_PSEUDO, ALL_REAL, CFF)
+    by = {d["pdf"]: d for d in got}
+    assert by["text_t1.pdf"]["n"] == 125
+    assert by["text_t1.pdf"]["reliable"] == 0
+    assert by["t1.pdf"]["n"] == 233
+    assert by["t1.pdf"]["reliable"] == 233
+    assert by["t1_cff.pdf"]["reliable"] == 233
+
+
+def test_the_raw_name_is_kept(): 
+    """"Keep `glyphname` raw" — the flag reports, it does not filter. The
+    pseudo-names are still there to be inspected, and `get_text()` is
+    untouched."""
+    d = _ltchar(ALL_PSEUDO)[0]
+    assert all(n and n.startswith("a") for n in d["names"]), d["names"]
+    assert any(t.strip() for t in d["text"]), d["text"]
+
+
+def test_the_package_helper_does_not_duplicate_the_rule():
+    """One copy. `texmap.glyphname_reliable` delegates to the fork when it is
+    installed; the local body is only a fallback for an environment whose
+    pdfminer predates the flag."""
+    from pdfreader import texmap
+    import inspect
+    src = inspect.getsource(texmap.glyphname_reliable)
+    assert "_fork_reliable" in src, "the helper must prefer the fork's rule"
+
+
+def test_the_fallback_agrees_with_the_fork():
+    """The fallback cannot quietly drift from the authority it stands in for.
+    Both are exercised over the same names and must return the same verdict."""
+    if not VENV_PY.exists():
+        pytest.skip("fork venv not built")
+    from pdfreader import texmap
+    names = ["a44", "a97", "a111", "g12", "cid7", "CID7", "index44", "glyph3",
+             "uni0028", "u1D465", "parenleft", "a", "g", "one", "x",
+             "summationdisplay", "space", "", None]
+    probe = ("import json,sys;from pdfminer.layout import glyphname_reliable as f;"
+             "print(json.dumps([f(n or None) for n in json.loads(sys.argv[1])]))")
+    import json
+    r = subprocess.run([str(VENV_PY), "-c", probe, json.dumps(names)],
+                       capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, r.stderr[-1000:]
+    fork = json.loads(r.stdout)
+    local = [texmap._local_reliable(n) for n in names]
+    assert fork == local, [
+        (n, f, l) for n, f, l in zip(names, fork, local) if f != l]

@@ -97,10 +97,66 @@ index 85d8c1f..2e5d74d 100644
 +                    cid += 1
 +        return cid2name
 diff --git a/pdfminer/layout.py b/pdfminer/layout.py
-index df818a1..6493b39 100644
+index df818a1..26d9d6a 100644
 --- a/pdfminer/layout.py
 +++ b/pdfminer/layout.py
-@@ -359,11 +359,48 @@ class LTChar(LTComponent, LTText):
+@@ -1,5 +1,6 @@
+ import heapq
+ import logging
++import re
+ from collections.abc import Iterable, Iterator, Sequence
+ from typing import (
+     Generic,
+@@ -344,6 +345,48 @@ class LTAnno(LTItem, LTText):
+         return self._text
+ 
+ 
++#: A GLYPH NAME THAT IS A NUMBER IS NOT A GLYPH NAME.
++#:
++#: `to_glyphname` reports what the font states, faithfully, and some fonts
++#: state an index dressed as a name. pdfTeX's Type 3 / PK bitmap fonts write
++#: `/Differences` entries `a44`, `a97`, `a111`; other producers emit `g12`,
++#: `cid7`, `index44`, or a code point restated as `uni0028` / `u1D465`. None
++#: of those identifies a glyph — `uni0028` is CMR10's `parenleft` with the
++#: identity removed — but each ARRIVES looking like an answer, so a consumer
++#: cannot tell without a rule.
++#:
++#: `\d+` AND NOT `\d*`, because a bare letter is a real name: CMR10 has
++#: glyphs called `a` and `g`. A rule that distrusted those would reject 233 of
++#: 233 names in an ordinary TeX document.
++_PSEUDO_GLYPHNAME = re.compile(
++    r"^(?:[a-zA-Z]\d+"                # a44, a97, g12 — a letter plus an index
++    r"|cid\d+|CID\d+"
++    r"|index\d+|glyph\d+"
++    r"|uni[0-9A-Fa-f]{4,6}"           # a code point restated
++    r"|u[0-9A-Fa-f]{4,6}"
++    r")$")
++
++#: ZapfDingbats is the honest exception: `a1`…`a191` are that font's OWN
++#: glyph names. The identical string is meaningful there and meaningless in a
++#: pdfTeX bitmap font, so the font has to be part of the question.
++_DINGBAT_FONT = re.compile(r"dingbat", re.I)
++
++
++def glyphname_reliable(glyphname: "str | None",
++                       fontname: "str | None" = None) -> bool:
++    """Can `glyphname` be read as the font's own name for the glyph?
++
++    A REPORT, not a filter. The name is left exactly as the font stated it;
++    this only says whether it carries identity. Callers that want to abstain
++    can; callers that only want the character still have `get_text()`.
++    """
++    if not glyphname:
++        return False
++    if fontname and _DINGBAT_FONT.search(fontname):
++        return True
++    return not _PSEUDO_GLYPHNAME.match(glyphname)
++
++
+ class LTChar(LTComponent, LTText):
+     """Actual letter in the text as a Unicode string."""
+ 
+@@ -359,11 +402,54 @@ class LTChar(LTComponent, LTText):
          textdisp: float | tuple[float | None, float],
          ncs: PDFColorSpace,
          graphicstate: PDFGraphicState,
@@ -118,6 +174,12 @@ index df818a1..6493b39 100644
 +        # which is also what a caller constructing an LTChar directly gets.
 +        self.cid = cid
 +        self.glyphname = font.to_glyphname(cid) if cid >= 0 else None
++        # Whether that name identifies a glyph or merely restates an
++        # index. Computed here rather than left to every consumer, so there
++        # is one rule and not one per caller — the whole point of the fork
++        # being a single build.
++        self.glyphname_reliable = glyphname_reliable(
++            self.glyphname, self.fontname)
 +        # PDF text rendering mode (`Tr`). 3 and 7 draw nothing: the glyph was
 +        # never shown to a reader. A scanner writes its OCR layer that way,
 +        # over the page image, so `invisible` marks text that is a machine's
@@ -149,7 +211,7 @@ index df818a1..6493b39 100644
          self.ncs = ncs
          self.graphicstate = graphicstate
          self.adv = textwidth * fontsize * scaling
-@@ -401,6 +438,18 @@ class LTChar(LTComponent, LTText):
+@@ -401,6 +487,18 @@ class LTChar(LTComponent, LTText):
              f"text={self.get_text()!r}>"
          )
  

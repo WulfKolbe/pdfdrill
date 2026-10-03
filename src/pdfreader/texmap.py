@@ -1462,62 +1462,61 @@ _TEX_SLOTS = {
 
 #: R2 — A NAME THAT IS A NUMBER IS NOT A NAME.
 #:
-#: The glyph-identity fork answers "what does the FONT call this glyph",
-#: because `parenleft` from CMR10 carries identity that a code point does not.
-#: Some fonts answer with a number dressed as a name, and the fork returns it
-#: faithfully — so the caller gets something that LOOKS like an answer.
+#: THE RULE LIVES IN THE FORK, not here. `pdfminer.layout.glyphname_reliable`
+#: is the single implementation and `LTChar.glyphname_reliable` is computed
+#: from it at read time, which is the point of the change request: one patched
+#: pdfminer, one copy of each shared glyph-level tool, used by pdfdrill,
+#: pdf2mmd and psred alike. A second copy here would be a second copy that
+#: does not get fixed when the first one is.
 #:
-#: THE MEASURED CLASS (CR-pdfminer-single-version R2) is pdfTeX's Type 3 / PK
-#: bitmap fonts, whose `/Differences` names are `a44`, `a97`, `a111`. psred
-#: had to filter them or its "never guess" test failed:
-#: `fixtures/lang/text_t1.pdf` is 125 glyphs and every one is such a name.
+#: The local definition below is a FALLBACK for an environment whose pdfminer
+#: predates the flag — this package must keep working while a corpus pass is
+#: using the old build — and `tests/test_r2_glyphname_reliable.py` asserts the
+#: two agree wherever both exist, so the fallback cannot quietly drift.
 #:
-#: THE TRAP, and the reason this is `\d+` and not `\d*`: `fixtures/t1.pdf`
-#: contains REAL CM glyphs named `a` (21 of them) and `g` (9). A rule that
-#: made a bare letter unreliable would fail that fixture's half of the
-#: acceptance test — all 233 of its names must stay reliable.
-#:
-#: AND ZAPFDINGBATS IS THE HONEST EXCEPTION. `a1`…`a191` are that font's OWN
-#: glyph names, not a pdfTeX index, so the same string means opposite things
-#: depending on the font. Exempted by font name rather than silently
-#: mis-flagged.
+#: The measured class is pdfTeX's Type 3 / PK bitmap fonts, whose
+#: `/Differences` names are `a44`, `a97`, `a111`. `\d+` and not `\d*`,
+#: because CMR10 has real glyphs called `a` and `g`.
 _PSEUDO_NAME = re.compile(
-    r"^(?:[a-zA-Z]\d+"                # a44, a97, g12 — an index with a letter
-    r"|cid\d+|CID\d+"                 # cid7
-    r"|index\d+|glyph\d+"             # index44, glyph3
-    r"|uni[0-9A-Fa-f]{4,6}"           # uni0028 — a code point restated
-    r"|u[0-9A-Fa-f]{4,6}"             # u1D465
+    r"^(?:[a-zA-Z]\d+"
+    r"|cid\d+|CID\d+"
+    r"|index\d+|glyph\d+"
+    r"|uni[0-9A-Fa-f]{4,6}"
+    r"|u[0-9A-Fa-f]{4,6}"
     r")$")
 
 _DINGBATS = re.compile(r"dingbat", re.I)
 
+try:                                                         # pragma: no cover
+    from pdfminer.layout import glyphname_reliable as _fork_reliable
+except Exception:                                            # noqa: BLE001
+    _fork_reliable = None
+
+
+def _local_reliable(glyphname: str | None, fontname: str | None = None) -> bool:
+    if not glyphname:
+        return False
+    if fontname and _DINGBATS.search(fontname):
+        return True                     # a1…a191 are ZapfDingbats' own names
+    return not _PSEUDO_NAME.match(glyphname)
+
 
 def glyphname_reliable(glyphname: str | None,
                        fontname: str | None = None) -> bool:
-    """R2 — can this glyph name be read as the font's own name for the glyph?
+    """R2 — can this name be read as the font's own name for the glyph?
 
-    False for a numbered pseudo-name. A RELIABILITY FLAG, not a gate: the name
-    stays raw and nothing is suppressed. `untrusted_name` is the separate
-    function that abstains, and conflating "this name tells me nothing extra"
-    with "this glyph must not be emitted" would discard glyphs whose `text` is
-    perfectly good.
-
-    A name that is absent is not unreliable — it is absent, and the caller can
-    see that for itself; `None` is reported as reliable=False only because
-    there is nothing to rely on.
+    Delegates to the fork when it is installed, so there is ONE rule. A
+    reliability FLAG, not a gate: the name stays raw and nothing is
+    suppressed. `untrusted_name` is the separate function that abstains.
     """
-    if not glyphname:
-        return False
-    if _DINGBATS.search(fontname or ""):
-        # a1…a191 are ZapfDingbats' real names.
-        return True
-    return not _PSEUDO_NAME.match(glyphname)
+    if _fork_reliable is not None:
+        return _fork_reliable(glyphname, fontname)
+    return _local_reliable(glyphname, fontname)
 
 
 def synthesised_name(glyphname: str | None,
                      fontname: str | None = None) -> bool:
-    """The inverse of `glyphname_reliable`, kept because the glyph table and
-    its tests read in that direction."""
+    """The inverse, kept because the glyph table reads in that direction."""
     return bool(glyphname) and not glyphname_reliable(glyphname, fontname)
 
 
