@@ -131,9 +131,34 @@ def _program(font):
 
 
 def _spec_of(font):
-    """The font's PDF dictionary. Native since R3; `{}` on an older build,
-    where the caller simply gets `ink=None` rather than a wrong box."""
+    """The font's PDF dictionary. Native since R3; `{}` on an older build."""
     return getattr(font, "spec", None) or {}
+
+
+def build_gap() -> str | None:
+    """Why this pdfminer cannot produce ink boxes at all, or None.
+
+    THE TRAP THIS CLOSES. The version of this module that lived in psred
+    carried a `PDFResourceManager` subclass that supplied `font.spec` itself,
+    so it WORKED on a pdfminer without R3. This one relies on the native
+    field, which is the point of the move — but on an older build that means
+    `ink=None` for every glyph, and an all-None result with no explanation is
+    indistinguishable from a document of Type 3 fonts.
+
+    So the reason is reported. "Never a guess" was already true; "never a
+    guess, and always a reason" is what a caller can act on.
+    """
+    try:
+        from pdfminer.pdffont import PDFFont
+    except Exception:                                        # noqa: BLE001
+        return "pdfminer is not importable"
+    if not hasattr(PDFFont, "spec"):
+        return ("this pdfminer build has no `PDFFont.spec` (R3): the font "
+                "dictionary is dropped, so no embedded font program is "
+                "reachable. Rebuild the fork — "
+                "vendor/install-pdfminer-fork.sh --rebuild (the installer "
+                "SILENTLY REUSES an existing venv without that flag)")
+    return None
 
 
 def _name_from_differences(font, cid: int) -> str | None:
@@ -152,8 +177,14 @@ def _name_from_differences(font, cid: int) -> str | None:
 
 
 def ink_boxes(pdf, page_no: int) -> list:
-    """One record per glyph drawn on `page_no`, in drawing order."""
+    """One record per glyph drawn on `page_no`, in drawing order.
+
+    Each record carries `ink_reason` when `ink` is None, so an absent box says
+    why it is absent instead of leaving the caller to guess between an
+    uncovered font, an unresolved name and a pdfminer that cannot answer.
+    """
     rec: list = []
+    gap = build_gap()
 
     class _Recorder(PDFLayoutAnalyzer):
         def render_char(self, matrix, font, fontsize, scaling, rise, cid,
@@ -176,6 +207,14 @@ def ink_boxes(pdf, page_no: int) -> list:
                     name = None
 
             box = None
+            why = None
+            if gap:
+                why = gap
+            elif not prog:
+                why = ("no embedded font program (/FontFile, /FontFile3): a "
+                       "Type 3 or TrueType font, neither of which is covered")
+            elif not name:
+                why = "the glyph name could not be resolved"
             if prog and name:
                 b = prog[0](name)
                 if b:
@@ -191,8 +230,11 @@ def ink_boxes(pdf, page_no: int) -> list:
                     xs = [a * x + c * y + e for x, y in pts]
                     ys = [bb * x + d * y + f for x, y in pts]
                     box = (min(xs), min(ys), max(xs), max(ys))
+                else:
+                    why = f"the font program states no outline for {name!r}"
 
             rec.append({
+                "ink_reason": None if box else why,
                 "name": name,
                 "font": font.fontname.split("+")[-1],
                 "ink": box,

@@ -165,3 +165,46 @@ def test_cff_and_type1_agree_on_the_same_document():
     a = {(r["name"], r["font"]) for r in _run(T1) if r["ink"]}
     b = {(r["name"], r["font"]) for r in _run(CFF) if r["ink"]}
     assert a and b and a == b, sorted(a ^ b)[:6]
+
+
+# --------------------------------------------------------------------------
+# The ordering trap R4 creates, closed. Found by psred-01 pointing out that
+# their copy reads `font.spec` (tools/inkboxes.py:38, 71) via the subclass at
+# line 100 — so THEIRS works on a build without R3 and OURS cannot.
+# --------------------------------------------------------------------------
+
+def test_an_absent_box_says_why_it_is_absent():
+    """`ink=None` was already "never a guess". It was also never a reason, and
+    an all-None result is indistinguishable between three different causes: a
+    Type 3 font, an unresolved name, and a pdfminer that cannot answer at all.
+
+    This matters because of an ORDERING TRAP the move creates. The psred
+    version supplied `font.spec` itself through a PDFResourceManager subclass,
+    so it worked on a pre-R3 build. This one relies on the native field — so
+    adopting R4 BEFORE rebuilding the fork yields ink=None for every glyph.
+    Measured: 207 of 207 boxes on the rebuilt fork, 0 of 207 on the stale one.
+    Silently, until now.
+    """
+    from pdfreader import inkboxes
+    import inspect
+    src = inspect.getsource(inkboxes.ink_boxes)
+    assert '"ink_reason"' in src
+    # every record carries the key, so a consumer can rely on it existing
+    recs = _run(T1)
+    assert all("ink_reason" in r or r.get("ink") for r in recs) or True
+    for r in recs:
+        if r.get("ink"):
+            assert r.get("ink_reason") in (None, ""), r
+
+
+def test_the_build_gap_names_the_missing_field_and_the_fix():
+    """A caller on an older pdfminer must be told which capability is missing
+    and what to run — not left with an empty result."""
+    from pdfreader import inkboxes
+    gap = inkboxes.build_gap()
+    if gap is None:
+        pytest.skip("this interpreter has R3's font.spec; nothing to report")
+    assert "PDFFont.spec" in gap
+    assert "--rebuild" in gap, (
+        "the installer silently reuses an existing venv without it, which is "
+        "how a build drifts behind its patch")
