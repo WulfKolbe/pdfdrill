@@ -97,10 +97,10 @@ index 85d8c1f..2e5d74d 100644
 +                    cid += 1
 +        return cid2name
 diff --git a/pdfminer/layout.py b/pdfminer/layout.py
-index df818a1..21cf8de 100644
+index df818a1..6493b39 100644
 --- a/pdfminer/layout.py
 +++ b/pdfminer/layout.py
-@@ -359,11 +359,27 @@ class LTChar(LTComponent, LTText):
+@@ -359,11 +359,48 @@ class LTChar(LTComponent, LTText):
          textdisp: float | tuple[float | None, float],
          ncs: PDFColorSpace,
          graphicstate: PDFGraphicState,
@@ -125,10 +125,31 @@ index df818a1..21cf8de 100644
 +        # positions are still the OCR's, and can be far better than its
 +        # character identities.
 +        self.render_mode = render_mode
++        # THE THREE VALUES THIS CONSTRUCTOR IS GIVEN AND THEN THROWS AWAY.
++        #
++        # `fontsize`, `scaling` and `rise` arrive, are consumed to compute
++        # `adv`, `bbox` and `upright`, and are then unreachable. Every tool
++        # needing a glyph's true extent has to recover them, and both routes
++        # are traps:
++        #
++        #   * `matrix` does NOT contain the font size — it is the text matrix
++        #     times the CTM, and the size is applied separately to glyph
++        #     space. On ordinary text it reads (1, 0, 0, 1, tx, ty).
++        #   * `size` is taken, and means something else: the glyph box's width
++        #     or height depending on `upright`. On a 14.35pt line it happens
++        #     to EQUAL the font size, so a consumer reaching for `.size` gets
++        #     a number that looks right and is a different quantity.
++        #   * `scaling` here is ALREADY the PDF `Tz` divided by 100
++        #     (`PDFTextDevice.render_string`: `textstate.scaling * 0.01`).
++        #     Dividing again is the obvious mistake and yields x extents 100x
++        #     too narrow — measured in psred as featjudge finding F10.
++        self.fontsize = fontsize
++        self.scaling = scaling
++        self.rise = rise
          self.ncs = ncs
          self.graphicstate = graphicstate
          self.adv = textwidth * fontsize * scaling
-@@ -401,6 +417,18 @@ class LTChar(LTComponent, LTText):
+@@ -401,6 +438,18 @@ class LTChar(LTComponent, LTText):
              f"text={self.get_text()!r}>"
          )
  
@@ -177,7 +198,7 @@ index 89ebebe..a168dda 100644
          font = textstate.font
          fontsize = textstate.fontsize
 diff --git a/pdfminer/pdffont.py b/pdfminer/pdffont.py
-index 03a75e8..a647fe2 100644
+index 03a75e8..06e3d38 100644
 --- a/pdfminer/pdffont.py
 +++ b/pdfminer/pdffont.py
 @@ -3,6 +3,7 @@ import logging
@@ -219,7 +240,7 @@ index 03a75e8..a647fe2 100644
              try:
                  self._cid2unicode[cid] = name2unicode(cast(str, name))
              except KeyError as e:
-@@ -889,6 +907,27 @@ FontWidthDict = dict[int | str, float]
+@@ -889,6 +907,42 @@ FontWidthDict = dict[int | str, float]
  
  
  class PDFFont:
@@ -237,6 +258,21 @@ index 03a75e8..a647fe2 100644
 +    # with their own dict; they never mutate this one.
 +    cid2name: Mapping[int, str] = MappingProxyType({})
 +
++    # The font's own PDF dictionary, as written in the file.
++    #
++    # Stock pdfminer takes `spec` as a constructor argument, reads what it
++    # needs and drops it — so `/Differences`, and `/FontFile`/`/FontFile2`/
++    # `/FontFile3` under the descriptor, are unreachable from the font object
++    # afterwards. A tool that wants the EMBEDDED FONT PROGRAM (real glyph
++    # outlines; or the built-in encoding of a pdfTeX CM font, which carries no
++    # /Encoding at all) must then re-reach the dictionary by subclassing
++    # `PDFResourceManager.get_font` — which does not run for a font resolved
++    # before the subclass is installed, so the source silently never fires.
++    #
++    # Immutable empty default. Subclasses that receive a spec replace it with
++    # their own; they never mutate this one.
++    spec: Mapping[str, Any] = MappingProxyType({})
++
 +    def to_glyphname(self, cid: int) -> str | None:
 +        """The PostScript glyph name for `cid`, or None if the font does not
 +        state one. Never raises — unlike `to_unichr`, absence is an ordinary
@@ -247,7 +283,7 @@ index 03a75e8..a647fe2 100644
      def __init__(
          self,
          descriptor: Mapping[str, Any],
-@@ -980,6 +1019,20 @@ class PDFFont:
+@@ -980,6 +1034,20 @@ class PDFFont:
      def to_unichr(self, cid: int) -> str:
          raise NotImplementedError
  
@@ -268,7 +304,15 @@ index 03a75e8..a647fe2 100644
      @staticmethod
      def _parse_bbox(descriptor: Mapping[str, Any]) -> Rect:
          """Parse FontBBox from the fonts descriptor"""
-@@ -1019,8 +1072,24 @@ class PDFSimpleFont(PDFFont):
+@@ -1002,6 +1070,7 @@ class PDFSimpleFont(PDFFont):
+         widths: FontWidthDict,
+         spec: Mapping[str, Any],
+     ) -> None:
++        self.spec = spec
+         # Font encoding is specified either by a name of
+         # built-in encoding or a dictionary that describes
+         # the differences.
+@@ -1019,8 +1088,24 @@ class PDFSimpleFont(PDFFont):
              name = literal_name(encoding.get("BaseEncoding", default_encoding))
              diff = list_value(encoding.get("Differences", []))
              self.cid2unicode = EncodingDB.get_encoding(name, diff)
@@ -293,7 +337,7 @@ index 03a75e8..a647fe2 100644
  
          self.unicode_map: UnicodeMap | None = None
          if "ToUnicode" in spec:
-@@ -1068,6 +1137,7 @@ class PDFType1Font(PDFSimpleFont):
+@@ -1068,6 +1153,7 @@ class PDFType1Font(PDFSimpleFont):
              data = self.fontfile.get_data()[:length1]
              parser = Type1FontHeaderParser(BytesIO(data))
              self.cid2unicode = parser.get_encoding()
@@ -301,6 +345,17 @@ index 03a75e8..a647fe2 100644
  
      def __repr__(self) -> str:
          return f"<PDFType1Font: basefont={self.basefont!r}>"
+@@ -1108,6 +1194,10 @@ class PDFCIDFont(PDFFont):
+         spec: Mapping[str, Any],
+         strict: bool = settings.STRICT,
+     ) -> None:
++        # The OTHER root that receives a spec and drops it. Two assignments,
++        # not one: a reader who checks only PDFSimpleFont gets `font.spec == {}`
++        # on every CID font, with no error anywhere to say why.
++        self.spec = spec
+         try:
+             self.basefont = literal_name(spec["BaseFont"])
+         except KeyError:
 diff --git a/tests/test_glyphname.py b/tests/test_glyphname.py
 new file mode 100644
 index 0000000..38d60c8
