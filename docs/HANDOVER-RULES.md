@@ -657,3 +657,62 @@ implementation (two golds found one defect each), an identity that must close
 (`rows + not_measured == evidence_rows`), and a human opening the file. The
 defences that failed were every test and scan written by the same person who held
 the misconception.
+
+## 2026-10-03 — a proxy measured nothing, and a threshold narrowed every ink figure ever reported
+
+865 split the equation number out of a display equation's region and reported
+two numbers upward. Both were wrong, in opposite directions, and neither was
+caught by anything in this repo.
+
+**The miss rate (mine).** I counted my false negatives as "display rows whose
+region is still ~full column (>1300 px)" and got 246, which made my split rate
+45%. 1,300 was a round number chosen while looking at one document, and
+"region is wide" is a PROXY for "region contains a number" with no measurement
+behind it. inkdrill measured the ink: of those 246, **42** have an interior
+gap ≥ 190 px and the median gap in the set is **30 px** — most are long
+equations that legitimately span the column. The real candidate set is **91**,
+and the split rate is 202 of ~293, **69%**.
+
+The rule: *a proxy for a property is not a measurement of it, and the fact
+that a proxy is conservative does not make it safe.* An understated success
+rate is the same class of error as an overstated one — I committed 45% and
+reported it upward, and a reader would have concluded the fix barely worked.
+
+I had also generalised 62% from sigma26-075, my best document, to the corpus.
+The first number was from one document, the second from a proxy; neither was
+from the thing being counted.
+
+**The ceiling that made the threshold honest.** The 202 correctly split rows
+are a LABELLED population, and they bound the answer: after a number is
+removed, an interior gap never exceeds **188 px** on this corpus. That turns
+"pick a floor" into "sit above a measured ceiling, inside the 250–300 valley",
+with the sensitivity stated (≥190 → 91 rows, ≥250 → 70, ≥300 → 64). A
+threshold derived from a labelled population and published with its
+sensitivity is a choice a reader can disagree with. One picked while looking
+at the data it will classify is the failure both sessions were caught by twice
+in one week.
+
+**The grey ink (shared).** `vendor/blobcc.py:339` is
+`binarize(gray, threshold=128)` and `eqblobs.py:316` calls it with no
+override. A 217-grey arrow — 10,768 px of visible content in one sampled
+region — scores **0 ink**. So every ink figure either session has reported,
+including coverage percentages in the high nineties, is about **dark ink
+only**. Nothing measured is wrong; everything measured is narrower than it
+sounded. The 3% gutter cut re-centred last week was fitted to dark ink, so a
+document with a grey column rule was never a case it could see.
+
+The rule: *name the instrument's blind spot in the same message as the results
+that rest on it,* not when someone asks. inkdrill did this unprompted, in the
+message reporting the figures the limitation applies to. That is the standard.
+
+**And a classification error a measurement cannot fix.** sigma26-081 EQ0429 is
+listed as a display *equation* with `latex: "\varnothing [1, n]"`. It is a
+diagram: `∅ ⟵[grey ruler]⟶ [1,n]`. The LaTeX compiles and describes neither
+the arrow nor the structure, so it reads as a poor reading of an equation
+rather than a correct reading of the wrong kind of object — the shape that had
+`code` called "dropped entirely" when 97.5% of it was recovered. `[1,n]` is
+also textbook number geometry (115 px, 8 px off the right edge, behind a
+1,864 px gap), so the ink alone would have manufactured a number from a
+diagram. The gap is NECESSARY AND NOT SUFFICIENT: ink finds the separation,
+`project_mmd.equation_number`'s parenthesis-at-the-margin test confirms the
+content. Neither instrument is safe alone.
