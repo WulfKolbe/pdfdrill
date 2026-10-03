@@ -39,6 +39,18 @@ _PAGE_IMAGE_COVER = 0.85
 _SCAN_PAGE_SHARE = 0.8
 
 
+def scan_page_set(images, page_count, page_w, page_h) -> set:
+    """The pages that ARE a page-covering image. One implementation, used both
+    by the scan test below and by R5's render-mode sample — a second copy of
+    "which pages are the scan" is a second thing to keep in step."""
+    if not images or not page_count or page_w <= 0 or page_h <= 0:
+        return set()
+    page_area = page_w * page_h
+    return {img.get("page") for img in images
+            if (float(img.get("w_pt") or 0) * float(img.get("h_pt") or 0))
+            >= _PAGE_IMAGE_COVER * page_area}
+
+
 def is_scanned_page_images(images, page_count, page_w, page_h) -> bool:
     """True if the document looks like a SCAN from its image geometry alone.
 
@@ -50,13 +62,10 @@ def is_scanned_page_images(images, page_count, page_w, page_h) -> bool:
 
     `images` are dicts with `page`, `w_pt`, `h_pt` (points).
     """
-    if not images or not page_count or page_w <= 0 or page_h <= 0:
+    if not page_count:
         return False
-    page_area = page_w * page_h
-    covered = {img.get("page") for img in images
-               if (float(img.get("w_pt") or 0) * float(img.get("h_pt") or 0))
-               >= _PAGE_IMAGE_COVER * page_area}
-    return len(covered) >= _SCAN_PAGE_SHARE * page_count
+    return len(scan_page_set(images, page_count, page_w, page_h)) \
+        >= _SCAN_PAGE_SHARE * page_count
 
 
 def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
@@ -133,6 +142,44 @@ def format_decision(d: RouteDecision, name: str) -> str:
             f"  Next: {d.command}")
 
 
+def scan_pages_for(pdf, page_count) -> list:
+    """The scan pages, from `pdfimages -list`. Shares `scan_page_set` with the
+    scan test, so the two cannot disagree about which pages the scan is on."""
+    try:
+        imgs, pw, ph = _images_and_page_size(pdf)
+        return sorted(p for p in scan_page_set(imgs, page_count, pw, ph) if p)
+    except Exception:                                        # noqa: BLE001
+        return []
+
+
+def _images_and_page_size(pdf):
+    from pathlib import Path as _P
+
+    from .font_image_layers import fetch_pdfimages_list
+    from .pdfinfo_layers import fetch_pdfinfo_struct
+    info = fetch_pdfinfo_struct(_P(pdf)) or {}
+    pw, ph = _page_size_pt(info)
+    imgs = []
+    for r in fetch_pdfimages_list(pdf) or []:
+        xppi = float(r.get("x_ppi") or 0) or 72.0
+        yppi = float(r.get("y_ppi") or 0) or 72.0
+        imgs.append({"page": r.get("page"),
+                     "w_pt": float(r.get("width_px") or 0) / xppi * 72.0,
+                     "h_pt": float(r.get("height_px") or 0) / yppi * 72.0})
+    return imgs, pw, ph
+
+
+def font_names_for(pdf) -> list:
+    """Embedded font names, from poppler's `pdffonts`."""
+    import subprocess
+    try:
+        out = subprocess.run(["pdffonts", str(pdf)], capture_output=True,
+                             text=True, timeout=60).stdout
+    except Exception:                                        # noqa: BLE001
+        return []
+    return [l.split()[0] for l in out.splitlines()[2:] if l.split()]
+
+
 def scanned_images_for(pdf, page_count) -> "Optional[bool]":
     """Ask `pdfimages -list` whether this document is one full-page image per page.
 
@@ -141,20 +188,9 @@ def scanned_images_for(pdf, page_count) -> "Optional[bool]":
     rather than guessing.
     """
     try:
-        from .font_image_layers import fetch_pdfimages_list
-        from pathlib import Path as _P
-        from .pdfinfo_layers import fetch_pdfinfo_struct
-        info = fetch_pdfinfo_struct(_P(pdf)) or {}
-        pw, ph = _page_size_pt(info)
+        imgs, pw, ph = _images_and_page_size(pdf)
         if not (pw and ph):
             return None
-        imgs = []
-        for r in fetch_pdfimages_list(pdf) or []:
-            xppi = float(r.get("x_ppi") or 0) or 72.0
-            yppi = float(r.get("y_ppi") or 0) or 72.0
-            imgs.append({"page": r.get("page"),
-                         "w_pt": float(r.get("width_px") or 0) / xppi * 72.0,
-                         "h_pt": float(r.get("height_px") or 0) / yppi * 72.0})
         return is_scanned_page_images(imgs, page_count, pw, ph)
     except Exception:                                        # noqa: BLE001
         return None
@@ -181,3 +217,133 @@ def route_for_sidecar(sc) -> RouteDecision:
         needs_ocr=sc.get_evidence("needs_ocr"),
         page_count=pages,
         scanned_images=scanned)
+
+
+# ---------------------------------------------------------------------------
+# R5 (CR-pdfminer-single-version) — RENDER MODE IN THE SCAN TRIAGE.
+#
+# The lane was already right: `is_scanned_page_images` sends all three of
+# psred's scan fixtures to the scanned lane. What the triage could not say is
+# WHICH KIND of scan it is — `scan_only` (no text at all) and
+# `scan_ocr_invisible` (154 characters of someone's OCR, drawn invisibly over
+# the raster) were reported identically, as "scanned, 1 pages".
+#
+# That distinction decides whether a text layer exists to be re-served, and
+# the obvious test for it does not work: Tesseract's `GlyphLessFont` names
+# only Tesseract. `scan_ocr_invisible.pdf` carries its OCR in CMR10 and no
+# font name betrays it. What does is the PDF text rendering mode — `Tr 3`
+# (neither fill nor stroke) and `Tr 7` (clip only) put no marks on the page,
+# which is how an OCR layer is written over a page image.
+#
+# The rule is psred's, unchanged, so both sides answer the same question the
+# same way (`psred/preflight.py:check`).
+# ---------------------------------------------------------------------------
+
+#: Text rendering modes that draw nothing.
+INVISIBLE_MODES = (3, 7)
+
+#: At most this many scan pages are sampled; pages 1-2 are added for context.
+_SAMPLE_SCAN_PAGES = 5
+
+
+def render_mode_counts(pdf, pages):
+    """{render mode: characters drawn} over the given 1-based pages, or None.
+
+    `{}` and `None` are DIFFERENT ANSWERS and the caller depends on it: an
+    empty dict means the pages were read and carry no text, which is exactly
+    what a scan with no OCR layer looks like; `None` means the reading itself
+    failed and nothing is known. Collapsing them would report "no OCR layer"
+    for a document nobody could read — absent reported as false.
+
+    Read from the TEXT STATE rather than from `LTChar.render_mode`, so it works
+    on a stock pdfminer too; the patched build carries the same value. This
+    runs on documents the triage has already called scanned, so it must not
+    depend on the fork being installed.
+    """
+    import collections
+    pages = {int(p) for p in pages if p}
+    if not pages:
+        return {}
+    try:
+        from pdfminer.converter import PDFLayoutAnalyzer
+        from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
+        from pdfminer.pdfpage import PDFPage
+    except Exception:                                        # noqa: BLE001
+        return None
+    cnt: "collections.Counter" = collections.Counter()
+
+    class _Dev(PDFLayoutAnalyzer):
+        def render_string(self, textstate, seq, ncs, graphicstate):
+            self._tr = textstate.render
+            return super().render_string(textstate, seq, ncs, graphicstate)
+
+        def render_char(self, *a, **k):
+            cnt[getattr(self, "_tr", 0)] += 1
+            return super().render_char(*a, **k)
+
+    try:
+        rm = PDFResourceManager()
+        dev = _Dev(rm)
+        last = max(pages)
+        with open(pdf, "rb") as fh:
+            for i, page in enumerate(PDFPage.get_pages(fh), 1):
+                if i in pages:
+                    PDFPageInterpreter(rm, dev).process_page(page)
+                if i >= last:
+                    break
+    except Exception:                                        # noqa: BLE001
+        # A reader failure must not stop the triage, and must not be reported
+        # as "no OCR layer" either.
+        return None
+    return dict(cnt)
+
+
+def ocr_layer_for(pdf, *, scan_pages, page_count, font_names=(),
+                  scanned=None) -> dict:
+    """Does this document carry an OCR text layer? psred's rule, unchanged.
+
+    Returns a dict rather than a bool, because "no" and "could not tell" are
+    different answers and the triage must not print the first when it means
+    the second.
+    """
+    scan_pages = sorted(int(p) for p in (scan_pages or ()) if p)
+    glyphless = any("GlyphLessFont" in (n or "") for n in font_names)
+    sample = set(scan_pages[:_SAMPLE_SCAN_PAGES]) | {
+        p for p in (1, 2) if page_count and p <= page_count}
+    modes = render_mode_counts(pdf, sample) if sample else {}
+    readable = modes is not None
+    modes = modes or {}
+    # Counted on the SCAN pages only: pages 1-2 are sampled for context and a
+    # title page of real text there would dilute the share.
+    scan_modes = (render_mode_counts(pdf, scan_pages[:_SAMPLE_SCAN_PAGES])
+                  if scan_pages and readable else {}) or {}
+    scan_invis = sum(n for m, n in scan_modes.items() if m in INVISIBLE_MODES)
+    scan_total = sum(scan_modes.values())
+    invisible_majority = scan_total > 0 and scan_invis * 2 >= scan_total
+    has_text = bool(font_names)
+    if scanned is None:
+        scanned = bool(scan_pages) and page_count and \
+            len(scan_pages) >= _SCAN_PAGE_SHARE * page_count
+    why = []
+    if glyphless:
+        why.append("a GlyphLessFont (Tesseract's OCR font)")
+    if invisible_majority:
+        why.append(f"{scan_invis} of {scan_total} characters on the scan pages "
+                   f"are invisible (render mode 3/7)")
+    if scanned and has_text and not (glyphless or invisible_majority):
+        why.append("a text layer on a scan, which is somebody's OCR output")
+    return {
+        "ocr_layer": bool(glyphless or invisible_majority
+                          or (scanned and has_text)),
+        "glyphless_font": glyphless,
+        "invisible_chars": scan_invis,
+        "chars_on_scan_pages": scan_total,
+        "pages_sampled": sorted(sample),
+        "modes": modes,
+        # KNOWN means the question was answered, not that the answer was yes.
+        # A scan we could read that carries no text at all is a DEFINITE "no
+        # OCR layer" — reporting that as unknown was the first version's bug,
+        # and it left `scan_only.pdf` with nothing said about it.
+        "known": readable or glyphless or bool(font_names),
+        "why": why,
+    }

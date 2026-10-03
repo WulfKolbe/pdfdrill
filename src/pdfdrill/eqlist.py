@@ -461,9 +461,18 @@ def build(library: Path, *, name: str = "eqlist", kind: str | None = None,
                                     meta.get("pages"), why,
                                     kind=kind, n_of_kind=len(pool)))
 
+    try:
+        from pdfreader import build_identity as _bi
+        built_with = _bi.identity()
+    except Exception:                                        # noqa: BLE001
+        built_with = None
     return {
         "schema": SCHEMA,
         "name": name,
+        # R6 — the git rev says which CODE ran; this says which pdfminer it ran
+        # ON, installed outside git. A machine quietly running stock pdfminer
+        # produces a complete-looking list with glyph identity absent.
+        "built_with": built_with,
         "frame": FRAME,
         "crop_url_template": "{base}/cropped/{id}.jpg?{query}",
         "selection": {
@@ -643,7 +652,8 @@ CSV_FIELDS = [
     "x0_pt", "y0_pt", "x1_pt", "y1_pt",
     "px_x", "px_y", "px_w", "px_h",
     "kind", "number", "confidence", "structural_ok", "lost_operand",
-    "latex_sha16", "latex_origin", "reader_version", "pdf_path", "crop_id",
+    "latex_sha16", "latex_origin", "reader_version", "pdfminer_version",
+    "pdf_path", "crop_id",
     "latex",
 ]
 
@@ -652,6 +662,9 @@ def csv_rows(data: dict):
     """Yield CSV_FIELDS-ordered tuples. `latex` is last because it is the only
     unbounded field, so a truncated line still loses only the LaTeX."""
     docs = {d["document"]: d for d in (data.get("documents") or [])}
+    # One value for the whole list: the build is a property of the run, not of
+    # a row, and repeating it per row would invite someone to vary it.
+    pdfminer_version = ((data.get("built_with") or {}).get("version") or "")
     for r in data.get("rows") or []:
         d = docs.get(r.get("document")) or {}
         w, h = d.get("page_width_pt") or 0.0, d.get("page_height_pt") or 0.0
@@ -668,6 +681,7 @@ def csv_rows(data: dict):
             r.get("structural_ok"), r.get("lost_operand") or "",
             r.get("latex_sha16") or "",
             d.get("latex_origin") or "", d.get("reader_version") or "",
+            pdfminer_version,
             (d.get("inputs", {}).get("pdf") or {}).get("path") or "",
             (r.get("crop") or {}).get("id") or "",
             r.get("latex") or "",

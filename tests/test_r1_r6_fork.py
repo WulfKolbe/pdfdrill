@@ -27,19 +27,52 @@ from pdfreader import build_identity                          # noqa: E402
 # R6 — which pdfminer produced this output.
 # --------------------------------------------------------------------------
 
-def test_the_build_identity_names_the_module_actually_loaded():
+def test_the_build_identity_uses_psreds_keys():
+    """R6 asks for "the same" record psred writes, so the two tools' outputs
+    can be compared directly: `{version, glyph_identity_patch}`."""
     d = build_identity.identity()
-    assert "pdfminer" in d and "fork_present" in d
+    assert "version" in d and "glyph_identity_patch" in d
+    assert isinstance(d["glyph_identity_patch"], bool)
     assert d["patch"] == "pdfminer-glyph-identity.patch"
 
 
-def test_fork_presence_is_asked_of_the_class_not_a_file():
+def test_one_boolean_can_no_longer_describe_the_patch():
+    """THIS MODULE'S OWN FINDING. `glyph_identity_patch` was a fair summary
+    when the patch did one thing. R2 and R3 added `glyphname_reliable`,
+    `font.spec` and `LTChar.fontsize/scaling/rise`, and the bool cannot see
+    the difference — measured on this machine, the live build and the built
+    fork BOTH report True and only one can do what R3 and R4 depend on. So a
+    `features` map is carried beside it."""
+    d = build_identity.identity()
+    f = d["features"]
+    for k in ("glyph_identity", "font_spec", "char_text_state",
+              "glyphname_reliable", "render_mode"):
+        assert k in f and isinstance(f[k], bool), k
+    # the bool is exactly the original question, unchanged in meaning
+    assert d["glyph_identity_patch"] is f["glyph_identity"]
+
+
+def test_a_build_older_than_the_patch_is_reported():
+    """`patch_sha256` names the patch ON DISK; the loaded pdfminer was built
+    from whichever patch was current when the installer last ran. Recording
+    the first while describing the second is provenance that is worse than
+    none — so the gap is reported. It is not hypothetical: the installer
+    silently reuses an existing venv without --rebuild, which is how a build
+    drifts behind its patch unnoticed."""
+    d = build_identity.identity()
+    assert isinstance(d["build_behind_patch"], list)
+    for name in d["build_behind_patch"]:
+        assert d["features"][name] is False, name
+
+
+def test_feature_presence_is_asked_of_the_loaded_module_not_a_file():
     """An installer that exited 0 is not an answer, and a version string does
     not say whether the patch took. The question is what THIS process is
     running, so it is asked of the imported class."""
     src = Path(build_identity.__file__).read_text(encoding="utf-8")
     assert "hasattr(EncodingDB" in src
-    assert 'get_encoding_names' in src
+    assert "hasattr(PDFFont" in src
+    assert "get_encoding_names" in src
 
 
 def test_the_patch_hash_identifies_the_fork():

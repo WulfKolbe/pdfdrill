@@ -14901,6 +14901,25 @@ def cmd_route(pdf: Path, run: bool = False) -> str:
         sc = Sidecar(pdf)
     d = _r.route_for_sidecar(sc)
     sc.set_evidence("ocr_route", {"lane": d.lane, "cost": d.cost, "reason": d.reason})
+    # R5 — WHICH KIND OF SCAN. The lane was already right; what the triage
+    # could not say is whether a text layer exists to be re-served. A
+    # GlyphLessFont names only Tesseract, and psred's
+    # `scan_ocr_invisible.pdf` carries 154 characters of OCR in CMR10 with no
+    # font name to betray it. The PDF text rendering mode does: `Tr 3`/`Tr 7`
+    # draw nothing, which is how an OCR layer is written over a page raster.
+    ocr_note = ""
+    if d.lane in ("gemma", "mathpix"):
+        pages = sc.get_evidence("pages", 0)
+        scan_pages = _r.scan_pages_for(pdf, pages)
+        info = _r.ocr_layer_for(pdf, scan_pages=scan_pages, page_count=pages,
+                                font_names=_r.font_names_for(pdf), scanned=True)
+        sc.set_evidence("ocr_layer", info)
+        if info["ocr_layer"]:
+            ocr_note = ("\n  scanned WITH an OCR layer: " + "; ".join(info["why"])
+                        + ". That text is somebody else's reading of the page, "
+                          "not the page — extracting it re-serves their errors.")
+        elif info["known"]:
+            ocr_note = "\n  scanned, no OCR layer: there is no text to re-serve."
     sc.save()
     # The PRODUCER (pdfinfo — already fetched by `size` above) can veto a lane.
     # Report it with the decision, so "born-digital" never silently means
@@ -14908,6 +14927,7 @@ def cmd_route(pdf: Path, run: bool = False) -> str:
     from .producer_policy import policy_note as _policy_note
     veto = _policy_note(str(sc.get_evidence("producer") or ""))
     tail = ("\n  POLICY: " + veto) if veto else ""
+    tail += ocr_note
     if not run:
         return (_r.format_decision(d, pdf.name) + tail
                 + "\n  (add --run to execute this lane now)")
