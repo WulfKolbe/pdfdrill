@@ -79,3 +79,28 @@ dist/
 # installer live in vendor/; these are their scratch and output dirs.
 .pdfmm-venv/
 .pdfmm-build/
+
+# ------------------------------------------------------------------
+# A DRILLED DOCUMENT DOES NOT LIVE IN THE CODE REPO.
+#
+# This is a PUBLIC repository. `subq-1-1-small-model-card` was committed here
+# whole — the PDF, its .md, its .lines.json — so a third party's technical
+# report and its full extracted text were published. The library is private
+# and is where documents belong; `/*.pdf` already blocked the PDF itself, but
+# nothing blocked everything AROUND it, which is the part that carries the
+# content.
+# ------------------------------------------------------------------
+/*.drill/
+/*.drill.json
+/*.lines.json
+/*.chars.json
+/*.md.drill
+/*.tex.zip
+/*.tgz
+/data/*.pdf
+/data/*.drill/
+/data/*.drill.json
+/data/*.lines.json
+/data/*.chars.json
+/data/*.tex.zip
+/data/*.tgz
