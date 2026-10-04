@@ -308,9 +308,29 @@ def _document_entry(folder: Path, bibkey: str, n_rows: int, n_listed: int,
     w_pt, h_pt = page_size_pt(_sidecar_meta(folder, bibkey))
     eqj = folder / f"{bibkey}.equations.json"
     origin, rev = "glyph-reader", ""
+    page_sizes: dict = {}
     try:
         _d = json.load(open(eqj, encoding="utf-8"))
         rev = ((_d.get("produced_by") or {}).get("rev") or "")
+        # A PAGE SIZE IS A PROPERTY OF THE PAGE, NOT OF THE DOCUMENT, and
+        # `pdfinfo` reports page 1. A book with a differently sized cover —
+        # which is ordinary — then has every row measured against the cover:
+        # Essler's Hubbard Model declares 326 x 498 pt from its cover while
+        # 201 of the next 202 pages are 612 x 792, so 2,760 of its regions
+        # "extended past the page" that were entirely inside it. 6.14% of the
+        # corpus list, concentrated in 104 documents, all books.
+        #
+        # The reader has known this all along: `equations.json` and
+        # `eqglyphs.json` both carry a full per-page map. The list simply was
+        # not reading it.
+        # `pages` is a MAP here, but an older artefact can carry an integer
+        # page COUNT under the same key. Taking the key on faith raised
+        # AttributeError on the first such document; the shape is checked
+        # rather than assumed.
+        _pg = _d.get("pages")
+        if isinstance(_pg, dict):
+            page_sizes = {str(k): v for k, v in _pg.items()
+                          if isinstance(v, dict)}
         # THE ORACLE RULE. A reference derived from the same features being
         # evaluated measures itself. This reading comes from the glyph reader,
         # so it is NOT an independent reference for anything built on glyphs —
@@ -323,8 +343,14 @@ def _document_entry(folder: Path, bibkey: str, n_rows: int, n_listed: int,
     return {
         "document": bibkey,
         "folder": str(folder),
+        # Kept as the document-level fallback for a reading built before the
+        # per-page map existed; `pages` is the answer when it is there.
         "page_width_pt": w_pt,
         "page_height_pt": h_pt,
+        # NOT `pages` — that key already holds the page COUNT, and a second
+        # `"pages":` in the same dict literal silently kept the integer. The
+        # map is the per-page geometry and gets its own name.
+        "page_sizes": page_sizes,
         "latex_origin": origin,
         "reader_version": rev,
         "producer": producer,
@@ -551,6 +577,30 @@ def validate(data: dict) -> list:
         out.append(f"{no_region} pdf-lane row(s) carry no region, so nothing "
                    f"can be placed or cropped for them")
 
+    # A REGION OUTSIDE ITS OWN PAGE. `validate()` never checked this and the
+    # README claimed it: 16,729 rows (6.14%) extended past the page they name,
+    # one of them 11.9x the page width. Almost all of it was the page-size
+    # fallback described in `page_size_for`, but the check belongs here
+    # regardless — the artefact asserts the property, so the artefact tests it.
+    docmap = {d.get("document"): d for d in (data.get("documents") or [])}
+    outside = 0
+    for r in rows:
+        ident = r.get("identity") or {}
+        reg = ident.get("region") or {}
+        if not reg:
+            continue
+        w, h = page_size_for(docmap.get(ident.get("document")),
+                             ident.get("page"))
+        if not (w and h):
+            continue
+        if (reg.get("top_left_x", 0) + reg.get("width", 0) > w * PX_PER_PT + 1
+                or reg.get("top_left_y", 0) + reg.get("height", 0)
+                > h * PX_PER_PT + 1):
+            outside += 1
+    if outside:
+        out.append(f"{outside} region(s) extend past the page they name — a "
+                   f"crop of one lands partly or wholly off the page")
+
     # The documents a row names must be present, or the measuring side cannot
     # calibrate and the lane silently degrades into refusals.
     named = {d.get("document") for d in (data.get("documents") or [])}
@@ -658,6 +708,56 @@ CSV_FIELDS = [
 ]
 
 
+def utf8_safe(text: str) -> str:
+    r"""Valid UTF-8, losslessly, for a string that may hold raw filesystem bytes.
+
+    A FILENAME IS BYTES, NOT TEXT. Eight documents in this library are named
+    in Latin-1 — `NSA. Die Anatomie des m\xe4chtigsten…` — and Python carries
+    those undecodable bytes as surrogates. Writing them out with
+    `errors="surrogateescape"` reproduces the exact bytes, which is right for
+    a path and WRONG for an exchange format: 3,934 rows of the corpus CSV were
+    then not valid UTF-8, and a strict reader fails on the file rather than on
+    the row.
+
+    So the undecodable bytes are percent-encoded, which is valid UTF-8, lossless
+    and standard. A consumer that needs the real path does
+
+        os.fsdecode(urllib.parse.unquote_to_bytes(value))
+
+    and gets the original bytes back. A consumer that only wants to read the
+    file no longer has to know any of this.
+    """
+    if not text:
+        return text or ""
+    try:
+        text.encode("utf-8")
+        return text
+    except UnicodeEncodeError:
+        from urllib.parse import quote
+        raw = text.encode("utf-8", "surrogateescape")
+        # Keep everything printable-ASCII and the path separators readable;
+        # only the bytes that are not valid UTF-8 become %XX.
+        return quote(raw, safe="/ ()[]{}.,-_+=@~!$&';:#?*")
+
+
+def page_size_for(doc_entry: dict, page) -> tuple:
+    """(width, height) in points for ONE page of a document.
+
+    Falls back to the document-level value only when the per-page map is
+    absent, which is a reading built before the map existed — never silently,
+    because the fallback is what produced the 6.14% of rows that appeared to
+    lie outside their own page.
+    """
+    sizes = (doc_entry or {}).get("page_sizes") or {}
+    if not isinstance(sizes, dict):
+        sizes = {}
+    got = sizes.get(str(page)) if page is not None else None
+    if isinstance(got, dict) and got:
+        return (got.get("width_pt") or 0.0), (got.get("height_pt") or 0.0)
+    return ((doc_entry or {}).get("page_width_pt") or 0.0,
+            (doc_entry or {}).get("page_height_pt") or 0.0)
+
+
 def csv_rows(data: dict):
     """Yield CSV_FIELDS-ordered tuples. `latex` is last because it is the only
     unbounded field, so a truncated line still loses only the LaTeX."""
@@ -667,11 +767,17 @@ def csv_rows(data: dict):
     pdfminer_version = ((data.get("built_with") or {}).get("version") or "")
     for r in data.get("rows") or []:
         d = docs.get(r.get("document")) or {}
-        w, h = d.get("page_width_pt") or 0.0, d.get("page_height_pt") or 0.0
+        page = (r.get("identity") or {}).get("page")
+        w, h = page_size_for(d, page)
         reg = (r.get("identity") or {}).get("region") or {}
         pts = rect_pt(reg, h)
-        yield (
-            r.get("document"), r.get("label"), (r.get("identity") or {}).get("page"),
+        # EVERY string field, not a chosen few. The first attempt sanitised
+        # `document` and `pdf_path` and still left 3,934 invalid rows, because
+        # `crop_id` is built FROM the document name. Picking the fields by hand
+        # is how one of them gets missed; the row is the unit.
+        yield tuple(utf8_safe(v) if isinstance(v, str) else v for v in (
+            r.get("document"), r.get("label"),
+            (r.get("identity") or {}).get("page"),
             w or "", h or "",
             pts[0] if pts else "", pts[1] if pts else "",
             pts[2] if pts else "", pts[3] if pts else "",
@@ -685,4 +791,4 @@ def csv_rows(data: dict):
             (d.get("inputs", {}).get("pdf") or {}).get("path") or "",
             (r.get("crop") or {}).get("id") or "",
             r.get("latex") or "",
-        )
+        ))

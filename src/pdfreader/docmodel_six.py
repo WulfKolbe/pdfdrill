@@ -1388,6 +1388,23 @@ def _diagram_regions(glyphs: list["GlyphNode"],
         return []
     size = _dominant_size(glyphs)
     gap = 3.0 * size
+    # A PAGE CAN HAVE MARKS AND NO MEASURABLE TEXT SIZE: a full-page figure
+    # made entirely of drawing-font glyphs and strokes leaves `_dominant_size`
+    # with nothing to take a mode of, and it returns 0. `gap` is then 0 and the
+    # grid key below divides by it — 22 documents in the corpus pass died
+    # there, the largest class of the 47.
+    #
+    # The join distance has to come from somewhere, so it comes from the marks
+    # themselves: the median mark height, which is the only scale the page
+    # actually states. A page whose marks have no height either is a page with
+    # nothing to cluster.
+    if gap <= 0:
+        heights = sorted(r[3] - r[1] for r in marks if r[3] > r[1])
+        if not heights:
+            return []
+        gap = 3.0 * heights[len(heights) // 2]
+    if gap <= 0:
+        return []
 
     # Clustering on a GRID, not all-pairs. A dense vector figure can carry
     # tens of thousands of path objects -- one page of this corpus has 30,065
@@ -2629,6 +2646,11 @@ def _group_lines(glyphs: list[GlyphNode],
     return [sorted(r, key=lambda g: g.rect[0]) for r in rows]
 
 
+#: (path, pages_read, reason) when the last `build()` stopped early, else None.
+#: Read by `cmd_equations` so a truncated document says so in its report.
+LAST_READ_ERROR: "tuple | None" = None
+
+
 def build(path: str, pages: Iterable[int] | None = None) -> list[PageNode]:
     """Build the document model. One GlyphNode per LTChar, no exceptions."""
     out: list[PageNode] = []
@@ -2640,7 +2662,32 @@ def build(path: str, pages: Iterable[int] | None = None) -> list[PageNode]:
     # widths. Names are unreliable: a publisher's subset can be called
     # anything, and this journal sets its listings in a proportional face.
     set_measured_monospace(measure_monospace(_advance_samples(path, pages)))
-    for idx, layout in enumerate(extract_pages(path, page_numbers=pages)):
+    # ONE BAD PAGE MUST NOT COST THE DOCUMENT.
+    #
+    # `extract_pages` is a generator, so an exception raised inside it ends the
+    # iteration: everything already read is discarded and the caller gets
+    # nothing. Two pdfminer defects do exactly that, and they are pdfminer's,
+    # not ours — a corrupt LZW stream (`lzw.py:61`, IndexError) and a TrueType
+    # cmap subtable format pdfminer does not implement (`pdffont.py:798`,
+    # AssertionError('Unhandled', 14)). Between them they cost 10 documents of
+    # the corpus pass, each losing every page for the sake of one.
+    #
+    # Patching pdfminer is the wrong answer: the vendored fork is additive by
+    # construction and adding error handling to it would change behaviour for
+    # every caller. So the loop keeps what it has. A document that dies on
+    # page 400 now yields 399 pages and says so, instead of yielding nothing.
+    # A document that dies on page 1 still yields nothing — honestly.
+    read_error = None
+    _pages_iter = extract_pages(path, page_numbers=pages)
+    while True:
+        try:
+            idx_layout = next(_pages_iter, None)
+        except Exception as e:                               # noqa: BLE001
+            read_error = f"{type(e).__name__}: {e}"
+            break
+        if idx_layout is None:
+            break
+        idx, layout = len(out), idx_layout
         pno = (list(pages)[idx] + 1) if pages is not None else idx + 1
         items: list = []
         for e in layout:
@@ -2713,6 +2760,22 @@ def build(path: str, pages: Iterable[int] | None = None) -> list[PageNode]:
                     # Without this the table added to texmap was unreachable:
                     # `project` keys on the glyph NAME, and there was none.
                     gname = o.get_text()
+                # A GLYPH NAME IS TEXT, AND A FONT CAN HAND US BYTES.
+                # pdfminer's Type 1 header parser stores what the font program
+                # states with `cast(str, name)` — a cast, not a conversion, so
+                # a program whose names arrive as bytes propagates them all the
+                # way here. Every downstream consumer then does string work on
+                # them: `texmap.codepoint_of` matched a str regex against bytes
+                # and raised, costing 8 documents in the corpus pass, the
+                # Bronshtein handbook among them.
+                #
+                # Normalised ONCE, here, where names enter the model — not in
+                # `codepoint_of`, which is one of a dozen readers of this field.
+                # latin-1 cannot fail and preserves the byte values, which is
+                # right for PostScript names: they are ASCII in practice and
+                # the point is to stop a type error, not to invent an encoding.
+                if isinstance(gname, (bytes, bytearray)):
+                    gname = bytes(gname).decode("latin-1", "replace")
                 glyphs.append(
                     GlyphNode(
                         id=f"p{pno}g{n}", page=pno,
@@ -3641,6 +3704,17 @@ def build(path: str, pages: Iterable[int] | None = None) -> list[PageNode]:
         page.frames = listings.frames(rules, span_pt)
         page.listings = listings.accumulate(page)
         out.append(page)
+    # A PARTIAL READ MUST NOT LOOK LIKE A COMPLETE ONE. If nothing was read
+    # the failure is the honest answer and is raised as before; if something
+    # was, the pages are returned AND the reason is recorded, so the caller
+    # reports "read N pages, then …" rather than presenting a truncated
+    # document as the document.
+    if read_error:
+        if not out:
+            raise RuntimeError(read_error)
+        globals()["LAST_READ_ERROR"] = (path, len(out), read_error)
+    else:
+        globals()["LAST_READ_ERROR"] = None
     return out
 
 

@@ -662,7 +662,13 @@ def _gutter_column(rows, cell: float):
     for _ln, gs in rows:
         gs = [g for g in gs if g.text.strip()]
         i = 0
-        while i < len(gs) and gs[i].text.isdigit():
+        # `isdecimal()`, NOT `isdigit()`. Python's `isdigit()` is True for
+        # SUPERSCRIPTS — '¹', '⁸', '²' — and `int()` then raises ValueError on
+        # exactly the characters the test just accepted. It cost 7 documents in
+        # the corpus pass, all of them books with footnote markers in a column
+        # the gutter scan walks. `isdecimal()` is the predicate that matches
+        # what `int()` will take.
+        while i < len(gs) and gs[i].text.isdecimal():
             i += 1
         if not i or i >= len(gs):
             continue
@@ -694,7 +700,11 @@ def _gutter_column(rows, cell: float):
 
 def _number(lead) -> int | None:
     t = "".join(g.text for g in lead).strip()
-    return int(t) if t.isdigit() else None
+    # `isdecimal()` again: `isdigit()` accepts the superscripts `int()`
+    # then rejects. Same trap as `_gutter_column` above, 40 lines apart
+    # and found separately — the first fix made this one the next
+    # failure on the same document.
+    return int(t) if t.isdecimal() else None
 
 
 # ------------------------------------------------------------- the frame

@@ -20405,6 +20405,9 @@ def cmd_equations(pdf: Path, force: bool = False, glyphs: bool = False) -> str:
         pages = _dm.build(str(pdf))
     except Exception as e:                                   # noqa: BLE001
         return f"equations: could not read {pdf.name} — {e}"
+    # A document the reader could only partly read must say so in its own
+    # report, not be presented as whole.
+    partial = getattr(_dm, "LAST_READ_ERROR", None)
     data = _eqmod.to_json(pages, bibkey=key)
     # The page geometry the whole coordinate story hangs on. Three systems are
     # in play — PDF points y-up (pdfminer/psred), 250 dpi pixels y-down
@@ -20452,7 +20455,10 @@ def cmd_equations(pdf: Path, force: bool = False, glyphs: bool = False) -> str:
     return (f"equations: {c.get('total', 0)} row(s) from {pdf.name} — "
             f"{c.get('display', 0)} display, {c.get('inline', 0)} inline; "
             f"{c.get('complete', 0)} complete, {c.get('unbalanced', 0)} "
-            f"unbalanced, {c.get('empty', 0)} empty. Wrote {out.name}.{gnote} "
+            f"unbalanced, {c.get('empty', 0)} empty. Wrote {out.name}.{gnote}"
+            + (f" PARTIAL READ: {len(pages)} page(s) read, then "
+               f"{partial[2]} — the rest of the document was not reached."
+               if partial else " ") + 
             f"The reading ({pdf.with_suffix('').name}.lines.json) was NOT "
             f"touched. Next: `pdfdrill eqlist` draws rows from this across "
             f"documents.")
