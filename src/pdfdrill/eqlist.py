@@ -309,6 +309,7 @@ def _document_entry(folder: Path, bibkey: str, n_rows: int, n_listed: int,
     eqj = folder / f"{bibkey}.equations.json"
     origin, rev = "glyph-reader", ""
     page_sizes: dict = {}
+    partial: dict | None = None
     try:
         _d = json.load(open(eqj, encoding="utf-8"))
         rev = ((_d.get("produced_by") or {}).get("rev") or "")
@@ -331,6 +332,15 @@ def _document_entry(folder: Path, bibkey: str, n_rows: int, n_listed: int,
         if isinstance(_pg, dict):
             page_sizes = {str(k): v for k, v in _pg.items()
                           if isinstance(v, dict)}
+        # A DOCUMENT WITH NO ROWS IS NOT THE SAME AS A DOCUMENT WE COULD NOT
+        # READ, and until this was carried the list could not tell them apart:
+        # 551 entries list zero display rows, and two of them — th-6236-91 (1
+        # page of 13, pdfminer IndexError) and 2016-ijca-908567 (1 of 5,
+        # pdfminer AssertionError) — are not documents without equations, they
+        # are documents we stopped reading on page one. The other 549 really
+        # have no display mathematics. One number, two opposite meanings.
+        if isinstance(_d.get("partial_read"), dict):
+            partial = dict(_d["partial_read"])
         # THE ORACLE RULE. A reference derived from the same features being
         # evaluated measures itself. This reading comes from the glyph reader,
         # so it is NOT an independent reference for anything built on glyphs —
@@ -357,6 +367,10 @@ def _document_entry(folder: Path, bibkey: str, n_rows: int, n_listed: int,
         "creator": creator,
         "pages": pages,
         "binary_generated_because": why,
+        # None when the document was read whole. A dict naming how far the
+        # read got, out of how many pages, and on what — so "zero rows" can
+        # be read as the fact it is rather than as the fact it resembles.
+        "partial_read": partial,
         "rows_in_document": n_rows,
         # THE POPULATION TO CALIBRATE ON, which is not `rows_in_document` for
         # a kind-filtered list. inkdrill measured why: sigma26-080 has 1,976
@@ -523,6 +537,23 @@ def build(library: Path, *, name: str = "eqlist", kind: str | None = None,
                          "row rather than a changed one. Carried as provenance.",
         },
         "counts": counts,
+        # THE HEADLINE HAS TO SAY THIS OR NOTHING WILL. A partial read is
+        # recorded per document, and a per-document field in a 2,238-entry
+        # list is read by whoever already suspects something — which is never
+        # the person reading the summary. The corpus pass reported "0
+        # failures" and was telling the truth: the reads did not fail, they
+        # stopped, and a stopped read produces a file shaped like a finished
+        # one.
+        "partial_reads": {
+            "documents": sum(1 for d in docs if d.get("partial_read")),
+            "pages_unread": sum(
+                max(0, (d["partial_read"].get("pages_in_pdf") or 0)
+                    - (d["partial_read"].get("pages_read") or 0))
+                for d in docs if d.get("partial_read")),
+            "note": "A document here contributed only the rows its read "
+                    "reached. Zero rows from such a document means the read "
+                    "stopped, NOT that the document has no equations.",
+        },
         "not_listed": {"documents": {k: len(v) for k, v in sorted(skipped.items())},
                        "rows": dropped},
         "skipped_documents": {k: sorted(v) for k, v in sorted(skipped.items())},

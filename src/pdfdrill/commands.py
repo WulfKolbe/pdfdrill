@@ -20418,6 +20418,32 @@ def cmd_equations(pdf: Path, force: bool = False, glyphs: bool = False) -> str:
     data["pages"] = {str(p.page): {"width_pt": round(p.rect[2] - p.rect[0], 3),
                                    "height_pt": round(p.rect[3] - p.rect[1], 3)}
                      for p in pages}
+    # A PARTIAL READ MUST SURVIVE THE RUN THAT PRODUCED IT.
+    #
+    # Until now this fact lived only in the string this function returns, which
+    # reaches a terminal or a run log and then nowhere. On disk the result is
+    # indistinguishable from success: `th-6236-91.equations.json` is 1 page of
+    # 13 (pdfminer IndexError) and `2016-ijca-908567` is 1 of 5 (pdfminer
+    # AssertionError), and both files carry zero counts and a one-page map —
+    # exactly what a document with no equations looks like. `eqlist` reads
+    # those files, finds no rows, and drops the document from the list, so a
+    # consumer sees 2,238 documents where 2,242 were read and nothing says
+    # which four are missing or why.
+    #
+    # This is the rule HANDOVER-RULES already carries, found again one layer
+    # out: RESILIENCE HIDES THE DEFECT IT SURVIVES. The guard that stopped one
+    # bad page from costing a whole document produced an artefact nothing
+    # downstream can question. The guard was right; staying silent was not.
+    #
+    # `pages_in_pdf` comes from the sidecar's own metadata rather than a fresh
+    # `pdfinfo`, so the number is the one the rest of the sidecar agrees with;
+    # None means it was never recorded, which is itself worth seeing.
+    data["partial_read"] = ({
+        "pages_read": len(pages),
+        "pages_in_pdf": ((sc.pdfinfo or {}).get("pages")
+                         or (sc.evidence or {}).get("pages")),
+        "error": str(partial[2]),
+    } if partial else None)
     try:
         from pdfreader import provenance as _prov
         data["produced_by"] = _prov.identity()
