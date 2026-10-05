@@ -3991,7 +3991,59 @@ def to_lines_json(pages: list[PageNode],
     _add_table_containers(out, pages, k)
     _split_runin_headings(out, pages, k)
     _split_equation_numbers(out, pages, k)
+    _mark_generated_text(out)
     return out
+
+
+def _mark_generated_text(out: dict) -> None:
+    r"""880 — mark text the TYPESETTER produced, beside the type MathPix uses.
+
+    A `generated` field, not a type: the type belongs to MathPix's vocabulary
+    and every consumer in `src/docmodel/` keys off it, so a type they have
+    never seen is a line they drop. Being better than the reference must not
+    mean being incompatible with it.
+
+    MathPix flattens a bibliography into prose — 298 lines across the four
+    readings this library holds, all `text`, plus a dot-leader line typed
+    `math`. Our own reader does the same thing independently. This says which
+    lines were produced by a counter rather than written, so a consumer need
+    not re-derive it from the prose.
+    """
+    from pdfreader import generated_text as _gt
+    # THE SECTION A LINE SITS IN IS EVIDENCE. A glossary entry and a symbol
+    # table entry have no shape of their own — they are short lines, like any
+    # other short line. What identifies them is the heading above them, and
+    # LaTeX "only organises the counters": the author supplied the entries and
+    # the package produced the order and the numbering. So the scope runs from
+    # a generating heading to the next heading of any kind.
+    #
+    # Scope ENDS at the next section_header, never at a page break: a
+    # bibliography crosses pages and a TOC usually does.
+    scope = None
+    for page_rec in out.get("pages") or []:
+        for rec in page_rec.get("lines") or []:
+            if rec.get("type") == "section_header":
+                scope = _gt.section_generator(rec.get("text") or "")
+                if scope:
+                    rec["generated_scope"] = scope
+                    rec["latex"] = _gt.GENERATOR_LATEX.get(scope)
+                continue
+            if rec.get("type") == "equation_number":
+                g = "equation_number"
+            else:
+                g = _gt.generated_by(rec.get("text") or "",
+                                     line_type=rec.get("type") or "") or scope
+            if not g:
+                continue
+            rec["generated"] = g
+            # THE LaTeX IS THE COMMAND, NOT THE EXPANSION. Re-typeset and
+            # LaTeX rebuilds these from the counters; emitting the expanded
+            # text as source would freeze this build's page numbers into the
+            # document, wrong the first time anything above them changed
+            # length. The text field keeps what this build produced.
+            cmd = _gt.GENERATOR_LATEX.get(g)
+            if cmd:
+                rec["latex"] = cmd
 
 
 def _split_equation_numbers(out: dict, pages: list["PageNode"], k: float) -> None:
