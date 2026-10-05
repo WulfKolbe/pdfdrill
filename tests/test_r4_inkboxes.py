@@ -208,3 +208,25 @@ def test_the_build_gap_names_the_missing_field_and_the_fix():
     assert "--rebuild" in gap, (
         "the installer silently reuses an existing venv without it, which is "
         "how a build drifts behind its patch")
+
+
+def test_the_table_headers_name_the_comparison_not_just_the_cells():
+    """`crop | LaTeX | rendered` was accurate and useless — psred read the
+    built PDF and had to reconstruct "so it's a crop-vs-reader comparison"
+    from the content. A header should say what a column is FOR.
+
+    The two sides of the comparison are column 4 (the page's own ink, the one
+    thing in the table that is not a reading) and column 6 (column 5 set in
+    type). The table also has to say that none of it is an independent
+    reference, because column 5 is the reader being judged."""
+    from pdfdrill.reports import eqtable
+    import inspect
+    src = inspect.getsource(eqtable.render)
+    assert "the page's own ink" in src
+    assert "reader's LaTeX" in src
+    assert "reader's LaTeX, typeset" in src
+    assert "How to read a row" in src
+    # and the old bare labels are gone from the header row
+    hdr = src[src.index("textbf{document}"):src.index("endhead")]
+    assert "textbf{crop}" not in hdr
+    assert "textbf{rendered}" not in hdr

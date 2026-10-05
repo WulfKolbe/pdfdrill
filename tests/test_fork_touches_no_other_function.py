@@ -69,6 +69,13 @@ PATCH = Path(__file__).resolve().parents[1] / "vendor" / "pdfminer-glyph-identit
 #: pdffont.py, pdfdevice.py, converter.py and encodingdb.py are untouched by
 #: R2, which is what makes it a small change rather than a claim that it is.
 #:
+#: UPDATED FOR 878, a defect R2 ITSELF introduced and the corpus found:
+#: `LTChar.__init__` now calls `glyphname_reliable` INSIDE pdfminer, earlier
+#: than the normalisation in `docmodel_six`, so a font program stating its
+#: names as BYTES reached a str regex and stopped the read. Decoded where the
+#: name becomes an attribute (+12 in LTChar), and the predicate made total
+#: (+2). Confined to layout.py, as R2 was.
+#:
 #: needs re-reading, not a list that needs updating.
 EXPECTED_FOOTPRINT = {
     ("pdfminer/converter.py", "class PDFLayoutAnalyzer(PDFTextDevice):", 2),
@@ -76,9 +83,9 @@ EXPECTED_FOOTPRINT = {
     ("pdfminer/encodingdb.py", "class EncodingDB:", 8),
     ("pdfminer/encodingdb.py", "class EncodingDB:", 38),
     ("pdfminer/layout.py", "", 1),
-    ("pdfminer/layout.py", "class LTAnno(LTItem, LTText):", 42),
+    ("pdfminer/layout.py", "class LTAnno(LTItem, LTText):", 44),
     ("pdfminer/layout.py", "class LTChar(LTComponent, LTText):", 12),
-    ("pdfminer/layout.py", "class LTChar(LTComponent, LTText):", 43),
+    ("pdfminer/layout.py", "class LTChar(LTComponent, LTText):", 55),
     ("pdfminer/pdfdevice.py", "class PDFDevice:", 10),
     ("pdfminer/pdfdevice.py", "class PDFTextDevice(PDFDevice):", 1),
     ("pdfminer/pdffont.py", "FontWidthDict = dict[int | str, float]", 36),
@@ -104,6 +111,7 @@ NEW_NAMES = {
     "spec", "fontsize", "scaling", "rise",
     # R2's LTChar flag and the predicate behind it.
     "glyphname_reliable", "_PSEUDO_GLYPHNAME", "_DINGBAT_FONT",
+    "_gn",          # 878 — the decoded glyph name, local to LTChar.__init__
 }
 
 _HDR = ("--- ", "+++ ", "diff --git", "index ", "new file", "deleted file",

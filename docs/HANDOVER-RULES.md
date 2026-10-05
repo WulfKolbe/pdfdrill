@@ -744,3 +744,42 @@ also textbook number geometry (115 px, 8 px off the right edge, behind a
 diagram. The gap is NECESSARY AND NOT SUFFICIENT: ink finds the separation,
 `project_mmd.equation_number`'s parenthesis-at-the-margin test confirms the
 content. Neither instrument is safe alone.
+
+## 2026-10-05 — resilience hides the defect it survives
+
+A corpus pass over 2,242 documents reported **zero failures**, against 47 on
+the previous pass. Three reader fixes had landed and they held. The number was
+true and it was the wrong number to read.
+
+Five documents also reported a PARTIAL READ, and two of those said
+`TypeError: cannot use a string pattern on a bytes-like object` — the error
+876 had just fixed. They did not fail. They **completed**, with a truncated
+reading, because 876 had also taught the page loop to keep what it had read
+rather than lose a document to one bad page.
+
+So the resilience worked exactly as designed and, in the same stroke, moved a
+live defect out of the column anyone was watching. *A pass that cannot fail
+cannot report a failure.* **Watch the partial-read count, not the failure
+count** — and when a run reports zero of something it used to report 47 of,
+read the other columns before believing it.
+
+**The defect itself is the second half of the lesson.** 876 normalised a bytes
+glyph name where names enter `docmodel_six`. 872 (R2) had already put
+`glyphname_reliable` inside `LTChar.__init__` — *earlier*, while the name is
+still what the font program said. So the fix and the new door were written in
+the same week, by the same hand, three commits apart, and each was correct in
+its own layer:
+
+    872   LTChar.__init__  -> glyphname_reliable(self.glyphname, …)   [pdfminer]
+    876   docmodel_six     -> decode bytes at the GlyphNode           [too late]
+
+*Fixing a type at the point of USE does not fix it; fix it at the point it
+becomes a value.* 878 decodes where the name becomes an attribute, so no
+consumer has to know — the same rule the glyph-identity fork follows for
+everything else it exposes.
+
+**And a diagnostic that was missing because nothing had needed it yet.** The
+partial-read record held the message and not the traceback, so locating the
+frame in a 1,200-page book meant twenty minutes of re-provoking the failure
+before the question could be asked. `LAST_READ_TRACEBACK` now keeps it. A
+recorded reason that cannot be acted on is a half-recorded reason.

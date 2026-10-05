@@ -97,7 +97,7 @@ index 85d8c1f..2e5d74d 100644
 +                    cid += 1
 +        return cid2name
 diff --git a/pdfminer/layout.py b/pdfminer/layout.py
-index df818a1..26d9d6a 100644
+index df818a1..2ef0887 100644
 --- a/pdfminer/layout.py
 +++ b/pdfminer/layout.py
 @@ -1,5 +1,6 @@
@@ -107,7 +107,7 @@ index df818a1..26d9d6a 100644
  from collections.abc import Iterable, Iterator, Sequence
  from typing import (
      Generic,
-@@ -344,6 +345,48 @@ class LTAnno(LTItem, LTText):
+@@ -344,6 +345,50 @@ class LTAnno(LTItem, LTText):
          return self._text
  
  
@@ -148,6 +148,8 @@ index df818a1..26d9d6a 100644
 +    """
 +    if not glyphname:
 +        return False
++    if isinstance(glyphname, (bytes, bytearray)):
++        glyphname = bytes(glyphname).decode("latin-1", "replace")
 +    if fontname and _DINGBAT_FONT.search(fontname):
 +        return True
 +    return not _PSEUDO_GLYPHNAME.match(glyphname)
@@ -156,7 +158,7 @@ index df818a1..26d9d6a 100644
  class LTChar(LTComponent, LTText):
      """Actual letter in the text as a Unicode string."""
  
-@@ -359,11 +402,54 @@ class LTChar(LTComponent, LTText):
+@@ -359,11 +404,66 @@ class LTChar(LTComponent, LTText):
          textdisp: float | tuple[float | None, float],
          ncs: PDFColorSpace,
          graphicstate: PDFGraphicState,
@@ -173,7 +175,19 @@ index df818a1..26d9d6a 100644
 +        # the PDF even when no Unicode value is. -1 / None mean "not stated",
 +        # which is also what a caller constructing an LTChar directly gets.
 +        self.cid = cid
-+        self.glyphname = font.to_glyphname(cid) if cid >= 0 else None
++        _gn = font.to_glyphname(cid) if cid >= 0 else None
++        # A GLYPH NAME IS TEXT, AND A FONT PROGRAM CAN STATE BYTES.
++        # `Type1FontHeaderParser` stores what it parsed with `cast(str, name)`
++        # — a cast, not a conversion — so a program whose names arrive as
++        # bytes propagates them here. Everything downstream does string work:
++        # `glyphname_reliable` below matched a str pattern against bytes and
++        # raised, which stopped the read of two corpus documents mid-way.
++        # Decoded ONCE, at the point the name becomes an attribute, so no
++        # consumer has to know. latin-1 cannot fail and preserves the byte
++        # values, which is right for PostScript names.
++        if isinstance(_gn, (bytes, bytearray)):
++            _gn = bytes(_gn).decode("latin-1", "replace")
++        self.glyphname = _gn
 +        # Whether that name identifies a glyph or merely restates an
 +        # index. Computed here rather than left to every consumer, so there
 +        # is one rule and not one per caller — the whole point of the fork
@@ -211,7 +225,7 @@ index df818a1..26d9d6a 100644
          self.ncs = ncs
          self.graphicstate = graphicstate
          self.adv = textwidth * fontsize * scaling
-@@ -401,6 +487,18 @@ class LTChar(LTComponent, LTText):
+@@ -401,6 +501,18 @@ class LTChar(LTComponent, LTText):
              f"text={self.get_text()!r}>"
          )
  

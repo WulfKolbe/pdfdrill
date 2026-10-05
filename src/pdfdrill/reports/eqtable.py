@@ -159,8 +159,17 @@ def render(data: dict, out_dir: Path, *, crops: bool = True,
     head = (
         "\\begin{longtable}{|p{%.0fmm}|p{%.0fmm}|p{%.0fmm}|p{%.0fmm}|"
         "p{%.0fmm}|p{%.0fmm}|}\n\\hline\n"
+        # THE HEADERS SAY WHAT EACH CELL IS FOR, NOT MERELY WHAT IT IS.
+        # `crop | LaTeX | rendered` was accurate and useless: a reader had to
+        # work out that the table is a comparison at all, and which two of the
+        # three columns are the two sides of it. psred read the built PDF and
+        # had to reconstruct "so it's a crop-vs-reader comparison" from the
+        # content. Columns 4 and 6 ARE the comparison — the page's own ink
+        # against the reader's LaTeX set in type — and column 5 is the
+        # evidence for whatever they disagree about.
         "\\textbf{document} & \\textbf{eq no} & \\textbf{page / rect} & "
-        "\\textbf{crop} & \\textbf{LaTeX} & \\textbf{rendered} "
+        "\\textbf{PDF (the page's own ink)} & \\textbf{reader's LaTeX} & "
+        "\\textbf{reader's LaTeX, typeset} "
         "\\\\ \\hline\n\\endhead\n"
         % (w_doc, w_no, w_rect, w_crop, w_src, w_ren))
 
@@ -246,6 +255,11 @@ def render(data: dict, out_dir: Path, *, crops: bool = True,
         % ((data.get("frame") or {}).get("dpi", 250), "250/72"),
         "Identity is (document, page, region); the \\textsf{eq no} column is a "
         "LABEL and renumbers on a re-read.",
+        "\\textbf{How to read a row:} column 4 is the PDF's own ink, cut from "
+        "the page --- the only thing here that is not a reading. Column 6 is "
+        "column 5 set in type. So 4 against 6 is the comparison, and 5 is the "
+        "evidence for any disagreement. Nothing in this table is an "
+        "independent reference: column 5 comes from the reader being judged.",
     ]
     if sel.get("bounded"):
         lead.append(

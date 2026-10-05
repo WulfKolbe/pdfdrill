@@ -2649,6 +2649,8 @@ def _group_lines(glyphs: list[GlyphNode],
 #: (path, pages_read, reason) when the last `build()` stopped early, else None.
 #: Read by `cmd_equations` so a truncated document says so in its report.
 LAST_READ_ERROR: "tuple | None" = None
+#: The traceback behind `LAST_READ_ERROR`, for diagnosing where a read stopped.
+LAST_READ_TRACEBACK: "str | None" = None
 
 
 def build(path: str, pages: Iterable[int] | None = None) -> list[PageNode]:
@@ -2683,7 +2685,13 @@ def build(path: str, pages: Iterable[int] | None = None) -> list[PageNode]:
         try:
             idx_layout = next(_pages_iter, None)
         except Exception as e:                               # noqa: BLE001
+            # The TRACEBACK is kept, not just the message. A partial read says
+            # what stopped it; without where, the next person has to
+            # re-provoke the failure to find out — which for a 1,200-page book
+            # is twenty minutes before the question can even be asked.
+            import traceback as _tb
             read_error = f"{type(e).__name__}: {e}"
+            globals()["LAST_READ_TRACEBACK"] = _tb.format_exc()
             break
         if idx_layout is None:
             break
