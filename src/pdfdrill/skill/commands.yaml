@@ -3729,6 +3729,38 @@ commands:
     help: run the xelatex demote-fixpoint on the table
   typed: true
   done_when: file:{name}.table.tex
+- name: conformance
+  section: Introspection (fast, no extraction)
+  summary: '879 Phase 0 — HOW FAR IS OUR lines.json FROM MATHPIX''S VOCABULARY, measured per line type
+    and per line field on every document for which a MathPix reading is held. pdf2mmd is to become a complete
+    MathPix replacement with a fully compatible lines.json, and nothing could say how far from that it
+    was; "full compatible" was an opinion about an eighteen-plus-type vocabulary, which is not something
+    anyone can act on or finish. Measured on sigma26-075: 8 of 18 types emitted, missing list_item (55),
+    equation_number (40), simple_cell (29), qed_symbol (19), table_row (10), diagram (9), table_column
+    (6), table (2), chart (2), abstract (1), and the four cell_* fields that ARE the table geometry. Compares
+    DISTRIBUTIONS and not a 1:1 alignment: the readers segment differently (1,068 lines against 993 on
+    the same 26 pages), so an alignment needs region-overlap thresholds and every number would carry them,
+    while "this type appears 55 times and zero times" needs none. Builds our reading IN MEMORY and WRITES
+    NOTHING — the on-disk lines.json for these documents is whatever last wrote it, and a conformance
+    check that modified what it checks would be the worst kind of instrument. The reference is MathPix
+    and MathPix is NOT TRUTH: a type we do not emit is a gap in compatibility, not evidence that our reading
+    is wrong.'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: false
+    help: PDF path; omit (or --all) to sweep every document with a MathPix reading
+  flags:
+  - name: library
+    flag: --library
+    type: str
+    help: library root (default ~/pdfdrill-library)
+  - name: all
+    flag: --all
+    type: flag
+    help: sweep every document for which a MathPix reading is held
+  typed: true
 help_intro: 'pdfdrill — portable PDF drill-down toolkit
 
 

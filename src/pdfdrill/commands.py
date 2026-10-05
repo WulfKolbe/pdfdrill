@@ -20643,3 +20643,70 @@ def cmd_eqreport(library: Path | None = None, *, name: str = "eqlist",
                          f"{len(demoted) if hasattr(demoted, '__len__') else demoted}"
                          f" row(s) demoted to source-only")
     return "\n".join(lines)
+
+
+def cmd_conformance(pdf: Path | None = None, *, library: Path | None = None,
+                    all_docs: bool = False) -> str:
+    """879 Phase 0 — how far is our lines.json from MathPix's vocabulary?
+
+    pdf2mmd is to replace MathPix with a fully compatible `lines.json`, and
+    nothing here could say how far from that it was. This measures it, per
+    line type and per line field, against every document for which we hold a
+    MathPix reading.
+
+    OUR READING IS BUILT IN MEMORY and nothing is written: a conformance check
+    that modified the artefact it checks would be the worst kind of
+    instrument, and the on-disk `lines.json` for these documents is whatever
+    last wrote it (MathPix, visionocr, or us), which is not a measurement.
+    """
+    from . import mathpix_conformance as _mc
+    library = Path(library) if library else (Path.home() / "pdfdrill-library")
+
+    targets = []
+    if all_docs or pdf is None:
+        for folder in sorted(p for p in library.iterdir() if p.is_dir()):
+            cand = folder / f"{folder.name}.pdf"
+            if cand.exists() and _mc.reference_for(cand):
+                targets.append(cand)
+    else:
+        targets = [pdf]
+    if not targets:
+        return ("conformance: no document with a MathPix reading found. The "
+                "reference is `<stem>.lines.mathpix.bak.json` (845 parks one "
+                "there when a free reader displaces it) or a live lines.json "
+                "that is MathPix's own.")
+
+    from pdfreader import docmodel_six as _dm
+    lines_out, totals = [], {"covered": 0, "ref": 0, "docs": 0}
+    missing_all: dict = {}
+    for p in targets:
+        ref_path = _mc.reference_for(p)
+        if not ref_path:
+            lines_out.append(f"  {p.stem}: no MathPix reference")
+            continue
+        try:
+            reference = json.load(open(ref_path, encoding="utf-8"))
+            pages = _dm.build(str(p))
+            ours = _dm.to_lines_json(pages, doc_id=p.stem)
+        except Exception as e:                               # noqa: BLE001
+            lines_out.append(f"  {p.stem}: could not read — {e}")
+            continue
+        r = _mc.compare(reference, ours)
+        totals["covered"] += r["types_covered"]
+        totals["ref"] += r["types_in_reference"]
+        totals["docs"] += 1
+        for t, n in r["missing_types"].items():
+            missing_all[t] = missing_all.get(t, 0) + n
+        lines_out.append(_mc.render(r, p.stem))
+        if getattr(_dm, "LAST_READ_ERROR", None):
+            lines_out.append(f"    NOTE partial read: {_dm.LAST_READ_ERROR[2]}")
+
+    head = []
+    if totals["docs"] > 1:
+        head = [f"conformance over {totals['docs']} document(s): "
+                f"{totals['covered']} of {totals['ref']} type slots emitted",
+                "  types missing everywhere, by volume:"]
+        for t, n in sorted(missing_all.items(), key=lambda kv: -kv[1]):
+            head.append(f"    {n:6d}  {t}")
+        head.append("")
+    return "\n".join(head + lines_out)

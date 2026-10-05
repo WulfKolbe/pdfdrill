@@ -575,6 +575,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill scikgtex <pdf> [--compile]` | Project to SciKGTeX-annotated LaTeX → compiled PDF carries ORKG contribution metadata (title/authors/field + research-problem/method/result roles + numeric facts + bib-DOI links) as XMP/RDF. --compile (lualatex + vendored scikgtex) |
 | `pdfdrill skill [--emit EMIT] [--json] [--check]` | Emit/serve the bundled SKILL folder (--emit DIR \| --json \| --check) |
 | `pdfdrill docs <pdf> [--titles]` | ONE LINE per document in a session (title + bibkey) — the compact counterpart to bibtex; on a single doc, its title |
+| `pdfdrill conformance <pdf> [--library LIBRARY] [--all]` | 879 Phase 0 — HOW FAR IS OUR lines.json FROM MATHPIX'S VOCABULARY, measured per line type and per line field on every document for which a MathPix reading is held. pdf2mmd is to become a complete MathPix replacement with a fully compatible lines.json, and nothing could say how far from that it was; "full compatible" was an opinion about an eighteen-plus-type vocabulary, which is not something anyone can act on or finish. Measured on sigma26-075: 8 of 18 types emitted, missing list_item (55), equation_number (40), simple_cell (29), qed_symbol (19), table_row (10), diagram (9), table_column (6), table (2), chart (2), abstract (1), and the four cell_* fields that ARE the table geometry. Compares DISTRIBUTIONS and not a 1:1 alignment: the readers segment differently (1,068 lines against 993 on the same 26 pages), so an alignment needs region-overlap thresholds and every number would carry them, while "this type appears 55 times and zero times" needs none. Builds our reading IN MEMORY and WRITES NOTHING — the on-disk lines.json for these documents is whatever last wrote it, and a conformance check that modified what it checks would be the worst kind of instrument. The reference is MathPix and MathPix is NOT TRUTH: a type we do not emit is a gap in compatibility, not evidence that our reading is wrong. |
 
 ### Build / extract
 
@@ -681,6 +682,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-2955321b` before any build/extract command.
-DRILL-2955321b
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-c5897145` before any build/extract command.
+DRILL-c5897145
 <!-- PREFLIGHT-TOKEN:END -->

@@ -3990,7 +3990,87 @@ def to_lines_json(pages: list[PageNode],
     _add_column_containers(out, pages, k)
     _add_table_containers(out, pages, k)
     _split_runin_headings(out, pages, k)
+    _split_equation_numbers(out, pages, k)
     return out
+
+
+def _split_equation_numbers(out: dict, pages: list["PageNode"], k: float) -> None:
+    r"""Make an equation's number its own line, after the display it labels.
+
+    879 Phase 1 — A TYPE THE VOCABULARY DECLARED AND THE READER COULD NEVER
+    PRODUCE. `LINE_TYPES` has listed `equation_number` all along and
+    `classify_lines` assigns it ZERO times, because `absorb_equation_numbers`
+    joins the number's line to its display before classification ever sees it.
+    That absorption is right and stays: 739 measured what happens without it —
+    two numbered displays fused into one `aligned`, and the numbers surviving
+    as loose prose that `to_markdown` dropped and `to_latex` printed twice.
+
+    But MathPix emits the number as its OWN line, 40 of them on sigma26-075,
+    and the export speaks MathPix while the reader keeps its own words — the
+    rule `_mp_type` already states for `math`/`equation`. So the model keeps
+    the number absorbed and the EXPORT splits it out again.
+
+    The glyphs are still there and still identifiable: `equation_number` reads
+    them back by the same three conditions that found them in the first place
+    — parenthesised, ending at the column's right margin, behind a wide gap.
+    Nothing is guessed and nothing new is measured.
+
+    LAST, after the run-in split, for the same reason that one runs last: a
+    container that lists the original line gains the number beside it rather
+    than losing it.
+    """
+    from pdfreader import project_mmd as _mmd
+    for page_rec, p in zip(out["pages"], pages):
+        recs = page_rec["lines"]
+        by_i = {r.get("_i"): r for r in recs if r.get("_i") is not None}
+        made: list = []
+        for i, ln in enumerate(p.lines):
+            rec = by_i.get(i)
+            if rec is None or ln.rotated or not ln.glyphs:
+                continue
+            try:
+                tag = _mmd.equation_number(ln, _mmd.column_of(p, ln)[1])
+            except Exception:                                # noqa: BLE001
+                continue
+            if not tag:
+                continue
+            body = [g for g in ln.glyphs
+                    if g.text.strip() and id(g) not in set(map(id, tag))]
+            if not body:
+                # A line that is NOTHING but a number is already its own line;
+                # splitting it would leave an empty host.
+                continue
+            tx0 = min(g.rect[0] for g in tag)
+            tx1 = max(g.rect[2] for g in tag)
+            bx1 = max(g.rect[2] for g in body)
+            top_y = rec["region"]["top_left_y"]
+            height = rec["region"]["height"]
+            num = dict(rec)
+            num["id"] = f"{rec['id']}n"
+            num["type"] = "equation_number"
+            num["text"] = "".join(g.text for g in
+                                  sorted(tag, key=lambda g: g.rect[0])).strip()
+            num["text_display"] = num["text"]
+            num["region"] = {"top_left_x": round(tx0 * k), "top_left_y": top_y,
+                             "width": max(1, round((tx1 - tx0) * k)),
+                             "height": height}
+            num["cnt"] = _contour((tx0, ln.rect[1], tx1, ln.rect[3]), p, k)
+            # The number is not the equation: neither carries the other's
+            # pieces, and a `deferred_glyphs` list on a label is meaningless.
+            for key in ("gaps", "rules", "deferred_glyphs", "children_ids",
+                        "_i"):
+                num.pop(key, None)
+            # …and the display stops where its own ink stops.
+            rec["region"]["width"] = max(
+                1, round((bx1 - ln.rect[0]) * k))
+            rec["cnt"] = _contour((ln.rect[0], ln.rect[1], bx1, ln.rect[3]),
+                                  p, k)
+            made.append((rec, num))
+        for host, num in made:
+            at = recs.index(host)
+            recs.insert(at + 1, num)
+        for n, r in enumerate(recs, 1):
+            r["line"] = n
 
 
 def _split_runin_headings(out: dict, pages: list["PageNode"], k: float) -> None:

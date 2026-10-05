@@ -2383,6 +2383,20 @@ def _do_eqreport(args):
                         sample=int(sample) if sample else 0)
 
 
+def _do_conformance(args):
+    """pdfdrill conformance [<pdf>] [--library DIR] [--all] — 879 Phase 0: how
+    far our lines.json is from MathPix's vocabulary, per line type and per
+    line field, on every document for which we hold a MathPix reading. Builds
+    our reading IN MEMORY; writes nothing."""
+    from .commands import cmd_conformance
+    library, args = _opt(args, "--library")
+    all_docs = "--all" in args
+    args = [a for a in args if a != "--all"]
+    pdf = _drilled(args[:1]) if args[:1] else None
+    return cmd_conformance(pdf, library=Path(library) if library else None,
+                           all_docs=all_docs)
+
+
 def _do_rename(args):
     """pdfdrill rename <pdf> <newname> [--bibkey K] [--dry-run] — rename a
     drilled FOLDER (and optionally its bibkey namespace) without a rebuild."""
@@ -2646,6 +2660,7 @@ HANDLERS = {
         "rename": _do_rename,
         "regionink": _do_regionink,
         "marks": _do_marks,
+        "conformance": _do_conformance,
         "equations": _do_equations,
         "eqlist": _do_eqlist,
         "eqreport": _do_eqreport,
