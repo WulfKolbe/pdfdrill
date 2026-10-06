@@ -114,9 +114,34 @@ def test_it_is_carried_beside_the_mathpix_type_not_instead_of_it():
     """The `type` field belongs to MathPix: every consumer in `src/docmodel/`
     keys off their vocabulary, so a type they have never seen is a line those
     consumers DROP. Being better than the reference must not mean being
-    incompatible with it."""
+    incompatible with it.
+
+    NARROWED, 882. This asserted `rec["type"] =` appears nowhere, which is a
+    PROXY for the rule and not the rule. The rule is that the type stays
+    inside MathPix's vocabulary; "never assign a type" was the same thing only
+    while every line we marked already carried the type MathPix would give it.
+
+    Phase 1 measured that it does not. MathPix emits 55 `list_item` lines on
+    sigma26-075 and the 15 that carry their own text are BOTH kinds — the
+    roman-numeral items and the bibliography entries. So `text` was the wrong
+    MathPix type for those lines, not the safe one, and `type_contract.CLAIMED`
+    says `list_item` is read by `list_items` and breaks a paragraph: exactly
+    what they should do and what `text` prevented.
+
+    The invariant is now checked directly: every type this function can assign
+    must be one `type_contract` claims, and `generated` must still be set
+    beside it.
+    """
     from pdfreader import docmodel_six as dm
+    from docmodel.type_contract import CLAIMED
     import inspect
+    import re
     src = inspect.getsource(dm._mark_generated_text)
-    assert 'rec["generated"]' in src
-    assert 'rec["type"] =' not in src, "the type must not be overwritten"
+    assert 'rec["generated"]' in src, "the property is the point"
+    assigned = set(re.findall(r'rec\["type"\]\s*=\s*"([a-z_]+)"', src))
+    assert assigned, (
+        "nothing assigned — if the retype was removed, remove this check too")
+    unknown = assigned - set(CLAIMED)
+    assert not unknown, (
+        f"{unknown} is not a type any docmodel module reads; such a line is "
+        f"dropped, which is the failure this test exists for")

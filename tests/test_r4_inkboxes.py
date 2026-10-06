@@ -218,15 +218,30 @@ def test_the_table_headers_name_the_comparison_not_just_the_cells():
     The two sides of the comparison are column 4 (the page's own ink, the one
     thing in the table that is not a reading) and column 6 (column 5 set in
     type). The table also has to say that none of it is an independent
-    reference, because column 5 is the reader being judged."""
+    reference, because column 5 is the reader being judged.
+
+    NARROWED, 888. This asserted the literal strings "reader's LaTeX" and
+    "reader's LaTeX, typeset". Those are gone because the header now NAMES the
+    reader — "MathPix's LaTeX" / "pdf2mmd's LaTeX", derived from each row's
+    `latex_origin` — which is the same requirement carried further: the user
+    asked "how can I be sure about the source of the LaTeX column" and
+    "reader's" could not answer it once two tables existed over the same rows.
+
+    So the check is now on the SHAPE the header must have, not on one wording
+    of it: a possessive LaTeX column, its typeset twin, the ink column, and
+    the disclaimer. A header that went back to a bare label still fails.
+    """
     from pdfdrill.reports import eqtable
     import inspect
     src = inspect.getsource(eqtable.render)
     assert "the page's own ink" in src
-    assert "reader's LaTeX" in src
-    assert "reader's LaTeX, typeset" in src
+    assert "'s LaTeX}" in src, "the LaTeX column must say WHOSE"
+    assert "'s LaTeX, typeset}" in src, "so must its typeset twin"
     assert "How to read a row" in src
-    # and the old bare labels are gone from the header row
-    hdr = src[src.index("textbf{document}"):src.index("endhead")]
+    # The reader's name comes from the rows, never from the file name.
+    assert 'r.get("latex_origin")' in src
+    # and the old bare labels are gone from every header row
+    hdr = src[src.index("textbf{document}"):src.rindex("endhead")]
     assert "textbf{crop}" not in hdr
     assert "textbf{rendered}" not in hdr
+    assert "textbf{LaTeX}" not in hdr

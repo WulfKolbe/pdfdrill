@@ -60,6 +60,103 @@ MATH_FAMILIES = frozenset(
      "fraktur", "script", "doublestroke"}
 )
 
+#: 889 — RELATION SYMBOLS LIVE IN THE ROMAN FONT, and that is where three
+#: separate bug reports came from.
+#:
+#: TeX's `\mathcode` puts a relation in FAMILY 0, the roman font: `=` is
+#: "303D (class 3 = relation, family 0, slot 3D), so a display's `=` arrives
+#: as CMR10 at body size — identical, by font and size, to prose. `is_math`
+#: asked only "is this glyph in a maths family", so every relation in every
+#: display was classified as text, and a run of upright letters AROUND one
+#: went with it.
+#:
+#: Three reproducers, all the same shape, found by psred reading the same
+#: documents:
+#:
+#:     sigma26-075 EQ0033   `I =`, `II = 2`, `III =`   the fundamental forms
+#:     sigma26-073 EQ0945   `)=`, `):=`
+#:     1709.07941  EQ0256   `+ (1`
+#:
+#: `\mathrm{II} = 2\sin\phi\,dx\,dy` is upright letters followed by `=`, which
+#: is exactly what running text looks like to a font test. psred gets all
+#: three right; we dropped the names, the relations and `\mathrm{d}` while
+#: keeping the maths-font glyphs beside them.
+#:
+#: THIS IS THE SAME ARGUMENT THE GREEK RULE ALREADY MAKES one line below in
+#: `is_math`: "TeX puts uppercase Greek in the ROMAN font, so going by font
+#: alone left `\Gamma^{+}` and `\Phi` sitting in prose spans." Relations are
+#: the second family of characters with that property, and the larger one.
+#:
+#: DELIBERATELY NARROW. Only characters that essentially never appear in
+#: running English prose are listed. `(`, `)`, `[`, `]`, `:`, `;`, `,`, `.`,
+#: `!`, `?`, `/` and the digits are ALSO family-0 maths characters and are
+#: excluded, because they are ordinary punctuation and making them
+#: unconditionally mathematical would turn prose into equations — the failure
+#: pointing the other way, and a worse one. `-` needs no entry: TeX's minus is
+#: family 2 (CMSY) and is already a maths family.
+MATH_RELATIONS = frozenset(
+    "=<>≠≤≥≈≡∼≅∝"      # = < > ≠ ≤ ≥ ≈ ≡ ∼ ≅ ∝
+    "∈∉⊂⊃⊆⊇"                     # ∈ ∉ ⊂ ⊃ ⊆ ⊇
+    "→↦⇒⇔←⟶⟼"               # → ↦ ⇒ ⇔ ← ⟶ ⟼
+    "±∓×÷∗⋅"                     # ± ∓ × ÷ ∗ ⋅
+    # `+` is family 0 too (\mathcode`+ = "202B, class 2 binary, family 0),
+    # and it is the third reproducer: 1709.07941 EQ0256 lost `+ (1`, and
+    # sigma26-075 EQ0033 still lost the `+` before its last `\mathrm{d}y^2`
+    # with only the relations in. A `+` in running English prose is rarer
+    # than an `=`; the ones that exist (`C++`, `A+`) are glued to a word,
+    # and `textish` already forces a glued symbol to text.
+    "+"
+)
+
+#: TeX's CLASS 2 (binary operators) among the above, kept separate because the
+#: left-hand-side rule must NOT key on them.
+#:
+#: `\mathcode` distinguishes them: `=` is class 3 (relation), `+` is class 2
+#: (binary). A definition's left-hand side is followed by a RELATION — `II =`
+#: — and absorbing an upright run before a BINARY is a different and weaker
+#: claim: `n + p` with an upright `n` is the case 775 deliberately kept as
+#: prose, and `test_an_upright_letter_is_not_swept_in_by_this_rule` caught the
+#: over-reach immediately. Both classes stay maths for `is_math` (both are
+#: family 0, and the dropped `+` of EQ0256 is why), but only class 3 licenses
+#: sweeping a neighbouring upright name into the mathematics.
+MATH_BINARIES = frozenset("+±∓×÷∗⋅")
+
+#: The glyph NAMES of the same characters, for a font whose encoding does not
+#: give a usable Unicode value. R2 exposed the name for exactly this reason: a
+#: subset font can report the wrong character and still name the glyph right.
+MATH_RELATION_NAMES = frozenset({
+    "equal", "less", "greater", "lessequal", "greaterequal", "notequal",
+    "approxequal", "equivalence", "similar", "congruent", "proportional",
+    "element", "notelement", "propersubset", "propersuperset",
+    "reflexsubset", "reflexsuperset", "arrowright", "arrowleft",
+    "arrowdblright", "arrowdblleft", "arrowdblboth", "mapsto",
+    "plusminus", "minusplus", "multiply", "divide", "asteriskmath",
+    "periodcentered", "plus",
+})
+
+#: The glyph names of the class-2 binaries, so `_is_relation` can exclude them
+#: by name as well as by character.
+_BINARY_NAMES = frozenset({"plus", "plusminus", "minusplus", "multiply",
+                           "divide", "asteriskmath", "periodcentered"})
+
+
+def _is_relation(g) -> bool:
+    r"""Is this glyph a class-3 RELATION, as TeX's `\mathcode` means it?
+
+    889 — the predicate the left-hand-side rule keys on. A relation licenses
+    sweeping a short upright name into the mathematics beside it (`II =`); a
+    class-2 BINARY does not (`n + p` with an upright `n` stays prose, which is
+    what 775 established and what the guard test enforces).
+    """
+    if g is None:
+        return False
+    t = (getattr(g, "text", "") or "").strip()
+    n = str(getattr(g, "glyphname", "") or "").strip().lower()
+    if t in MATH_BINARIES or n in _BINARY_NAMES:
+        return False
+    return t in MATH_RELATIONS or n in MATH_RELATION_NAMES
+
+
 Rect = tuple[float, float, float, float]
 
 # Pixels per PDF point for the coordinate space used by lines.json regions and
@@ -97,7 +194,11 @@ class GlyphNode:
         # uppercase Greek in the ROMAN font, so going by font alone left
         # `\Gamma^{+}` and `\Phi` sitting in prose spans.
         return (self.family in MATH_FAMILIES
-                or greek_latex(self.glyphname) is not None)
+                or greek_latex(self.glyphname) is not None
+                # 889 — and a RELATION, wherever it is set. See MATH_RELATIONS.
+                or (self.text or "").strip() in MATH_RELATIONS
+                or str(self.glyphname or "").strip().lower()
+                in MATH_RELATION_NAMES)
 
     @property
     def baseline(self) -> float:
@@ -320,20 +421,76 @@ def _spans(line: "LineNode") -> list[Span]:
     # What separates prose from a display is that prose has words: three or
     # more letters running together. A display has single variables. That is
     # the line-scale form of what `_is_variable_run` already says about a run.
-    _n_math = sum(1 for g in ordered if g.is_math)
-    _word_run = _longest = 0
+    # 889 — AN OPERATOR NAME IS NOT A WORD, and counting it as one is what
+    # disqualified a whole class of display.
+    #
+    # `\cos` and `\sin` are set upright in CMR, three letters running
+    # together — indistinguishable from prose by the test below, and they
+    # pushed `_longest` to 3 on sigma26-075's fundamental-forms display. That
+    # failed `_mostly_math`, which disabled every absorption rule on the line,
+    # which is why `\mathrm{I}`, `\mathrm{II}`, `\mathrm{III}` stayed prose
+    # even after relations became mathematical. psred named this cause
+    # ("operator names like sin/tanh taken as prose in displays") before I
+    # measured it; the span dump confirms it — `I`, `II`, `III` and one `+`
+    # were the only text spans on a line that is entirely an equation.
+    #
+    # `texmap.OPERATOR_NAMES` is the authority and it is taken from LaTeX's
+    # own `amsopn.sty`, not remembered: 38 names, `arccos` through `Pr`. A run
+    # spelling one of them is a function, so it does not count toward the
+    # word test. The test still catches real prose, which does not consist of
+    # `\log`, `\det` and `\tanh`.
+    from pdfreader.texmap import OPERATOR_NAMES as _OPS
+    _OPSET = frozenset(n.lower() for n in _OPS)
+
+    def _is_rel(g) -> bool:
+        """A class-3 RELATION, not a class-2 binary. See MATH_BINARIES."""
+        if g is None:
+            return False
+        t = (g.text or "").strip()
+        n = str(g.glyphname or "").strip().lower()
+        if t in MATH_BINARIES or n in _BINARY_NAMES:
+            return False
+        return t in MATH_RELATIONS or n in MATH_RELATION_NAMES
+
+    # Collect the letter runs FIRST, then judge them. The single-pass version
+    # could not ask what FOLLOWS a run, and what follows is the evidence that
+    # settles it.
+    _runs_txt: list = []
+    _cur: list = []
     _prev = None
-    for _g in ordered:
+    for _idx, _g in enumerate(ordered):
         _alpha = (not _g.is_math) and _g.text.strip().isalpha()
         if _alpha and _prev is not None and (
                 _g.rect[0] - _prev.rect[2] < 0.3 * max(dom, 1.0)):
-            _word_run += 1
+            _cur.append(_g)
         elif _alpha:
-            _word_run = 1
+            if _cur:
+                _runs_txt.append((_cur, ordered[_idx - 1] if _idx else None))
+            _cur = [_g]
         else:
-            _word_run = 0
+            if _cur:
+                _runs_txt.append((_cur, _g))
+            _cur = []
         _prev = _g if _alpha else None
-        _longest = max(_longest, _word_run)
+    if _cur:
+        _runs_txt.append((_cur, None))
+
+    _longest = 0
+    for _run, _after in _runs_txt:
+        _txt = "".join(g.text.strip() for g in _run)
+        # An OPERATOR NAME is a function, not a word — `texmap.OPERATOR_NAMES`
+        # is taken from LaTeX's own amsopn.sty, 38 names.
+        if _txt.lower() in _OPSET:
+            continue
+        # A NAME FOLLOWED BY A RELATION is a left-hand side, not a word. This
+        # is the rule that `III` needed: the fundamental forms are `I`, `II`,
+        # `III`, and `III` is three letters running together, so the very name
+        # the absorption rule exists to rescue was what disqualified its line.
+        # No English sentence puts a word immediately before an `=`.
+        if _is_rel(_after):
+            continue
+        _longest = max(_longest, len(_run))
+    _n_math = sum(1 for g in ordered if g.is_math)
     _mostly_math = bool(ordered) and _n_math >= 0.25 * len(ordered) and _longest < 3
     # Glyphs forced to TEXT regardless of the font they came from. `is_math`
     # follows the font family, and a `<` borrowed from the maths font is
@@ -639,8 +796,39 @@ def _spans(line: "LineNode") -> list[Span]:
                 _solo = (_mostly_math and len(run) == 1
                          and run[0].text.strip().isalpha()
                          and is_italic(run[0].fontname))
-                _l_ok = left_any and _solid(i - 1) and (left or _solo)
-                _r_ok = right_any and _solid(i + 1) and (right or _solo)
+                # 889 — A NAME FOLLOWED BY A RELATION IS A LEFT-HAND SIDE.
+                #
+                # `_solo` requires an ITALIC single letter, so the upright
+                # multi-letter names TeX sets with `\mathrm` could never be
+                # absorbed: sigma26-075's fundamental forms are `\mathrm{I}`,
+                # `\mathrm{II}`, `\mathrm{III}` in CMR10 at body size, flush
+                # left where a section number sits. Making relations
+                # mathematical (MATH_RELATIONS) recovered the `=` signs on
+                # this document's 9 affected displays but not the names in
+                # front of them: `I` is at the head of the line with nothing
+                # mathematical to its LEFT, and adjacency on one side was not
+                # enough for an upright run.
+                #
+                # The RELATION is the evidence. `II =` opening a display is a
+                # definition's left-hand side; no English sentence puts a
+                # one-to-three letter word immediately before an `=`. So the
+                # right neighbour being a relation licenses the absorption
+                # where italics would otherwise have to.
+                #
+                # Still narrow: the line must be a display, the run must be
+                # 1-3 letters (so `and`, `for`, `with` cannot reach it — `and`
+                # is three letters but is never followed by `=`), and the
+                # relation must be the IMMEDIATE neighbour.
+                # `i` indexes RUNS, not glyphs: the right neighbour is the
+                # first glyph of the next RUN. Indexing `ordered` with a run
+                # index found an unrelated glyph and the rule silently never
+                # fired on the document it was written for.
+                _nxt = runs[i + 1][0] if i + 1 < len(runs) else None
+                _lhs = (_mostly_math and 1 <= len(run) <= 3
+                        and all(g.text.strip().isalpha() for g in run)
+                        and _is_relation(_nxt))
+                _l_ok = left_any and _solid(i - 1) and (left or _solo or _lhs)
+                _r_ok = right_any and _solid(i + 1) and (right or _solo or _lhs)
                 absorb = (not forced and (_l_ok or _r_ok)
                           and _is_variable_run(run))
                 take_left = _l_ok
@@ -3991,8 +4179,120 @@ def to_lines_json(pages: list[PageNode],
     _add_table_containers(out, pages, k)
     _split_runin_headings(out, pages, k)
     _split_equation_numbers(out, pages, k)
+    _split_qed_symbols(out, pages, k)
     _mark_generated_text(out)
     return out
+
+
+#: The glyph a proof ends with, by GLYPH NAME rather than by rendered
+#: character. On sigma26-075 every one of the 20 is `squaresolid` carrying
+#: U+25A0; a name is available here because the vendored pdfminer exposes it
+#: (R2), and a name survives a font whose encoding gives the character wrong.
+_QED_GLYPHS = frozenset({"squaresolid", "square", "blacksquare", "qedsymbol",
+                         "openbox", "filledbox", "blacksquarelarge"})
+_QED_CHARS = frozenset("■□∎◻◼⬛⬜")
+
+
+def _is_qed(g) -> bool:
+    """Is this glyph a proof-ending box?"""
+    nm = str(getattr(g, "glyphname", None) or "").strip().lower()
+    return nm in _QED_GLYPHS or (g.text or "") in _QED_CHARS
+
+
+def _split_qed_symbols(out: dict, pages: list["PageNode"], k: float) -> None:
+    r"""Make the box that ends a proof its own line, as MathPix does.
+
+    882 Phase 1 — MathPix emits 19 `qed_symbol` lines on sigma26-075 and we
+    emitted none, because the box reaches us in two shapes and neither was
+    typed:
+
+        a line of its own          p4,  29 px wide at the right margin
+        the last token of prose    p5,  "… and linearity. $\blacksquare$"
+
+    The second is the majority and is why this is a SPLIT rather than a
+    retype: MathPix's reading has the box on a line by itself in both cases,
+    so a consumer written against their export looks for a `qed_symbol` line
+    and finds our proof's last sentence instead.
+
+    DETECTED BY GLYPH NAME, NOT BY THE RENDERED CHARACTER OR THE LaTeX. All 20
+    on this document are `squaresolid`; the name comes from the vendored
+    pdfminer (R2) and survives a font whose encoding reports the character
+    wrongly. Matching on our own `$\blacksquare$` projection would be matching
+    on our own output, which is the oracle error `_document_entry` already
+    warns about one layer up.
+
+    TWO DELIBERATE DIVERGENCES FROM THE REFERENCE, both recorded rather than
+    smoothed over:
+
+    1. MathPix writes `text: ""` and puts the symbol only in `text_display`.
+       We write it in both. An empty `text` is a LOSS, and the type already
+       says what the line is — emulating the loss would make our export
+       agree with the reference by discarding the same information, which is
+       not the kind of compatibility worth having (880's rule).
+    2. MathPix renders it `\square`, hollow. The glyph is named `squaresolid`
+       and carries U+25A0, so we render `\blacksquare`. One of us is wrong
+       about the fill and the evidence here says it is not us. Written down
+       because a measured disagreement with the reference is a finding, and
+       matching the reference would delete it.
+
+    AFTER the equation-number split, for the same reason that one runs last: a
+    container that already lists the host line gains the box beside it rather
+    than losing it.
+    """
+    for page_rec, p in zip(out["pages"], pages):
+        recs = page_rec["lines"]
+        by_i = {r.get("_i"): r for r in recs if r.get("_i") is not None}
+        made: list = []
+        for i, ln in enumerate(p.lines):
+            rec = by_i.get(i)
+            if rec is None or ln.rotated or not ln.glyphs:
+                continue
+            ink = [g for g in ln.glyphs if (g.text or "").strip()]
+            if not ink:
+                continue
+            tail = [g for g in ink if _is_qed(g)]
+            if not tail:
+                continue
+            # Only a TRAILING box ends a proof. A box used as an operator mid
+            # line is not a QED mark, and nothing here should claim it is.
+            if not _is_qed(ink[-1]):
+                continue
+            box = [g for g in ink if _is_qed(g) and g.rect[0] >= ink[-1].rect[0]]
+            body = [g for g in ink if id(g) not in {id(b) for b in box}]
+            text = "$\\blacksquare$"
+            if not body:
+                # Already alone on its line: retype in place. There is nothing
+                # to split and an empty host would be worse than the type.
+                rec["type"] = "qed_symbol"
+                rec["text"] = text
+                rec["text_display"] = text
+                continue
+            bx0 = min(g.rect[0] for g in box)
+            bx1 = max(g.rect[2] for g in box)
+            hostx1 = max(g.rect[2] for g in body)
+            qed = dict(rec)
+            qed["id"] = f"{rec['id']}q"
+            qed["type"] = "qed_symbol"
+            qed["text"] = text
+            qed["text_display"] = text
+            qed["region"] = {"top_left_x": round(bx0 * k),
+                             "top_left_y": rec["region"]["top_left_y"],
+                             "width": max(1, round((bx1 - bx0) * k)),
+                             "height": rec["region"]["height"]}
+            qed["cnt"] = _contour((bx0, ln.rect[1], bx1, ln.rect[3]), p, k)
+            for key in ("gaps", "rules", "deferred_glyphs", "children_ids",
+                        "_i", "generated", "latex"):
+                qed.pop(key, None)
+            # The prose stops where its own ink stops, so a crop of either is
+            # right — the same correction the equation-number split makes.
+            rec["region"]["width"] = max(1, round((hostx1 - ln.rect[0]) * k))
+            rec["cnt"] = _contour((ln.rect[0], ln.rect[1], hostx1, ln.rect[3]),
+                                  p, k)
+            made.append((rec, qed))
+        for host, qed in made:
+            recs.insert(recs.index(host) + 1, qed)
+        for n, r in enumerate(recs, 1):
+            r["line"] = n
 
 
 def _mark_generated_text(out: dict) -> None:
@@ -4044,6 +4344,31 @@ def _mark_generated_text(out: dict) -> None:
             cmd = _gt.GENERATOR_LATEX.get(g)
             if cmd:
                 rec["latex"] = cmd
+            # 882 Phase 1 — AND THE TYPE, WHERE MATHPIX HAS A WORD FOR IT.
+            #
+            # Measured on sigma26-075: MathPix emits 55 `list_item`, 15 of
+            # them carrying their own text, and those 15 are BOTH kinds —
+            # `(ii) Clearly, \(\det I = XY/\sin^2\phi\) …` and
+            # `[4] Bianchi L., Lezioni di geometria differenziale …`. So a
+            # bibliography entry is a `list_item` in their vocabulary, which
+            # is the same judgement 880 arrived at from the other side: the
+            # counter is the generated thing and `\bibitem` is an `\item`
+            # whose label a package wrote.
+            #
+            # We mark 57 bib_entry and 12 list_label on this document and
+            # exported every one as `text`, so a consumer written against
+            # MathPix looked for a list and found prose. `type_contract` says
+            # `list_item` is read by `list_items` and breaks a paragraph —
+            # exactly what these lines should do, and what `text` prevented.
+            # (out/245: `list_item` went unread in 882 documents. Emitting it
+            # as `text` is the same loss from the writing end.)
+            #
+            # Only from `text`. A line the classifier established as a
+            # heading, a caption, a footnote or an equation number is not
+            # relabelled by a counter shape — the order-of-certainty rule
+            # `classify_lines` states, applied here.
+            if g in ("list_label", "bib_entry") and rec.get("type") == "text":
+                rec["type"] = "list_item"
 
 
 def _split_equation_numbers(out: dict, pages: list["PageNode"], k: float) -> None:

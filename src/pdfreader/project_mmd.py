@@ -2583,6 +2583,21 @@ _ABSTRACT_LABELS = frozenset({
 })
 
 
+#: The run-in labels that END an abstract. Same contract as
+#: `_ABSTRACT_LABELS`: words a publisher PRINTS, extended by adding one, never
+#: by translating. Needed because an abstract set without a sized heading has
+#: no sized heading to end it either — on sigma26-075 the next real heading is
+#: `1 Introduction`, so bounding the abstract by a heading swallowed the
+#: keywords and the MSC classification into it (2 lines of 7).
+_FRONT_MATTER_ENDERS = frozenset({
+    "key words", "keywords", "key-words", "schlagworte", "stichworter",
+    "palabras clave", "mots cles", "parole chiave",
+    "mathematics subject classification", "msc", "ams subject classification",
+    "subject classification", "pacs", "pacs numbers", "classification",
+    "acknowledgements", "acknowledgments",
+})
+
+
 #: What a caption's first word can be, by language. As with `_ABSTRACT_LABELS`,
 #: these are words a publisher prints — extend by adding one, not by translating.
 _CAPTION_LABELS = {
@@ -2776,15 +2791,67 @@ def _front_matter(pages: list[PageNode], fp, titles: set, running: set) -> tuple
     title_pos = [i for i in idx if (page.page, i) in titles]
     headings = [i for i in idx if is_heading(i, page.lines[i])]
 
+    # 882 — AN ABSTRACT LABEL WITH NO FONT EVIDENCE AT ALL.
+    #
+    # The rule below bounds the author block by the first HEADING after the
+    # title. SIGMA sets its abstract label as `Abstract.` in the body font, at
+    # body size, not bold, run into the first sentence — so `heading_level` is
+    # 0 and `runin_heading` is 0 (checked on sigma26-075, body CMR10 10.9 pt).
+    # The first real heading is `1 Introduction`, pages down, and the author
+    # block swallowed the whole abstract: five lines of it exported as
+    # `authors`, which is not a near miss, it is the wrong field.
+    #
+    # So the label is read as a WORD, which is what `_ABSTRACT_LABELS` already
+    # is — "a label, not a guess". The word must OPEN the line and be followed
+    # by a period or a colon: that is what distinguishes the publisher's
+    # `Abstract.` from a sentence that happens to begin "Abstract ideas …".
+    # No font claim is made, because there is none to make.
+    runin_abstract = None
+    if title_pos:
+        for i in (x for x in idx if x > max(title_pos)):
+            m = re.match(r"\s*([A-Za-zÄÖÜäöüßа-я]+)\s*[.:]",
+                         docmodel._run_text(page.lines[i].glyphs))
+            if m and m.group(1).lower() in _ABSTRACT_LABELS:
+                runin_abstract = i
+                break
+
     authors: set = set()
     if title_pos:
         after = [i for i in idx if i > max(title_pos)]
         stop = next((h for h in headings if h > max(title_pos)), None)
+        # Whichever bound comes FIRST. A run-in abstract label is as real an
+        # end to the author list as a heading is, and on this layout it is the
+        # only one that arrives before the body of the paper.
+        if runin_abstract is not None:
+            stop = runin_abstract if stop is None else min(stop, runin_abstract)
         if stop is not None:                      # bounded below by a heading
             authors = {(page.page, i) for i in after if i < stop
                        and (page.page, i) not in running}
 
     abstract: set = set()
+    if runin_abstract is not None:
+        nxt = next((h for h in headings if h > runin_abstract), None)
+        # INCLUSIVE of the label line, unlike the sized-heading case below.
+        # There the heading is a line of its own and stays `section_header` —
+        # "the heading is not the abstract, it names it". Here the label is the
+        # first few glyphs OF the abstract's first sentence, so excluding its
+        # line would drop the sentence with it.
+        end = nxt if nxt is not None else max(idx) + 1
+        # …and ended by the next run-in label, whichever comes first. The
+        # keywords and the MSC classification sit between the abstract and the
+        # first heading and are set the same way: a label, a colon, a run-on
+        # list. Without this the abstract ran to `1 Introduction` and took
+        # both with it.
+        for i in (x for x in idx if x > runin_abstract):
+            m = re.match(r"\s*([A-Za-zÄÖÜäöüßа-я][A-Za-zÄÖÜäöüßа-я \-]{1,40}?)\s*[.:]",
+                         docmodel._run_text(page.lines[i].glyphs))
+            if m and " ".join(m.group(1).lower().split()) in _FRONT_MATTER_ENDERS:
+                end = min(end, i)
+                break
+        abstract = {(page.page, i) for i in idx if runin_abstract <= i < end
+                    and (page.page, i) not in running}
+        return authors, abstract
+
     for h in headings:
         text = re.sub(r"[^a-zäöüßа-я]+", "",
                       docmodel._run_text(page.lines[h].glyphs).lower())
