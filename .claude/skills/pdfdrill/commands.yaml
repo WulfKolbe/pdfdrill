@@ -3711,6 +3711,22 @@ commands:
     flag: --no-crops
     type: flag
     help: skip cutting crops (much faster; the rectangle column still states the region)
+  - name: reuse_crops
+    flag: --reuse-crops
+    type: flag
+    help: 'use only crops already on disk and open NO document: no pdfinfo, no rasterize, no PDF read. Re-typesets a table whose crops took hours (a column reorder would otherwise pay the whole cut again); a row whose crop was never cut says "(no crop cut)" rather than getting one'
+  - name: compare
+    flag: --compare
+    type: flag
+    help: 'the IMAGE-vs-IMAGE table: drops the LaTeX-source column and emits five columns ending in the typeset reading beside the page crop, at equal width. Rows whose LaTeX does not typeset are EXCLUDED (no comparison exists for an empty render) and listed in <name>.unrenderable.json. For the phase where the reader is ~30% correct and the job is to transcribe the correct formula from the crop, not to read the broken source'
+  - name: keep_unrenderable
+    flag: --keep-unrenderable
+    type: flag
+    help: 'in --compare, KEEP the rows whose LaTeX does not typeset instead of excluding them. Their typeset cell is empty, so the row is ink plus (where present) the reference string: the 7,036 rows with a crop and nothing produced at all are the strongest rows for a transcribe-from-the-crop pass, and this is how to table them'
+  - name: volume_rows
+    flag: --volume-rows
+    type: int
+    help: 'split the table into volumes of at most N rows, on DOCUMENT boundaries (never splitting a document), writing <name>.volNN.table.tex. Needed above ~10k rows: one longtable died with "TeX capacity exceeded [pool size]" at row 11,870 of 16,577 after emitting 949 pages — a truncated table that looks finished. The pool is consumed by the \includegraphics PATHS, so the ceiling is bytes of filename, not rows. ~5000 keeps a volume near 77 MB, under GitHub''s 100 MB refusal'
   - name: paper
     flag: --paper
     type: str

@@ -4281,7 +4281,24 @@ def compile_fixpoint(tex_path: Path, max_iter: int = 40):
             subprocess.run(cmd, cwd=d, capture_output=True, timeout=1800)
             text = log.read_text(errors="replace") if log.is_file() else ""
             nerr = len(_re.findall(r"^! ", text, _re.M))
-            m = _re.search(r"Output written on .*\((\d+) pages?", text)
+            # 884 — TeX WRAPS ITS OWN LOG AT ~79 COLUMNS, and the page count
+            # is the thing that falls off the end. The volume tables compiled
+            # cleanly to 414, 385, 346 and 289 pages and every one reported
+            # "0 page(s), 0 error(s)", because the longer filename pushed the
+            # number past the wrap:
+            #
+            #   Output written on /tmp/pdfdrill-tex-0tyihk_d/mathpix-cropped.
+            #   vol01.table.pdf (414 pages, 86523901 bytes).
+            #
+            # `.` does not cross a newline, so the match failed and 0 was
+            # reported as a fact. `display-all.table.tex` was short enough to
+            # stay on one line, which is the only reason this never showed.
+            #
+            # A compile that worked and says it produced nothing is worse than
+            # a failure: it reads as "the table is empty" and the 82 MB PDF
+            # beside it reads as a mistake. Unwrap the tail before searching.
+            tail = text[-8000:].replace("\n", "")
+            m = _re.search(r"Output written on .*?\(\s*(\d+) pages?", tail)
             pages = int(m.group(1)) if m else 0
             if nerr == 0:
                 break

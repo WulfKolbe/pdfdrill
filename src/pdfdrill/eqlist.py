@@ -570,8 +570,29 @@ def validate(data: dict) -> list:
     should measure against.
     """
     out = []
+    # A DERIVED LIST IS NOT A FOREIGN LIST. 883 — inkdrill builds
+    # `corpus-display-mathpix` by swapping MathPix's LaTeX into our rows, and
+    # declares both the fact and the parent: `schema:
+    # "inkdrill.eqlist.mathpix/1"` plus `derived_from: {list: "…/corpus-
+    # display.eqlist.json", rows_in: 283949, tool: "…"}`. Refusing it on the
+    # schema string alone would mean every consumer of a derived list must
+    # either fork this validator or skip validation, and skipping is what
+    # actually happens.
+    #
+    # So the schema may differ WHEN THE LIST SAYS WHAT IT CAME FROM. Every
+    # other check below still runs unchanged, which is the point: the row
+    # contract is what a reader depends on, and that is what is verified. A
+    # list with a strange schema and no provenance is still refused.
     if data.get("schema") != SCHEMA:
-        out.append(f"schema is {data.get('schema')!r}, expected {SCHEMA!r}")
+        parent = (data.get("derived_from") or {}).get("list")
+        if parent:
+            out_note = (f"schema is {data.get('schema')!r}, derived from "
+                        f"{parent!r} — row contract checked below")
+            data.setdefault("_validate_notes", []).append(out_note)
+        else:
+            out.append(f"schema is {data.get('schema')!r}, expected "
+                       f"{SCHEMA!r} (a list with another schema must declare "
+                       f"`derived_from.list`)")
     rows = data.get("rows") or []
     counts = data.get("counts") or {}
     if counts.get("rows") != len(rows):
@@ -579,6 +600,7 @@ def validate(data: dict) -> list:
 
     seen, dup = {}, 0
     no_region = no_latex = 0
+    stale, stale_eg = 0, None
     for r in rows:
         ident = r.get("identity") or {}
         reg = ident.get("region") or {}
@@ -600,6 +622,37 @@ def validate(data: dict) -> list:
             out.append(f"{ident.get('document')} {r.get('label')}: LaTeX but "
                        f"no latex_sha16 — the stability field is the only way "
                        f"a stale mark is detectable")
+        elif r["latex_sha16"] != latex_sha16(r["latex"]):
+            stale += 1
+            if stale_eg is None:
+                stale_eg = (ident.get("document"), r.get("label"),
+                            r["latex_sha16"], latex_sha16(r["latex"]))
+    # 885 — THE HASH MUST HASH THE TEXT THAT IS IN THE ROW.
+    #
+    # `latex_sha16` is the change detector: same identity + different hash
+    # means a mark is stale. A row whose hash describes the LaTeX it USED to
+    # carry inverts that — the text changed and the detector says it did not.
+    #
+    # Two tools have now written a row this way. inkdrill's first MathPix swap
+    # carried pdf2mmd's hash on 51,431 of 59,079 rows; the rule "recompute it"
+    # was found, fixed in one writer, and did not travel to the second. A
+    # 16-hex string carries no evidence of which text it hashed, so nothing
+    # raised either time.
+    #
+    # The rule belongs HERE rather than in each writer, because this function
+    # already walks every row with both the LaTeX and the hash in hand, and
+    # `eqreport` refuses to build on a list that does not validate. inkdrill
+    # made the point exactly: their volumes validate clean against the old
+    # version *precisely because* it does not check this — a filter holding a
+    # guarantee it never tests.
+    if stale:
+        out.append(f"{stale} row(s) carry a latex_sha16 that is not the hash "
+                   f"of their own `latex` — the change detector describes text "
+                   f"the row no longer holds. Set it with "
+                   f"`eqlist.latex_sha16(row['latex'])`; keep any previous "
+                   f"hash under its own name (e.g. latex_sha16_pdf2mmd). "
+                   f"First: {stale_eg[0]} {stale_eg[1]} has {stale_eg[2]}, "
+                   f"its LaTeX hashes to {stale_eg[3]}")
     if dup:
         out.append(f"{dup} row(s) share an identity (document, page, region) — "
                    f"the key is not a key on this list")

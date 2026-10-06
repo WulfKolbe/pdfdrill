@@ -2359,7 +2359,9 @@ def _do_eqlist(args):
 
 def _do_eqreport(args):
     """pdfdrill eqreport [--library DIR] [--out DIR] [--name N] [--no-crops]
-    [--paper a3|a4] [--portrait] [--dpi N] [--compile] — 865: the report whose
+    [--reuse-crops] [--volume-rows N] [--paper a3|a4] [--portrait] [--dpi N]
+    [--compile] — 865:
+    the report whose
     subject is a LIST. Writes <name>.table.tex and <name>.marks-request.json
     beside the list; takes no document lock because it writes into no document
     folder."""
@@ -2370,7 +2372,11 @@ def _do_eqreport(args):
     paper, args = _opt(args, "--paper")
     dpi, args = _opt(args, "--dpi")
     sample, args = _opt(args, "--sample")
+    volrows, args = _opt(args, "--volume-rows")
     no_crops = "--no-crops" in args
+    reuse_crops = "--reuse-crops" in args
+    compare = "--compare" in args
+    keep_unrend = "--keep-unrenderable" in args
     portrait = "--portrait" in args
     comp = "--compile" in args
     csvout = "--csv" in args
@@ -2380,6 +2386,9 @@ def _do_eqreport(args):
                         no_crops=no_crops, paper=paper or "a3",
                         portrait=portrait, dpi=int(dpi) if dpi else 400,
                         compile=comp, csv=csvout,
+                        reuse_crops=reuse_crops,
+                        volume_rows=int(volrows) if volrows else 0,
+                        compare=compare, keep_unrenderable=keep_unrend,
                         sample=int(sample) if sample else 0)
 
 

@@ -20583,7 +20583,10 @@ def cmd_eqreport(library: Path | None = None, *, name: str = "eqlist",
                  out: Path | None = None, no_crops: bool = False,
                  paper: str = "a3", portrait: bool = False,
                  dpi: int = 400, compile: bool = False,
-                 csv: bool = False, sample: int = 0) -> str:
+                 csv: bool = False, sample: int = 0,
+                 reuse_crops: bool = False, volume_rows: int = 0,
+                 compare: bool = False,
+                 keep_unrenderable: bool = False) -> str:
     """The report whose subject is the LIST: a LaTeX table + the inkdrill update.
 
     Writes `<name>.table.tex` (document, eq no, page rectangle, crop, LaTeX,
@@ -20640,16 +20643,36 @@ def cmd_eqreport(library: Path | None = None, *, name: str = "eqlist",
                 "(%d problem(s)) — a table built on it would look finished:\n  %s"
                 % (len(problems), "\n  ".join(problems[:10])))
     moved = _el.verify_inputs(data)
-    stats = _et.write(data, out, crops=not no_crops, paper=paper,
+    if volume_rows:
+        return _eqreport_volumes(
+            data, out, name, volume_rows, moved,
+            crops=not no_crops, reuse_crops=reuse_crops, compare=compare,
+            keep_unrenderable=keep_unrenderable,
+            paper=paper, landscape=not portrait, dpi=dpi, compile=compile)
+    stats = _et.write(data, out, crops=not no_crops, reuse_crops=reuse_crops,
+                      compare=compare, keep_unrenderable=keep_unrenderable,
+                      paper=paper,
                       landscape=not portrait, dpi=dpi)
     lines = [
         f"eqreport: {stats['rows']} row(s) -> {stats['tex'].name}",
         f"  rendered {stats['rendered']}, not rendered {stats['not_rendered']}, "
         f"no LaTeX {stats['no_latex']}",
-        f"  crops cut {stats['cropped']}, uncropped {stats['uncropped']}",
+        f"  crops cut {stats['cropped']}, uncropped {stats['uncropped']}"
+        + (f"\n  EXCLUDED, nothing to compare: {stats['skipped_unrenderable']} "
+           f"row(s) whose LaTeX does not typeset — listed in "
+           f"<name>.unrenderable.json, they are the next job not this one"
+           if stats.get('skipped_unrenderable') else ""),
         f"  inkdrill update: {stats['marks_request'].name} — calibrate on each "
         f"document's full set of the listed KIND, mark only the listed rows",
     ]
+    fails = stats.get("crop_failures") or []
+    if fails:
+        lines.append("  PAGES THAT WOULD NOT RASTERIZE (%d) — those rows show "
+                     "no crop because the PAGE could not be rendered, which is "
+                     "not the same as a row with no region:" % len(fails))
+        for f in fails[:6]:
+            lines.append("    %s p%s (%d row(s)): %s"
+                         % (f["document"], f["page"], f["rows"], f["error"]))
     if moved:
         lines.append("  INPUTS MOVED SINCE THE LIST WAS BUILT (%d) — the table "
                      "describes the list, not today's documents:" % len(moved))
@@ -20668,6 +20691,98 @@ def cmd_eqreport(library: Path | None = None, *, name: str = "eqlist",
             lines.append(f"  xelatex: {pages} page(s), {errors} error(s), "
                          f"{len(demoted) if hasattr(demoted, '__len__') else demoted}"
                          f" row(s) demoted to source-only")
+    return "\n".join(lines)
+
+
+def _eqreport_volumes(data: dict, out: Path, name: str, volume_rows: int,
+                      moved: list, **kw) -> str:
+    r"""One table in several volumes, split on DOCUMENT boundaries.
+
+    884 — ONE `longtable` DOES NOT HOLD 16,576 ROWS. Measured rather than
+    feared: both 16,576-row tables died with
+
+        ! TeX capacity exceeded, sorry [pool size=5421702]
+
+    at row 11,870 of 16,577, after emitting 949 pages — a truncated table that
+    looks finished. TeX's string pool is consumed by the `\includegraphics`
+    PATHS, so the ceiling is bytes of filename, not rows: a corpus of long
+    document names hits it sooner. pool_size is 6,250,000 here and raising it
+    is a texmf.cnf change that does not travel with the artefact.
+
+    TWO LIMITS, AND THE SMALLER ONE BINDS. The pool ends the run at ~11,870 of
+    these rows; GitHub refuses any file over 100 MB, and the output runs
+    ~15.4 KB a row (183 MB for those 11,870). So ~5,000 rows a volume is about
+    77 MB and less than half the pool — margin on both, because neither limit
+    is a constant across corpora.
+
+    DOCUMENT BOUNDARIES, NAME ORDER. A document never straddles two volumes:
+    a volume that holds half a document is not a complete statement about
+    anything, and inkdrill calibrates per document. Name order makes the
+    packing deterministic, so a rebuild puts the same documents in the same
+    volume and two builds can be diffed. A single document larger than the
+    target gets its own volume and is reported, never split.
+    """
+    import collections
+    from . import report_tex as _rt
+    from .reports import eqtable as _et
+
+    by_doc: "collections.OrderedDict" = collections.OrderedDict()
+    for r in data.get("rows") or []:
+        by_doc.setdefault(r["document"], []).append(r)
+    entries = {e.get("document"): e for e in (data.get("documents") or [])}
+
+    volumes, cur, cur_n = [], [], 0
+    for doc in sorted(by_doc):
+        n = len(by_doc[doc])
+        if cur and cur_n + n > volume_rows:
+            volumes.append(cur)
+            cur, cur_n = [], 0
+        cur.append(doc)
+        cur_n += n
+    if cur:
+        volumes.append(cur)
+
+    lines = [f"eqreport: {len(data.get('rows') or [])} row(s) over "
+             f"{len(by_doc)} document(s) -> {len(volumes)} volume(s) of at "
+             f"most {volume_rows} rows, split on document boundaries"]
+    oversize = [d for d in by_doc if len(by_doc[d]) > volume_rows]
+    for d in oversize:
+        lines.append(f"  OVERSIZE, its own volume, NOT split: {d} "
+                     f"({len(by_doc[d])} rows) — a document across two "
+                     f"volumes is not a complete statement about it")
+    for i, docs in enumerate(volumes, 1):
+        vname = f"{name}.vol{i:02d}"
+        sub = dict(data)
+        sub["name"] = vname
+        sub["rows"] = [r for d in docs for r in by_doc[d]]
+        sub["documents"] = [entries[d] for d in docs if d in entries]
+        sub["counts"] = dict(data.get("counts") or {})
+        sub["counts"]["rows"] = len(sub["rows"])
+        sub["counts"]["documents"] = len(sub["documents"])
+        sub["volume"] = {"of": name, "index": i, "volumes": len(volumes),
+                         "documents": docs,
+                         "note": "every row of this list appears in exactly "
+                                 "one volume; documents are not split"}
+        st = _et.write(sub, out,
+                       **{k: v for k, v in kw.items() if k != "compile"})
+        line = (f"  vol{i:02d}: {st['rows']} row(s), {len(docs)} document(s) "
+                f"-> {st['tex'].name}")
+        if kw.get("compile"):
+            got = _rt.compile_fixpoint(st["tex"])
+            if got is None:
+                line += "  (xelatex absent)"
+            else:
+                pages, errors, demoted = got
+                pdf = st["tex"].with_suffix(".pdf")
+                mb = pdf.stat().st_size / 1048576 if pdf.exists() else 0.0
+                line += (f"  {pages} page(s), {errors} error(s), {mb:.1f} MB")
+                if errors:
+                    line += "  <-- DID NOT COMPILE CLEANLY"
+                elif mb > 100:
+                    line += "  <-- OVER GITHUB'S 100 MB LIMIT"
+        lines.append(line)
+    if moved:
+        lines.append("  INPUTS MOVED SINCE THE LIST WAS BUILT (%d)" % len(moved))
     return "\n".join(lines)
 
 

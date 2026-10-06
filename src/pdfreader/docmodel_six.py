@@ -827,8 +827,26 @@ def _spans(line: "LineNode") -> list[Span]:
                 _lhs = (_mostly_math and 1 <= len(run) <= 3
                         and all(g.text.strip().isalpha() for g in run)
                         and _is_relation(_nxt))
-                _l_ok = left_any and _solid(i - 1) and (left or _solo or _lhs)
-                _r_ok = right_any and _solid(i + 1) and (right or _solo or _lhs)
+                # 890 — AND THE RIGHT-HAND SIDE. `dA + A \wedge \star A = 0`
+                # came out `… = ` with the `0` gone: a digit is not alphabetic
+                # so `_lhs` could not reach it, `_solo` wants an italic
+                # letter, and the plain absorption wants mathematics on BOTH
+                # sides — which `0` does not have, because an equation number
+                # `(7)` sits to its right. So the whole right-hand side of a
+                # relation was dropped while the relation itself survived,
+                # which is the worst of the three states: the row reads as an
+                # equation asserting nothing.
+                #
+                # Mirror of `_lhs` with the evidence on the other side, and
+                # alphaNUMERIC because a right-hand side is usually a number.
+                _prv = runs[i - 1][-1] if i else None
+                _rhs = (_mostly_math and 1 <= len(run) <= 3
+                        and all(g.text.strip().isalnum() for g in run)
+                        and _is_relation(_prv))
+                _l_ok = left_any and _solid(i - 1) and (left or _solo or _lhs
+                                                          or _rhs)
+                _r_ok = right_any and _solid(i + 1) and (right or _solo or _lhs
+                                                         or _rhs)
                 absorb = (not forced and (_l_ok or _r_ok)
                           and _is_variable_run(run))
                 take_left = _l_ok

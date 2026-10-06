@@ -146,7 +146,11 @@ def _far_below(prev, line) -> bool:
 def _build_multi(page, run, bibkey, px_per_pt) -> Equation:
     lines = [ln for ln, _ in run]
     spans = [sp for _, ms in run for sp in ms]
-    eq = _build(page, lines[0], spans, "display", bibkey, px_per_pt)
+    # 890 — the spans GROUPED BY LINE, so `_build` can break the rows. One
+    # entry per source line, in reading order; `_build` falls back to the flat
+    # join when there is only one.
+    rows = [list(ms) for _, ms in run]
+    eq = _build(page, lines[0], spans, "display", bibkey, px_per_pt, rows=rows)
     # THE LINE RECT IS NOT THE EQUATION'S RECT. `_build` derives an inline
     # row's region from its math SPANS, which already exclude a right-margin
     # label; this path recomputed it from whole LINES, so every display row
@@ -212,7 +216,8 @@ def _structural_penalty(latex: str | None) -> float:
     return min(1.0, (opens - closes) / max(opens, 1))
 
 
-def _build(page, line, spans, kind, bibkey, px_per_pt) -> Equation:
+def _build(page, line, spans, kind, bibkey, px_per_pt,
+           rows: "list | None" = None) -> Equation:
     parts, projected, deferred = [], 0, []
     for sp in spans:
         tex = docmodel.span_latex(sp)
@@ -222,10 +227,38 @@ def _build(page, line, spans, kind, bibkey, px_per_pt) -> Equation:
         else:
             projected += 1
             parts.append(tex)
+    # 890 — THE ROWS OF A MULTI-LINE DISPLAY MUST ACTUALLY BREAK.
+    #
+    # `rows` is the spans grouped by their source LINE. Flattening them into
+    # one sequence lost the row boundary: wzlxjtu-030 p1 sets `dA + A \wedge
+    # \star A = 0` and `D\overline{A} + \overline{A} \wedge \star\overline{A}
+    # = 0` as two separate lines (26 and 27, one baseline each, both display),
+    # and `equations.json` ran them together while `page.md` — which groups
+    # by baseline and emits `\begin{aligned}` — got them right. One reader,
+    # the row logic in one of its two outputs, found by psred comparing our
+    # own two projections of the same region rather than ours against
+    # MathPix's.
+    #
+    # `project_mmd.to_markdown` does this at 1954 (732, wzlxjtu-009's
+    # three-row display: "The content was never the problem; the row
+    # structure was discarded at the last step before printing"). Same
+    # treatment, same environment, in the artefact the corpus is addressed by.
+    row_tex: "list | None" = None
+    if rows and len(rows) > 1:
+        row_tex = []
+        for row in rows:
+            got = [t for t in (docmodel.span_latex(sp) for sp in row)
+                   if t is not None]
+            if got:
+                row_tex.append(" ".join(got))
     rect = (min(sp.rect[0] for sp in spans), min(sp.rect[1] for sp in spans),
             max(sp.rect[2] for sp in spans), max(sp.rect[3] for sp in spans))
     region = docmodel._px_region(rect, page, px_per_pt)
-    latex = " ".join(parts) if parts else None
+    if row_tex and len(row_tex) > 1:
+        latex = (r"\begin{aligned} " + r" \\ ".join(row_tex)
+                 + r" \end{aligned}")
+    else:
+        latex = " ".join(parts) if parts else None
     # Same gate as the markdown: an "equation" holding only delimiters or
     # nothing at all is not one. It is recorded with latex=None so the row
     # still exists in the evidence table -- an equation that produced
