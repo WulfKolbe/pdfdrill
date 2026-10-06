@@ -187,6 +187,19 @@ class GlyphNode:
     upright: bool = True
     color: tuple[float, float, float] | None = None   # None == black
     stream: int = -1            # position in the content stream, -1 unknown
+    #: 893 — THE GLYPH'S MEASURED INK, or None when it could not be measured.
+    #:
+    #: `rect` is pdfminer's box, which is the FONT's box: every glyph of a
+    #: font reports the same height, so `x` and `g` are equally tall and a
+    #: `\bigl(` from CMEX reaches 8 pt into the line above. `inkboxes` reads
+    #: the embedded Type 1/CFF program and returns the outline's real extent.
+    #:
+    #: A SECOND FIELD, never a replacement for `rect`. Twenty modules read
+    #: `rect`, Type 3 and TrueType are not covered so `ink` is legitimately
+    #: absent, and a plausible wrong box is the one failure that cannot be
+    #: detected downstream (`inkboxes`' own contract). So readers that want
+    #: the true extent ask for it and get `None` when there is none.
+    ink: Rect | None = None
 
     @property
     def is_math(self) -> bool:
@@ -2859,8 +2872,13 @@ LAST_READ_ERROR: "tuple | None" = None
 LAST_READ_TRACEBACK: "str | None" = None
 
 
-def build(path: str, pages: Iterable[int] | None = None) -> list[PageNode]:
-    """Build the document model. One GlyphNode per LTChar, no exceptions."""
+def build(path: str, pages: Iterable[int] | None = None, *,
+          ink: "bool | None" = None) -> list[PageNode]:
+    """Build the document model. One GlyphNode per LTChar, no exceptions.
+
+    `ink=True` also measures each glyph's real outline extent and sets
+    `GlyphNode.ink` (893). None follows `INK_REGIONS` / `PDFDRILL_INK_REGIONS`.
+    """
     out: list[PageNode] = []
     links_by_page = _page_links(path, pages)
     stream_by_page = _stream_index(path, pages)
@@ -3929,6 +3947,19 @@ def build(path: str, pages: Iterable[int] | None = None) -> list[PageNode]:
         globals()["LAST_READ_ERROR"] = (path, len(out), read_error)
     else:
         globals()["LAST_READ_ERROR"] = None
+    # 893 — MEASURE THE INK, when asked. Last, so a failure here costs the
+    # measurement and never the document: every glyph keeps pdfminer's box and
+    # `glyph_box` falls back to it, which is what every region meant before
+    # this existed.
+    if INK_REGIONS if ink is None else ink:
+        LAST_INK_REPORT.clear()
+        for p in out:
+            try:
+                attach_ink(path, p)
+            except Exception as e:                           # noqa: BLE001
+                LAST_INK_REPORT[p.page] = {
+                    "measured": 0, "glyphs": sum(len(l.glyphs) for l in p.lines),
+                    "why": f"{type(e).__name__}: {e}"}
     return out
 
 
@@ -3990,6 +4021,97 @@ def _contour(rect: Rect, page: "PageNode", k: float) -> list[list[int]]:
     y0 = round((page.rect[3] - rect[3]) * k)
     y1 = round((page.rect[3] - rect[1]) * k)
     return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]
+
+
+#: 893 — whether `build()` measures ink. OFF by default and that is a cost
+#: decision, not a confidence one: `inkboxes.ink_boxes` re-runs pdfminer over
+#: the page, so measuring doubles the read. A corpus pass is ~6 h; silently
+#: making it ~12 h is the operator's call. `PDFDRILL_INK_REGIONS=1` or
+#: `build(..., ink=True)` turns it on.
+INK_REGIONS = os.environ.get("PDFDRILL_INK_REGIONS", "") not in ("", "0")
+
+#: Set by `attach_ink` so a consumer can tell a page measured from ink from a
+#: page that fell back. {page number: {"measured": n, "glyphs": n, "why": …}}
+LAST_INK_REPORT: dict = {}
+
+
+def attach_ink(path: str, page: "PageNode") -> dict:
+    r"""Set `GlyphNode.ink` on every glyph of `page` that can be measured.
+
+    893 — THE JOIN IS ON EVIDENCE, NOT ON ORDER. psred left this exact
+    assumption open ("assumes pdfminer and inkboxes list overlaid glyphs in
+    the same order; unverified"), and an order-based join is undetectable when
+    it slips: every glyph gets A box, just the wrong one, and a region drawn
+    from it looks plausible.
+
+    `inkboxes` returns pdfminer's OWN bbox for each record, so that bbox is
+    the key — it is positional, so it identifies the glyph INSTANCE rather
+    than the character, and a mismatch shows up as an unmatched record rather
+    than as a silently shifted box. Font and size join too, because two glyphs
+    can share a box when one is drawn over another (which is how TeX sets
+    `\cong`).
+
+    Returns the per-page report rather than printing: how many glyphs were
+    measured, how many were not, and why not.
+    """
+    from pdfreader import inkboxes as _ib
+
+    def _key(box, font, size):
+        return (round(box[0], 2), round(box[1], 2), round(box[2], 2),
+                round(box[3], 2), (font or "").split("+")[-1], round(size, 2))
+
+    try:
+        recs = _ib.ink_boxes(path, page.page)
+    except Exception as e:                                   # noqa: BLE001
+        rep = {"measured": 0, "glyphs": 0, "why": f"{type(e).__name__}: {e}"}
+        LAST_INK_REPORT[page.page] = rep
+        return rep
+
+    # EXACTLY ONE RECORD, OR NONE. Two glyphs can share a pdfminer box, a
+    # font and a size — that is precisely how TeX draws `\cong` (a `\sim`
+    # then an `=` under it) and `\widehat{x}` (the accent then the letter).
+    # A dict that keeps the last one would hand BOTH glyphs the same box, and
+    # one of them would be wrong while looking measured. So the map holds
+    # every candidate and an ambiguous key yields no ink at all, counted
+    # under its own name: a glyph the join could not resolve is not the same
+    # fact as a glyph the font could not measure.
+    cand: dict = {}
+    for r in recs:
+        if r.get("ink"):
+            cand.setdefault(
+                _key(r["pdfminer"], r.get("font"), r.get("size") or 0.0),
+                []).append(tuple(r["ink"]))
+    n = hit = ambiguous = nokey = 0
+    for ln in page.lines:
+        for g in ln.glyphs:
+            n += 1
+            got = cand.get(_key(g.rect, g.fontname, g.size))
+            if not got:
+                nokey += 1
+            elif len(got) > 1 and len(set(got)) > 1:
+                ambiguous += 1
+            else:
+                g.ink = got[0]
+                hit += 1
+    rep = {"measured": hit, "glyphs": n,
+           "unmeasured": n - hit,
+           "no_matching_record": nokey,
+           "ambiguous_join": ambiguous,
+           "records": len(recs), "with_ink": len(cand),
+           "why": None if hit else "no record matched"}
+    LAST_INK_REPORT[page.page] = rep
+    return rep
+
+
+def glyph_box(g: "GlyphNode") -> Rect:
+    """The glyph's MEASURED ink where it exists, its font box otherwise.
+
+    893 — the one place that decision is made, so a region, a crop and a mark
+    cannot disagree about which box they meant. `inkboxes` returns None for an
+    uncovered font rather than guessing, and the fallback is the font box
+    because that is what every region meant before this existed.
+    """
+    return g.ink if getattr(g, "ink", None) else g.rect
 
 
 def _px_region(rect: Rect, page: PageNode, k: float) -> dict:

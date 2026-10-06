@@ -57,7 +57,11 @@ class Equation:
     region: dict                    # pixels, 250 dpi, y down
     spans: int
     projected: int
-    structural_ok: bool = True
+    #: 893 — the same box measured from the glyphs' real OUTLINES rather than
+    #: pdfminer's font boxes, or None when nothing on the row could be
+    #: measured. ADDITIVE: `region` is the identity and stays pdfminer's.
+    region_ink: dict | None = None
+    structural_ok: "bool | None" = True
     line_id: str = ""
     deferred: list = field(default_factory=list)
     number_region: dict | None = None     # the right-margin (n), when present
@@ -74,6 +78,7 @@ class Equation:
             "structural_ok": self.structural_ok,
             "latex": self.latex,
             "region": self.region,
+            "region_ink": self.region_ink,
             "spans": self.spans,
             "projected": self.projected,
             "deferred": self.deferred,
@@ -254,6 +259,35 @@ def _build(page, line, spans, kind, bibkey, px_per_pt,
     rect = (min(sp.rect[0] for sp in spans), min(sp.rect[1] for sp in spans),
             max(sp.rect[2] for sp in spans), max(sp.rect[3] for sp in spans))
     region = docmodel._px_region(rect, page, px_per_pt)
+    # 893 — THE SAME REGION MEASURED FROM INK, as a SECOND field.
+    #
+    # `region` comes from pdfminer's boxes, which are the FONT's boxes: on
+    # wzlxjtu-011 the font box is taller than the real outline by a median of
+    # 4.48 pt and up to 12.28 pt, on an 10.9 pt body — so every region in the
+    # corpus describes a box roughly 40% of a font size taller than the ink in
+    # it. That is what makes a `\bigl(` appear to reach into the line above.
+    #
+    # ADDITIVE, AND DELIBERATELY NOT `region`. Identity is (document, page,
+    # region). Re-measuring `region` would change the identity of every row in
+    # the corpus: every crop filename, every inkdrill mark and every join in
+    # every list keys on it. That is a corpus-wide re-cut and a mark
+    # invalidation, and it is the operator's decision, not a side effect of
+    # wiring a better measurement in. So the tighter box is offered beside the
+    # one everything is addressed by, and a consumer that wants it asks.
+    #
+    # Absent when nothing on the row could be measured, rather than silently
+    # equal to `region` — an equal value would read as "the ink agrees", which
+    # is a different claim from "we did not measure".
+    ink_rect = [docmodel.glyph_box(g) for sp in spans
+                for g in getattr(sp, "glyphs", []) or []
+                if getattr(g, "ink", None)]
+    region_ink = None
+    if ink_rect:
+        region_ink = docmodel._px_region(
+            (min(r[0] for r in ink_rect), min(r[1] for r in ink_rect),
+             max(r[2] for r in ink_rect), max(r[3] for r in ink_rect)),
+            page, px_per_pt)
+        region_ink["glyphs_measured"] = len(ink_rect)
     if row_tex and len(row_tex) > 1:
         latex = (r"\begin{aligned} " + r" \\ ".join(row_tex)
                  + r" \end{aligned}")
@@ -275,14 +309,30 @@ def _build(page, line, spans, kind, bibkey, px_per_pt,
     # weighting is not known here. A consumer that wants one number can
     # combine them; one that wants to know WHY can read both.
     conf = projected / len(spans) if spans else 0.0
-    structural = _structural_penalty(latex) == 0.0
-    if not structural:
+    # 892 — `structural_ok` MUST NOT BE TRUE ABOUT NOTHING.
+    #
+    # `_structural_penalty("")` is 0, so an equation that projected nothing
+    # claimed sound structure. psred found 305 such rows on a subset
+    # (playground F22) and named the empty `\left[ \right]` of wzlxjtu-011
+    # EQ0008 as a separate case; measured on the corpus list it is 44,417 of
+    # 283,949 rows — 15.6% — and EVERY one has no LaTeX at all. So it was
+    # never 305 rows of oddity and the two reports are one defect: it is
+    # among the largest untrue statements in the list.
+    #
+    # None, not False. False asserts the structure is BROKEN, which is
+    # equally unknown; None says there was nothing to judge. A consumer
+    # writing `if structural_ok:` gets the safe direction — not counted sound
+    # — and one writing `is False` correctly does not fire.
+    structural = (None if latex is None
+                  else _structural_penalty(latex) == 0.0)
+    if structural is False:
         deferred.append({"span": line.id, "reason": "unbalanced-delimiter"})
     return Equation(
         ident=_ident(bibkey, page.page, region, latex),
         label="", page=page.page, kind=kind, latex=latex,
         confidence=conf, structural_ok=structural,
-        region=region, spans=len(spans), projected=projected,
+        region=region, region_ink=region_ink,
+        spans=len(spans), projected=projected,
         line_id=line.id, deferred=deferred)
 
 
