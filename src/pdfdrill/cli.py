@@ -89,9 +89,21 @@ def main():
             from . import planner
             pdf_arg = next((a for a in rest if not a.startswith("-")), None)
             if pdf_arg is not None:
+                # 896 — PLAN AGAINST THE DOCUMENT, NOT THE ARGUMENT. Every
+                # `done_when` resolves against `pdf.parent` and the PDF's stem,
+                # so the planner needs the PDF, and this passed the raw token.
+                # A folder (`<name>/`) or a bare library name — the two forms
+                # drillui uses, and drillui appends `--ensure` to EVERY command
+                # — made it look beside the folder instead of inside it. A
+                # fully drilled document then planned
+                # `[model, geometry, mathpix, inspect]` where the truth was
+                # `[inspect]`: two offline steps re-run on every command, and a
+                # paid-step note for a MathPix reading already on disk. Only the
+                # LOCAL lookups are done here, never the download branch —
+                # planning must not acquire anything.
                 # Silent: the prerequisites are how the target gets built, not
                 # something the caller asked to read about.
-                planner.ensure(cmd, Path(pdf_arg), HANDLERS, pdf_arg)
+                planner.ensure(cmd, plan_target(pdf_arg), HANDLERS, pdf_arg)
         except Exception as e:
             _emit(f"[ensure] skipped ({e})", sys.stderr)        # stderr only
 
@@ -201,6 +213,37 @@ def _not_found_message(arg: str, resolved: Path) -> str:
     return "\n".join(lines)
 
 
+def plan_target(pdf_arg: str) -> Path:
+    """The PDF a prerequisite plan must be computed against.
+
+    Every `done_when` resolves against `pdf.parent` and the PDF's stem, so the
+    planner needs the DOCUMENT; `--ensure` handed it the raw command-line
+    token. For a folder (`<name>/`) or a bare library name — the two forms
+    drillui uses, and drillui appends `--ensure` to every command — that made
+    it look beside the folder instead of inside it. Measured on a fully
+    drilled `1306.1660`: the token planned `[model, geometry, mathpix,
+    inspect]` where the document's truth was `[inspect]`, so two offline steps
+    re-ran on every command and a paid-step note named a MathPix reading
+    already on disk.
+
+    LOCAL lookups only — `pdf_in_folder`, then the library. Never the download
+    branch `_pdf` goes on to use: planning must not acquire anything, and a
+    URL or a bare arXiv id has no plan to compute until it has been fetched.
+    Falls back to the token itself, so an unresolvable one plans as before.
+    """
+    tok = Path(pdf_arg).expanduser()
+    try:
+        from . import sources as _s, config as _c
+        hit = _s.pdf_in_folder(tok)
+        if hit is None and not tok.exists():
+            hit = _s.library_pdf_for(pdf_arg, _c.library_root())
+        if hit is not None:
+            return hit
+    except Exception:                       # noqa: BLE001
+        pass
+    return Path(pdf_arg)
+
+
 def _probe_on_acquire(p: Path) -> Path:
     """Run the three cheap probes the first time we resolve a PDF.
 
@@ -243,6 +286,28 @@ def _probe_on_acquire(p: Path) -> Path:
         p = _src.adopt_into_doc_folder(p, _cfg.library_root())
     except Exception:                       # noqa: BLE001
         pass                                # never let tidiness fail a command
+    # 896 — A READING DELIVERED AS ONE FILE PER PAGE. `~/pdf2mmd2` writes
+    # `<stem>.lines/page-NNNN.json`, each file exactly one `pages[]` element.
+    # Folded into `<stem>.lines.json` here, because this call is the one door
+    # every locally resolved document already passes through, so no command
+    # changes: `model`, `inspect`, `md` and `eqreport` go on reading an
+    # ordinary lines.json. A reading we did not write is never replaced.
+    from . import pagelines
+    try:
+        if p.suffix.lower() == ".pdf" and p.is_file():
+            _rep = pagelines.assemble(p)
+            if _rep is not None and _rep.get("wrote"):
+                # Said once per pdf2mmd2 run, not per command: a no-op returns
+                # early above. stderr, because the command's own prose is the
+                # answer to what the user asked for and this is provenance.
+                _emit(pagelines.report_text(_rep), stream=sys.stderr)
+    except pagelines.PageLinesError as e:
+        # The ONE case that must stop the command. A page folder that cannot be
+        # ordered would otherwise be read as a document with its pages in an
+        # arbitrary order, which looks complete.
+        raise FileNotFoundError(f"{p.name}: {e}") from e
+    except Exception:                       # noqa: BLE001
+        pass                                # never let provenance fail a command
     try:
         if p.suffix.lower() == ".pdf" and p.is_file():
             from . import probes
@@ -296,6 +361,27 @@ def _pdf(args: list[str]) -> Path:
                 folder_pdf = _moved
         if folder_pdf is not None:
             return _probe_on_acquire(folder_pdf)
+        # 896 — A FOLDER THAT HOLDS A READING BUT NO PDF. `~/pdf2mmd2/out/<name>/`
+        # is exactly that: `<name>.lines.json` and `<name>.lines/` with a file
+        # per page, and no document. Without this the directory itself travels
+        # on as the "PDF" and every later step reports the consequence —
+        # pdfinfo cannot open it, the reading is never found — instead of the
+        # one fact that explains it. Say what IS there, and where the PDF for
+        # it normally lives.
+        _d = Path(arg)
+        if _d.is_dir():
+            from . import pagelines
+            _n = len(pagelines.page_files(_d / f"{_d.name}.lines"))
+            if _n or (_d / f"{_d.name}.lines.json").is_file():
+                _what = (f"{_n} page file(s) in {_d.name}.lines/" if _n
+                         else f"{_d.name}.lines.json")
+                raise FileNotFoundError(
+                    f"{_d}: holds a reading ({_what}) but no PDF.\n"
+                    f"  A document folder is <name>/<name>.pdf plus its "
+                    f"reading; pdfdrill needs the PDF to measure geometry "
+                    f"against.\n"
+                    f"  Copy {_d.name}.pdf in beside the reading, or point at "
+                    f"the folder that already has both.")
     # work directly on an https URL from a known host, OR a bare arXiv id — but
     # never shadow a real local file (checked first inside resolve_input).
     if (sources.is_url(arg) or sources.bare_arxiv_id(arg)) and not Path(arg).exists():
