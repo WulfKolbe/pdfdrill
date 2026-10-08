@@ -269,15 +269,50 @@ def clear_session_store(store_dir: str) -> list:
 
 
 def session_members(store_path: str) -> list:
-    """The member document paths recorded in a combined session store
-    (`meta.sources`), for restoring the `docs` list on resume. [] on any error."""
+    """The member document PATHS recorded in a combined session store
+    (`meta.sources`), for restoring the `docs` list on resume. [] on any error.
+
+    895 — `meta.sources` HOLDS DICTS, NOT STRINGS. `cmd_combine` writes
+    `{"bibkey": …, "path": …, "title": …}` per member (commands.py:7574, "per-doc
+    commands fan out on this"), and this function did `str(s)` on each one. So a
+    resumed session restored its `docs` list as six Python dict REPRS, and the
+    next `add` ran `pdfdrill model "{'bibkey': 'W10-3910', 'path': …}"` six
+    times, each failing with
+
+        FileNotFoundError: Not found: {'bibkey': …, 'path': …, 'title': …}
+        as a path, relative to …
+
+    which is the subprocess correctly refusing a path that is a dict's repr.
+    The failures are harmless — `docs[:] = drilled` drops them and the real
+    `add` then succeeds — but they look like six documents breaking, and they
+    name the wrong cause.
+
+    `str(s)` was right while `sources` was a list of paths. It is the same
+    shape of defect as every other one found this week: a reader that agreed
+    with its writer when it was written, and was never re-derived when the
+    writer's format grew.
+    """
     try:
         data = json.loads(Path(store_path).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return []
     meta = data.get("meta") if isinstance(data, dict) else None
     src = meta.get("sources") if isinstance(meta, dict) else None
-    return [str(s) for s in src] if isinstance(src, list) else []
+    if not isinstance(src, list):
+        return []
+    out: list = []
+    for s in src:
+        if isinstance(s, dict):
+            # `path` is what a doc token has to be; `bibkey` is the fallback,
+            # because pdfdrill resolves a bare bibkey against the library.
+            v = s.get("path") or s.get("bibkey")
+        elif isinstance(s, str):
+            v = s                                        # the older format
+        else:
+            v = None
+        if v:
+            out.append(str(v))
+    return out
 
 
 def run_command(base, env, cmds: dict, doc: str, line: str, timeout: float) -> str:
