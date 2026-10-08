@@ -33,6 +33,37 @@ from .modules.page import ingest_lines_json
 DEFAULT_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "config.json")
 
 
+def declared_source(lines_json: dict) -> str:
+    """The reader a lines.json declares — at the top, or on its pages.
+
+    897 — `lines_json.get("source")` reads the TOP LEVEL only, and a reading
+    may declare itself per page instead. 168 of the 1,747 readings in this
+    library do exactly that: `source: "pdfminer-docmodel"` on every page and
+    `pages` as their only top-level key. Each one built a model that declared
+    `meta.source = "mathpix"` — our own glyph reader's output, recorded as the
+    paid reader's. It is the upstream half of the mislabelling already measured
+    on 24 documents / 1,846 rows from the other end.
+
+    A per-page declaration is not a mistake to tolerate, either: it is the only
+    place a MERGED reading can say that its pages came from two readers (the
+    emitter in `pdfreader/docmodel_six.py` states both and says so). So the
+    pages are consulted, and only a UNANIMOUS answer is accepted — a reading
+    whose pages disagree has no single producer, and naming one of them would
+    be a guess recorded as provenance.
+    """
+    top = lines_json.get("source")
+    if isinstance(top, str) and top:
+        return top
+    said = {pg.get("source") for pg in (lines_json.get("pages") or [])
+            if isinstance(pg, dict)}
+    said.discard(None)
+    if len(said) == 1:
+        only = said.pop()
+        if isinstance(only, str) and only:
+            return only
+    return ""
+
+
 def run(
     lines_path: str,
     config_path: str,
@@ -54,7 +85,7 @@ def run(
     # page-image PIXELS served from cdn.mathpix.com; a pdfminer lines.json (our
     # DRILLPDFse route) carries regions in PDF POINTS served from OUR local
     # pyramid. No mixing — each source stays in its own coordinate system.
-    doc.meta["source"] = lines_json.get("source") or "mathpix"
+    doc.meta["source"] = declared_source(lines_json) or "mathpix"
     # 575 — the code that decided this object graph. Written once, here, and
     # never overwritten by a later save: an enrichment pass changes props, not
     # the structure whose counts a corpus measurement sums.

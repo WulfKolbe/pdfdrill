@@ -287,3 +287,160 @@ def test_the_library_name_resolves_for_planning(tmp_path, monkeypatch):
     monkeypatch.setattr("pdfdrill.config.library_root", lambda: lib)
     from pdfdrill import cli
     assert cli.plan_target("1306.1660") == pdf
+
+
+# --- 897: a reading may say who produced it --------------------------------
+
+def _lines(source: "str | None", page_source: "str | None" = None,
+           types=("page_info", "math")) -> dict:
+    """A minimal reading, for the two DETECTORS only — no page geometry is
+    asserted against it. The shape (which types count, where `source` may sit)
+    is the contract under test, not pdf2mmd2's output, so it belongs here."""
+    pg = {"page": 1, "page_width": 2125, "page_height": 2750,
+          "lines": [{"id": "a", "type": t, "text": ""} for t in types]}
+    if page_source is not None:
+        pg["source"] = page_source
+    doc = {"pages": [pg]}
+    if source is not None:
+        doc["source"] = source
+    return doc
+
+
+def _write(tmp_path, doc) -> Path:
+    pdf = tmp_path / "x.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")            # mtime must precede the reading
+    lp = tmp_path / "x.lines.json"
+    lp.write_text(json.dumps(doc), encoding="utf-8")
+    return pdf
+
+
+def test_a_declared_reader_still_carries_typed_geometry(tmp_path):
+    """The prerequisite `inspect` depends on asks whether a typed,
+    geometry-bearing reading EXISTS — not whether it was bought. While the two
+    questions shared one detector, declaring a producer made `--ensure` name a
+    paid step that could not have helped."""
+    from pdfdrill.commands import _is_typed_geometry_lines, _is_mathpix_lines
+    for src in ("pdf2mmd2", "pdf2mmd2-tsv", "pdfminer-docmodel", "mathpix"):
+        pdf = _write(tmp_path, _lines(src))
+        assert _is_typed_geometry_lines(tmp_path / "x.lines.json") is True, src
+        # and the money question still answers NO for everything but MathPix's
+        # own undeclared export
+        assert _is_mathpix_lines(tmp_path / "x.lines.json") is False, src
+    pdf = _write(tmp_path, _lines(None))      # MathPix declares nothing
+    assert _is_mathpix_lines(tmp_path / "x.lines.json") is True
+    assert _is_typed_geometry_lines(tmp_path / "x.lines.json") is True
+
+
+def test_a_text_only_reader_is_not_typed_geometry(tmp_path):
+    """`pdfminer-chars` is the case that has to be argued: 37 of its 153
+    readings in this library DO carry `math` lines in their first three pages,
+    so the line-type test alone would admit them. They are keyless and
+    text-only by construction and their regions are PDF POINTS, so admitting
+    them would hand a consumer coordinates in the wrong frame."""
+    from pdfdrill.commands import _is_typed_geometry_lines
+    for src in ("pdfminer-chars", "tesseract", "pdfplumber-chars", "visionocr"):
+        _write(tmp_path, _lines(src, types=("math",)))
+        assert _is_typed_geometry_lines(tmp_path / "x.lines.json") is False, src
+
+
+def test_a_declared_reading_satisfies_the_prerequisite(tmp_path):
+    from pdfdrill import planner
+    from pdfdrill.sidecar import Sidecar
+    pdf = _write(tmp_path, _lines("pdf2mmd2"))
+    assert planner.detect("lines:typed-geometry", Sidecar(pdf), pdf, tmp_path / "model.docmodel.json") is True
+
+
+def test_the_prerequisite_is_unsatisfied_without_a_reading(tmp_path):
+    from pdfdrill import planner
+    from pdfdrill.sidecar import Sidecar
+    pdf = tmp_path / "y.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    assert planner.detect("lines:typed-geometry", Sidecar(pdf), pdf, tmp_path / "model.docmodel.json") is False
+
+
+# --- 897: where a reading is allowed to declare itself ---------------------
+
+def test_a_source_on_the_pages_counts_as_declared():
+    """168 of this library's 1,747 readings declare `pdfminer-docmodel` on
+    every PAGE and have `pages` as their only top-level key. Each built a model
+    saying `meta.source = "mathpix"` — our own glyph reader's output recorded
+    as the paid reader's."""
+    from docmodel.main import declared_source
+    assert declared_source(_lines(None, page_source="pdfminer-docmodel")) == \
+        "pdfminer-docmodel"
+    assert declared_source(_lines("mathpix", page_source="x")) == "mathpix"
+    assert declared_source(_lines(None)) == ""
+
+
+def test_pages_that_disagree_name_no_producer():
+    """The per-page key is the only place a MERGED reading can say its pages
+    came from two readers. So disagreement is meaningful, and picking one of
+    them would be a guess recorded as provenance."""
+    from docmodel.main import declared_source
+    doc = {"pages": [{"source": "mathpix", "lines": []},
+                     {"source": "pdf2mmd2", "lines": []}]}
+    assert declared_source(doc) == ""
+
+
+@needs_real
+def test_a_source_the_pages_agree_on_is_lifted_to_the_top(doc):
+    """pdf2mmd2's reading is per page by construction, so a `source` it adds
+    arrives per page and nothing appears at the top. Lifting it makes
+    `declared_source` and the 8 KB head-read in `_lines_json_source` right by
+    construction rather than by key ordering."""
+    from pdfdrill.commands import _lines_json_source, _is_typed_geometry_lines
+    d = pagelines.lines_dir(doc)
+    for _, path in pagelines.page_files(d):
+        pg = json.loads(path.read_text(encoding="utf-8"))
+        pg["source"] = "pdf2mmd2"             # the change being requested
+        path.write_text(json.dumps(pg), encoding="utf-8")
+    rep = pagelines.assemble(doc)
+    assert rep["source"] == "pdf2mmd2"
+    lp = pagelines.lines_json(doc)
+    built = json.loads(lp.read_text(encoding="utf-8"))
+    assert built["source"] == "pdf2mmd2"
+    assert _lines_json_source(lp) == "pdf2mmd2"       # the head-read sees it
+    assert _is_typed_geometry_lines(lp) is True       # inspect still chains
+    assert "pdf2mmd2" in pagelines.report_text(rep)
+
+
+@needs_real
+def test_nothing_is_invented_while_the_producer_declares_nothing(doc):
+    rep = pagelines.assemble(doc)
+    assert rep["source"] == ""
+    built = json.loads(pagelines.lines_json(doc).read_text(encoding="utf-8"))
+    assert "source" not in built
+
+
+# --- 897: declaring a producer must not change the coordinate frame --------
+
+def test_a_declared_page_pixel_reader_keeps_its_frame():
+    """`image_ref` had two cases — "mathpix" and everything-else-is-points — so
+    the moment a reading declared a producer its crops were requested in the
+    wrong unit. pdf2mmd2 writes MathPix's frame: on 1306.1660 page 3 its
+    page_width/page_height are 2125x2750, byte-identical to MathPix's own twin
+    (8.5in and 11in at 250 dpi). A region at y=1400 PIXELS asked for as y=1400
+    POINTS is off the bottom of the page."""
+    from docmodel.mathpix import image_ref, is_local_crop
+    region = {"top_left_x": 222, "top_left_y": 1400, "width": 718, "height": 26}
+    mp = image_ref("img", region, "mathpix")
+    assert mp.startswith("https://cdn.mathpix.com/")      # MathPix hosts it
+    for src in ("pdf2mmd2", "pdf2mmd2-tsv"):
+        u = image_ref("img", region, src)
+        assert u.startswith("/cropped/"), u               # no CDN image exists
+        assert "units=" not in u, u    # the server then uses the page dims
+        assert is_local_crop(u)
+    pt = image_ref("img", region, "pdfminer-docmodel")
+    assert "units=pt" in pt                               # points, unchanged
+    assert is_local_crop(pt)
+
+
+def test_the_region_numbers_are_never_rewritten():
+    """Whichever frame it is, the four numbers reach the crop server verbatim.
+    A unit is declared, never converted here."""
+    from docmodel.mathpix import image_ref
+    region = {"top_left_x": 222, "top_left_y": 1400, "width": 718, "height": 26}
+    for src in ("mathpix", "pdf2mmd2", "pdfminer-docmodel"):
+        u = image_ref("img", region, src)
+        for k, v in region.items():
+            assert f"{k}={v}" in u, (src, k, u)

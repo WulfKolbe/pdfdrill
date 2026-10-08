@@ -153,17 +153,26 @@ def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
         except (ValueError, OSError):
             return False
         return any(h.is_file() and h.stat().st_size > 0 for h in hits)
-    if spec == "lines:mathpix":
-        # genuine MathPix geometry: lines.json exists, post-dates the PDF,
-        # and IS MathPix (keyless routes stamp a `source` key; MathPix none)
+    if spec == "lines:typed-geometry":
+        # 897 — A TYPED, GEOMETRY-BEARING READING, FROM WHICHEVER READER.
+        #
+        # This asked `_is_mathpix_lines` — "was it bought from MathPix?" — and
+        # that is not the question a prerequisite asks. `inspect` requires
+        # `mathpix` but never calls it: it reads the reading mathpix populates,
+        # and a layer's `requires` names everything it READS. MathPix declares
+        # no `source`, so the old test was satisfied by the ABSENCE of a
+        # declaration: our own glyph reader passed only through 168 legacy
+        # files that omitted a top-level source, and a reading that declared
+        # its producer correctly was reported unsatisfiable by a paid step that
+        # could not have helped it.
         base = pdf.name[:-4] if pdf.name.lower().endswith(".pdf") else pdf.name
         lp = pdf.parent / f"{base}.lines.json"
         if not lp.exists() or not pdf.exists():
             return False
         if lp.stat().st_mtime < pdf.stat().st_mtime:
             return False
-        from .commands import _is_mathpix_lines
-        return _is_mathpix_lines(lp)
+        from .commands import _is_typed_geometry_lines
+        return _is_typed_geometry_lines(lp)
     if spec == "artifact:cdncrops":
         return _cdncrops_done(sc, pdf)
     if spec == "artifact:ink":

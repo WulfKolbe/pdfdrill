@@ -103,7 +103,9 @@ def main():
                 # planning must not acquire anything.
                 # Silent: the prerequisites are how the target gets built, not
                 # something the caller asked to read about.
-                planner.ensure(cmd, plan_target(pdf_arg), HANDLERS, pdf_arg)
+                _target = plan_target(pdf_arg)
+                fold_page_lines(_target)     # 897 — plan against the real disk
+                planner.ensure(cmd, _target, HANDLERS, pdf_arg)
         except Exception as e:
             _emit(f"[ensure] skipped ({e})", sys.stderr)        # stderr only
 
@@ -213,6 +215,39 @@ def _not_found_message(arg: str, resolved: Path) -> str:
     return "\n".join(lines)
 
 
+def fold_page_lines(p: Path) -> None:
+    """Fold a `<stem>.lines/page-NNNN.json` folder into `<stem>.lines.json`.
+
+    Called from BOTH doors a command passes through, and that is the point:
+    `_probe_on_acquire` runs inside the handler, but `--ensure` plans before
+    the handler is reached. Folded in only once (the second call is two stat
+    calls), so the planner sees the same disk the handler will.
+
+    897 — the first version was in `_probe_on_acquire` alone, and so the FIRST
+    command on a fresh page folder planned against a lines.json that did not
+    exist yet: `inspect --ensure` named the paid MathPix step, then built the
+    inspector from the reading it had just assembled. A prerequisite reported
+    missing and a command that worked anyway is the worst of the two answers.
+    """
+    if p.suffix.lower() != ".pdf" or not p.is_file():
+        return
+    from . import pagelines
+    try:
+        rep = pagelines.assemble(p)
+        if rep is not None and rep.get("wrote"):
+            # Said once per pdf2mmd2 run, not per command: a no-op returns
+            # early inside `assemble`. stderr, because the command's own prose
+            # is the answer to what the user asked for and this is provenance.
+            _emit(pagelines.report_text(rep), stream=sys.stderr)
+    except pagelines.PageLinesError as e:
+        # The ONE case that must stop the command. A page folder that cannot be
+        # ordered would otherwise be read as a document with its pages in an
+        # arbitrary order, which looks complete.
+        raise FileNotFoundError(f"{p.name}: {e}") from e
+    except Exception:                       # noqa: BLE001
+        pass                                # never let provenance fail a command
+
+
 def plan_target(pdf_arg: str) -> Path:
     """The PDF a prerequisite plan must be computed against.
 
@@ -292,22 +327,7 @@ def _probe_on_acquire(p: Path) -> Path:
     # every locally resolved document already passes through, so no command
     # changes: `model`, `inspect`, `md` and `eqreport` go on reading an
     # ordinary lines.json. A reading we did not write is never replaced.
-    from . import pagelines
-    try:
-        if p.suffix.lower() == ".pdf" and p.is_file():
-            _rep = pagelines.assemble(p)
-            if _rep is not None and _rep.get("wrote"):
-                # Said once per pdf2mmd2 run, not per command: a no-op returns
-                # early above. stderr, because the command's own prose is the
-                # answer to what the user asked for and this is provenance.
-                _emit(pagelines.report_text(_rep), stream=sys.stderr)
-    except pagelines.PageLinesError as e:
-        # The ONE case that must stop the command. A page folder that cannot be
-        # ordered would otherwise be read as a document with its pages in an
-        # arbitrary order, which looks complete.
-        raise FileNotFoundError(f"{p.name}: {e}") from e
-    except Exception:                       # noqa: BLE001
-        pass                                # never let provenance fail a command
+    fold_page_lines(p)
     try:
         if p.suffix.lower() == ".pdf" and p.is_file():
             from . import probes

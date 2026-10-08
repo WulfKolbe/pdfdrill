@@ -37,32 +37,72 @@ _LOCAL_CROP_PREFIX = "/cropped/"
 
 
 def local_crop_url(image_id: Optional[str], region: Optional[dict],
-                   ext: str = "png") -> str:
-    """Build OUR pyramid crop URL for a region in PDF POINTS, or '' if missing.
-    Carries `units=pt` so no coordinate-system mixing can occur downstream."""
+                   ext: str = "png", units: Optional[str] = "pt") -> str:
+    """Build OUR pyramid crop URL for a region, or '' if id/region is missing.
+
+    `units="pt"` says the region is in PDF POINTS — our glyph reader's frame —
+    and the crop server then scales by exactly `pyramid_dpi/72`. `units=None`
+    omits the key, which is how the server is told the region is in the
+    lines.json's OWN PAGE-PIXEL frame: it scales by `pyramid_W/page_width`
+    read from that same lines.json. Both are explicit, and that is the point —
+    the unit is a property of the reading, not of whether MathPix produced it.
+    """
     if not image_id or not region:
         return ""
     return (
         f"{_LOCAL_CROP_PREFIX}{image_id}.{ext}"
         f"?height={region.get('height')}&width={region.get('width')}"
         f"&top_left_y={region.get('top_left_y')}&top_left_x={region.get('top_left_x')}"
-        f"&units=pt"
+        + (f"&units={units}" if units else "")
     )
+
+
+#: Readers whose `region` is in the lines.json's OWN page-pixel frame, not in
+#: PDF points. MathPix is the origin of that convention; pdf2mmd2 writes the
+#: same frame — measured on 1306.1660 page 3, where its `page_width`/
+#: `page_height` are 2125x2750, byte-identical to MathPix's own twin of that
+#: page (8.5in x 250dpi, 11in x 250dpi) and its regions share those axes.
+#:
+#: 897 — THIS IS WHY A `source` KEY IS NOT A FREE LABEL. `image_ref` had two
+#: cases, "mathpix" and everything-else-is-points, so the moment a reading
+#: declared a producer its crops were requested in the wrong unit: a region at
+#: y=1400 page pixels asked for as y=1400 points, which is off the page. The
+#: frame has to be carried per reader, or declared per reading.
+_PAGE_PIXEL_SOURCES = ("mathpix", "pdf2mmd2")
+
+
+def _is_page_pixel_source(source: str) -> bool:
+    src = (source or "mathpix").lower()
+    return any(src == s or src.startswith(s + "-") for s in _PAGE_PIXEL_SOURCES)
 
 
 def image_ref(image_id: Optional[str], region: Optional[dict],
               source: str = "mathpix") -> str:
-    """Source-aware crop reference. `mathpix` → the CDN pixel URL; any other
-    source (pdfminer/DRILLPDFse, …) → OUR local pyramid URL in PDF points. The
-    two coordinate systems never mix — the source alone selects one."""
+    """Source-aware crop reference, in THREE cases, because there are three:
+
+      * `mathpix` — the CDN pixel URL. MathPix hosts the page image.
+      * another reader in MathPix's page-pixel frame (`pdf2mmd2`) — OUR local
+        pyramid, with NO `units`, so the server scales by the lines.json's own
+        page dimensions. There is no CDN image to ask for; the coordinates are
+        nonetheless pixels.
+      * everything else (pdfminer / DRILLPDFse) — OUR local pyramid in PDF
+        points, `units=pt`.
+
+    The two coordinate systems still never mix. What changed in 897 is that
+    "is it MathPix?" and "is it in pixels?" stopped being the same question.
+    """
     if (source or "mathpix").lower() == "mathpix":
         return crop_url(image_id, region)
+    if _is_page_pixel_source(source):
+        return local_crop_url(image_id, region, units=None)
     return local_crop_url(image_id, region)
 
 
 def is_local_crop(url: Optional[str]) -> bool:
-    """True for one of OUR local pyramid crop URLs (`/cropped/…?…&units=pt`)."""
-    return bool(url) and url.startswith(_LOCAL_CROP_PREFIX) and "units=pt" in url
+    """True for one of OUR local pyramid crop URLs (`/cropped/…`), in either
+    unit. It tested for `units=pt`, which was the same conflation: a
+    page-pixel local crop is just as local."""
+    return bool(url) and url.startswith(_LOCAL_CROP_PREFIX)
 
 
 def page_url(image_id_or_crop_url: Optional[str]) -> str:

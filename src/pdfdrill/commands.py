@@ -473,11 +473,67 @@ def _is_mathpix_lines(lines_path: Path) -> bool:
     keyless routes stamp one) and carries MathPix-only line types."""
     if not lines_path.exists():
         return False
-    src = _lines_json_source(lines_path)
-    if src:
+    if _lines_json_source(lines_path):
         return False
+    return _has_mathpix_line_types(lines_path)
+
+
+
+#: Readers measured to emit MathPix's LINE TYPES in PAGE-PIXEL regions — the
+#: two properties every consumer of a reading's geometry depends on. "" is
+#: MathPix itself, which declares no source. Counted over the 1,747 readings in
+#: this library:
+#:
+#:   ""                 1,579   MathPix
+#:   pdfminer-docmodel    171   our own glyph reader (src/pdfreader)
+#:   pdfminer-chars       153   the born-digital text layer — EXCLUDED
+#:   tesseract              8   OCR — EXCLUDED
+#:   visionocr              3   EXCLUDED: three readings, not measured
+#:   pdfminer               1   EXCLUDED
+#:
+#: `pdfminer-chars` is the one that has to be argued rather than assumed: 37 of
+#: its 153 readings DO carry `math` lines in their first three pages, so the
+#: line-type test alone would admit them. They are keyless and text-only by
+#: construction (`_KEYLESS_TEXTONLY_SOURCES`) and their regions are PDF POINTS,
+#: not page pixels, so admitting them would hand a consumer coordinates in the
+#: wrong frame. The type test is necessary and not sufficient; both are checked.
+_TYPED_GEOMETRY_SOURCES = ("", "mathpix", "pdfminer-docmodel", "pdf2mmd2")
+
+
+def _is_typed_geometry_lines(lines_path: Path) -> bool:
+    """True for a reading that carries MathPix's line types in page pixels —
+    whoever produced it.
+
+    SEPARATE FROM `_is_mathpix_lines`, which answers a different question:
+    "was this bought from MathPix?". That one must stay strict, because four
+    call sites spend or protect money on the answer — `model --reader mathpix`
+    refuses to call a free reading a paid one, and three places park a
+    displaced reading as `<stem>.mathpix.bak.json`.
+
+    The question HERE is the one the prerequisite graph actually asks. `inspect`
+    requires `mathpix` but it never calls it: it reads the reading mathpix
+    populates, and CLAIMED in docs says a layer's `requires` names everything
+    it READS. While the two questions shared one detector, a reading that
+    DECLARED its producer failed the test — so our own glyph reader's output
+    satisfied `inspect`'s prerequisite only because of 168 legacy files that
+    forgot to declare a top-level source, and a reading that declares one
+    correctly made `--ensure` name a paid step that could not help.
+    """
+    if not lines_path.exists():
+        return False
+    src = (_lines_json_source(lines_path) or "").lower()
+    if not any(src == s or src.startswith(s + "-")
+               for s in _TYPED_GEOMETRY_SOURCES):
+        return False
+    return _has_mathpix_line_types(lines_path)
+
+
+def _has_mathpix_line_types(lines_path: Path) -> bool:
+    """Does any line in the first three pages carry a MathPix-family type?
+    The evidence half of both detectors, in one place."""
     try:
-        data = json.loads(lines_path.read_text(encoding="utf-8", errors="replace"))
+        data = json.loads(lines_path.read_text(encoding="utf-8",
+                                               errors="replace"))
     except (OSError, json.JSONDecodeError):
         return False
     for pg in (data.get("pages") or [])[:3]:
@@ -486,7 +542,6 @@ def _is_mathpix_lines(lines_path: Path) -> bool:
                                   "page_info", "table_spanning_cell"):
                 return True
     return False
-
 
 
 def _try_merged_build(pdf: Path, sc, key: str, model_path: Path,
@@ -1121,8 +1176,11 @@ def _source_model_trap(sc: "Sidecar", lines_path: Path) -> bool:
     caps = sc.get_evidence("model_caps") or {}
     if caps.get("geometry") is False:
         return True
+    # 897 — any reading that carries page geometry closes this trap, not only a
+    # MathPix one: what the source model lacks is boxes, and a declared reader's
+    # boxes are boxes.
     return (sc.get_evidence("model_source") == "latex"
-            and _is_mathpix_lines(lines_path))
+            and _is_typed_geometry_lines(lines_path))
 
 
 def _stale_or_absent(sc: "Sidecar", model_path: Path, lines_path: Path) -> bool:
@@ -5856,8 +5914,16 @@ def _format_model(sc: Sidecar, built: bool = True) -> str:
         img_line = f"{eq_cdn} equations carry a MathPix CDN image. "
         nxt = "Next: pdfdrill compare <pdf> → LaTeX | KaTeX | image table."
     elif eq_cdn:
+        # 897 — SAY THE UNIT, DO NOT ASSUME IT. This read "PDF points" for every
+        # non-MathPix source, and that stopped being true the moment a reading
+        # could declare a producer whose regions are page pixels: pdf2mmd2
+        # writes MathPix's own 2125x2750 frame. The unit comes from the one
+        # place that decides it, so the prose and the crop URL cannot disagree.
+        from docmodel.mathpix import _is_page_pixel_source
+        unit = ("the reading's own page pixels"
+                if _is_page_pixel_source(source) else "PDF points")
         img_line = (f"{eq_cdn} equations are located in OUR coordinate system "
-                    f"(PDF points, source={source!r}); high-res crops come from "
+                    f"({unit}, source={source!r}); high-res crops come from "
                     f"the local pyramid. ")
         nxt = "Next: pdfdrill pyramid <pdf> → build the deep-zoom images, then compare/inspect."
     else:

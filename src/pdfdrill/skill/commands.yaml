@@ -587,7 +587,7 @@ commands:
     — for an arXiv doc a one-line free-route note follows the work. Outputs on disk are
     reused (delete them to re-OCR).'
   network: true
-  done_when: lines:mathpix
+  done_when: lines:typed-geometry
   max_concurrency: 1
   positionals:
   - name: pdf

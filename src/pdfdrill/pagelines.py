@@ -34,7 +34,10 @@ WHAT THIS REFUSES TO DO:
   * It never supplies a field the producer omitted. A missing field is reported
     BY NAME, with what reads it, so the correction happens in pdf2mmd2 where
     the information actually is. Inventing a `children_ids` here would make
-    pdfdrill agree with itself about a structure nobody measured.
+    pdfdrill agree with itself about a structure nobody measured. The one thing
+    it restates rather than invents is a `source` the pages already agree on,
+    lifted to the top level so both readers of that key are right by
+    construction (897).
 
 `page-NNNN.mathpix.json` in the same folder is MathPix's own reading of that
 page, written by pdf2mmd2's `mathpix-pages` script for side-by-side comparison.
@@ -223,19 +226,32 @@ def assemble(pdf: Path, force: bool = False) -> "dict | None":
 
     pages = read_pages(files)
     rep["missing_fields"] = missing_fields(pages)
-    # The assembled document carries exactly what the page files carry. No
-    # `source` key is added: its absence is how `commands._is_mathpix_lines`
-    # recognises a MathPix-shaped reading, and the planner's `lines:mathpix`
-    # prerequisite — which `inspect` depends on — is answered by that same
-    # test. Stamping provenance into the file would change the behaviour of
-    # every command that reads it; it is recorded in the sidecar instead, where
-    # no gate reads it. The consequence is honest and worth stating: a model
-    # built from this reading reports `meta.source = "mathpix"`, because
-    # `docmodel/main.py:57` defaults to that when no source is declared. That
-    # defect is the producer's to fix (by declaring one) and the planner's to
-    # accommodate (by accepting a declared reader) — not this function's to
-    # paper over.
-    text = json.dumps({"pages": pages}, ensure_ascii=False)
+    # The assembled document carries exactly what the page files carry, with one
+    # exception: a `source` the pages AGREE on is restated at the top.
+    #
+    # 897 — this module shipped without that, because the planner's prerequisite
+    # was answered by the ABSENCE of a `source` key and declaring one would have
+    # made `inspect --ensure` name a paid step. That gate now asks the question
+    # it meant to ask (`_is_typed_geometry_lines`), so a reading may say who
+    # produced it. A page file is per page by construction, so a producer adding
+    # `source` adds it per page and nothing would appear at the top; lifting it
+    # makes `docmodel.declared_source` and the head-read in
+    # `commands._lines_json_source` right by construction rather than by key
+    # ordering — the same argument `pdfreader/docmodel_six.py` makes for stating
+    # it in both places. Only a unanimous answer is lifted: pages that disagree
+    # have no single producer.
+    #
+    # Until the producer declares one, nothing is invented here. A model built
+    # from an undeclared reading reports `meta.source = "mathpix"`, because
+    # `docmodel/main.py` defaults to that; the real reader is in the sidecar
+    # under `lines_from_pages`, where no gate reads it. Naming a producer this
+    # module merely inferred would be a guess recorded as provenance.
+    doc: dict = {"pages": pages}
+    _said = {pg.get("source") for pg in pages} - {None, ""}
+    if len(_said) == 1:
+        doc = {"source": _said.pop(), "pages": pages}
+    rep["source"] = doc.get("source", "")
+    text = json.dumps(doc, ensure_ascii=False)
     _atomic_write(target, text)
     rep["wrote"] = True
     rep["why"] = "assembled from %d page file(s)" % len(files)
@@ -281,6 +297,8 @@ def report_text(rep: dict) -> str:
     statement pdf2mmd2's CLI needs in order to fix it on its own side."""
     out = [f"{rep['pages']} page file(s) -> {Path(rep['lines_json']).name}"
            f" ({rep['why']})"]
+    if rep.get("source"):
+        out.append(f"  declares source={rep['source']!r}")
     if rep.get("twins"):
         out.append(f"  {rep['twins']} MathPix twin(s) in the folder — a second "
                    f"reader, not folded in")
