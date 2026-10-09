@@ -729,6 +729,23 @@ def _do_profile(args):
     return cmd_profile(_pdf(args), json_only="--json" in args)
 
 
+def _do_members(args):
+    """`members` — the independent works a volume holds (898, `unzip -l`)."""
+    from .commands import cmd_members
+    return cmd_members(_pdf(args), json_only="--json" in args,
+                       force="--force" in args)
+
+
+def _do_unpack(args):
+    """`unpack` — hand members of a volume on as their own documents (898)."""
+    from .commands import cmd_unpack
+    mt, args = _opt(args, "--match")
+    od, args = _opt(args, "--out")
+    px, args = _opt(args, "--prefix")
+    return cmd_unpack(_pdf(args), match=mt, out_dir=od, prefix=px,
+                      dry_run="--dry-run" in args)
+
+
 def _do_speak(args):
     """`speak` — render math to speech via la2speech and store it as `spoken`."""
     from .commands import cmd_speak
@@ -2646,6 +2663,8 @@ HANDLERS = {
         "fonts": _do_fonts,
         "glyphlines": _do_glyphlines,
         "profile": _do_profile,
+        "members": _do_members,
+        "unpack": _do_unpack,
         "docs": _do_docs,
         "breport": _do_breport,
         "evidence": _do_evidence,

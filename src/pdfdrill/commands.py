@@ -75,6 +75,7 @@ REPORT_BUILT = "REPORT_BUILT"
 LATEX_INGESTED = "LATEX_INGESTED"
 NLP_ENHANCED = "NLP_ENHANCED"
 OCR_BUILT = "OCR_BUILT"
+VOLUME_LISTED = "VOLUME_LISTED"
 VISION_DONE = "VISION_DONE"
 NEEDS_VISION_OCR = "NEEDS_VISION_OCR"  # math-bearing doc built prose-only (tesseract)
 EMBEDDED_IMAGES_BUILT = "EMBEDDED_IMAGES_BUILT"
@@ -20917,3 +20918,134 @@ def cmd_conformance(pdf: Path | None = None, *, library: Path | None = None,
             head.append(f"    {n:6d}  {t}")
         head.append("")
     return "\n".join(head + lines_out)
+
+
+def cmd_members(pdf: Path, json_only: bool = False, force: bool = False) -> str:
+    """List the independent works a volume holds — `unzip -l` for a PDF.
+
+    898. A proceedings volume, an edited book or a journal issue is one PDF
+    holding several papers, and reading all of it to reach a few of them is the
+    whole cost: the four ICDAR 2026 volumes are 2,663 pages and the six papers
+    whose titles name mathematics are 106 of them (4.0%).
+
+    Free, offline, and it opens no model. Writes `<stem>.members.json` with the
+    SOURCE of every field beside its value, because the listing is a join and
+    not a reading — see `volume.py` for what each source is and what it is
+    measured to be worth.
+    """
+    from . import volume
+    sc = Sidecar(pdf)
+    data = None if force else volume.read_listing(pdf)
+    if data is None:
+        try:
+            data = volume.build(pdf)
+        except volume.VolumeError as e:
+            return f"{pdf.name}: {e}"
+        volume.write_listing(pdf, data)
+        try:
+            sc.set_evidence("volume_members", data["volume"]["members"])
+            sc.set_evidence("volume_identifier_stem",
+                            data["volume"].get("identifier_stem"))
+            # `unpack` declares `requires: members`, and the capability graph
+            # closes on a FACT, not on a filename (test_capgraph's Phase A
+            # closure). A prerequisite nothing records is a prerequisite the
+            # planner cannot see as met.
+            sc.add_fact(VOLUME_LISTED)
+            sc.save()
+        except Exception:                   # noqa: BLE001
+            pass
+    v, members = data["volume"], data["members"]
+    if json_only:
+        return json.dumps(data, indent=2, ensure_ascii=False)
+    if not members:
+        return (f"{pdf.name}: {v['pdf_pages']} pages, no members found. No "
+                f"chapter-opener footer carries a DOI and a printed page "
+                f"range, so no boundary is established — and an unestablished "
+                f"boundary is absent, not guessed. `pdfdrill toc {pdf.name}` "
+                f"for the outline, `booktoc` for the printed contents.")
+    out = [f"{pdf.name}: {v['members']} members over {v['pdf_pages']} pages "
+           f"({v['identifier_stem']})"]
+    bad = [m for m in members if m.get("folio_agrees") is False]
+    for m in members:
+        flag = "" if m.get("folio_agrees") is not False else "  <-- CHECK"
+        out.append(
+            f"  {m['member']:>3}  {str(m['pdf_pages'] or '?'):>3}pp  "
+            f"PDF {m['pdf_first_page']}-{m['pdf_last_page']}  "
+            f"printed {m['printed_first_page']}-{m['printed_last_page']}  "
+            f"{(m['title'] or '(no outline title)')[:64]}{flag}")
+    out.append(f"  front matter 1-{v['front_matter_pages']}, "
+               f"{v['orphan_pages_after_body']} page(s) in no member "
+               f"(part dividers, indexes), every page accounted: "
+               f"{v['accounted']}")
+    if bad:
+        out.append(f"  {len(bad)} member(s) whose printed range disagrees with "
+                   f"the folio on their last page — listed above, not counted "
+                   f"away")
+    out.append(f"  Listing: {volume.listing_path(pdf).name}")
+    out.append(f"  Next: pdfdrill unpack {pdf.name} --match '<regex on the "
+               f"title>'  (hands members on as their own documents)")
+    return "\n".join(out)
+
+
+def cmd_unpack(pdf: Path, match: "str | None" = None, out_dir: "str | None" = None,
+               prefix: "str | None" = None, dry_run: bool = False) -> str:
+    """Hand members of a volume on as their own documents — `unzip archive member`.
+
+    898. `--match` is a case-insensitive regex over the member TITLES, and a
+    title match is a candidate list, never a judgement of relevance: on ICDAR
+    2026 a keyword match over math, formula, table and layout gave 42 titles,
+    most of them about handwriting. A selector is required — a 148-member
+    volume unpacks to roughly 550 MB, and that is not something to do by
+    omission.
+
+    Each member lands in the library as its own document folder with a
+    `volume-provenance.json`, and its own title and DOI written into the PDF's
+    metadata: without that it inherits the VOLUME's `/Info /Title` and all 148
+    members are named alike, in a tool whose titles become bibkeys.
+    """
+    from . import volume, config as cfg
+    data = volume.read_listing(pdf)
+    if data is None:
+        said = cmd_members(pdf)
+        data = volume.read_listing(pdf)
+        if data is None:
+            return said
+    if not match:
+        return ("unpack needs a selector: `--match <regex>` over the member "
+                "titles. `pdfdrill members %s` lists them. A 148-member volume "
+                "unpacks to about 550 MB, so there is no default." % pdf.name)
+    try:
+        chosen = volume.select(data, match)
+    except volume.VolumeError as e:
+        return str(e)
+    if not chosen:
+        return (f"{pdf.name}: no member title matches {match!r} "
+                f"(of {len(data['members'])} members). "
+                f"`pdfdrill members {pdf.name}` to read the titles.")
+    root = Path(out_dir).expanduser() if out_dir else cfg.library_root()
+    pages = sum(m.get("pdf_pages") or 0 for m in chosen)
+    if dry_run:
+        lines = [f"{pdf.name}: {len(chosen)} member(s) match {match!r}, "
+                 f"{pages} pages — NOT written (--dry-run):"]
+        for m in chosen:
+            lines.append(f"  {m['member']:>3}  {m['pdf_pages']}pp  "
+                         f"{volume.bibkey_for(data, m, prefix or '')}")
+        return "\n".join(lines)
+    done, failed = [], []
+    for m in chosen:
+        try:
+            done.append(volume.unpack(pdf, data, m, root, prefix or ""))
+        except volume.VolumeError as e:
+            failed.append((m.get("member"), str(e)))
+    lines = [f"{pdf.name}: {len(done)} of {len(chosen)} member(s) matching "
+             f"{match!r} unpacked into {root} ({pages} pages)"]
+    for r in done:
+        lines.append(f"  {r['bibkey']}  ({r['pdf_pages']}pp, PDF "
+                     f"{r['pdf_first_page']}-{r['pdf_last_page']}, printed "
+                     f"{r['printed_first_page']}-{r['printed_last_page']})")
+    for num, why in failed:
+        lines.append(f"  member {num}: {why}")
+    if done:
+        lines.append(f"  Next: pdfdrill route {done[0]['bibkey']}  "
+                     f"(each member is now its own document)")
+    return "\n".join(lines)

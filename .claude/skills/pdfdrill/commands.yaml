@@ -2201,6 +2201,67 @@ commands:
   requires:
   - model
   done_when: file:formula-report.html
+- name: members
+  section: Introspection (fast, no extraction)
+  summary: 'The independent works one PDF holds — `unzip -l` for a proceedings volume,
+    an edited book or a journal issue. One row per member: number, pages, PDF page range,
+    printed page range, title, with the SOURCE of every field recorded beside it in
+    <stem>.members.json. Free, offline, opens no model: the identity and length of each
+    member come from the chapter-opener footer printed on its own first page, the exact
+    title from the PDF outline, and the result is checked against the printed folio on
+    the computed last page. Also lists the pages belonging to NO member (part dividers,
+    indexes) and whether every page is accounted for'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: json
+    type: flag
+    flag: --json
+    help: the machine-readable listing on stdout
+  - name: force
+    type: flag
+    flag: --force
+    help: rebuild the listing instead of reading the one on disk
+  typed: true
+  done_when: file:{stem}.members.json
+- name: unpack
+  section: Build / extract
+  summary: 'Hand members of a volume on as their own documents — `unzip archive member`.
+    --match is a case-insensitive regex over the member TITLES and is REQUIRED (a 148-member
+    volume unpacks to about 550 MB, so there is no default); a title match is a candidate
+    list, not a judgement of relevance. Each member becomes a library document folder with
+    volume-provenance.json and its own title + DOI in the PDF metadata, so it does not
+    inherit the volume''s title. --dry-run names what would be written'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: match
+    type: str
+    flag: --match
+    help: case-insensitive regex over the member titles (required)
+  - name: out
+    type: str
+    flag: --out
+    help: where the member folders go (default the library root)
+  - name: prefix
+    type: str
+    flag: --prefix
+    help: bibkey prefix instead of the volume identifier
+  - name: dry-run
+    type: flag
+    flag: --dry-run
+    help: list what would be written, write nothing
+  typed: true
+  requires:
+  - members
 - name: inspect
   section: Introspection (fast, no extraction)
   summary: 'DevTools-style docmodel inspector HTML (<bibkey>.inspect.html): every DocObject as a
