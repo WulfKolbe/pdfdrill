@@ -4,7 +4,11 @@ Current state, current blocker, next task. Nothing else — the per-task
 evidence lives in `out/NNN.txt` and `~/pdfdrill-library/out/NNN/`, and the
 rules learned by defect are in **`docs/HANDOVER-RULES.md`**.
 
-Last updated 2026-09-12, after task 676. Tasks 649-676 are this session's
+Last updated 2026-09-12, after task 676 — EXCEPT "A volume is an archive"
+below, added 2026-10-10 after 899. Nothing above that section has been
+re-verified since 676, so treat its numbers as of that date.
+
+Tasks 649-676 are the 2026-09-12 session's
 run: the projection defect set (649-653), the size budget and the conserve
 gate (654-656), the "(not rendered)" causes (659-668), the ink/crop identity
 work (667, 670, 671), the marks command (672, 673), and the transclusion
@@ -186,6 +190,68 @@ the invoice is gone. Per page, or it does not detect the case it exists for.
 Wire it where the cost lands: `mathpix` should refuse to report success, and
 `status` should carry it, rather than a reader discovering it in a projection.
 
+## A volume is an archive (898, 899)
+
+One PDF holding several independent works — a proceedings volume, an edited
+book, a journal issue — is now listed and taken apart without a paid call and
+without building a model. Three layers: `members` → `profile` → `memberprofile`,
+and `unpack` to hand one member on as its own document.
+
+Population: the four Springer ICDAR 2026 volumes, 2,663 PDF pages, 401 MB,
+148 members (40/41/41/26, exactly the publisher's Crossref deposit).
+
+Measured constants, each with the population it came from:
+
+| constant | value | population |
+|---|---|---|
+| members found from the chapter-opener footer | 148 of 148 | 4 volumes |
+| printed ranges agreeing with Crossref | 148 of 148, 0 differences | 4 volumes |
+| `members` wall time | 1.2 s for all four | 2,663 pages |
+| `profile` wall time | **2.2 s/page** — 17m19s for 470 pages | part IV |
+| member cut, pikepdf | 2.6 MB, 0.2 s | one 18-page member of 86 MB |
+| member cut, `pdfseparate`+`pdfunite` | 101 MB, 75 s | the same member |
+| printed→PDF offsets in ONE volume | up to **ten** (+19…+9) | part I |
+
+Four things that are true and look false:
+
+- **The printed→PDF offset is not one number.** Springer prints a part divider
+  before each section and strips its blank verso, so the offset is piecewise:
+  +19 throughout II and III, ten distinct offsets in I, two in IV. T-0004's
+  contract assumes the single offset `booktoc` computes; that is
+  underspecified. The rule that holds 148/148 is `last = first + (Crossref
+  last − Crossref first)`, never "the next member's first page minus one" —
+  which reported 14 of 148 mismatches, all artefacts.
+- **Crossref is a check, not a dependency.** Each member prints its own DOI
+  and `pp. <first>-<last>` in a footer on its own first page: 148 of 148 found
+  there, agreeing with Crossref 148 of 148. A truth source the deliverable
+  depends on is not independent.
+- **A bare DOI search finds 71 members in a 40-member volume** (sibling DOIs
+  in reference lists). Constrain to the volume's own ISBN. And tolerate
+  `_\s*\d+`: a line break put a space in `978-3-032-36039-7_ 28` and cost
+  one member silently.
+- **The folio needs the first THREE lines of a page.** A verso puts the number
+  first, a recto puts the running head first; reading one line found 26 of 40.
+
+`memberprofile` joins the two measurements — each member's page range against
+the pages each property was established on — and reads no page again. On part
+IV: `listing` is on 3 of 26 members (52 of 470 pages, 11%), while
+`inline-math`, `diagram`, `inline-code` and `coloured-fill` are on 26 of 26
+and therefore select nothing. Report the carrying count FIRST; "a paid pass
+over just those members bills 329, not 470" is not a saving when 19 of 26
+members hold the 40 equation pages.
+
+`slow:` in the manifest is new and separate from `network:`: network means
+never auto-run, slow means auto-run but announce it first. `profile` carries
+it, because `--ensure` is silent by design and drillui appends `--ensure` to
+every command (896) — the only route to `memberprofile` was a 17-minute
+freeze with nothing on screen.
+
+Open: the 34 members extracted into `~/pdfdrill-library/` (591 pages, 22% of
+2,663) are Springer-licensed and are **on disk, not committed**. The library
+is a git repo; nothing has been `git add`ed there.
+
+---
+
 ## Next task
 
 - **LaTeX field promotion** — the user's decision of 2026-09-14, recorded in
@@ -227,6 +293,11 @@ Wire it where the cost lands: `mathpix` should refuse to report success, and
   not closed) and **the ~11 dropped headings with no owner object** (676 B6).
 - Unopened by instruction: the 58 rewritten-reading rows; the 10 empty-LaTeX
   equation objects.
+- **T-0004's remaining piece**: `--member N` as an `unpack` selector (the user
+  chose only `--match` on the title, so the chapter number is printed and
+  recorded but cannot be addressed), and `--has equation` / `--has table`,
+  which `memberprofile` now makes possible — the properties are measured, the
+  selector is not wired.
 
 ---
 
