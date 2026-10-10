@@ -15103,7 +15103,7 @@ def _invalidate_font_caches(sc) -> None:
 #: $PDF2MMD_HOME; the patch is additive (+461/-0) so the fork is simply
 #: the pdfminer this environment has, and there is one reader.
 @_writes("profile")
-def cmd_profile(pdf: Path, pages: str | None = None, json_only: bool = False) -> str:
+def cmd_profile(pdf: Path, json_only: bool = False) -> str:
     """WHAT IS ON EACH PAGE, and on what evidence — the triage layer (781o).
 
     Counting is the wrong instrument for a heterogeneous corpus, and one
@@ -15133,6 +15133,13 @@ def cmd_profile(pdf: Path, pages: str | None = None, json_only: bool = False) ->
     # the patch is purely additive (+461/-0, gated by
     # tests/test_pdfminer_fork_is_additive.py), it is the pdfminer this
     # environment already has, and the reader is now `src/pdfreader/`.
+    # 899 — `pages: str | None` used to stand here as a page selector and was
+    # shadowed by the next line, which rebinds the name to the page MODELS. It
+    # was unreachable from the CLI (`_do_profile` never passed it) so nothing
+    # was wrong today; what it was, was a selector-shaped parameter that would
+    # have profiled the whole document while reporting percentages over it.
+    # `profile` reads every page by design — the roll-up per member is
+    # `memberprofile`, which selects without re-reading.
     from pdfreader import docmodel_six as _dm, pageprofile as _pr
     try:
         pages = _dm.build(str(pdf))
