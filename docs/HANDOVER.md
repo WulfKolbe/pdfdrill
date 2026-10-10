@@ -246,6 +246,19 @@ it, because `--ensure` is silent by design and drillui appends `--ensure` to
 every command (896) — the only route to `memberprofile` was a 17-minute
 freeze with nothing on screen.
 
+**A property roll-up prices a reading; it does not rank relevance.** Measured
+over all 148 members once all four volumes were profiled: the 34 members
+picked by READING the titles carry equation pages at 9.5% (56 of 591) and the
+other 114 at 9.6% (189 of 1,969), median 1 either way, and `inline-math` is
+13.3 pages per member in both the math-titled papers and the ten carrying the
+most equations. The detector is right — checked both ways: HME-Leibniz, a
+mathematical-expression DATASET paper, has **zero `=` in 18 pages** because
+its mathematics is in the handwriting images, while the top-ranked member is a
+document-security paper with real typeset equations. So `equation` tracks
+"states a model with loss functions", which is nearly every ICDAR paper. A
+`--has equation` selector would have EXCLUDED the most relevant member of all
+four volumes. Do not build one; this is why the owner chose `--match` alone.
+
 Open: the 34 members extracted into `~/pdfdrill-library/` (591 pages, 22% of
 2,663) are Springer-licensed and are **on disk, not committed**. The library
 is a git repo; nothing has been `git add`ed there.
@@ -295,9 +308,10 @@ is a git repo; nothing has been `git add`ed there.
   equation objects.
 - **T-0004's remaining piece**: `--member N` as an `unpack` selector (the user
   chose only `--match` on the title, so the chapter number is printed and
-  recorded but cannot be addressed), and `--has equation` / `--has table`,
-  which `memberprofile` now makes possible — the properties are measured, the
-  selector is not wired.
+  recorded but cannot be addressed), and NOT `--has equation` /
+  `--has table`: `memberprofile` measures those properties and measures them
+  USELESS for this purpose (see above), so that selector should not be built
+  on them without a corpus where the property discriminates.
 
 ---
 
