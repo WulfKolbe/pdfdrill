@@ -76,6 +76,10 @@ LATEX_INGESTED = "LATEX_INGESTED"
 NLP_ENHANCED = "NLP_ENHANCED"
 OCR_BUILT = "OCR_BUILT"
 VOLUME_LISTED = "VOLUME_LISTED"
+#: 899 — `profile` wrote <stem>.profile.json and recorded NO fact, so the
+#: planner could not treat it as anyone's prerequisite (the 234 lesson
+#: about reporttex, again). `memberprofile` reads exactly that file.
+PAGE_PROPS_KNOWN = "PAGE_PROPS_KNOWN"
 VISION_DONE = "VISION_DONE"
 NEEDS_VISION_OCR = "NEEDS_VISION_OCR"  # math-bearing doc built prose-only (tesseract)
 EMBEDDED_IMAGES_BUILT = "EMBEDDED_IMAGES_BUILT"
@@ -15144,6 +15148,15 @@ def cmd_profile(pdf: Path, pages: str | None = None, json_only: bool = False) ->
 
     out = pdf.with_suffix(".profile.json")
     out.write_text(json.dumps(data, indent=1), encoding="utf-8")
+    try:
+        sc = Sidecar(pdf)
+        sc.set_evidence("profile_pages", data["pages"])
+        sc.set_evidence("profile_pages_carrying", len(data["page_props"]))
+        sc.set_evidence("profile_properties", sorted(data["where"]))
+        sc.add_fact(PAGE_PROPS_KNOWN)
+        sc.save()
+    except Exception:                                        # noqa: BLE001
+        pass
     if json_only:
         return str(out)
 
@@ -20920,6 +20933,7 @@ def cmd_conformance(pdf: Path | None = None, *, library: Path | None = None,
     return "\n".join(head + lines_out)
 
 
+@_writes("members")
 def cmd_members(pdf: Path, json_only: bool = False, force: bool = False) -> str:
     """List the independent works a volume holds — `unzip -l` for a PDF.
 
@@ -20984,6 +20998,122 @@ def cmd_members(pdf: Path, json_only: bool = False, force: bool = False) -> str:
     out.append(f"  Listing: {volume.listing_path(pdf).name}")
     out.append(f"  Next: pdfdrill unpack {pdf.name} --match '<regex on the "
                f"title>'  (hands members on as their own documents)")
+    return "\n".join(out)
+
+
+@_writes("memberprofile")
+def cmd_memberprofile(pdf: Path, json_only: bool = False,
+                      force: bool = False, top: int = 6) -> str:
+    """Each member's page properties — which papers in a volume carry what.
+
+    899. `members` says which works the volume holds; `profile` says what is
+    on each page. The question that decides where money goes is neither:
+    which of these 148 papers carries display mathematics. That is a JOIN of
+    two things already measured — each member's page range, and the pages
+    each property was established on — so it reads no page again and costs
+    nothing. What it reads is not free of time: `profile` reads every glyph
+    on every page, which on a 470-page volume is minutes. It is a declared
+    prerequisite for that reason, and `--ensure` will run it.
+
+    Measured on ICDAR 2026: 2,663 pages across four volumes, and the 34
+    papers worth reading are 591 of them. The per-property trailer prices
+    exactly that — members carrying the property, and the pages a paid pass
+    over just those members would bill.
+    """
+    from . import volume
+    listing = volume.read_listing(pdf)
+    if listing is None:
+        return (f"{pdf.name}: no member listing beside it — run `pdfdrill "
+                f"members {pdf.name}` first (free, offline, seconds).")
+    data = None if force else volume.read_rollup(pdf)
+    if data is None:
+        try:
+            profile = volume.read_profile(
+                pdf, (listing.get("volume") or {}).get("pdf_pages"))
+        except volume.VolumeError as e:
+            return f"{pdf.name}: {e}"
+        data = volume.rollup(listing, profile)
+        volume.write_rollup(pdf, data)
+    if json_only:
+        return json.dumps(data, indent=2, ensure_ascii=False)
+
+    v, members, props = data["volume"], data["members"], data["profile"]
+    #: A PDF HOLDING ONE WORK IS NOT A VOLUME, and T-0004's contract names it
+    #: as a failure case to answer rather than to format. The first draft
+    #: printed a header row with no rows under it, "on every member, so it
+    #: selects nothing" for every property (0 == 0), and then advised
+    #: `unpack --match` on a document with nothing to unpack. The roll-up of
+    #: one work is its own page profile, which already exists.
+    if not members:
+        return (f"{pdf.name}: no members listed, so there is nothing to roll "
+                f"up — this PDF holds ONE work and its page properties are "
+                f"the document's own. {props['pages']} page(s), "
+                f"{props['pages_carrying_anything']} carrying something: "
+                f"{', '.join(props['properties']) or 'no property established'}"
+                f". See `pdfdrill profile {pdf.name}` for them per page, and "
+                f"`pdfdrill members {pdf.name}` for why no member boundary "
+                f"was established.")
+    cols = props["properties"][:max(0, top)]
+    rest = props["properties"][max(0, top):]
+    out = [f"{pdf.name}: {len(members)} member(s), page properties rolled up "
+           f"from {volume.profile_path(pdf).name} "
+           f"({props['pages']} page(s) read once, "
+           f"{props['pages_carrying_anything']} carrying anything)"]
+    if not props["properties"]:
+        out.append("  No property established on any page of this volume — "
+                   "nothing here a paid pass would find either.")
+        out.append(f"  Roll-up: {volume.rollup_path(pdf).name}")
+        return "\n".join(out)
+
+    out.append("  pages of the member carrying each property, out of its own "
+               "page count (pp); `-` is absent, not zero")
+    head = "    " + f"{'#':>3}  {'pp':>3}  " + "".join(
+        f"{c[:13]:>14}" for c in cols) + "  title"
+    out.append(head)
+    for m in members:
+        cells = []
+        for c in cols:
+            hit = (m.get("props") or {}).get(c)
+            cells.append(f"{hit['pages']:>14}" if hit else f"{'-':>14}")
+        title = (m.get("title") or "(no outline title)")[:46]
+        if m.get("props") is None:
+            cells = [f"{'?':>14}" for _ in cols]
+        out.append(f"    {str(m['member']):>3}  "
+                   f"{str(m['pages_total'] or '?'):>3}  "
+                   + "".join(cells) + f"  {title}")
+
+    out.append("")
+    n_pages = v.get("pdf_pages") or 0
+    for k in props["properties"]:
+        b = data["by_property"][k]
+        share = (100 * b["pages_in_those_members"] // n_pages) if n_pages else 0
+        line = (f"  {k:<16} {b['pages_carrying']:>4} page(s) carry it, in "
+                f"{b['members']} of {len(members)} member(s); reading those "
+                f"members is {b['pages_in_those_members']} of {n_pages} "
+                f"page(s) ({share}%)")
+        if members and b["members"] == len(members):
+            line += " — on every member, so it selects nothing"
+        elif share >= 60:
+            line += " — selecting by member saves little here"
+        out.append(line)
+    if rest:
+        out.append(f"  (table shows the first {len(cols)}; also measured: "
+                   f"{', '.join(rest)} — all of them in "
+                   f"{volume.rollup_path(pdf).name})")
+    outside = data.get("outside_every_member") or {}
+    if outside:
+        named = ", ".join(f"{k} {n}" for k, n in sorted(outside.items(),
+                                                        key=lambda kv: -kv[1]))
+        out.append(f"  on pages belonging to no member (front matter, part "
+                   f"dividers, indexes): {named}")
+    unknown = [m for m in members if m.get("props") is None]
+    if unknown:
+        out.append(f"  {len(unknown)} member(s) have no established page "
+                   f"range, so they are listed with `?` and nothing is "
+                   f"guessed for them")
+    out.append(f"  Roll-up: {volume.rollup_path(pdf).name}")
+    out.append(f"  Next: pdfdrill unpack {pdf.name} --match '<regex on the "
+               f"title>'  (one member becomes its own document)")
     return "\n".join(out)
 
 

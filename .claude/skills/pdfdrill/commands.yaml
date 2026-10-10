@@ -164,6 +164,8 @@ commands:
     offline; reads with the glyph model in src/pdfreader (834) because that
     model is on a patched pdfminer and is not importable here.'
   offline_ok: true
+  slow: 'reads every glyph on every page — about 2 s/page, so 17 min on a
+    470-page volume (measured on ICDAR 2026 part IV, 470 pages in 17m19s)'
   positionals:
   - name: pdf
     type: pdf
@@ -2228,6 +2230,43 @@ commands:
     help: rebuild the listing instead of reading the one on disk
   typed: true
   done_when: file:{stem}.members.json
+- name: memberprofile
+  section: Introspection (fast, no extraction)
+  summary: 'Each member''s page properties — which papers in a volume carry display
+    mathematics, tables, listings or no text layer at all. A JOIN of two things already
+    measured (each member''s page range from `members`, the pages each property was
+    established on from `profile`), so it reads no page again. Per property it prices the
+    decision: members carrying it, and the pages a paid pass over just those members would
+    bill against the whole volume. Measured on ICDAR 2026: 2,663 pages in four volumes,
+    591 in the 34 papers worth reading. The `profile` it reads is free and keyless but not
+    instant — it reads every glyph on every page, minutes on a 470-page volume — which is
+    why it is a declared prerequisite and not a flag. A property a page does not carry is
+    ABSENT, printed `-`, not zero; a member whose page range is not established gets `?`
+    and nothing is guessed. Writes <stem>.memberprofile.json'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: json
+    type: flag
+    flag: --json
+    help: the machine-readable roll-up on stdout
+  - name: columns
+    type: str
+    flag: --columns
+    help: how many properties get a table column (default 6; the rest are in the JSON)
+  - name: force
+    type: flag
+    flag: --force
+    help: rebuild the roll-up instead of reading the one on disk
+  typed: true
+  requires:
+  - members
+  - profile
+  done_when: file:{stem}.memberprofile.json
 - name: unpack
   section: Build / extract
   summary: 'Hand members of a volume on as their own documents — `unzip archive member`.

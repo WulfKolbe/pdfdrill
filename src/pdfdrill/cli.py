@@ -736,6 +736,15 @@ def _do_members(args):
                        force="--force" in args)
 
 
+def _do_memberprofile(args):
+    """`memberprofile` — each member's page properties, joined, not re-read (899)."""
+    from .commands import cmd_memberprofile
+    top, args = _opt(args, "--columns")
+    return cmd_memberprofile(_pdf(args), json_only="--json" in args,
+                             force="--force" in args,
+                             top=int(top) if top else 6)
+
+
 def _do_unpack(args):
     """`unpack` — hand members of a volume on as their own documents (898)."""
     from .commands import cmd_unpack
@@ -2664,6 +2673,7 @@ HANDLERS = {
         "glyphlines": _do_glyphlines,
         "profile": _do_profile,
         "members": _do_members,
+        "memberprofile": _do_memberprofile,
         "unpack": _do_unpack,
         "docs": _do_docs,
         "breport": _do_breport,

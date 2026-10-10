@@ -293,6 +293,23 @@ def _cdncrops_done(sc, pdf: Path) -> bool:
                and (crops / f"{t}.jpg").stat().st_size > 500 for t in need)
 
 
+def _slow_note(command: str) -> "str | None":
+    """What the manifest says this command costs in TIME, or None.
+
+    Separate from `network` on purpose: `network` means never auto-run (a bill
+    nobody signed), `slow` means auto-run but say so (an offline step that
+    takes minutes). Conflating them would either bill silently or refuse a
+    free step."""
+    try:
+        for c in load_manifest().get("commands", []):
+            if c["name"] == command:
+                note = c.get("slow")
+                return " ".join(str(note).split()) if note else None
+    except Exception:                                        # noqa: BLE001
+        return None
+    return None
+
+
 def network_commands(manifest: dict) -> set:
     """Commands the manifest marks network/paid — DECLARED as dependencies,
     NEVER auto-run: `ensure` names them instead (a dependency that is not in
@@ -455,6 +472,19 @@ def ensure(target: str, pdf: Path, handlers: dict, pdf_arg: str,
             fn = handlers.get(step)
             if fn is None:
                 continue
+            # 899 — SILENCE IS FINE FOR A FAST STEP AND A DEFECT FOR A SLOW
+            # ONE. `ensure` is quiet on purpose: a prerequisite is machinery,
+            # not an answer. But `memberprofile` requires `profile`, which
+            # reads every glyph on every page — 17m19s on the 470-page ICDAR
+            # part IV — and drillui appends `--ensure` to every command (896),
+            # so the only way to reach the new command was a 17-minute freeze
+            # with nothing on screen. A step that costs minutes says so BEFORE
+            # it spends them, whatever `quiet` says; the manifest carries the
+            # cost (`slow:`) so the planner never has to guess it.
+            why = _slow_note(step)
+            if why:
+                print(f"[ensure] {target} requires {step} first — {why}",
+                      file=__import__("sys").stderr, flush=True)
             out = fn([pdf_arg])
             if out and not quiet:
                 print(out)

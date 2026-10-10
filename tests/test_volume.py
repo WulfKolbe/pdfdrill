@@ -15,9 +15,26 @@ import pytest
 
 from pdfdrill import volume
 
-VOLUMES = [Path.home() / "Downloads" / f"{n}.pdf" for n in (
-    "978-3-032-36023-6", "978-3-032-36033-5",
-    "978-3-032-36039-7", "978-3-032-36042-7")]
+#: 899 — A VOLUME MOVES. `doclock._autofolder` promotes a document into
+#: `<dir>/<stem>/<stem>.pdf` the first time a write command touches it where a
+#: second document sits beside it (854), and ~/Downloads holds all four parts.
+#: So the first `pdfdrill profile` on a volume took it out of the one place
+#: these fixtures looked, and every gate below — the member count against the
+#: publisher's deposit, the folio check, the page accounting — would have
+#: SKIPPED from then on, reporting green while checking nothing. Both layouts
+#: are looked for, flat first.
+_NAMES = ("978-3-032-36023-6", "978-3-032-36033-5",
+          "978-3-032-36039-7", "978-3-032-36042-7")
+
+
+def _volume(name: str) -> Path:
+    """The volume as it lies today: flat in ~/Downloads, or in its own folder."""
+    d = Path.home() / "Downloads"
+    flat, folded = d / f"{name}.pdf", d / name / f"{name}.pdf"
+    return folded if (folded.is_file() and not flat.is_file()) else flat
+
+
+VOLUMES = [_volume(n) for n in _NAMES]
 #: members per volume, as the publisher deposited them at Crossref
 EXPECT = {"978-3-032-36023-6": 40, "978-3-032-36033-5": 41,
           "978-3-032-36039-7": 41, "978-3-032-36042-7": 26}
@@ -184,3 +201,179 @@ def test_one_member_becomes_its_own_document(tmp_path):
                       .read_text(encoding="utf-8"))
     assert prov["volume_pdf"] == str(pdf)
     assert prov["pdf_first_page"] == m["pdf_first_page"]
+
+
+# --- the roll-up (899) -----------------------------------------------------
+#: `members` says which works a volume holds, `profile` what is on each page.
+#: The roll-up is their JOIN and the join key is the page NUMBER, so every
+#: test here is about a frame: whose pages, counted against what denominator.
+
+def _listing(*spans):
+    """A listing of members at the given (member, first, last) PDF spans."""
+    return {"volume": {"pdf_pages": 100, "members": len(spans)},
+            "members": [{"member": n, "title": f"Paper {n}", "doi": None,
+                         "pdf_first_page": f, "pdf_last_page": l,
+                         "pdf_pages": (l - f + 1) if f and l else None}
+                        for (n, f, l) in spans]}
+
+
+def _profile(pages=100, **where):
+    return {"pages": pages, "page_props": {},
+            "where": {k: list(v) for k, v in where.items()}}
+
+
+def test_a_property_outside_the_members_range_is_not_its_property():
+    """The join is an intersection. A page carrying an equation two pages
+    after the member ends belongs to the next member or to no one."""
+    r = volume.rollup(_listing((1, 10, 19), (2, 20, 29)),
+                      _profile(equation=[9, 10, 15, 21, 30]))
+    m1, m2 = r["members"]
+    assert m1["props"]["equation"]["pages"] == 2          # 10 and 15
+    assert m2["props"]["equation"]["pages"] == 1          # 21 only
+    assert r["outside_every_member"] == {"equation": 2}   # 9 and 30
+
+
+def test_the_denominator_travels_with_every_count():
+    """`12 pages carry an equation` is a different claim in a 17-page paper
+    and in a 700-page volume, so the member's own span is stored beside the
+    count and never left to the reader to reconstruct."""
+    r = volume.rollup(_listing((1, 10, 26)), _profile(equation=[11, 12]))
+    hit = r["members"][0]["props"]["equation"]
+    assert (hit["pages"], hit["of"], hit["first"]) == (2, 17, 11)
+    assert r["members"][0]["pages_total"] == 17
+
+
+def test_a_member_without_an_established_range_gets_nothing_guessed():
+    """898's rule, kept here: a boundary no source establishes is absent. A
+    member whose last page is unknown cannot be profiled, and an empty
+    property dict would claim it was profiled and found nothing."""
+    r = volume.rollup(_listing((1, 10, None)), _profile(equation=[11]))
+    m = r["members"][0]
+    assert m["props"] is None
+    assert "not established" in m["props_source"]
+    #: and its pages are not quietly claimed as belonging to no member either
+    assert r["outside_every_member"] == {"equation": 1}
+
+
+def test_members_carrying_and_pages_carrying_are_different_numbers():
+    """The shape that made the first trailer dishonest: on ICDAR 2026 part IV
+    `equation` is on 19 of 26 members and only 40 of 470 pages, so reading
+    `those members` reads 329 pages to reach 40. Both numbers are kept."""
+    r = volume.rollup(_listing((1, 1, 10), (2, 11, 20), (3, 21, 30)),
+                      _profile(equation=[5, 15]))
+    b = r["by_property"]["equation"]
+    assert b["pages_carrying"] == 2
+    assert b["members"] == 2
+    assert b["pages_in_those_members"] == 20
+    assert b["pages_in_volume"] == 2
+
+
+def test_decision_relevant_properties_come_first_and_none_is_dropped():
+    got = volume._ordered({"coloured-fill", "equation", "zzz-new", "frame"})
+    assert got[:3] == ["equation", "frame", "coloured-fill"]
+    assert "zzz-new" in got
+
+
+def test_an_absent_profile_names_the_command_that_makes_one(tmp_path):
+    pdf = tmp_path / "v.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    with pytest.raises(volume.VolumeError) as e:
+        volume.read_profile(pdf, 100)
+    assert "pdfdrill profile" in str(e.value)
+
+
+def test_a_profile_of_a_different_document_is_refused(tmp_path):
+    """The page number is the key the roll-up joins on. A profile of 99 pages
+    against a listing of 100 is not a near miss, it is another document — and
+    the rows it would produce all look plausible."""
+    pdf = tmp_path / "v.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    volume.profile_path(pdf).write_text(json.dumps(_profile(pages=99)))
+    with pytest.raises(volume.VolumeError) as e:
+        volume.read_profile(pdf, 100)
+    assert "different document" in str(e.value)
+    #: and it is readable when the counts agree
+    volume.profile_path(pdf).write_text(json.dumps(_profile(pages=100)))
+    assert volume.read_profile(pdf, 100)["pages"] == 100
+
+
+def test_a_profile_older_than_the_document_is_never_silently_served(tmp_path):
+    import os
+    pdf = tmp_path / "v.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    prof = volume.profile_path(pdf)
+    prof.write_text(json.dumps(_profile()))
+    os.utime(prof, (1, 1))                      # the reading predates the PDF
+    with pytest.raises(volume.VolumeError) as e:
+        volume.read_profile(pdf, 100)
+    assert "older than" in str(e.value)
+
+
+def test_the_rollup_round_trips(tmp_path):
+    pdf = tmp_path / "v.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    data = volume.rollup(_listing((1, 1, 10)), _profile(equation=[2]))
+    volume.write_rollup(pdf, data)
+    assert volume.read_rollup(pdf) == data
+
+
+_IV = _volume("978-3-032-36042-7")
+_has_iv_profile = pytest.mark.skipif(
+    not (volume.profile_path(_IV).is_file()
+         and volume.listing_path(_IV).is_file()),
+    reason="no profiled ICDAR 2026 volume here (profile takes ~17 min)")
+
+
+@_has_iv_profile
+def test_on_a_real_volume_no_page_is_counted_twice_or_lost():
+    """Every page a property was established on lands in exactly one member
+    or in none: the members partition the body, so the counts must add up."""
+    listing = volume.read_listing(_IV)
+    prof = volume.read_profile(_IV, listing["volume"]["pdf_pages"])
+    r = volume.rollup(listing, prof)
+    for k, pages in prof["where"].items():
+        inside = sum((m["props"] or {}).get(k, {}).get("pages", 0)
+                     for m in r["members"])
+        outside = r["outside_every_member"].get(k, 0)
+        assert inside + outside == len(pages), k
+
+
+@_has_iv_profile
+def test_on_a_real_volume_every_count_is_within_its_members_own_span():
+    listing = volume.read_listing(_IV)
+    r = volume.rollup(listing, volume.read_profile(_IV))
+    for m in r["members"]:
+        for k, hit in (m["props"] or {}).items():
+            assert hit["of"] == m["pages_total"], (m["member"], k)
+            assert 0 < hit["pages"] <= hit["of"], (m["member"], k)
+            assert m["pdf_first_page"] <= hit["first"] <= m["pdf_last_page"]
+
+
+def test_a_pdf_holding_one_work_is_answered_not_formatted(tmp_path):
+    """T-0004's contract names it: a PDF with one work. The first draft
+    printed a table header with no rows, said "on every member, so it selects
+    nothing" about every property (0 == 0), and advised `unpack --match` on a
+    document with nothing to unpack."""
+    from pdfdrill.commands import cmd_memberprofile
+    pdf = tmp_path / "one-paper.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    volume.write_listing(pdf, {"volume": {"pdf_pages": 11, "members": 0},
+                               "members": [], "orphans": []})
+    volume.profile_path(pdf).write_text(json.dumps(
+        {"pages": 11, "page_props": {"2": {"equation": "x"}},
+         "where": {"equation": [2, 3]}}))
+    out = cmd_memberprofile(pdf)
+    assert "holds ONE work" in out
+    assert "unpack" not in out
+    assert "selects nothing" not in out
+
+
+def test_the_time_a_prerequisite_costs_is_declared_not_guessed():
+    """899 — `ensure` is silent on purpose, which is right for a fast step and
+    a defect for a slow one: `profile` reads every glyph on every page and
+    drillui appends `--ensure` to every command (896), so the only route to
+    `memberprofile` was a 17-minute freeze with nothing on screen."""
+    from pdfdrill import planner
+    note = planner._slow_note("profile")
+    assert note and "glyph" in note
+    assert planner._slow_note("members") is None

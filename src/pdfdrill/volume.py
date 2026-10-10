@@ -360,3 +360,186 @@ def unpack(pdf: Path, data: dict, member: dict, out_dir: Path,
     (folder / "volume-provenance.json").write_text(
         json.dumps(rec, indent=2, ensure_ascii=False), encoding="utf-8")
     return rec
+
+
+# --------------------------------------------------------------- the roll-up
+#: `members` says WHICH works a volume holds; `profile` says what is on each
+#: PAGE. Neither answers the question that decides where money goes — which of
+#: these 148 papers carries display mathematics — and the answer is a join, not
+#: a reading: the page properties already measured, intersected with each
+#: member's own page range. Measured on ICDAR 2026: 2,663 pages in four
+#: volumes, 591 in the 34 papers worth reading. The join is free and instant;
+#: the `profile` it reads is free but NOT instant (it reads every glyph on
+#: every page), which is why it is a declared prerequisite and not a flag.
+PROFILE_SUFFIX = ".profile.json"
+ROLLUP_SUFFIX = ".memberprofile.json"
+
+#: Most decision-relevant first — these are the properties a reader is
+#: choosing BY. Anything `profile` establishes that is not here still appears,
+#: after them; nothing is dropped for not being on the list.
+_PROP_ORDER = ("equation", "inline-math", "frame", "listing", "diagram",
+               "no-text-layer", "invisible-text", "inline-code",
+               "rotated-text", "coloured-fill", "coloured-frame")
+
+
+def profile_path(pdf: Path) -> Path:
+    return pdf.with_suffix(PROFILE_SUFFIX)
+
+
+def rollup_path(pdf: Path) -> Path:
+    return pdf.with_suffix(ROLLUP_SUFFIX)
+
+
+def read_profile(pdf: Path, pdf_pages: "int | None" = None) -> dict:
+    """The page properties measured for this PDF, or a refusal that names the
+    command which produces them.
+
+    Two refusals, both learned elsewhere in this tree: a reading older than
+    the document it describes is never silently served, and a page count that
+    disagrees with the listing's means one of the two is of another document —
+    the page NUMBER is the key the join turns on, so a frame shifted by one is
+    a wrong answer that looks right.
+    """
+    p = profile_path(pdf)
+    try:
+        raw = p.read_text(encoding="utf-8")
+    except OSError:
+        raise VolumeError(
+            "no page properties beside %s — run `pdfdrill profile %s` first. "
+            "It is free, keyless and offline, and it reads every page's "
+            "glyphs once, so on a volume it takes minutes, not seconds."
+            % (pdf.name, pdf.name)) from None
+    try:
+        data = json.loads(raw)
+    except ValueError as e:
+        raise VolumeError("%s is not readable JSON (%s) — rebuild it with "
+                          "`pdfdrill profile %s`" % (p.name, e, pdf.name)) \
+            from e
+    try:
+        if p.stat().st_mtime < pdf.stat().st_mtime:
+            raise VolumeError(
+                "%s is older than %s — the properties describe an earlier "
+                "reading of the document. Rebuild with `pdfdrill profile %s`."
+                % (p.name, pdf.name, pdf.name))
+    except OSError:
+        pass
+    got = int(data.get("pages") or 0)
+    if pdf_pages is not None and got != pdf_pages:
+        raise VolumeError(
+            "%s profiles %d page(s) and the listing counts %d in %s — one of "
+            "them is of a different document, and the page number is the key "
+            "the roll-up joins on. Rebuild both: `pdfdrill profile %s`, "
+            "`pdfdrill members %s --force`."
+            % (p.name, got, pdf_pages, pdf.name, pdf.name, pdf.name))
+    return data
+
+
+def _where_pages(profile: dict) -> dict:
+    """{property: set of 1-based PDF page numbers} from a profile.json."""
+    out: dict = {}
+    for k, v in (profile.get("where") or {}).items():
+        out[k] = {int(x) for x in (v or [])}
+    return out
+
+
+def _ordered(props) -> list:
+    """Decision-relevant properties first, then whatever else was measured."""
+    known = [k for k in _PROP_ORDER if k in props]
+    return known + sorted(k for k in props if k not in _PROP_ORDER)
+
+
+def rollup(listing: dict, profile: dict) -> dict:
+    """Each member's page properties — `profile`'s per-page measurements
+    intersected with the member's own PDF page range.
+
+    A member whose page range is not established gets no properties: absent,
+    not empty. The denominator travels with every count (`pages_total`),
+    because "12 pages carry an equation" is a different claim in a 17-page
+    paper and in a 700-page volume.
+    """
+    where = _where_pages(profile)
+    members = []
+    for m in listing.get("members") or []:
+        first, last = m.get("pdf_first_page"), m.get("pdf_last_page")
+        rec = {
+            "member": m.get("member"),
+            "doi": m.get("doi"),
+            "title": m.get("title"),
+            "pdf_first_page": first,
+            "pdf_last_page": last,
+            "pages_total": m.get("pdf_pages"),
+        }
+        if not first or not last:
+            rec["props"] = None
+            rec["props_source"] = ("the member's page range is not "
+                                   "established, so nothing is rolled up")
+            members.append(rec)
+            continue
+        span = last - first + 1
+        props = {}
+        for k, pages in where.items():
+            hit = sorted(p for p in pages if first <= p <= last)
+            if hit:
+                props[k] = {"pages": len(hit), "of": span, "first": hit[0]}
+        rec["props"] = props
+        rec["props_source"] = ("pages %d-%d of %s, as measured by `profile`"
+                               % (first, last, PROFILE_SUFFIX.lstrip(".")))
+        members.append(rec)
+
+    inside = {p for m in members if m.get("props") is not None
+              for p in range(m["pdf_first_page"], m["pdf_last_page"] + 1)}
+    outside = {}
+    for k, pages in where.items():
+        n = len([p for p in pages if p not in inside])
+        if n:
+            outside[k] = n
+
+    by_prop = {}
+    for k in _ordered(where):
+        carriers = [m for m in members if (m.get("props") or {}).get(k)]
+        by_prop[k] = {
+            "members": len(carriers),
+            "pages_in_those_members": sum(m["pages_total"] or 0
+                                          for m in carriers),
+            "pages_carrying": sum((m["props"][k]["pages"]) for m in carriers),
+            "pages_in_volume": len(where[k]),
+        }
+    return {
+        "volume": dict(listing.get("volume") or {}),
+        "profile": {
+            "pages": profile.get("pages"),
+            "pages_carrying_anything": len(profile.get("page_props") or {}),
+            "properties": _ordered(where),
+        },
+        "members": members,
+        "by_property": by_prop,
+        "outside_every_member": outside,
+        "sources": {
+            "member_ranges": "<stem>%s (see its own `sources`)" % LISTING_SUFFIX,
+            "page_properties": "<stem>%s, written by `pdfdrill profile` — "
+                               "free, keyless, offline, one glyph reading of "
+                               "every page" % PROFILE_SUFFIX,
+            "join": "the member's PDF page range intersected with the pages "
+                    "each property was established on; no page is read again",
+            "absent_not_false": "a property a page does not carry is ABSENT "
+                                "from that page, not false — `profile`'s own "
+                                "doctrine, kept here: a zero cell is printed "
+                                "as `-`",
+        },
+    }
+
+
+def write_rollup(pdf: Path, data: dict) -> Path:
+    p = rollup_path(pdf)
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False),
+                   encoding="utf-8")
+    tmp.replace(p)
+    return p
+
+
+def read_rollup(pdf: Path) -> "dict | None":
+    try:
+        return json.loads(rollup_path(pdf).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
