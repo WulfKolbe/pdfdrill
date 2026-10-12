@@ -121,6 +121,13 @@ _GLYPH_BASE = {
     "minus": "−", "periodcentered": "·", "multiply": "×", "divide": "÷",
     "lessequal": "≤", "greaterequal": "≥", "notequal": "≠",
     "element": "∈", "arrowright": "→", "arrowleft": "←",
+    # 901 — THE TEXBOOK'S TWO MISSING SYMBOLS, both from CMSY.
+    # `prime` is the ′ of the styles D′ T′ S′ SS′ that every rule in
+    # Appendix G is stated in terms of (127 of them book-wide, each one
+    # printed as `(cid:48)`). `negationslash` is the \not of ≠ — TeX sets
+    # `\ne` as TWO glyphs at the SAME x, so this is the overstrike half and
+    # `_compose_overstrikes` is what joins it to the character it crosses.
+    "prime": "′", "negationslash": "\u0338",
 }
 
 
@@ -149,3 +156,37 @@ def resolve_cid_by_name(text: str, code_to_name: dict) -> str:
         return glyph_name_to_char(code_to_name.get(int(m.group(1)), "")) or m.group(0)
 
     return _CID_RE.sub(sub, text)
+
+
+# ---------------------------------------------------------------------------
+# 901 — WHEN THE FONT SHIPS NO /Differences.
+#
+# `resolve_cid_by_name` is the general route and fixes every TeX font at once,
+# but it needs names, and it gets them from the PDF's /Differences array. A
+# 2000-era dvipdfm file states `Encoding /Builtin` and ships no array at all:
+# `pdffonts` on The TeXbook reports `uni no` for all 60-odd fonts, so the names
+# channel is empty and 3,100 angle brackets reach the markdown as
+# `(cid:104)`/`(cid:105)` — the ⟨⟩ around every syntax rule in the book.
+#
+# The names are not lost, they are STANDARD: `texmap.CM_ENCODING` already holds
+# them, built from 391 (family, cid) pairs measured across 102 documents with
+# zero disagreements. This is the third table in this codebase for one problem
+# — texmap's, this module's, and a copy inside nodes/ingest_pdfplumber.py —
+# which is what this module's own docstring was written to stop. Rather than
+# copy the pairs a fourth time, ask texmap.
+# ---------------------------------------------------------------------------
+def cm_names(fontname: str) -> dict:
+    """{code: glyphname} for a Computer Modern font, or {} when unknown.
+
+    `{}` means "this font is not one I can name", which leaves the `(cid:N)`
+    standing — a legible defect, never a guessed glyph.
+    """
+    try:
+        from pdfreader import texmap
+    except Exception:                                # noqa: BLE001
+        return {}
+    base = (fontname or "").split("+")[-1]
+    for family, table in texmap.CM_ENCODING.items():
+        if base.upper().startswith(family):
+            return table
+    return {}

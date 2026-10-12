@@ -385,19 +385,59 @@ def _pdfminer_char_dump(pdf: Path) -> dict:
                   "fontname": c.get("font", "")}
                  for c in by_page.get(pg, [])]
         pages.append({"page_number": pg, "width": float(w), "height": float(h),
-                      "chars": chars})
+                      "chars": _compose_overstrikes(chars)})
     return {"source": "pdfminer-chars", "total_pages": len(pages), "pages": pages}
 
 
 def _resolve_glyph(c: dict, glyphs: dict, _cid) -> str:
     """Resolve one glyph's `(cid:N)`: the font's OWN names first (general), the
-    curated per-font table second (fonts that ship no /Differences)."""
+    STANDARD Computer Modern names when it ships none, the curated per-font
+    table last."""
     text = c.get("text", "")
     if "(cid:" not in text:
         return text
     font = c.get("font", "")
-    by_name = _cid.resolve_cid_by_name(text, glyphs.get(font.split("+")[-1], {}))
+    names = glyphs.get(font.split("+")[-1], {})
+    # 901 — a 2000-era dvipdfm PDF declares `Encoding /Builtin` and ships no
+    # /Differences, so `names` is empty and the general route has nothing to
+    # work with. The CM encodings are standard and measured; ask for them
+    # rather than let the glyph fall through to `(cid:N)`.
+    if not names:
+        names = _cid.cm_names(font)
+    by_name = _cid.resolve_cid_by_name(text, names)
     return _cid.resolve_cid(by_name, font)
+
+
+def _compose_overstrikes(chars: list) -> list:
+    r"""Join a `\not` to the character it crosses.
+
+    901 — TeX sets `\ne` as `\not` then `=`, two glyphs printed at the SAME
+    x, which is why the appendix's two `$\theta\ne0$` read as `θ = 0` with
+    the negation simply gone. Measured, not assumed: both occurrences put the
+    negation slash and its `=` at an identical x0 (92.1 and 126.3), because an
+    overstrike is what TeX emits.
+
+    So the rule is GEOMETRIC — same x, not "a slash near an equals" — and the
+    composition is Unicode's own: NFC of `=` + U+0338 is `≠`, of `∈` is `∉`,
+    of `<` is `≮`. Nothing is invented; if NFC declines to compose the pair,
+    the combining mark is left standing where it was read.
+    """
+    import unicodedata
+    out, i, n = [], 0, len(chars)
+    while i < n:
+        c = chars[i]
+        nxt = chars[i + 1] if i + 1 < n else None
+        if (c.get("text") == "\u0338" and nxt and nxt.get("text")
+                and abs(float(nxt["x0"]) - float(c["x0"])) < 0.5):
+            merged = dict(nxt)
+            merged["text"] = unicodedata.normalize(
+                "NFC", nxt["text"] + "\u0338")
+            out.append(merged)
+            i += 2
+            continue
+        out.append(c)
+        i += 1
+    return out
 
 
 def _pdfplumber_char_dump(pdf: Path) -> dict:
@@ -17683,14 +17723,36 @@ def _extract_pdfplumber_chars(pdf: Path, pages: str | None = None):
     import pdfplumber
     from decimal import Decimal
 
+    # 901 — THIS EXTRACTOR RESOLVED NOTHING, and it is the one `md` uses.
+    #
+    # `cid_glyphs` opens by saying its table is kept in one module so that
+    # "one table, imported by every extractor" stops the leak recurring. This
+    # extractor imported nothing, so The TeXbook's markdown carried 3,100
+    # `(cid:104)`/`(cid:105)` — the ⟨⟩ of every syntax rule in the book — 127
+    # `(cid:48)` where a style prime D′ T′ S′ stood, and lost both of
+    # Appendix G's `≠` to an unjoined overstrike. The resolution already
+    # existed and already worked; it sat on the pdfminer path next door.
+    from . import cid_glyphs as _cid
+    glyphs = _font_glyph_names(pdf)              # per-font /Differences names
+
     pages_data = []
     with pdfplumber.open(pdf) as pdf_obj:
         for page in pdf_obj.pages:
+            chars = []
+            for ch in page.chars:
+                if "(cid:" in (ch.get("text") or ""):
+                    ch = dict(ch)
+                    # pdfplumber names the key `fontname`, pdfminer `font`;
+                    # `_resolve_glyph` reads `font`, so hand it one.
+                    ch["text"] = _resolve_glyph(
+                        {"text": ch["text"], "font": ch.get("fontname", "")},
+                        glyphs, _cid)
+                chars.append(ch)
             pages_data.append({
                 "page_number": page.page_number,
                 "width": float(page.width),
                 "height": float(page.height),
-                "chars": page.chars,
+                "chars": _compose_overstrikes(chars),
             })
 
     def default(obj):
