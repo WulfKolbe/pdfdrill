@@ -160,11 +160,43 @@ class DocumentContext(BaseModel):
         return [s for s in getattr(self, layer, []) if s.kind == kind]
 
     def to_json(self) -> str:
-        return self.model_dump_json(exclude_none=True, indent=2)
+        # 900 — PYDANTIC HAS NO ensure_ascii, and a filename need not be UTF-8.
+        #
+        # `source_path`/`source` carry the document's own name, which arrives
+        # surrogate-escaped when its bytes are not valid UTF-8 (`\udcd6` for a
+        # bare CP1252 `Ö`). `model_dump_json` encodes to utf-8 internally and
+        # raises PydanticSerializationError on a lone surrogate, so `md` died
+        # after reading all 245 pages of a book whose only fault was its name.
+        #
+        # The fast path is unchanged and byte-for-byte identical for every
+        # ordinary document; only a document that cannot be written at all
+        # falls through to jsonio, whose ensure_ascii=True escape round-trips
+        # back through `from_json`. Same fallback as jsonio's own, which the
+        # 18 such folders in one library already paid for.
+        try:
+            return self.model_dump_json(exclude_none=True, indent=2)
+        except Exception:
+            from . import jsonio as _jsonio
+            return _jsonio.dumps(
+                self.model_dump(exclude_none=True, mode="json"), indent=2)
 
+    #: 900 — THE WRITE AND THE READ MUST AGREE, and they did not.
+    #:
+    #: `to_json`'s fallback escapes a lone surrogate to `\udcd6`, which
+    #: `json.loads` accepts and pydantic's own parser REJECTS ("lone leading
+    #: surrogate in hex escape"). So the first half of this fix produced an
+    #: ir.json that `md` could write and nothing could read back — a worse
+    #: failure than the crash, because it is silent until someone reloads.
+    #:
+    #: Caught by asserting the ROUND TRIP in the test rather than asserting
+    #: that the write stopped raising.
     @classmethod
     def from_json(cls, data: str) -> DocumentContext:
-        return cls.model_validate_json(data)
+        try:
+            return cls.model_validate_json(data)
+        except Exception:
+            import json as _json
+            return cls.model_validate(_json.loads(data))
 
 
 # ---------------------------------------------------------------------------

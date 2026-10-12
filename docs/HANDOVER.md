@@ -265,6 +265,57 @@ is a git repo; nothing has been `git add`ed there.
 
 ---
 
+## A projection nothing requires is a projection nobody has (900)
+
+Eleven LaTeX/TeX books in the corpus had **no markdown projection**, and the
+reason was neither cost nor a missing capability. `md` is a projection, no
+layer `requires:` it, and for every one of them `pdfdrill steps md <pdf>`
+answered *"prerequisites satisfied (equations, provenance, size) — runs
+directly."* Grätzer's 621 pages took **94 s, keyless**.
+
+Counted rather than assumed: across all **163 manifest commands, `md` appears
+in no `requires:` at all** — it is a terminal projection, so no chain can ever
+pull it in and `--ensure` can never offer it. That is NOT the `cmd_tiddlers`
+shape, and the first draft of this note said it was: `tiddlers` is required by
+five commands (`standalone`, `cdncrops`, `breport`, `reporttex`, `publish`) and
+was rebuilt anyway. Two different faults with the same symptom — one layer was
+unreachable, the other was reachable and still unread.
+
+They are projected and pushed: `pdfdrill-library` (PRIVATE)
+`projections-latex-math-layout/`, 12 files, 9.4 MB, index in `INDEX.md`.
+Full text of commercially published books — it must stay in that repo.
+
+**`TeX in Practice Vol. II` reports `0 inline and 0 display math` across 396
+pages of a book subtitled *Paragraphs, Math and Fonts*.** The number is wrong
+in the way this project keeps paying for. `pdffonts` settles it:
+`HiddenHorzOCR` over one `jbig2` stencil per page at 600 dpi — a **scan with
+an invisible OCR text layer**, so the 122,230 words are OCR, not the book's
+typesetting, and `nodes/math_detector.py` classifies math by FONT CLASS
+(CMMI and friends). A page whose only fonts are Times-Roman and an OCR layer
+can never register math. The 203 `$…$` spans in the markdown are the book
+*printing TeX source* for the reader, not detections.
+
+So `md`'s summary states `0` where the truth is *not established*. Three more
+projections carry no counts at all because the unified-model route records
+different layer metadata. **Absent is not zero — and the summary line is
+currently the only place a reader learns the difference, by not being told.**
+Unfixed; the honest counts would need the route named beside them.
+
+Two writers on the `md` path bypassed `jsonio`, which exists for exactly their
+failure and says so in its own docstring. A folder name carrying a bare CP1252
+byte (`Marco \xd6chsner`) killed the build **after 245 pages were already
+read**. Fixed in `commands._extract_pdfplumber_chars` and
+`context.DocumentContext.to_json`/`from_json` — and the first attempt was a
+half-fix that wrote an `ir.json` pydantic's parser could not read back, caught
+only because the test asserted the round trip instead of the absence of a
+crash.
+
+Cost on disk: the 11 builds left **3.9 GB of `chars.json`** caches beside the
+books (570–906 MB each, gitignored). Deleting them is safe; each rebuilds in
+about 90 s.
+
+---
+
 ## Next task
 
 - **LaTeX field promotion** — the user's decision of 2026-09-14, recorded in

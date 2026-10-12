@@ -17707,9 +17707,17 @@ def _extract_pdfplumber_chars(pdf: Path, pages: str | None = None):
     tmp = chars_path.with_name(f"{chars_path.name}.tmp-{_os.getpid()}")
     try:
         with open(tmp, "w", encoding="utf-8") as f:
-            json_mod.dump(
+            # 900 — `source` IS A FILENAME, and a filename need not be UTF-8.
+            # `Advanced LaTeX In Academia … (Marco \xd6chsner)` carries a bare
+            # CP1252 byte that arrives surrogate-escaped, and
+            # `ensure_ascii=False` into a utf-8 stream cannot encode a lone
+            # surrogate — so `md` died on the NAME after reading all 245 pages,
+            # and the document was unbuildable by this route. jsonio exists for
+            # exactly this (18 such folders in one library) and was simply not
+            # used here; it falls back to ensure_ascii=True, which round-trips.
+            _jsonio.dump(
                 {"source": pdf.name, "total_pages": len(pages_data), "pages": pages_data},
-                f, default=default, ensure_ascii=False,
+                f, default=default,
             )
         _os.replace(tmp, chars_path)
     finally:
