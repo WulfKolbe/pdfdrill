@@ -877,6 +877,42 @@ CM_ENCODING = {
 }
 
 
+# --- manfnt, from The TeXbook's own macros --------------------------------
+#
+# DIFFERENT PROVENANCE FROM CM_ENCODING ABOVE, and kept in its own table for
+# that reason. CM_ENCODING is 391 (family, cid) pairs measured across 102
+# corpus documents; not one of them uses manfnt, so the corpus could never
+# supply these. These come from the one place that is authoritative about
+# them: the book that uses the font, whose TeX source sits beside its PDF in
+# the library (`texbook.tex`, Twenty-third Printing, February 2021).
+#
+#   127  '177  \def\dbend{{\manual\char127}}            line 23727
+#              "the dangerous bend sign used in this manual appears as
+#               character number 127 of font manfnt"        line 2691
+#   120  '170  \llap{\manual\char'170...}% triangle in margin   line 23908
+#              also 828, 23380, 23911 — the exercise/subheading triangle
+#    91  '133  \def\pennyedge{\hbox{\manual\char'133}}   line 15676
+#    88  '130  \def\pennytop{...\manual\char'130...}     line 15675
+#   the seven logo letters: \def\MF{{\manual META}\-{\manual FONT}}
+#                                                            line 23782
+#
+# The logo letters are their own confirmation: META+FONT needs M,E,T,A,F,O,N
+# with T twice, and the measured counts across the book are exactly 2 for
+# each of A E F M N O and 4 for T. A table that was guessed would not land
+# on that.
+#
+# WHAT IS DELIBERATELY ABSENT. manfnt also ships codes 97-100 ('141-'144,
+# 53 occurrences) and a tail of 104-117 (2 each) that the book's source never
+# names. They stay out. Resolving them would mean guessing, and manfnt's
+# codes COLLIDE with CMSY's — 104/105 are angle brackets in CMSY and
+# something else here — so a guess here prints a wrong glyph in a formula
+# instead of leaving a `(cid:N)` a reader can see and count.
+MANFNT = {
+    88: 'pennytop', 91: 'pennyedge', 120: 'mantriangle', 127: 'dbend',
+    65: 'A', 69: 'E', 70: 'F', 77: 'M', 78: 'N', 79: 'O', 84: 'T',
+}
+
+
 def cm_glyphname(fontname: str | None, cid: int) -> str | None:
     """The CM glyph name for a CID, when the font declared none."""
     if not fontname or cid < 0:

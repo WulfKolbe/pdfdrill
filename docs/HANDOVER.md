@@ -379,6 +379,76 @@ errors were in the measurement, and both looked like defects in someone's code.
 
 ---
 
+## When the corpus cannot supply an encoding, the document can (902)
+
+901 resolved every Computer Modern font in The TeXbook from
+`texmap.CM_ENCODING`, the table measured across 102 corpus documents. It left
+1,667 `manfnt` glyphs standing, 64% of everything still unresolved, and on
+purpose: **manfnt is not Computer Modern, appears in none of the 102 documents,
+and its codes collide with CMSY's** — 104/105 are angle brackets in CMSY and
+something else in manfnt, so a resolver that went by code alone would print a
+dangerous-bend sign as a bracket. A visible `(cid:N)` is a defect you can count;
+a wrong glyph is a corruption nobody sees.
+
+The codes were never unknowable. They were declared by the document itself. The
+TeXbook's TeX source sits beside its PDF in the library, and it defines its own
+characters:
+
+| code | the book's own line | glyph | count |
+|---:|---|---|---:|
+| 127 | `\def\dbend{{\manual\char127}}` (23727); prose at 2691 | ⚠ | 1,222 |
+| 120 | `\llap{\manual\char'170…}% triangle in margin` (23908) | ▶ | 305 |
+| 91 | `\def\pennyedge{…\char'133}` (15676) | *unmapped* | 20 |
+| 88 | `\def\pennytop{…\char'130…}` (15675) | *unmapped* | 16 |
+| 65 69 70 77 78 79 84 | `\def\MF{{\manual META}\-{\manual FONT}}` (23782) | `METAFONT` | 14 |
+
+Measured on the book, `md` route: `(cid:N)` **2,580 → 1,037**, `(cid:127)`
+**1,222 → 0**, `(cid:120)` **314 → 9** (the 9 are CMEX10's, a different font with
+the same code, correctly untouched), `METAFONT` **5 → 7**.
+
+**The logo letters are the table's own proof.** `META`+`FONT` needs M E T A F O N
+with T twice, and the measured book-wide counts are exactly 2 for each of
+A E F M N O and 4 for T. A guessed table does not land on that.
+
+**Three deliberate limits, each with a test.**
+
+- `MANFNT` is a **separate dict from `CM_ENCODING`**, because the provenance is
+  different. `CM_ENCODING`'s docstring earns its authority by saying it is 391
+  pairs measured across 102 documents with zero disagreements; folding in codes
+  read off one book's macros would quietly make that sentence false.
+- The table is **partial**. manfnt's codes 97–100 and a tail at 104–117 (90
+  glyphs in this book) are never named by the source, so they stay `(cid:N)`.
+  `test_manfnt_resolves_only_the_codes_the_books_source_names` asserts it, and
+  `test_manfnts_codes_do_not_leak_into_cmsy_or_the_other_way` holds the collision
+  apart in both directions.
+- ⚠ and ▶ are **chosen stand-ins, not decodings** — neither sign has a Unicode
+  codepoint — and they are the only entries of that kind in `_GLYPH_BASE`. The
+  case for them is that both are pure signposting, so a stand-in cannot mislead
+  anyone about a formula; what a reader got instead was
+  `(cid:127)(cid:127)(cid:120)EXERCISE`. The penny pieces get no stand-in, because
+  nothing stands in for a fragment of a drawing.
+
+**The generalisable rule: a document that typesets its own font is the authority
+on that font.** The corpus is the right source for a standard encoding and has
+nothing to say about a one-document font. Before refusing a font as unknowable,
+check whether its source is on disk — here it was, two directories away, and had
+been through the whole of 901.
+
+### A side finding, for anyone scoring Appendix G against `texbook.tex`
+
+The `.tex` beside the PDF is the **Twenty-third Printing, February 2021**; the
+PDF is dvipdfm, 2000. In Appendix G they differ because Knuth moved the
+Inner-atom wrapping out of rule 15e into rule 19 — rule 15e makes an **Ord** and
+says *Go to rule 19*, rule 19 gains *The entire resulting list now becomes the
+nucleus of an Inner atom*, and rule 3 gains *and move on to the next item*. One
+edit, three sites. Confirmed on both extraction routes independently, and
+`grep -c -i 'go to rule 19'` over the whole book returns 0. **The gold source is
+not the same text as the PDF**, so three "extraction failures" at those sites are
+not failures. 901's lesson was *score against the source when you have it*; this
+is its footnote: check that the source is the same edition.
+
+---
+
 ## Next task
 
 - **LaTeX field promotion** — the user's decision of 2026-09-14, recorded in

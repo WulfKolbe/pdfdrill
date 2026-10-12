@@ -128,6 +128,18 @@ _GLYPH_BASE = {
     # `\ne` as TWO glyphs at the SAME x, so this is the overstrike half and
     # `_compose_overstrikes` is what joins it to the character it crosses.
     "prime": "′", "negationslash": "\u0338",
+    # 902 — manfnt's two signs, which account for 1,527 of the 1,667
+    # unresolved manfnt glyphs in The TeXbook. NEITHER HAS A UNICODE
+    # CODEPOINT: Knuth's dangerous bend is a drawn road sign and the margin
+    # mark is his own triangle, so these are chosen STAND-INS, not decodings
+    # — the only entries in this table that are. They are here because the
+    # alternative a reader actually got was `(cid:127)(cid:127)(cid:120)`
+    # glued to the front of the word EXERCISE, and because both signs are
+    # pure signposting: a wrong stand-in misleads nobody about a formula.
+    # `pennytop`/`pennyedge` are deliberately NOT mapped — they are two
+    # pieces of a drawn penny from a Dirty Tricks example, and no character
+    # stands in for a fragment of a picture.
+    "dbend": "⚠", "mantriangle": "▶",
 }
 
 
@@ -143,6 +155,8 @@ def glyph_name_to_char(name: str) -> str:
     n = name.lstrip("/")
     if n in _GLYPH_BASE:
         return _GLYPH_BASE[n]
+    if len(n) == 1 and n.isascii() and n.isalnum():
+        return n                                # `A` is the glyph name of A
     stripped = _TEX_SIZE_SUFFIX.sub("", n)      # parenrightBig → parenright
     return _GLYPH_BASE.get(stripped, "")
 
@@ -185,8 +199,14 @@ def cm_names(fontname: str) -> dict:
         from pdfreader import texmap
     except Exception:                                # noqa: BLE001
         return {}
-    base = (fontname or "").split("+")[-1]
+    base = (fontname or "").split("+")[-1].upper()
     for family, table in texmap.CM_ENCODING.items():
-        if base.upper().startswith(family):
+        if base.startswith(family):
             return table
+    # 902 — manfnt is not Computer Modern and is not in the corpus table; its
+    # codes come from the book's own macros and live in their own dict so the
+    # two provenances stay apart. Partial on purpose: the codes the source
+    # never names are absent, so they still resolve to nothing.
+    if base.startswith("MANFNT"):
+        return texmap.MANFNT
     return {}
