@@ -316,6 +316,69 @@ about 90 s.
 
 ---
 
+## The markdown extractor resolved no glyph names at all (901)
+
+A reader of The TeXbook's markdown reported "missing Greek letters". The Greek
+was not missing — scored against `texbook.tex` itself, every route recovers 155
+of Appendix G's 158. What reached the eye was `C(cid:48)` where `C′` stood and
+`θ = 0` where `θ ≠ 0` stood.
+
+`cid_glyphs.py` opens by saying its table lives in one module so that *"one
+table, imported by every extractor"* stops the leak recurring. The extractor
+`md` actually uses — `_extract_pdfplumber_chars` — imported nothing and dumped
+pdfplumber's chars raw. **That was the fourth copy of one table here** (texmap's
+`CM_ENCODING`, `cid_glyphs`' `_CID_MAP`/`_GLYPH_BASE`, `ingest_pdfplumber`'s own
+`_CID_MAP`, and this gap). The general resolver reads names from `/Differences`;
+this is a 2000-era dvipdfm file declaring `Encoding /Builtin` with no array at
+all, so even wired up it had nothing until it could ask `texmap.CM_ENCODING` —
+391 (family, cid) pairs, zero carrying two names.
+
+Second half: TeX sets `\ne` as `\not` then `=`, **two glyphs at the same x**.
+Measured, not assumed — both occurrences put the slash and its `=` at an
+identical x0 (92.1, 126.3). The join is geometric and the composition is
+Unicode's own NFC; a pair NFC declines to compose is left standing.
+
+Whole book, rebuilt: **`(cid:N)` 5,971 → 2,580**, the 3,100 `(cid:104)/(cid:105)`
+⟨⟩ brackets now `\langle`/`\rangle` (21 → 3,023), the 127 style primes → 0.
+Appendix G: `≠` 0 → 2, primes 0 → 18, `(cid:N)` 41 → 9.
+
+**1,222 `(cid:127)` remain on purpose** — `manfnt`'s dangerous-bend signs, whose
+codes collide with CMSY's. Adding manfnt to the table is easy and unclaimed.
+
+### Three defects this exposed and did NOT fix
+
+1. **`md` has no `--force`, and it misreports provenance.** With a `<stem>.md`
+   present it serves the file while printing *"Markdown from MathPix … preferred
+   over the text-layer extraction"* — for a file the text-layer route built
+   (same word count both times, demonstrably the same file). Provenance is
+   decided by the file EXISTING, which is "the label is not the key" again, and
+   the only way to rebuild is to move the file aside. **Owner's call whether
+   `md --force` or the honest label comes first.**
+2. **`≤` is extracted and then misplaced** to the end of its sentence (`Thus,
+   $C S$ means … $\leq$ Style`). A reading-order fault, not a glyph fault; it
+   reads exactly like a dropped symbol while the count looks healthy, which is
+   how it survived counting.
+3. **Subscripts and fraction bars** on this route: `\sigma22` for
+   `\sigma_{22}` (53 of them) and `${1\over2}v+a$` fragmented into `$^{1}v + a$`
+   plus an orphan `$$^{2 2 }-$$`. The margin index words also interleave into
+   the prose. The pdf2mmd2 `--refine` route has none of these.
+
+### Two measurement errors of mine, both caught by scoring against gold
+
+`texbook.tex` lines 24755–25273 are Appendix G's own source and are on disk —
+this is the rare case where gold exists, and it caught both:
+
+- A `\b` after the macro name undercounted the gold to zero sigma, because `_`
+  is a word character and `$\sigma_1$` never matched.
+- Scoring for the Unicode `′` and `≠` and never for `^{\prime}` and `\not=`
+  scored pdf2mmd2's correct TeX as absent. I had published that as "both routes
+  lose all 26 primes" and nearly sent pdf2mmd2 a fix it did not need.
+
+**When a projection's source document is available, score against it.** Both
+errors were in the measurement, and both looked like defects in someone's code.
+
+---
+
 ## Next task
 
 - **LaTeX field promotion** — the user's decision of 2026-09-14, recorded in
