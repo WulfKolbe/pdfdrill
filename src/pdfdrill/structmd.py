@@ -184,6 +184,17 @@ class StructTree:
     def __init__(self, pdf_handle, mc: dict[tuple[int, int], str]):
         self._pdf = pdf_handle
         self._mc = mc
+        # 902e — A MARKED-CONTENT RUN BELONGS TO EXACTLY ONE ELEMENT, so it is
+        # read once. Reading it twice is always wrong, and on an UNPRUNED TREE
+        # it is catastrophic: a 16-page chapter cut out of a volume with
+        # `pikepdf` keeps the WHOLE volume's 29,644 structure elements, of
+        # which 29,234 carry no `/Pg` and so inherit a page from the few that
+        # do. Each then reads that page's MCIDs, and 602 real runs came back as
+        # 154,268 words — 95% of it the same text over and over, with 184
+        # invented tables. 152 documents in this library are pikepdf-produced,
+        # and `pdfdrill unpack` makes more.
+        self._used: set = set()
+        self.reused = 0
         root = pdf_handle.Root.get("/StructTreeRoot")
         if root is None:
             raise NoStructure("no /StructTreeRoot")
@@ -256,20 +267,75 @@ class StructTree:
         parts: list[str] = []
         for it in items:
             if isinstance(it, int):
-                parts.append(self._mc.get((pg, int(it)), ""))
+                parts.append(self._take(pg, int(it)))
             elif isinstance(it, pikepdf.Dictionary):
                 t = it.get("/Type")
                 if t == "/MCR":
                     p2 = self.page_of(it, pg)
                     mcid = it.get("/MCID")
                     if mcid is not None:
-                        parts.append(self._mc.get((p2, int(mcid)), ""))
+                        parts.append(self._take(p2, int(mcid)))
                 elif t == "/OBJR":
                     continue                      # an annotation, not text
                 else:
                     parts.append(self.text_of(it, self.page_of(it, pg),
                                               depth + 1))
         return "".join(parts)
+
+    def count_elements(self, node=None, depth: int = 0, seen=None) -> int:
+        """How many structure elements the tree holds, counted once each."""
+        import pikepdf
+
+        if node is None:
+            node, seen = self.root, set()
+        if depth > _MAX_DEPTH:
+            return 0
+        try:
+            key = node.objgen
+        except Exception:                                    # noqa: BLE001
+            key = id(node)
+        if key in seen:
+            return 0
+        seen.add(key)
+        n = 1 if node.get("/S") is not None else 0
+        for c in self.element_kids(node):
+            n += self.count_elements(c, depth + 1, seen)
+        return n
+
+    def references_local(self, node, depth: int = 0, pg: int = 0) -> bool:
+        """True when some MCID under `node` names a run present in this file."""
+        import pikepdf
+
+        if depth > _MAX_DEPTH:
+            return False
+        pg = self.page_of(node, pg)
+        k = node.get("/K")
+        if k is None:
+            return False
+        for it in (k if isinstance(k, pikepdf.Array) else [k]):
+            if isinstance(it, int):
+                if (pg, int(it)) in self._mc:
+                    return True
+            elif isinstance(it, pikepdf.Dictionary):
+                t = it.get("/Type")
+                if t == "/MCR":
+                    m = it.get("/MCID")
+                    if m is not None and (self.page_of(it, pg), int(m)) in self._mc:
+                        return True
+                elif t == "/OBJR":
+                    continue
+                elif self.references_local(it, depth + 1, pg):
+                    return True
+        return False
+
+    def _take(self, pg: int, mcid: int) -> str:
+        """The text of one marked-content run, the FIRST time it is asked for."""
+        key = (pg, mcid)
+        if key in self._used:
+            self.reused += 1
+            return ""
+        self._used.add(key)
+        return self._mc.get(key, "")
 
     def link_uri(self, node) -> str | None:
         """The URI behind a `/Link`, read from the annotation it points at."""
@@ -369,6 +435,38 @@ class _Renderer:
         self.out: list[str] = []
         self.stats = collections.Counter()
         self._blockcache: dict = {}
+        self._presentcache: dict = {}
+
+    def _present(self, node, depth: int = 0) -> bool:
+        """Does this element, or anything under it, reference marked content
+        that EXISTS IN THIS FILE?
+
+        902e — the unpruned-tree guard, and the only one that works for text
+        the element carries itself. A chapter cut out of a volume keeps the
+        whole volume's elements; refusing a run twice stopped the duplicated
+        prose, but a foreign `/Figure` has its caption in its own `/Alt` and
+        needs no run at all, so chapter 1's markdown was still announcing
+        "A flow chart illustrating ... Urdu word recognition". An element whose
+        content is not in this file is not this file's content.
+
+        The trade: an element drawn with no marked-content marking at all is
+        skipped too. On a pruned tagged PDF nearly every content element has
+        marked content -- measured: the eleven ISO/PDFA documents keep all 773
+        tables and 4,634 rows under this rule -- and the alternative is
+        printing another document's captions as if they were this one's.
+        """
+        try:
+            key = node.objgen
+        except Exception:                                    # noqa: BLE001
+            key = id(node)
+        hit = self._presentcache.get(key)
+        if hit is not None:
+            return hit
+        found = False
+        if depth <= _MAX_DEPTH:
+            found = self.t.references_local(node, depth)
+        self._presentcache[key] = found
+        return found
 
     def _has_block_descendant(self, node, depth: int = 0) -> bool:
         """Does anything under `node` need its own block of markdown?
@@ -485,8 +583,18 @@ class _Renderer:
                     inner = [c for c in self.t.element_kids(part)
                              if self.t.role(c) == "/L"]
                     sublists.extend(inner)
-                    body.append(_clean(self.t.text_of(part, p2)) if not inner
-                                else _clean(self.t.text_of(part, p2)))
+                    if inner:
+                        # 902e — READ ONLY THE NON-LIST CHILDREN. A run is now
+                        # consumed once, so reading the whole LBody here would
+                        # eat the nested list's text and the sublist below
+                        # would render empty. The two branches used to be
+                        # identical, which hid this until runs became
+                        # single-use.
+                        body.extend(_clean(self.t.text_of(c, self.t.page_of(c, p2)))
+                                    for c in self.t.element_kids(part)
+                                    if self.t.role(c) != "/L")
+                    else:
+                        body.append(_clean(self.t.text_of(part, p2)))
                 elif pr == "/L":
                     sublists.append(part)
             text = _clean(" ".join(x for x in body if x))
@@ -505,6 +613,9 @@ class _Renderer:
             return
         role = self.t.role(node)
         pg = self.t.page_of(node, pg)
+        if not self._present(node):
+            self.stats["elements_not_in_this_file"] += 1
+            return
         self.stats[f"role:{role}"] += 1
 
         if role in _HEADING:
@@ -619,6 +730,30 @@ def project(pdf: Path, chars_json: Path | None = None) -> tuple[str, dict]:
         kids = tree.element_kids(tree.root)
         if not kids:
             raise NoStructure("/StructTreeRoot has no child elements")
+
+        # 902e — DOES THIS TREE DESCRIBE THIS FILE? A chapter cut out of a
+        # volume with `pikepdf` keeps the WHOLE volume's structure tree: a
+        # 16-page ICDAR chapter carries 29,644 elements against 602 runs, a
+        # ratio of 49. Of those elements 29,234 declare no `/Pg`, so they
+        # inherit a page from the few that do and read its marked content —
+        # and page inheritance has no way to tell a legitimate child from
+        # another chapter's orphan, because the inherited page is a REAL page
+        # with real runs. Per-element guards can narrow it and cannot close it.
+        #
+        # So this is decided for the document, not the element. A tree that
+        # describes its own file has roughly one element per run or fewer:
+        # measured 1.77 on ISO 32000-2, 0.88 on AN003, 0.62 on ISO/TS 32005.
+        # Five is far outside that and far below 49.
+        #
+        # 152 documents in this library are pikepdf-produced and `pdfdrill
+        # unpack` makes more, so this is the common case, not the exotic one.
+        elems = tree.count_elements()
+        if elems > 200 and len(mc) and elems > 5 * len(mc):
+            raise NoStructure(
+                f"the structure tree does not describe this file: {elems} "
+                f"elements against {len(mc)} marked-content runs (ratio "
+                f"{elems / max(len(mc), 1):.0f}:1). This is what a page split "
+                f"that kept the whole volume's tree looks like")
         for k in kids:
             r.walk(k, tree.page_of(k, 0))
         body = "\n\n".join(x for x in r.out if x.strip())
@@ -631,4 +766,7 @@ def project(pdf: Path, chars_json: Path | None = None) -> tuple[str, dict]:
         pua = sum(1 for ch in body if unicodedata.category(ch) == "Co")
         if pua:
             stats["private_use_chars"] = pua
+        if tree.reused:
+            stats["reused_runs_refused"] = tree.reused
+        stats["runs_consumed"] = len(tree._used)
         return body + "\n", stats

@@ -156,6 +156,25 @@ class _FakeTree(structmd.StructTree):
     def page_of(self, node, inherited):
         return inherited
 
+    def references_local(self, node, depth=0, pg=0):
+        """902e — the fixtures must answer the unpruned-tree predicate too, or
+        every synthetic element reads as foreign and the whole file is
+        skipped. That is exactly what 13 of these tests reported when the
+        predicate landed: a harness that cannot answer a new question does not
+        prove the product is broken, but it does stop proving it works."""
+        if depth > 50:
+            return False
+        k = node.get("/K")
+        if k is None:
+            return False
+        for it in (k if isinstance(k, list) else [k]):
+            if isinstance(it, int):
+                if (pg, it) in self._mc:
+                    return True
+            elif isinstance(it, _Node) and self.references_local(it, depth + 1, pg):
+                return True
+        return False
+
     def link_uri(self, node):
         return node.get("/URI")
 
@@ -301,8 +320,8 @@ def test_a_link_carries_its_uri():
 
 
 def test_a_figure_uses_its_alt_text():
-    root = _Node(K=[_Node("/Figure", Alt="PDF Association logo")])
-    md, st = _render(root, {})
+    root = _Node(K=[_Node("/Figure", K=[0], Alt="PDF Association logo")])
+    md, st = _render(root, {(0, 0): ""})
     assert md == "![PDF Association logo](figure)"
     assert st["figures"] == 1
 
@@ -316,8 +335,8 @@ def test_a_nul_in_alt_text_does_not_make_the_markdown_a_binary_file():
     65 KB markdown a BINARY FILE and refuse to print any match, so it hides the
     whole document from every line-based tool."""
     assert structmd._clean("Logo: GrackleDocs \x00") == "Logo: GrackleDocs"
-    root = _Node(K=[_Node("/Figure", Alt="Logo: GrackleDocs \x00")])
-    md, _ = _render(root, {})
+    root = _Node(K=[_Node("/Figure", K=[0], Alt="Logo: GrackleDocs \x00")])
+    md, _ = _render(root, {(0, 0): ""})
     assert "\x00" not in md
     assert md == "![Logo: GrackleDocs](figure)"
 
@@ -391,6 +410,56 @@ def test_an_empty_tree_is_refused_too():
     r = structmd._Renderer(t)
     assert t.element_kids(t.root) == []
     assert r.out == []
+
+
+def test_an_unpruned_tree_is_refused_with_the_ratio_that_proved_it():
+    """902e — the defect a larger corpus found and eleven documents hid.
+
+    `pikepdf` splitting a volume's pages keeps the WHOLE volume's structure
+    tree. A 16-page ICDAR chapter carries 29,644 elements against 602
+    marked-content runs, and 29,234 of them declare no `/Pg`, so they inherit
+    a page from the few that do and read its content: 154,268 words out of a
+    16-page paper, 95% of it duplicated, 184 invented tables, and another
+    chapter's figure captions. 152 documents in the library are
+    pikepdf-produced and `pdfdrill unpack` makes more.
+
+    A tree that describes its own file holds about one element per run or
+    fewer — measured 1.77 on ISO 32000-2, 0.88 on AN003, 0.62 on ISO/TS 32005.
+    """
+    class _Tree(structmd.StructTree):
+        def __init__(self, n):
+            self._n = n
+            self.rolemap, self._mc, self._used, self.reused = {}, {}, set(), 0
+            self.root = _Node(K=[_Node("/P", K=[0])])
+
+        def count_elements(self, node=None, depth=0, seen=None):
+            return self._n
+
+        def element_kids(self, node):
+            k = node.get("/K")
+            return [i for i in (k if isinstance(k, list) else [k])
+                    if isinstance(i, _Node)] if k is not None else []
+
+    t = _Tree(29644)
+    t._mc = {(0, i): "x" for i in range(602)}
+    assert t.count_elements() > 5 * len(t._mc)
+    t2 = _Tree(78468)                       # ISO 32000-2: 1.77:1, must pass
+    t2._mc = {(0, i): "x" for i in range(44438)}
+    assert not t2.count_elements() > 5 * len(t2._mc)
+
+
+def test_a_marked_content_run_is_read_once_because_it_has_one_owner():
+    """A marked-content sequence is one region of one page and belongs to
+    exactly one element. Reading it twice is always wrong, and on an unpruned
+    tree it is what turns 602 runs into 154,268 words."""
+    class _T(structmd.StructTree):
+        def __init__(self):
+            self._mc = {(0, 1): "once"}
+            self._used, self.reused = set(), 0
+    t = _T()
+    assert t._take(0, 1) == "once"
+    assert t._take(0, 1) == ""
+    assert t.reused == 1
 
 
 def test_the_command_is_registered_in_the_manifest_and_the_cli():
