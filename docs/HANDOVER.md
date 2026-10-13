@@ -449,6 +449,74 @@ is its footnote: check that the source is the same edition.
 
 ---
 
+## The reading order was in the file and no reader asked for it (902b)
+
+`md` reconstructs reading order from glyph geometry. Measured across eleven
+PDF-Association / ISO documents, 1,234 pages, drilled on 2026-10-13:
+
+| | geometric `md` | **`structmd`** |
+|---|---:|---:|
+| markdown tables, all 11 documents | **0** | **773** |
+| …in ISO 32000-2 alone (11,036 tagged cells) | 0 | **732**, 4,305 rows |
+| watermark / running-header lines in the prose | 1,265 | **1** |
+
+Ten of the eleven ship a `/StructTreeRoot` — 78,468 structure elements in
+32000-2 — and before this `grep -rn 'StructTreeRoot' src/` returned NOTHING.
+
+**Two sources, each for what it is authoritative about.** The tree (pikepdf)
+gives ORDER and ROLE, with `/RoleMap` translating a producer's private names
+(`/Heading_2`, `/Table_Position`, `/H1 bold_` — 66 entries in 32000-2) into the
+standard roles. pdfplumber gives the TEXT keyed by `(page, mcid)`; the
+`chars.json` cache `md` already writes carries `mcid`, so a document already
+drilled costs a JSON read. Above 256 MB of cache it reads the PDF instead —
+32000-2's cache is 1.3 GB and `json.load` holds all of it; streaming takes 108 s
+and bounded memory.
+
+**Artifacts are excluded for free, and that is the whole watermark fix.** A
+running head, a folio and a licence footer are artifacts, not content, so they
+are not in the tree and the walk never sees them: 191,012 artifact characters in
+32000-2, no filter and no list of strings to strip. That is why this is a layer
+and not a cleanup pass.
+
+### Four defects this found in itself, each now a test
+
+- **A `/P` can contain a `/Table`.** ISO/TS 32005's measured chain is
+  `/Document > /Art > /Sect > /P > /Table > /THead > /TR`, because
+  `/Table_Position` maps to `/P`. Treating `/P` as a leaf reported **0 tables
+  for a document with 151 rows** — the fault this layer exists to remove,
+  reintroduced one level up.
+- **A table is ONE block.** `project` joins blocks with a blank line, so a row
+  per entry put a blank line between every row and markdown stopped seeing a
+  table at all. The table COUNT was right and the output was broken; only a
+  test asserting the rendered lines caught it.
+- **A header row is all `/TH`.** ISO tables put a `/TH` in the left column of
+  every data row as a row label; promoting one `/TH` merged a whole table into
+  its own header.
+- **The non-breaking-space hole.** pdfplumber loses `mcid` AND `tag` inside a
+  nested marked-content sequence, and InDesign splits a run at a non-breaking
+  space, so a page reads `H1/150 '1'`, `None 'Scope'`. Dropping the untagged
+  half lost `Scope`, `1.7`, `2.0` and whole clause bodies — 8,583 characters on
+  32005, 13.8% of it. The rule: an untagged run is appended to the run
+  immediately before it in the page's own stream, and only when another marked
+  run follows (the sandwich); an `Artifact` neither absorbs nor is absorbed.
+  Recovered 8,144 characters there, 12,224 on 32004.
+
+**A measurement error worth keeping.** I first reported genuine content loss as
+**0.00%** by classifying every `tag=None` char as page furniture. They are
+content — `Scope`, `1.7`, the clause bodies — and the true figure was 20.4% of
+all characters before the sandwich rule. The lesson is narrow and repeatable:
+*a bucket named "untagged" is a question, not an answer.* Print what is in a
+bucket before concluding it is empty.
+
+**Still absent, and reported in the command's own output every run** so the
+number is checked rather than assumed: characters the file tags as content but
+places in no marked-content run this layer can attach them to — 1,303 in
+32000-2, 442 in 32005, 26 in each of TS 32001–32003. `structmd` refuses rather
+than falling back when there is no usable tree: a tagged PDF whose tags are a
+stub is exactly where a silent fallback is indistinguishable from success.
+
+---
+
 ## Next task
 
 - **LaTeX field promotion** — the user's decision of 2026-09-14, recorded in

@@ -2057,6 +2057,16 @@ def _do_ingest(args):
     return cmd_ingest(_pdf(pos[:1]), pos[1], provider=provider, force=force)
 
 
+def _do_structmd(args):
+    """pdfdrill structmd <pdf>
+
+    Markdown from the PDF's own `/StructTreeRoot`. No flags yet: the tag tree
+    describes the whole document and a page range would cut tables in half.
+    """
+    from .commands import cmd_structmd
+    return cmd_structmd(_pdf(args))
+
+
 def _do_md(args):
     """pdfdrill md <pdf> [--pages N|N-M|all] [--image-base URL]
 
@@ -2689,6 +2699,7 @@ HANDLERS = {
         "corpusstatus": _do_corpusstatus,
         "provenance": _do_provenance,
         "md": _do_md,
+        "structmd": _do_structmd,
         "page": _do_page,
         "fetch": _do_fetch,
         "plan": _do_plan,

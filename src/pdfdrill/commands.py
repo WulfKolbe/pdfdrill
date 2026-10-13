@@ -17532,6 +17532,73 @@ def _md_from_model(pdf: Path, sc: "Sidecar",
             + _write_md(pdf, sc, md, source="model"))
 
 
+@_writes("structmd")
+def cmd_structmd(pdf: Path, pages: str | None = None) -> str:
+    """Markdown from the PDF's own logical structure tree (`/StructTreeRoot`).
+
+    902b — the geometric route guesses a reading order that ten of eleven
+    PDF-Association/ISO documents SHIP. See `structmd.py` for the measurements;
+    the short version is 11,036 tagged cells in ISO 32000-2 against one
+    markdown table, and 1,111 licence-footer lines woven into the prose.
+    """
+    from . import structmd as _structmd
+
+    sc = Sidecar(pdf)
+    if not sc.has(SIZE_KNOWN):
+        cmd_size(pdf)
+        sc = Sidecar(pdf)
+
+    # The chars cache carries `mcid`, so a document already through `md` needs
+    # no second extraction. Absent, `structmd` reads the PDF itself rather than
+    # building a cache this layer does not otherwise need.
+    chars_path = _chars_json_path(pdf)
+    if not _json_file_looks_complete(chars_path):
+        chars_path = None
+
+    t0 = time.monotonic()
+    try:
+        md_text, stats = _structmd.project(pdf, chars_path)
+    except _structmd.NoStructure as exc:
+        # NEVER a silent fall back to the geometric route under a better name.
+        return (f"{pdf.name} has no usable logical structure ({exc}). "
+                f"`structmd` reads the PDF's own tag tree and this file has "
+                f"none, so there is nothing for it to project — use "
+                f"`pdfdrill md {pdf.name}`, which reconstructs from glyph "
+                f"geometry, and expect the faults that implies (reading order "
+                f"guessed, tables flattened).")
+    elapsed = time.monotonic() - t0
+
+    sc = Sidecar(pdf)
+    out_name = f"{pdf.stem}.struct.md"
+    sc.write_blob(out_name, md_text)
+
+    words = len(md_text.split())
+    tables = stats.get("tables", 0)
+    rows = stats.get("table_rows", 0)
+    heads = stats.get("headings", 0)
+    reattached = stats.get("reattached_chars", 0)
+    artifacts = stats.get("artifact_chars", 0)
+    orphans = stats.get("orphan_chars", 0)
+
+    note = ""
+    if orphans:
+        # Stated every time, because a number nobody prints is a number nobody
+        # checks: these are characters the file tags as content but places in
+        # no marked-content run this layer could attach them to.
+        note = (f" {orphans} character(s) could not be attached to any "
+                f"structure element and are absent — see `structmd` docs.")
+
+    return (f"Markdown from the structure tree: {words} words, {heads} "
+            f"heading(s), {tables} table(s) with {rows} row(s), from "
+            f"{stats.get('marked_content_runs', 0)} marked-content run(s) via "
+            f"{stats.get('text_source', '?')} in {elapsed:.1f}s. "
+            f"{artifacts} artifact character(s) (running heads, folios, "
+            f"watermarks) were never in the reading flow and are excluded; "
+            f"{reattached} character(s) in split runs were re-attached to the "
+            f"run they were split from.{note}\n\nStored as `{out_name}` "
+            f"beside the PDF.")
+
+
 @_writes("md")
 def cmd_md(pdf: Path, pages: str | None = None,
            image_base: str | None = None) -> str:

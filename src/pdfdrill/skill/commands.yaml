@@ -372,6 +372,22 @@ commands:
     help: 'origin serving MathPix-shaped crops (http://localhost:8791)'
   typed: true
   done_when: file:{bibkey}.md
+- name: structmd
+  section: Extraction
+  summary: 'Markdown from the PDF''s OWN logical structure tree (/StructTreeRoot): real pipe tables
+    from /TR//TH//TD, headings from /H1../H6 through /RoleMap, lists from /L//LI, and artifacts
+    (running heads, folios, watermarks) excluded for free because they are not in the tree. For a
+    TAGGED PDF this is the authoritative reading order — the geometric `md` route guesses it, which
+    on ISO 32000-2 cost 11,036 tagged cells for 1 markdown table. Refuses rather than falling back
+    when the file has no usable tree. Writes <stem>.struct.md.'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  done_when: file:{bibkey}.struct.md
 - name: page
   section: Extraction
   summary: Single page text extraction

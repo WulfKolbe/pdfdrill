@@ -592,6 +592,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | Command | Returns |
 |---|---|
 | `pdfdrill md <pdf> [--pages PAGES] [--image-base IMAGE_BASE]` | Markdown from the unified model — headings, prose, IMAGES as links and TABLES as pipe tables, no transclusions (R3). Prefers a genuine MathPix .md, then the model, then the text layer. --image-base points MathPix-shaped crop URLs at a local crop server (pdfreader/inspectserver.py or tools/imageserver/mathpix_server.py) so a figure with no fetched crop still resolves in a Markdown reader. |
+| `pdfdrill structmd <pdf>` | Markdown from the PDF's OWN logical structure tree (/StructTreeRoot): real pipe tables from /TR//TH//TD, headings from /H1../H6 through /RoleMap, lists from /L//LI, and artifacts (running heads, folios, watermarks) excluded for free because they are not in the tree. For a TAGGED PDF this is the authoritative reading order — the geometric `md` route guesses it, which on ISO 32000-2 cost 11,036 tagged cells for 1 markdown table. Refuses rather than falling back when the file has no usable tree. Writes <stem>.struct.md. |
 | `pdfdrill page <pdf> <n>` | Single page text extraction |
 | `pdfdrill distill <pdf> [--embed]` | A distill-structured single-file reading view (<bibkey>.distill.html): the Anthropic/Distill v2 article skeleton (named-column grid, runtime TOC, LATE-BOUND ?? figure/eq refs, hover cite/footnote popovers) rebuilt from the docmodel — self-contained, no template JS, KaTeX from data-latex. Auto-chains model; --embed inlines CDN crops. Citation popovers need bibliography/bibsource first (else graceful). |
 | `pdfdrill repoinit <dir> [--username USERNAME] [--title TITLE]` | Scaffold a GitHub-repo TiddlyWiki document-set layout (tiddlywiki.info with katex+markdown, package.json, .gitignore, .nojekyll, pdfdrill-repo.json, tiddlers/, files/). Offline; the standalone index.html is built later by `npx tiddlywiki . --output . --build index`. |
@@ -685,6 +686,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-7976c7f1` before any build/extract command.
-DRILL-7976c7f1
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-ab8383a5` before any build/extract command.
+DRILL-ab8383a5
 <!-- PREFLIGHT-TOKEN:END -->
