@@ -308,11 +308,30 @@ class StructTree:
 #     ISO/TS 32004 — MORE than the geometric route produced, because this layer
 #     keeps the TOC it is right to keep.
 #
-# Control and format characters are never content, so they go. A private-use
-# character (category Co, e.g. a Symbol-font bullet at U+F0A7) STAYS and is
-# counted instead: it is the `(cid:N)` principle — a visible oddity someone can
-# find beats a silent guess about what a private glyph meant.
-_CTRL = {"Cc", "Cf"}
+# WHAT GOES AND WHAT STAYS, narrowed after pdf2mmd2 pointed out that the first
+# version of this was too wide. Dropping the whole of category Cf takes the
+# ZERO WIDTH JOINER and NON-JOINER with it, and those are not noise: Devanagari,
+# Arabic and emoji sequences are spelled with them, so stripping Cf corrupts
+# every script that needs one. This corpus is Latin and would never have shown
+# it; the rule lives in a shared path and the next document is not ours to
+# assume.
+#
+# So: CONTROL characters (Cc) go, except tab and newline — that covers NUL, DEL
+# and the C1 block. Plus exactly two format characters that are never content in
+# extracted text: the SOFT HYPHEN, which is a discretionary break (13 measured
+# here), and a BYTE ORDER MARK, which is a file-encoding artifact. Every other
+# format character stays.
+#
+# A PRIVATE-USE character (Co) stays too and is counted instead — U+F0A7 and
+# U+F06E are Symbol-font glyphs here. That is the `(cid:N)` principle: a visible
+# oddity someone can find beats a silent guess about what a private glyph meant.
+#
+# Measured on the raw chars cache of all eleven documents: ZERO Cc and ZERO Cf
+# characters, 25 private-use. So none of this noise comes through pdfplumber —
+# it arrives in the tree's OWN strings, `/ActualText` and `/Alt`, which are
+# producer-authored. That is exactly where a C-string terminator and a
+# discretionary hyphen would be written by hand.
+_DROP_FORMAT = {"\u00ad", "\ufeff"}
 _DOT_LEADER = re.compile(r"\s*\.{4,}\s*")
 
 
@@ -321,7 +340,9 @@ def _strip_noise(s: str) -> str:
     for ch in s or "":
         if ch in "\n\t":
             out.append(ch)
-        elif unicodedata.category(ch) in _CTRL:
+        elif ch in _DROP_FORMAT:
+            continue
+        elif unicodedata.category(ch) == "Cc":
             continue
         else:
             out.append(ch)

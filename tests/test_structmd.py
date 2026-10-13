@@ -328,6 +328,25 @@ def test_a_soft_hyphen_is_dropped_so_the_word_can_be_searched():
     assert structmd._clean("exposi\u00adtion") == "exposition"
 
 
+def test_the_c1_block_and_del_go_with_the_nul():
+    """pdf2mmd2 measured 273 DEL (U+007F) and 2 U+0088 in its own line text
+    across 117 outputs. Same class as the NUL, same consequence."""
+    assert structmd._clean("a\x7fb") == "ab"
+    assert structmd._clean("a\x88b") == "ab"
+    assert structmd._clean("\ufeffTitle") == "Title"
+
+
+def test_a_joiner_survives_because_scripts_are_spelled_with_it():
+    """THE FIRST VERSION OF THIS RULE WAS TOO WIDE and pdf2mmd2 caught it.
+    Dropping all of category Cf takes the ZERO WIDTH JOINER and NON-JOINER with
+    it, and Devanagari, Arabic and emoji sequences are spelled with them — so a
+    blanket Cf strip corrupts every script that needs one. This corpus is Latin
+    and would never have shown it; the rule lives in a shared path."""
+    for keep in ("\u200c", "\u200d", "\u200e", "\u061c"):
+        assert keep in structmd._clean(f"a{keep}b"), hex(ord(keep))
+    assert structmd._clean("\u0915\u094d\u200d\u0937") == "\u0915\u094d\u200d\u0937"
+
+
 def test_a_dot_leader_collapses_but_an_ellipsis_survives():
     """A table-of-contents row reaches the tree as real content with its
     leader attached — 38 rows in ISO/TS 32004, MORE than the geometric route,
