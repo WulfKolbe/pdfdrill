@@ -47,6 +47,8 @@ from __future__ import annotations
 
 import collections
 import json
+import re
+import unicodedata
 from pathlib import Path
 
 # ISO 32000-2, 14.8.4: the standard structure types this projector renders.
@@ -291,10 +293,48 @@ class StructTree:
 # ---------------------------------------------------------------------------
 # rendering
 # ---------------------------------------------------------------------------
+# 902c — THREE THINGS IN THE TEXT THAT ARE TYPOGRAPHY, NOT CONTENT, each found
+# by a reader of the output rather than by a test:
+#
+#   * A NUL. `/Alt` on a figure ends with one in two documents — a C-string
+#     terminator left in a PDF text string: `![Logo: GrackleDocs \x00](figure)`.
+#     It made `grep` call the whole markdown a BINARY FILE and refuse to print a
+#     match, so one NUL hides a 65 KB document from every line-based tool.
+#   * A SOFT HYPHEN (U+00AD), 10 of them in ISO/TS 32005 — `exposi<AD>tion`,
+#     `sur<AD>rounding`. It is a discretionary break the producer wrote into the
+#     source; it is invisible, and it makes a search for `exposition` fail.
+#   * A DOT LEADER. A table-of-contents row reaches the tree as real content
+#     with its leader attached: `...........................6`. 38 such rows in
+#     ISO/TS 32004 — MORE than the geometric route produced, because this layer
+#     keeps the TOC it is right to keep.
+#
+# Control and format characters are never content, so they go. A private-use
+# character (category Co, e.g. a Symbol-font bullet at U+F0A7) STAYS and is
+# counted instead: it is the `(cid:N)` principle — a visible oddity someone can
+# find beats a silent guess about what a private glyph meant.
+_CTRL = {"Cc", "Cf"}
+_DOT_LEADER = re.compile(r"\s*\.{4,}\s*")
+
+
+def _strip_noise(s: str) -> str:
+    out = []
+    for ch in s or "":
+        if ch in "\n\t":
+            out.append(ch)
+        elif unicodedata.category(ch) in _CTRL:
+            continue
+        else:
+            out.append(ch)
+    return _DOT_LEADER.sub(" … ", "".join(out))
+
+
 def _clean(s: str) -> str:
-    """Collapse whitespace. A marked-content run carries the line breaks of the
-    PAGE, which are a typesetting fact and not a content one."""
-    return " ".join((s or "").split())
+    """Collapse whitespace and drop what is typography rather than content.
+
+    A marked-content run carries the line breaks of the PAGE, which are a
+    typesetting fact and not a content one.
+    """
+    return " ".join(_strip_noise(s or "").split())
 
 
 def _cell(s: str) -> str:
@@ -567,4 +607,7 @@ def project(pdf: Path, chars_json: Path | None = None) -> tuple[str, dict]:
         stats["marked_content_runs"] = len(mc)
         stats["rolemap_entries"] = len(tree.rolemap)
         stats.update(mcstats)
+        pua = sum(1 for ch in body if unicodedata.category(ch) == "Co")
+        if pua:
+            stats["private_use_chars"] = pua
         return body + "\n", stats

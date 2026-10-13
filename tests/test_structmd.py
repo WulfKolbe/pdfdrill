@@ -308,6 +308,44 @@ def test_a_figure_uses_its_alt_text():
 
 
 # ---------------------------------------------------------------------------
+# 902c — typography in the text, each found by a reader of the output
+# ---------------------------------------------------------------------------
+def test_a_nul_in_alt_text_does_not_make_the_markdown_a_binary_file():
+    r"""`/Alt` on a figure ends with a NUL in two of the eleven documents — a
+    C-string terminator left in a PDF text string. One NUL makes `grep` call a
+    65 KB markdown a BINARY FILE and refuse to print any match, so it hides the
+    whole document from every line-based tool."""
+    assert structmd._clean("Logo: GrackleDocs \x00") == "Logo: GrackleDocs"
+    root = _Node(K=[_Node("/Figure", Alt="Logo: GrackleDocs \x00")])
+    md, _ = _render(root, {})
+    assert "\x00" not in md
+    assert md == "![Logo: GrackleDocs](figure)"
+
+
+def test_a_soft_hyphen_is_dropped_so_the_word_can_be_searched():
+    """10 in ISO/TS 32005: `exposi<AD>tion`, `sur<AD>rounding`. Invisible, and
+    it makes a search for `exposition` fail."""
+    assert structmd._clean("exposi\u00adtion") == "exposition"
+
+
+def test_a_dot_leader_collapses_but_an_ellipsis_survives():
+    """A table-of-contents row reaches the tree as real content with its
+    leader attached — 38 rows in ISO/TS 32004, MORE than the geometric route,
+    because this layer rightly keeps the TOC. Four dots is a leader; three in
+    running prose is an ellipsis and stays."""
+    assert structmd._clean("7 Relationships ......... 6") == "7 Relationships … 6"
+    assert structmd._clean("an ellipsis... stays") == "an ellipsis... stays"
+
+
+def test_a_private_use_character_survives_and_is_counted():
+    """U+F0A7 is a Symbol-font bullet. Stripping it would be a guess about what
+    a private glyph meant; the `(cid:N)` principle says leave the visible
+    oddity and count it, so `private_use_chars` reports it."""
+    assert structmd._clean("\uf0a7 item") == "\uf0a7 item"
+    assert "Co" == __import__("unicodedata").category("\uf0a7")
+
+
+# ---------------------------------------------------------------------------
 # the refusal
 # ---------------------------------------------------------------------------
 def test_no_structure_tree_raises_rather_than_falling_back():
