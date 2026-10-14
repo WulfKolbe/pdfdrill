@@ -96,12 +96,12 @@ class SidenoteProcessor(BaseModule):
         always did and still owns every line that states nothing: a leading
         space is already a joiner, a trailing hyphen is a soft break.
         """
-        def fallback(out: str, nxt: str) -> str:
+        def fallback(out: str, nxt: str):
             if nxt.startswith(" "):
-                return "space"             # it already carries its joiner
+                return "as_is"             # it already carries its joiner
             if out.endswith("-"):
                 return "drop_hyphen"
-            return "space"
+            return None                    # one space, nothing else touched
 
         return join_stated_lines(parts, default=fallback)
 

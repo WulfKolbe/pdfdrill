@@ -276,3 +276,28 @@ def test_a_marker_line_that_starts_a_line_is_still_an_item():
         {"text": "a) es sollen alle Unterdeterminanten verschwinden"},
     ])
     assert [i.props["marker"] for i in doc.objects_of_type("ListItem")] == ["a)"]
+
+
+def test_a_line_that_states_no_join_keeps_its_own_layout():
+    """The regression the first pass of T-0010 caused, caught by the audit.
+
+    `text_display` carries MathPix's own layout, and a leading "\\n\\n" is it
+    saying the line begins a block. All 34 numbered rules of texbook Appendix G
+    start one that way and none carries a `continues_line_*` subtype.
+    Normalizing whitespace on EVERY join stripped that, and 8 of the 34 --
+    13a, 15b, 15c, 15e, 18b, 18c, 18e, 18f -- stopped beginning a line in the
+    projection and stood mid-paragraph after the rule above them. Only a
+    STATED join is normalized; a line that states nothing is joined verbatim.
+    """
+    text = _text([
+        {"text": "13. If the current item is an Op atom, mark it",
+         "text_display": "13. If the current item is an Op atom, mark it"},
+        {"text": "and continue",
+         "text_display": "and continue", "subtype": "continues_line_space"},
+        {"text": "13a. If limits are not to be typeset",
+         "text_display": "\n\n13a. If limits are not to be typeset"},
+    ])
+    # the stated join is normalized to one space ...
+    assert "mark it and continue" in text
+    # ... and the block break the next line declares survives
+    assert "\n\n13a." in text, repr(text)

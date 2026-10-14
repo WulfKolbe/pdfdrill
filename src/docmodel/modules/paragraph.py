@@ -206,12 +206,20 @@ class ParagraphProcessor(BaseModule):
                 # written down in STATED_JOIN and already tested — against the
                 # Dehyphenate MUTATOR, which no build command runs. props.text
                 # is composed here, so the join has to be honoured here.
-                action = STATED_JOIN.get(payload.get("subtype") or "", "space")
-                head, chunk, dropped = join_stated(current["text"], text, action)
-                current["text"] = head + chunk
-                if dropped:
-                    current["soft_breaks_joined"] = (
-                        current.get("soft_breaks_joined", 0) + 1)
+                # A line that states nothing keeps the join this composer
+                # always did, verbatim: `text_display`'s own leading "\n\n"
+                # is MathPix saying the line begins a block, and all 34
+                # numbered rules of texbook Appendix G start one that way.
+                action = STATED_JOIN.get(payload.get("subtype") or "")
+                if action is None:
+                    current["text"] += " " + text
+                else:
+                    head, chunk, dropped = join_stated(
+                        current["text"], text, action)
+                    current["text"] = head + chunk
+                    if dropped:
+                        current["soft_breaks_joined"] = (
+                            current.get("soft_breaks_joined", 0) + 1)
                 current["to_line_index"] = payload.get("_line_index")
 
         flush()

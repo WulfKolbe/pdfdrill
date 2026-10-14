@@ -74,7 +74,19 @@ def join_stated(prev: str, text: str, action: str) -> tuple[str, str, bool]:
     `drop_hyphen` is only a hyphen instruction when there IS one to drop. On a
     line MathPix already stripped (139,660 corpus lines) it just means "no
     extra character", so never amputate a real last letter.
+
+    `as_is` appends the text untouched, for a caller whose line already
+    carries its own joiner.
+
+    ONLY A STATED JOIN IS NORMALIZED HERE. `text_display` carries MathPix's
+    own layout, and a leading "\n\n" is it saying the line begins a block:
+    all 34 numbered rules of texbook Appendix G start one that way. Stripping
+    that from every line cost 8 of them their line in the projection, so a
+    line that states no join is joined verbatim by the caller and never
+    reaches this function.
     """
+    if action == "as_is":
+        return prev, text, False
     head = prev.rstrip()
     tail = text.lstrip()
     dropped = False
@@ -89,14 +101,21 @@ def join_stated(prev: str, text: str, action: str) -> tuple[str, str, bool]:
     return head, (" " + tail if tail else ""), False
 
 
-def join_stated_lines(parts, default="space") -> str:
+def join_stated_lines(parts, default=None) -> str:
     """
     Join `(text, subtype)` continuation lines into one string.
 
-    `subtype` decides via STATED_JOIN; where it is absent `default` decides —
-    either a STATED_JOIN action (`"space"` reproduces a plain `" ".join`) or a
-    callable `(joined_so_far, next_text) -> action` for a caller with its own
-    heuristic. Empty texts are skipped, as every caller already did.
+    `subtype` decides via STATED_JOIN. Where it is absent `default` decides —
+    a STATED_JOIN action, or a callable `(joined_so_far, next_text) -> action`
+    for a caller with its own heuristic — and `None`, from either, means join
+    with one space and touch nothing else, which is what all four callers did
+    before. Empty texts are skipped, as they all did too.
+
+    That default is not laziness: a line stating no join keeps whatever
+    `text_display` gave it, including the leading "\n\n" MathPix uses to say
+    the line begins a block. Normalizing those away is a layout decision this
+    function has no business making, and it silently merged 8 of texbook
+    Appendix G's 34 numbered rules into the rule above them.
 
     This exists because four composers each concatenated the lines of one
     object — paragraph, list item, abstract, sidenote — and each one joined
@@ -109,12 +128,15 @@ def join_stated_lines(parts, default="space") -> str:
         if not text:
             continue
         if not started:
-            out = text.rstrip()
+            out = text
             started = True
             continue
         action = STATED_JOIN.get(subtype or "")
-        if action is None:
+        if action is None and default is not None:
             action = default(out, text) if callable(default) else default
+        if action is None:
+            out = out + " " + text
+            continue
         head, chunk, _ = join_stated(out, text, action)
         out = head + chunk
     return out
