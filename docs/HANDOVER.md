@@ -756,9 +756,26 @@ page-turn tests along with the two that documented the vocabulary rule and
 restored them from d2c7d955.
 
 ISO 32000-2 is unchanged by all of this except in detail: furniture 4,348
-(`repeats` 4,155, `row` 168, `rights` 21, `row fused` 3, `folio` 1),
-paragraphs 5,875, band lines inside a paragraph 2, gate 1 as before. The
-whitespace fix found two more fused lines there as well.
+(`repeats` 4,155, `row` 170, `rights` 21, `row fused` 1, `folio` 1),
+paragraphs 5,875, band lines inside a paragraph 2, gate 1 as before — span
+for span the same furniture as before the fix, which is what one expects of a
+document whose band lines carry no indent.
+
+**A number of mine that was wrong, and how it got that way.** 903f's commit
+message reports `row` 168 and `row fused` 3 here, and says the whitespace fix
+found two more fused lines. It did not. That measurement came from a run I
+started BEFORE the last line of the fix — the one that makes the
+twelve-character threshold count matched characters rather than the indent
+with them. Under the looser threshold two indented lines reached the fused
+branch on the strength of their own whitespace; the tightening puts them back
+where they belong. The audit caught it by building the committed code and
+getting 170 and 1, which is what the committed code gives. The totals were
+never affected (4,348 / 5,875 / 2), only the split between `row` and
+`row fused`.
+
+The lesson is the same one T-0010 learned and this task then repeated twice:
+a measurement is of a BUILD, not of an intention. A figure taken from a tree
+that is one edit behind the commit is not a figure about the commit.
 
 
 ### A defect of my own, found by the gate rather than by reading
