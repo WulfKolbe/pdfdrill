@@ -256,6 +256,27 @@ def test_a_paragraph_never_ends_on_a_furniture_line():
         assert tail != "A Running Head"
 
 
+def test_a_fused_tail_of_band_vocabulary_goes_with_the_band():
+    # The other half of the rule. When the tail after the row's canonical
+    # line uses only words the document prints in its band, the line is the
+    # stamp printed longer on this page — not prose fused to it. Taking the
+    # prefix alone left 46 graphemes of ISO 32000-2's stamp in the reading
+    # text, including a seven-digit group (audit, 2026-10-14).
+    footer = "© 2019 Some Body    12"
+    stamp_words = "licensed single user copy"      # band vocabulary only
+    pages = _doc_with_turn(continuation=HEAD2)
+    for p in pages:                                 # the band says it on every page
+        p[-1] = (BODY_BOTTOM + 60, f"{footer} {stamp_words}")
+    pages[-1][-1] = (BODY_BOTTOM + 60,
+                     f"{footer} {stamp_words} licence 1234567")
+    text, ctx = _spans(pages)
+    whys = {(s.props or {}).get("why") for s in ctx.L2 if s.kind == FURNITURE}
+    assert "row prefix" not in whys, "a tail of band vocabulary was kept as prose"
+    md = MarkdownProjector().project(ctx)
+    assert "1234567" not in md
+    assert "licence" not in md
+
+
 def test_a_bold_running_head_does_not_also_become_a_heading():
     # The running head is bold and short, which is what the emphasis detector
     # reads as a heading — while `lines_paragraphs` has already called it the

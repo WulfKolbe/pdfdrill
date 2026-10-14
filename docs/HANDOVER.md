@@ -555,12 +555,12 @@ never quote):
 
 | | before | after |
 |---|---|---|
-| paragraphs | 6,862 | 5,880 |
-| furniture spans | 0 | 4,341 |
+| paragraphs | 6,862 | 5,875 |
+| furniture spans | 0 | 4,348 |
 | headings (this node's own) | 4,773 | 3,274 |
 | headings (full pipeline L2) | 11,167 | 8,163 |
-| band lines inside a paragraph | 2,845 | **4** |
-| paragraphs ending unterminated, then furniture | 352 | 188 |
+| band lines inside a paragraph | 2,845 | **2** |
+| paragraphs ending unterminated, then furniture | 352 | 187 |
 
 The two heading rows are the correction the audit asked for: this node emits
 4,773 of main's 11,167 L2 headings and `EmphasisDetectorNode` the other 6,394.
@@ -587,8 +587,8 @@ paragraph span over pages 315–316 with 5 furniture holes and **0** band text
 inside it.
 
 End to end on the reading markdown, counted without quoting anything: the 40
-most common band shapes of ≥ 12 characters occur **20,250 times** in the
-baseline projection, 106 at 766795db and **60** now. The baseline projection is
+most common band shapes of ≥ 12 characters occur **19,248 times** in the
+baseline projection, 107 at 766795db and **60** now. The baseline projection is
 byte-identical to the published `.md` (same sha256), so that is the file the
 corpus has been reading.
 
@@ -599,8 +599,8 @@ are the declared holes. A hole-aware slice is a small change in one place and
 is not part of this task; it is named here so the next reader does not
 measure it as a regression.
 
-The suite is **5,371 → 5,392 passed, 60 skipped, 0 failed**: the difference is
-exactly the 21 new tests, so no existing test described the old rule. A page
+The suite is **5,371 → 5,393 passed, 60 skipped, 0 failed**: the difference is
+exactly the 22 new tests, so no existing test described the old rule. A page
 turn ending a paragraph was never written down as behaviour — it was just what
 the code did.
 
@@ -655,6 +655,47 @@ y 97.6 on 155 pages, 9 points inside the body band, and is emitted as a
 HEADING. It never enters a paragraph (0 of 155), so it does not touch this
 task. Catching it would mean counting repetition INSIDE the band, which would
 also catch a repeated table header — a decision, not a fix.
+
+### A tail of band vocabulary is the band, and the stamp is not a band sample
+
+The audit returned one more point, and it was the one that mattered most: the
+46 graphemes left as prose after the row prefix at offset 3133 were stamp
+text. Measured, not read — two of their words occur 1,047 and 1,041 times in
+the document, **1,017 of those inside furniture**, and the remainder carries a
+seven-digit group. Taking only the canonical prefix had left the one place in
+the reading text where this document's stamp still appeared.
+
+So whether a fused tail is prose is a question about VOCABULARY, and the
+document answers it: a word of ≥ 4 letters occurring ≥ 3 times that the
+document uses mostly OUTSIDE furniture is a prose word, and one of those in
+the tail keeps the tail (`why: "row prefix"`). With none, the whole line is
+the band (`why: "row fused"`). Three-letter words decide nothing — one of them
+occurs 1,985 times here, half inside the band and half outside.
+
+The default is that way round on purpose. The six sponsored copies are
+personalised, and a licence stamp reaching the reading text is the worse
+failure; the cost is that a tail of genuinely rare prose goes with the band.
+On the documents measured that is 1 line of 44,416 (ISO 32000-2) and 0 of 244
+(PDF-Declarations).
+
+**And a line that says it is about rights is not a sample of the body band.**
+Gate 3 found this by being run on two more documents rather than one: on
+ISO/TS 32001 (14 pages) three unique 47–54 character stamp lines at the foot
+of the page were enough to put the sample's 98th percentile PAST the page
+edge, after which nothing was outside the band and the whole bottom band went
+undetected. Excluding rights-matching lines from the sample (they were
+already excluded when they repeat; these did not repeat) takes
+**ISO/TS 32001 from 10 furniture spans to 39 and ISO/TS 32003 from 12 to 39**
+on 14 and 13 pages — about three per page, which is a running head, a footer
+and a stamp. PDF-Declarations stays at 16, which is the control: the change
+adds nothing where there was nothing to add.
+
+The stamp string that had been reaching the reading text occurs **once** in
+the published `.md`, once at 766795db, once at e22228f9 and **zero** times
+now. ISO 32000-2: furniture 4,341 → 4,348, paragraphs 5,879 → 5,875, band
+lines inside a paragraph **4 → 2**; the 40 most common band shapes in the
+markdown 19,248 → 60. Suite **5,393 passed, 60 skipped, 0 failed** (22 tests
+in the file).
 
 ### A defect of my own, found by the gate rather than by reading
 
