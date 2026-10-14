@@ -15,7 +15,7 @@ import re
 
 from ..context import (
     CITATION, EMPHASIS_BOLD, EMPHASIS_ITALIC, EQUATION_NUMBER,
-    EQUATION_REF, HEADING, MATH_DISPLAY, MATH_INLINE, PARAGRAPH,
+    EQUATION_REF, FURNITURE, HEADING, MATH_DISPLAY, MATH_INLINE, PARAGRAPH,
     STRUCTURAL_REF, DocumentContext, Span,
 )
 from .base import Projector
@@ -88,9 +88,15 @@ class MarkdownProjector(Projector):
         for a in active:
             ann_at[a[0]] = a
 
-        # Paragraph ends and hyphen skips
+        # Paragraph ends and hyphen skips. FURNITURE is neither: a folio does
+        # not end a paragraph, and its own end must not become a break — the
+        # paragraph it sits inside continues after it (T-0011).
         para_ends: set[int] = set()
+        furniture_from: dict[int, int] = {}
         for s in ctx.L2:
+            if s.kind == FURNITURE:
+                furniture_from[s.start] = s.end
+                continue
             para_ends.add(s.end)
 
         hyphen_skip: set[int] = set()
@@ -102,6 +108,15 @@ class MarkdownProjector(Projector):
         output: list[str] = []
         i = 0
         while i < len(text):
+            if i in furniture_from:
+                # The page's band, taken out of the reading text. Whitespace
+                # after it goes too, so the two halves of a paragraph that
+                # runs over the turn meet with the single space the line
+                # break before the band already produced.
+                i = furniture_from[i]
+                while i < len(text) and text[i] in "\n\f ":
+                    i += 1
+                continue
             if i in hyphen_skip:
                 i += 1
                 if i < len(text) and text[i] == "\n":

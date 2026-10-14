@@ -225,6 +225,12 @@ STYLE_RUN = "style_run"
 # L2
 PARAGRAPH = "paragraph"
 HEADING = "heading"
+#: A line in the page's top or bottom band that is not the text: folio,
+#: running head, copyright line, licence stamp. It is a property of the PAGE,
+#: not of the prose, and it sits BETWEEN the two halves of a paragraph that
+#: runs over the page turn. Recorded rather than dropped, so a reader can see
+#: what was taken out and the grapheme offsets of everything else do not move.
+FURNITURE = "furniture"
 
 # L3
 TOKEN = "token"

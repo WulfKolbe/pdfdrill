@@ -517,6 +517,97 @@ stub is exactly where a silent fallback is indistinguishable from success.
 
 ---
 
+## A page turn is not a paragraph break, and the band is not text (T-0011)
+
+`nodes/lines_paragraphs.py` carried one line of rule — *"Page break always
+starts new paragraph"* — and no notion of page furniture at all. Every
+paragraph that ran over a page was cut in two, and the folio, copyright line,
+licence stamp and next running head were then composed INTO the text: on
+`PDF-Declarations` four paragraphs ended with `© 2019 PDF Association <folio>`
+glued to the last sentence, and the reading contained that footer nine times.
+
+This route has **no subtypes** to read a join off (the MathPix route does, see
+T-0010; `structmd` has the tag tree and pdf2mmd2 has `page_info` — three
+routes, not to be mixed). So all the evidence here is geometric.
+
+**Furniture is three signals, each sufficient, all of them requiring the line
+to be short (≤ 80 visible chars) and to sit outside the band the body text
+occupies:** the same line (digits normalised) on ≥ 3 pages, rights/licence
+wording, or a bare folio. A line INSIDE the body band is never furniture — a
+page number mid-page may be a cross-reference or a table cell and this route
+cannot tell which.
+
+**The band is learned from long lines that do NOT repeat.** A licence stamp 64
+characters wide on every page of a 1,023-page standard is otherwise sampled as
+body text, which pushes the band past the foot of the page, after which
+NOTHING is outside it. That cost a whole measurement pass: the first ISO run
+found 1,025 furniture lines and none at all in the range the task names.
+
+**The grapheme stream does not move.** Furniture is recorded as its own L2
+span and listed in the containing paragraph's `furniture_holes`; the
+projection takes it out. The stream's sha256 is identical to the published
+`ir.json`, so offsets cited against that artefact stay valid.
+
+### Measured
+
+ISO 32000-2 (1,023 pages, 2,639,631 graphemes — keep local, cite by offset,
+never quote):
+
+| | before | after |
+|---|---|---|
+| paragraphs | 6,862 | 5,919 |
+| furniture spans | 0 | 4,177 |
+| headings | 4,773 | 3,277 |
+| band lines inside a paragraph | 2,845 | **164** |
+| paragraphs ending unterminated, then furniture | 352 | 184 |
+
+The 164 that remain carry none of the three signals; the gate's yardstick is
+deliberately looser than the product (any short line outside the band), so it
+counts table cells and formula fragments at the page edge. 1,496 running heads
+had been read as HEADINGS, which is where the heading count falls from.
+
+`PDF-Declarations` (PDF Association, CC-BY-4.0, 10 pages): furniture 0 → 16,
+paragraphs 40 → 37, and `© 2019 PDF Association` in the markdown **9 → 1** —
+the one left is the imprint page's own copyright statement, which sits inside
+the body band and is the document's text.
+
+### The range the task names had to be re-derived
+
+`865128–865405` ends AT the form feed: it holds the sentence's tail and the
+band, but the continuation begins at `865427`. The honest range is
+**865128–865534**. Over it: before, 3 paragraph spans plus a HEADING (the next
+page's running head) and 4 of 5 band lines inside paragraphs; after, **one**
+paragraph span over pages 315–316 with 5 furniture holes and **0** band text
+inside it.
+
+End to end on the reading markdown, counted without quoting anything: the 40
+most common band shapes of ≥ 12 characters occur **16,602 times** in the
+baseline projection and **87** in the new one. The baseline projection is
+byte-identical to the published `.md` (same sha256), so that is the file the
+corpus has been reading.
+
+For a consumer that reads paragraph RANGES and ignores `furniture_holes` —
+`stub_nlp` slices `graphemes[start:end]` to build sentences — band lines
+inside a paragraph range fall 2,845 → 1,206 rather than to 164. Those 1,206
+are the declared holes. A hole-aware slice is a small change in one place and
+is not part of this task; it is named here so the next reader does not
+measure it as a regression.
+
+The suite is **5,371 → 5,389 passed, 60 skipped, 0 failed**: the difference is
+exactly the 18 new tests, so no existing test described the old rule. A page
+turn ending a paragraph was never written down as behaviour — it was just what
+the code did.
+
+### A defect of my own, found by the gate rather than by reading
+
+Furniture only became a hole when a PAGE TURN followed. 24 ISO paragraphs have
+a footer with more text after it on the same page — pdfplumber's line order is
+not always top-down — and those paragraphs contained the band without saying
+so. The projection dropped it either way, which is exactly why only a gate
+could see it.
+
+---
+
 ## Next task
 
 - **LaTeX field promotion** — the user's decision of 2026-09-14, recorded in

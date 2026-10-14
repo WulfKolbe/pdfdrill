@@ -4,17 +4,31 @@ Uses newline/form-feed positions and char-level x-coordinates to detect:
 - Body text left margin per page
 - First-line indentation (LaTeX \\parindent style)
 - Centered lines (display equations, titles)
-- Paragraph breaks from blank lines, page breaks, and indentation
+- Paragraph breaks from blank lines and indentation
+- The page's top and bottom band — folio, running head, copyright line,
+  licence stamp — which is furniture, not text (T-0011)
+
+A PAGE TURN IS NOT A PARAGRAPH BREAK. It used to be one here
+("Page break always starts new paragraph"), which split every paragraph
+that runs over a page and then let the furniture between the two halves
+into the text. This route has no subtypes to read the join off, so the
+evidence is geometric: the band the body text occupies, and whether the
+line before the turn ends a sentence. `structmd` solves the same problem
+from the tag tree and pdf2mmd2 from `page_info`; the three routes are not
+mixed.
 """
 
 from __future__ import annotations
 
+import re
+import statistics
 from collections import Counter
 
 from ..context import (
     CharMeta,
     DocumentContext,
     Span,
+    FURNITURE,
     PARAGRAPH,
     HEADING,
 )
@@ -43,6 +57,175 @@ class LinesParagraphsNode(Node):
 # ---------------------------------------------------------------------------
 # Position-aware paragraph detection
 # ---------------------------------------------------------------------------
+
+#: A folio, a running head, a copyright line or a licence stamp is SHORT.
+#: A wrapped body line is not: on the documents measured for T-0011 the body
+#: lines run 60-90 visible characters and the band lines 8-53. The limit is
+#: the first guard, because a long line in the band is far more likely to be
+#: text the band estimate got wrong than a folio.
+FURNITURE_MAX_CHARS = 80
+
+#: A line counts as a BODY line for the purpose of learning the band only if
+#: it is this long. Short lines are exactly the ambiguous ones (headings, the
+#: last line of a paragraph, equation numbers), and letting them set the band
+#: would widen it until nothing is outside it.
+BAND_SAMPLE_MIN_CHARS = 40
+
+#: How far outside the body band a line has to sit, in body line heights.
+BAND_MARGIN_LINES = 0.5
+
+#: Percentiles of the body band. Not min/max: one body line that pdfplumber
+#: places a few points high (a superscript, a tall glyph) would otherwise
+#: stretch the band over the running head.
+BAND_LOW_PCT, BAND_HIGH_PCT = 2.0, 98.0
+
+#: A normalized band line that appears on at least this many pages is
+#: furniture BY REPETITION — the strongest evidence available in a route that
+#: has no tags: the same string in the same band on many pages is a property
+#: of the page, whatever it says.
+FURNITURE_MIN_PAGES = 3
+
+#: Generic rights/licence wording. A document's front matter and its page
+#: stamp share this vocabulary, which is the point: it is furniture wherever
+#: it sits in the band. No document-specific string appears here — a stamp
+#: that names a licensee must never be matched by its licensee.
+_RIGHTS = re.compile(
+    r"(?:©|\(c\)\s*\d|copyright|all rights reserved|licen[cs]|"
+    r"reproduction|not for (?:resale|distribution)|provided by|"
+    r"creativecommons|single[- ]user)", re.I)
+
+#: A bare folio: a page number, with or without the usual decoration, in
+#: arabic or roman numerals. `iii`, `12`, `- 12 -`, `Page 12`, `12 of 340`.
+_FOLIO = re.compile(
+    r"^(?:page\s+)?[\[\(\-–—\s]*(?:\d{1,4}|[ivxlcdm]{1,7})"
+    r"(?:\s*(?:/|of|von)\s*\d{1,4})?[\]\)\-–—\s\.]*$", re.I)
+
+#: Digits vary from page to page; the SHAPE does not. "Page 12" and
+#: "Page 13" are the same running furniture.
+_DIGITS = re.compile(r"\d+")
+
+
+def _normalized(s: str) -> str:
+    return _DIGITS.sub("#", " ".join(s.split())).strip().lower()
+
+
+def _terminal(s: str) -> bool:
+    """Does this line end a sentence?
+
+    Closing brackets and quotes are allowed to follow the stop. A line ending
+    in a hyphen is the clearest possible statement that it does NOT end here.
+    """
+    t = s.rstrip()
+    if not t:
+        return True
+    if t.endswith("-") or t.endswith("­"):
+        return False
+    t = t.rstrip("\"'’”)]}»›")
+    return bool(t) and t[-1] in ".!?:;"
+
+
+def _line_geometry(
+    lines: list[tuple[int, int, int]],
+    text: str,
+    char_meta: list[CharMeta],
+) -> list[tuple[float, float, int]]:
+    """(y_top, y_bottom, visible_length) per line; (0, 0, 0) when unknown."""
+    out: list[tuple[float, float, int]] = []
+    for ls, le, _page in lines:
+        tops: list[float] = []
+        bots: list[float] = []
+        n = 0
+        for idx in range(ls, min(le, len(char_meta))):
+            if text[idx].isspace():
+                continue
+            n += 1
+            cm = char_meta[idx]
+            if cm.y0 or cm.y1:
+                tops.append(cm.y0)
+                bots.append(cm.y1)
+        out.append((min(tops) if tops else 0.0, max(bots) if bots else 0.0, n))
+    return out
+
+
+def _furniture_lines(
+    lines: list[tuple[int, int, int]],
+    geom: list[tuple[float, float, int]],
+    text: str,
+) -> dict[int, str]:
+    """Which lines are page furniture, and on what evidence.
+
+    Three independent signals, each sufficient, all of them requiring the
+    line to be SHORT and to sit OUTSIDE the band the body text occupies:
+    repetition across pages, rights/licence wording, a bare folio. A line
+    inside the body band is never furniture here, however much it looks like
+    a folio — a page number in the middle of a page is part of the text (a
+    cross-reference, a table cell), and this route cannot tell which.
+    """
+    # A repeating line is excluded from the band sample, whatever its length.
+    # A licence stamp can be 64 characters wide and sit on every page of a
+    # thousand-page standard; sampled as body text it pushes the band past
+    # the foot of the page, and then NOTHING is outside the band — which is
+    # exactly how the bottom band went undetected on the first document
+    # measured for T-0011.
+    pages_of_all: dict[str, set[int]] = {}
+    for (ls, le, page), (_y0, _y1, n) in zip(lines, geom):
+        if n:
+            pages_of_all.setdefault(_normalized(text[ls:le]), set()).add(page)
+
+    def _sampled(i: int) -> bool:
+        if geom[i][2] < BAND_SAMPLE_MIN_CHARS:
+            return False
+        ls, le, _p = lines[i]
+        return len(pages_of_all.get(_normalized(text[ls:le]), ())) < FURNITURE_MIN_PAGES
+
+    sample = [i for i in range(len(lines)) if _sampled(i)]
+    if len(sample) < 5:
+        # A document whose long lines all repeat (boilerplate, a form, a
+        # fixture) leaves nothing to sample. A wide band is still better
+        # than no band: fall back to every long line.
+        sample = [i for i in range(len(lines))
+                  if geom[i][2] >= BAND_SAMPLE_MIN_CHARS]
+    tops = [geom[i][0] for i in sample if geom[i][0]]
+    bots = [geom[i][1] for i in sample if geom[i][1]]
+    if len(tops) < 5 or len(bots) < 5:
+        return {}                      # too little body text to learn a band
+    heights = [geom[i][1] - geom[i][0] for i in sample
+               if geom[i][1] > geom[i][0]]
+    line_h = statistics.median(heights) if heights else 12.0
+    band_top = _pct(tops, BAND_LOW_PCT) - BAND_MARGIN_LINES * line_h
+    band_bottom = _pct(bots, BAND_HIGH_PCT) + BAND_MARGIN_LINES * line_h
+
+    outside: list[int] = []
+    for i, ((ls, le, _page), (y0, y1, n)) in enumerate(zip(lines, geom)):
+        if not n or n > FURNITURE_MAX_CHARS or not (y0 or y1):
+            continue
+        if y1 and y1 < band_top:
+            outside.append(i)
+        elif y0 and y0 > band_bottom:
+            outside.append(i)
+
+    found: dict[int, str] = {}
+    for i in outside:
+        body = text[lines[i][0]:lines[i][1]].strip()
+        norm = _normalized(body)
+        if len(pages_of_all.get(norm, ())) >= FURNITURE_MIN_PAGES:
+            found[i] = "repeats"
+        elif _RIGHTS.search(body):
+            found[i] = "rights"
+        elif _FOLIO.match(body):
+            found[i] = "folio"
+    return found
+
+
+def _pct(values: list[float], pct: float) -> float:
+    xs = sorted(values)
+    if not xs:
+        return 0.0
+    k = (len(xs) - 1) * pct / 100.0
+    lo = int(k)
+    hi = min(lo + 1, len(xs) - 1)
+    return xs[lo] + (xs[hi] - xs[lo]) * (k - lo)
+
 
 def _detect_paragraphs_with_positions(
     text: str,
@@ -120,15 +303,26 @@ def _detect_paragraphs_with_positions(
     LINE_HEADING = "heading"     # bold/larger font
     LINE_SHORT = "short"         # very short line (last line of paragraph)
     LINE_BLANK = "blank"
+    LINE_FURNITURE = "furniture"
 
     classified: list[tuple[int, int, int, str, float]] = []  # (start, end, page, class, font_size)
 
-    for ls, le, page in lines:
+    # Step 3a: the page band. Done BEFORE the per-line classification, because
+    # a running head in a larger font reads as a heading and a folio reads as
+    # a centered line; both are the page's furniture whatever font they use.
+    geom = _line_geometry(lines, text, char_meta)
+    furniture = _furniture_lines(lines, geom, text)
+
+    for line_i, (ls, le, page) in enumerate(lines):
         line_text = text[ls:le]
         stripped = line_text.strip()
 
         if not stripped:
             classified.append((ls, le, page, LINE_BLANK, 0.0))
+            continue
+
+        if line_i in furniture:
+            classified.append((ls, le, page, LINE_FURNITURE, 0.0))
             continue
 
         # Find first non-space char's properties
@@ -167,62 +361,96 @@ def _detect_paragraphs_with_positions(
             classified.append((ls, le, page, LINE_TEXT, line_size))
 
     # Step 4: group lines into paragraphs
+    #
+    # A paragraph now ends at its last CONTENT line, never at `classified[i-1]`
+    # — that line may be the furniture of the page just left, and a paragraph
+    # must not end on a folio. The page turn itself decides nothing: the
+    # decision is deferred to the first content line of the new page, which is
+    # the only thing that can say whether the sentence goes on.
     spans: list[Span] = []
     para_start = -1
+    para_end = -1                       # end of the last content line in it
+    para_text = ""                      # that line's text, for the sentence test
+    para_pages: list[int] = []
+    holes: list[list[int]] = []         # furniture ranges INSIDE the open para
+    pending: list[list[int]] = []       # furniture since the last content line
     prev_page = -1
+    turned = False
+
+    def _flush() -> None:
+        nonlocal para_start, para_end, para_text, holes, pending, para_pages
+        if para_start >= 0 and para_end > para_start:
+            props: dict = {}
+            if len(para_pages) > 1:
+                props["pages"] = list(para_pages)
+                props["continued_over_page_turn"] = True
+            if holes:
+                # what the projection takes out, by offset, so the grapheme
+                # stream never has to move for a reader to see one paragraph
+                props["furniture_holes"] = [list(h) for h in holes]
+            spans.append(Span(start=para_start, end=para_end, kind=PARAGRAPH,
+                              props=props or None))
+        para_start, para_end, para_text = -1, -1, ""
+        holes, pending, para_pages = [], [], []
 
     for i, (ls, le, page, lclass, lsize) in enumerate(classified):
-        # Page break always starts new paragraph
-        if page != prev_page and para_start >= 0:
-            spans.append(Span(
-                start=para_start, end=classified[i-1][1],
-                kind=PARAGRAPH,
-            ))
-            para_start = -1
+        if page != prev_page:
+            if para_start >= 0:
+                turned = True
+            prev_page = page
 
-        prev_page = page
+        if lclass == LINE_FURNITURE:
+            spans.append(Span(start=ls, end=le, kind=FURNITURE,
+                              props={"page": page, "why": furniture[i]}))
+            if para_start >= 0:
+                pending.append([ls, le])
+            continue
 
         if lclass == LINE_BLANK:
-            if para_start >= 0:
-                spans.append(Span(
-                    start=para_start, end=classified[i-1][1],
-                    kind=PARAGRAPH,
-                ))
-                para_start = -1
+            _flush()
+            turned = False
             continue
 
         if lclass == LINE_HEADING:
-            if para_start >= 0:
-                spans.append(Span(
-                    start=para_start, end=classified[i-1][1],
-                    kind=PARAGRAPH,
-                ))
+            _flush()
             spans.append(Span(
                 start=ls, end=le,
                 kind=HEADING,
                 props={"font_size": lsize},
             ))
-            para_start = -1
+            turned = False
             continue
 
         if lclass == LINE_INDENT:
-            if para_start >= 0:
-                spans.append(Span(
-                    start=para_start, end=classified[i-1][1],
-                    kind=PARAGRAPH,
-                ))
-            para_start = ls
+            _flush()
+            para_start, para_end, para_text = ls, le, text[ls:le]
+            para_pages = [page]
+            turned = False
             continue
+
+        # a content line. If a page turn happened since the last content line,
+        # this is where the paragraph is either continued or closed.
+        if para_start >= 0:
+            if turned and _terminal(para_text):
+                _flush()               # the sentence ended on the old page
+            elif pending:
+                # the band sits INSIDE this paragraph. Page turn or not: a
+                # footer with text after it on the same page is still a hole,
+                # and on ISO 32000-2 there are 24 of those — the projection
+                # dropped them either way, but the paragraph that contains
+                # them has to say so.
+                holes.extend(pending)
+                pending = []
+        turned = False
 
         if para_start < 0:
             para_start = ls
+            para_pages = [page]
+        if page not in para_pages:
+            para_pages.append(page)
+        para_end, para_text = le, text[ls:le]
 
-    # Final paragraph
-    if para_start >= 0 and classified:
-        spans.append(Span(
-            start=para_start, end=classified[-1][1],
-            kind=PARAGRAPH,
-        ))
+    _flush()
 
     # Filter empty
     return [s for s in spans if text[s.start:s.end].strip()]
