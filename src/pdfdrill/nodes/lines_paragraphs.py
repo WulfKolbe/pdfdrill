@@ -128,21 +128,6 @@ FURNITURE_ROW_MIN_PAGES = 3
 #: match is a coincidence, and the line stays text.
 ROW_PREFIX_MIN_CHARS = 12
 
-#: Words shorter than this decide nothing: a three-letter word is shared by
-#: the stamp and the prose (one of them occurs 1,985 times in ISO 32000-2,
-#: half of those inside furniture).
-VOCAB_MIN_WORD_CHARS = 4
-
-#: A word has to occur this often before its distribution is evidence.
-VOCAB_MIN_OCCURRENCES = 3
-
-#: A word that the document uses mostly OUTSIDE furniture is a prose word.
-#: One such word in the tail of a fused line keeps that tail as prose; with
-#: none, the whole line is the band. The default is deliberately that way
-#: round: a tail of band vocabulary and a seven-digit group is a licence
-#: stamp, and a stamp reaching the reading text is the worse failure.
-VOCAB_PROSE_MAX_INSIDE = 0.5
-
 #: How much has to be LEFT after that prefix before the line counts as fused
 #: rather than as the band line itself (which varies by a few characters from
 #: page to page — a folio gains a digit, a date changes).
@@ -198,9 +183,7 @@ def _furniture_lines(
 ) -> dict[int, str]:
     """Which lines are page furniture, on what evidence, and where exactly.
 
-    Returns `(whole, prefixes)`: line index -> why for lines that ARE
-    furniture, and line index -> (start, end, why) for a line that merely
-    BEGINS with the band line of its row and carries text after it.
+    Returns line index -> why, for every line that is furniture.
 
     Three independent signals, each sufficient, all of them requiring the
     line to be SHORT and to sit OUTSIDE the band the body text occupies:
@@ -287,8 +270,6 @@ def _furniture_lines(
     confirmed = {k for k, pages in rows.items()
                  if len(pages) >= FURNITURE_ROW_MIN_PAGES}
 
-    prefixes: dict[int, tuple[int, int, str]] = {}
-    fused: list[tuple[int, int, int, int]] = []
     for i in range(len(lines)):
         if not _outside(i):
             continue
@@ -299,60 +280,34 @@ def _furniture_lines(
         line = text[ls:le]
         canon = row_bodies[key].most_common(1)[0][0]
         k = _canonical_prefix(line, canon)
+        # the indent is skipped, not matched: ten spaces and two agreeing
+        # characters are not a twelve-character match
+        indent = len(line) - len(line.lstrip())
         rest = len(line.rstrip()) - k
-        if k >= ROW_PREFIX_MIN_CHARS and rest >= ROW_FUSED_MIN_REST:
-            # The row's line and something else ran together — pdfplumber
-            # does this often enough to matter. Whether that something else
-            # is prose is a question about VOCABULARY, and the document
-            # answers it: a word the document uses mostly outside furniture
-            # is a prose word, and one of those in the tail keeps the tail.
-            fused.append((i, ls, le, k))
+        if k - indent >= ROW_PREFIX_MIN_CHARS and rest >= ROW_FUSED_MIN_REST:
+            # The row's line and something else ran together. Measured over
+            # three documents, that something else was the band EVERY time:
+            # six such lines, six of them band text printed longer on that
+            # page than on the others, none of them prose. So the line goes
+            # with the band, whole.
+            #
+            # Two earlier attempts are worth remembering rather than
+            # repeating. Taking only the matching PREFIX left 46 graphemes of
+            # ISO 32000-2's stamp — with a seven-digit group — in the reading
+            # text. Deciding the tail by VOCABULARY (a word the document uses
+            # mostly outside the band keeps the tail) then kept four lines of
+            # the ISO/TS copies, because a 15-page document's stamp cannot
+            # win a majority against prose that uses the same ordinary words.
+            # Both mechanisms existed to protect fused prose, which no
+            # document measured here has.
+            found[i] = "row fused"
         elif i not in found and geom[i][2] <= FURNITURE_MAX_CHARS:
             found[i] = "row"
-
-    vocab = _band_vocabulary(lines, text, found) if fused else {}
-    for i, ls, le, k in fused:
-        if _prose_tail(text[ls + k:le], vocab):
-            prefixes[i] = (ls, ls + k, "row prefix")
-            found.pop(i, None)
-        else:
-            # Band vocabulary all the way to the end of the line: this is the
-            # stamp, printed longer on this page than on the others. Taking
-            # only the prefix left 46 graphemes of it — including a
-            # seven-digit group — in the reading text of ISO 32000-2, on the
-            # one page where that happens (audit, 2026-10-14).
-            found[i] = "row fused"
-    return found, prefixes
+    return found
 
 
-def _band_vocabulary(lines, text, found) -> dict[str, tuple[int, int]]:
-    """word -> (occurrences inside furniture, occurrences in the document).
-
-    One pass over the document, and only when a fused line has to be judged.
-    No cache: a cache here would have to be keyed by the furniture set as
-    well as by the text, and this is called once per document.
-    """
-    inside: Counter = Counter()
-    total: Counter = Counter()
-    for m in _WORD.finditer(text):
-        total[m.group(0).lower()] += 1
-    for i in found:
-        ls, le, _page = lines[i]
-        for m in _WORD.finditer(text[ls:le]):
-            inside[m.group(0).lower()] += 1
-    return {w: (inside[w], n) for w, n in total.items()}
 
 
-def _prose_tail(tail: str, vocab: dict[str, tuple[int, int]]) -> bool:
-    """Does this tail contain a word the document uses mostly as prose?"""
-    for m in _WORD.finditer(tail):
-        w = m.group(0).lower()
-        if len(w) < VOCAB_MIN_WORD_CHARS:
-            continue
-        ins, tot = vocab.get(w, (0, 0))
-        if tot >= VOCAB_MIN_OCCURRENCES and ins / tot < VOCAB_PROSE_MAX_INSIDE:
-            return True
-    return False
 
 
 def _canonical_prefix(line: str, canon: str) -> int:
@@ -360,9 +315,15 @@ def _canonical_prefix(line: str, canon: str) -> int:
 
     Digits are wildcards (a folio changes every page) and a run of whitespace
     matches a run of whitespace (the column gap is not a character count).
-    Returns 0 unless the line STARTS with it.
+    Returns 0 unless the line STARTS with it — after its own indent: the four
+    band lines of ISO/TS 32001 and 32003 begin with two spaces, and requiring
+    the canonical form at character 0 scored them 0 and left all four in the
+    reading text (audit, 2026-10-15).
     """
-    i = j = 0
+    i = 0
+    while i < len(line) and line[i].isspace():
+        i += 1
+    j = 0
     while i < len(line) and j < len(canon):
         a, b = line[i], canon[j]
         if a.isspace() and b.isspace():
@@ -473,9 +434,7 @@ def _detect_paragraphs_with_positions(
     # a running head in a larger font reads as a heading and a folio reads as
     # a centered line; both are the page's furniture whatever font they use.
     geom = _line_geometry(lines, text, char_meta)
-    # `furniture`: whole lines. `band_prefix`: a line that begins with the
-    # row's band line and continues into text — the band part only.
-    furniture, band_prefix = _furniture_lines(lines, geom, text)
+    furniture = _furniture_lines(lines, geom, text)
 
     for line_i, (ls, le, page) in enumerate(lines):
         line_text = text[ls:le]
@@ -591,16 +550,6 @@ def _detect_paragraphs_with_positions(
             para_pages = [page]
             turned = False
             continue
-
-        # A line that begins with its row's band line: the band part is a
-        # furniture span of its own and the paragraph starts after it.
-        pre = band_prefix.get(i)
-        if pre:
-            spans.append(Span(start=pre[0], end=pre[1], kind=FURNITURE,
-                              props={"page": page, "why": pre[2]}))
-            if para_start >= 0:
-                pending.append([pre[0], pre[1]])
-            ls = pre[1]
 
         # a content line. If a page turn happened since the last content line,
         # this is where the paragraph is either continued or closed.

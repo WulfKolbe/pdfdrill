@@ -167,25 +167,39 @@ def test_a_one_off_line_on_a_confirmed_furniture_row_is_furniture():
     assert furn.get(once) == "row"
 
 
-def test_a_band_line_fused_with_text_gives_up_only_its_own_part():
-    # pdfplumber runs the footer together with a line of text often enough to
-    # matter (one line of ISO 32000-2 is the footer's first 60 characters plus
-    # 40 more). Marking the whole line furniture would delete the text; the
-    # band part is a span of its own and the rest stays prose.
+def test_a_line_that_begins_with_its_row_band_line_goes_with_the_band():
+    # pdfplumber runs the band line together with what follows often enough
+    # to matter: one line of ISO 32000-2 and four of the ISO/TS copies. In
+    # every case measured the rest was the band too — the stamp printed
+    # longer on that page — so the line goes with the band, whole. Keeping
+    # only the matching prefix left 46 graphemes of a stamp, with a
+    # seven-digit group, in the reading text.
     footer = "© 2019 Some Body    12"
-    fused = footer + " and then real text that was fused onto the footer line"
+    fused = footer + " licence 1234567 single user copy do not redistribute"
     pages = _doc_with_turn(continuation=HEAD2)
     pages[-1][-1] = (BODY_BOTTOM + 60, fused)
     text, ctx = _spans(pages)
-    partial = [s for s in ctx.L2 if s.kind == FURNITURE
-               and (s.props or {}).get("why") == "row prefix"]
-    assert len(partial) == 1, "the fused line gave up nothing, or too much"
-    s0 = partial[0]
-    assert text[s0.start:s0.end].strip() == footer
-    assert s0.end < text.index(fused) + len(fused)
+    whole = [s for s in ctx.L2 if s.kind == FURNITURE
+             and text[s.start:s.end].strip() == fused]
+    assert len(whole) == 1, "the fused line did not go with the band"
+    assert (whole[0].props or {}).get("why") == "row fused"
     md = MarkdownProjector().project(ctx)
-    assert "and then real text that was fused onto the footer line" in md
-    assert "© 2019 Some Body" not in md
+    assert "1234567" not in md
+    assert "do not redistribute" not in md
+
+
+def test_the_band_line_is_found_after_the_line_own_indent():
+    # The four ISO/TS lines begin with two spaces. Requiring the canonical
+    # form at character 0 scored them 0 and left all four in the reading
+    # text.
+    footer = "© 2019 Some Body    12"
+    indented = "  " + footer + " licence 1234567 single user copy"
+    pages = _doc_with_turn(continuation=HEAD2)
+    pages[-1][-1] = (BODY_BOTTOM + 60, indented)
+    text, ctx = _spans(pages)
+    assert [s for s in ctx.L2 if s.kind == FURNITURE
+            and (s.props or {}).get("why") == "row fused"]
+    assert "1234567" not in MarkdownProjector().project(ctx)
 
 
 # ---------------------------------------------------------------------------
@@ -254,27 +268,6 @@ def test_a_paragraph_never_ends_on_a_furniture_line():
         tail = text[s.start:s.end].rstrip().splitlines()[-1].strip()
         assert not tail.startswith("© 2019 Some Body")
         assert tail != "A Running Head"
-
-
-def test_a_fused_tail_of_band_vocabulary_goes_with_the_band():
-    # The other half of the rule. When the tail after the row's canonical
-    # line uses only words the document prints in its band, the line is the
-    # stamp printed longer on this page — not prose fused to it. Taking the
-    # prefix alone left 46 graphemes of ISO 32000-2's stamp in the reading
-    # text, including a seven-digit group (audit, 2026-10-14).
-    footer = "© 2019 Some Body    12"
-    stamp_words = "licensed single user copy"      # band vocabulary only
-    pages = _doc_with_turn(continuation=HEAD2)
-    for p in pages:                                 # the band says it on every page
-        p[-1] = (BODY_BOTTOM + 60, f"{footer} {stamp_words}")
-    pages[-1][-1] = (BODY_BOTTOM + 60,
-                     f"{footer} {stamp_words} licence 1234567")
-    text, ctx = _spans(pages)
-    whys = {(s.props or {}).get("why") for s in ctx.L2 if s.kind == FURNITURE}
-    assert "row prefix" not in whys, "a tail of band vocabulary was kept as prose"
-    md = MarkdownProjector().project(ctx)
-    assert "1234567" not in md
-    assert "licence" not in md
 
 
 def test_a_bold_running_head_does_not_also_become_a_heading():

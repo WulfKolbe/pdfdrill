@@ -11,6 +11,7 @@ Follows Mathpix conventions:
 
 from __future__ import annotations
 
+import bisect
 import re
 
 from ..context import (
@@ -92,12 +93,29 @@ class MarkdownProjector(Projector):
         # not end a paragraph, and its own end must not become a break — the
         # paragraph it sits inside continues after it (T-0011).
         para_ends: set[int] = set()
-        furniture_from: dict[int, int] = {}
+        band: list[tuple[int, int]] = []
         for s in ctx.L2:
             if s.kind == FURNITURE:
-                furniture_from[s.start] = s.end
+                band.append((s.start, s.end))
                 continue
             para_ends.add(s.end)
+        band.sort()
+        band_starts = [b[0] for b in band]
+
+        def _band_end(i: int) -> int | None:
+            """The end of the furniture span `i` falls in, if any.
+
+            By CONTAINMENT, not by first character: the walk does not always
+            arrive at a span's start. A band line that begins with its own
+            indent is entered two characters in, because the whitespace run
+            after a paragraph break is consumed first — which put an ISO/TS
+            licence line into the reading text with its span sitting right
+            there, unused (audit, 2026-10-15).
+            """
+            k = bisect.bisect_right(band_starts, i) - 1
+            if k >= 0 and band[k][0] <= i < band[k][1]:
+                return band[k][1]
+            return None
 
         hyphen_skip: set[int] = set()
         for s in ctx.L3:
@@ -108,12 +126,13 @@ class MarkdownProjector(Projector):
         output: list[str] = []
         i = 0
         while i < len(text):
-            if i in furniture_from:
+            band_end = _band_end(i)
+            if band_end is not None:
                 # The page's band, taken out of the reading text. Whitespace
                 # after it goes too, so the two halves of a paragraph that
                 # runs over the turn meet with the single space the line
                 # break before the band already produced.
-                i = furniture_from[i]
+                i = band_end
                 while i < len(text) and text[i] in "\n\f ":
                     i += 1
                 continue

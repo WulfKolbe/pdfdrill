@@ -600,7 +600,7 @@ is not part of this task; it is named here so the next reader does not
 measure it as a regression.
 
 The suite is **5,371 → 5,393 passed, 60 skipped, 0 failed**: the difference is
-exactly the 22 new tests, so no existing test described the old rule. A page
+exactly the 22 new tests of this task, so no existing test described the old rule. A page
 turn ending a paragraph was never written down as behaviour — it was just what
 the code did.
 
@@ -658,6 +658,9 @@ also catch a repeated table header — a decision, not a fix.
 
 ### A tail of band vocabulary is the band, and the stamp is not a band sample
 
+*(The vocabulary rule described here was deleted one audit later — see "And
+the vocabulary rule is gone" below. The finding that produced it stands.)*
+
 The audit returned one more point, and it was the one that mattered most: the
 46 graphemes left as prose after the row prefix at offset 3133 were stamp
 text. Measured, not read — two of their words occur 1,047 and 1,041 times in
@@ -696,6 +699,67 @@ now. ISO 32000-2: furniture 4,341 → 4,348, paragraphs 5,879 → 5,875, band
 lines inside a paragraph **4 → 2**; the 40 most common band shapes in the
 markdown 19,248 → 60. Suite **5,393 passed, 60 skipped, 0 failed** (22 tests
 in the file).
+
+### The band line is not always at character 0, and the walk does not always start there
+
+The audit's last point was four 112-character lines of the ISO/TS copies that
+stayed prose, inside paragraphs and in the markdown. Two defects, both
+narrower than the audit's guess (which was that the vocabulary rule was
+finding prose words — it would have, but it never ran):
+
+1. **`_canonical_prefix` required the row's canonical line at character 0.**
+   All four lines begin with two spaces, so the match scored **0**, the line
+   was not a fused candidate, and at 90 visible characters it was over the
+   cap the first pass applies. No rule saw it. The matcher now skips the
+   line's own indent first.
+
+2. **The projector entered the span two characters in and so never saw it.**
+   `furniture_from` was keyed by a span's FIRST character, and after a
+   paragraph break the walk consumes the following whitespace run — which
+   steps over an indented band line's start. The skip is now by containment
+   (`bisect` over the spans), so a band span is dropped wherever the walk
+   enters it.
+
+With those, `row fused` covers all four: **ISO/TS 32001 39 → 41 spans,
+ISO/TS 32003 39 → 41**, and the lines occur in the reading markdown **2 → 0**
+each, with the 5-digit group that is theirs alone going 2 → 0 while the
+document's own use of the other group stays.
+
+### And the vocabulary rule is gone
+
+Measuring the four lines settled the question it existed for. Their tail's
+words score 0.75, 0.75, 0.80 and **0.36** inside furniture once the
+candidates are excluded from their own evidence — so one ordinary word that
+the standard's prose also uses would have kept a licence line in the text.
+A 15-page document's stamp cannot win a majority against prose that shares
+its vocabulary, and no document measured here fuses PROSE onto a band line:
+six such lines over three documents, six of them band text printed longer on
+that page, none of them prose.
+
+So the rule is now one line: at a confirmed furniture row, a line that begins
+with the row's canonical band line is furniture, whole. `_band_vocabulary`,
+`_prose_tail`, the three VOCAB_ constants and the partial-span path are
+deleted. Two mechanisms built for a case that does not occur, each of which
+let through the case that does.
+
+**The trade-off, stated rather than buried:** if a document ever does fuse
+prose onto a band line, that prose is now lost from the reading text. The
+grapheme stream still holds it, and the paragraph still names the range as a
+hole, so nothing is destroyed — but a reader of the markdown will not see it.
+On the evidence available that is the right side to err on: the six sponsored
+copies are personalised, and a licence stamp in the reading text is the worse
+failure.
+
+The suite is 5,393 passed, 60 skipped, 0 failed on the final code; the file
+holds 18 test functions and 22 cases, after I deleted six of this task's own
+page-turn tests along with the two that documented the vocabulary rule and
+restored them from d2c7d955.
+
+ISO 32000-2 is unchanged by all of this except in detail: furniture 4,348
+(`repeats` 4,155, `row` 168, `rights` 21, `row fused` 3, `folio` 1),
+paragraphs 5,875, band lines inside a paragraph 2, gate 1 as before. The
+whitespace fix found two more fused lines there as well.
+
 
 ### A defect of my own, found by the gate rather than by reading
 
