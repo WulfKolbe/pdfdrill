@@ -27,7 +27,7 @@ from typing import Any, Optional
 
 from ..base_module import BaseModule
 from ..core import Document, DocObject, Realization, Range, Alignment
-from ..text_utils import HYPHEN_TAIL
+from ..text_utils import HYPHEN_TAIL, STATED_JOIN
 
 
 # A line is hyphenation-broken if its visible text ends with `word-` (shared
@@ -38,14 +38,10 @@ from ..text_utils import HYPHEN_TAIL
 _NEXT_CONTINUATION = re.compile(r"^[a-zäöüß0-9]")
 
 #: MathPix's stated join, read off the FOLLOWING line's subtype (256). Maps to
-#: what this processor must do at the break. `newline` is a source line break
-#: inside running prose, so it joins with a space exactly like `space` does.
-_STATED = {
-    "continues_line_no_hyphen": "drop_hyphen",
-    "continues_line_no_space": "no_space",
-    "continues_line_space": "space",
-    "continues_line_newline": "space",
-}
+#: what this processor must do at the break. One dict, in `text_utils`, since
+#: T-0010 gave it a third reader (the paragraph composer); this name is kept
+#: because `docops.mutators.dehyphenate` imports it from here.
+_STATED = STATED_JOIN
 
 
 class DehyphenationProcessor(BaseModule):

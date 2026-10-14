@@ -11,6 +11,7 @@ from typing import Any, Optional
 
 from ..base_module import BaseModule
 from ..core import Document, DocObject, Realization
+from ..text_utils import join_stated_lines
 
 
 #: A `column` is a sidenote only if some column on its page is at least this
@@ -75,7 +76,8 @@ class SidenoteProcessor(BaseModule):
                 child_anchor = anchor_by_id.get(cid)
                 if child_anchor is not None:
                     child_anchors.append(child_anchor)
-                texts.append(child.get("text_display") or child.get("text") or "")
+                texts.append((child.get("text_display") or child.get("text") or "",
+                              child.get("subtype") or ""))
             content = self._concat_with_softhyphens(texts)
             items.append({
                 "anchor": anchor,
@@ -86,18 +88,22 @@ class SidenoteProcessor(BaseModule):
         return items
 
     @staticmethod
-    def _concat_with_softhyphens(parts: list[str]) -> str:
-        if not parts:
-            return ""
-        out = parts[0]
-        for nxt in parts[1:]:
+    def _concat_with_softhyphens(parts: list[tuple[str, str]]) -> str:
+        """Join the lines of one marginal note.
+
+        256/T-0010 — each line's own `subtype` states how it attaches to the
+        one before it, and that wins. The heuristic below is what this module
+        always did and still owns every line that states nothing: a leading
+        space is already a joiner, a trailing hyphen is a soft break.
+        """
+        def fallback(out: str, nxt: str) -> str:
             if nxt.startswith(" "):
-                out += nxt
-            elif out.endswith("-"):
-                out = out[:-1] + nxt   # remove the soft hyphen
-            else:
-                out += " " + nxt
-        return out
+                return "space"             # it already carries its joiner
+            if out.endswith("-"):
+                return "drop_hyphen"
+            return "space"
+
+        return join_stated_lines(parts, default=fallback)
 
     def create_object(self, item: dict[str, Any], doc: Document) -> Optional[DocObject]:
         obj = DocObject(

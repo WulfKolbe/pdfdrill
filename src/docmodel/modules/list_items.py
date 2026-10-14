@@ -33,6 +33,7 @@ from typing import Any, Optional
 
 from ..base_module import BaseModule
 from ..core import Document, DocObject, Realization
+from ..text_utils import STATED_JOIN, join_stated_lines
 
 
 _BULLET = re.compile(r"^([•○▪\-*\u2022\u2023\u25E6\u2043\u2219])\s+")
@@ -196,20 +197,88 @@ class ListProcessor(BaseModule):
             text = (payload.get("text") or "").strip()
             # One line may carry several bullets the OCR merged (no linefeed):
             # _split_bullets returns one (marker, content) per item.
-            for marker, content in _split_bullets(text):
+            bullets = _split_bullets(text)
+            if not bullets:
+                continue
+            # T-0010 a — A CONTINUATION LINE CANNOT START A LIST ITEM, and
+            # lines.json says which lines continue. This path reads a leading
+            # token lexically, so it reads German prose abbreviations and
+            # broken formulas as markers: on Killing, Math. Ann. 33 it made
+            # items out of "z. B. \(\omega_\alpha=...\)" (marker "z."),
+            # "- 1 ; für \(\mu,\nu=1\ldots l\)" (marker "-") and the inline
+            # enumeration "a) ganz allgemeine Transformationen, b) die
+            # Haupttransformationen" — 6 of its 7 lexical items. Every one of
+            # the six carries `continues_line_space`/`_newline`: MathPix says
+            # the line continues the sentence above it, so the token is not a
+            # marker. All 22 genuine rules of texbook Appendix G carry no
+            # subtype at all, so none of them is touched.
+            #
+            # This guard matters more since the claim below: a refused item
+            # used to be harmless duplication, and would now take its line out
+            # of the prose entirely.
+            if payload.get("subtype") in STATED_JOIN:
+                self.bump("lexical_items_refused_on_a_continuation_line")
+                continue
+            # T-0010 a — AND CLAIM THE REST OF THE ITEM. 811 stamped the
+            # container path's children so ParagraphProcessor would not compose
+            # them a second time, and left this path unstamped, so every
+            # lexically-detected item kept being composed twice: once as the
+            # ListItem (its marker line alone, cut mid-sentence) and once inside
+            # a Paragraph that ran on through the whole list. On texbook
+            # Appendix G one Paragraph held 46 lines — rules 6 to 22 — while
+            # those same rules each stood as a ListItem beside it.
+            #
+            # The continuation lines are not a guess: a line whose own subtype
+            # is `continues_line_*` says it continues the line before it. Those
+            # belong to this item, are folded into its content with the stated
+            # join, and are stamped so prose does not take them again.
+            tail: list[tuple[str, str]] = []
+            tail_ids: list[str] = []
+            tail_end = anchor
+            for nxt_anchor in stream.anchors[idx + 1:]:
+                nxt = stream.payload[nxt_anchor]
+                if nxt.get("type") != "text":
+                    break
+                if nxt.get("subtype") not in STATED_JOIN:
+                    break
+                if nxt.get("id") in claimed:
+                    break
+                nxt_text = (nxt.get("text_display") or nxt.get("text") or "").strip()
+                if not nxt_text or _split_bullets(nxt_text):
+                    break        # a new item starts here; it is not our tail
+                tail.append((nxt_text, nxt.get("subtype") or ""))
+                tail_end = nxt_anchor
+                if nxt.get("id"):
+                    tail_ids.append(nxt.get("id"))
+            for i, (marker, content) in enumerate(bullets):
                 if not content:
                     continue
                 global_index += 1
+                # only the LAST bullet on the line continues onto the next one
+                if tail and i == len(bullets) - 1:
+                    content = join_stated_lines([(content, "")] + tail)
                 items.append({
                     "anchor": anchor,
+                    # the surface runs to the last line folded in, so the item's
+                    # geometry covers what its content now says
+                    "end_anchor": (tail_end if tail and i == len(bullets) - 1
+                                   else anchor),
                     "marker": marker,
                     "content": content,
                     "page": payload.get("_page"),
                     "line_index": payload.get("_line_index"),
                     "list_index": global_index,
                     "source": "lexical",
-                    "child_ids": [],
+                    "child_ids": list(tail_ids),
                 })
+            if payload.get("id"):
+                payload["_in_list_item"] = True
+                self.bump("lexical_marker_lines_claimed")
+            for lid in tail_ids:
+                ch = by_id.get(lid)
+                if ch is not None:
+                    ch["_in_list_item"] = True
+                    self.bump("lexical_continuation_lines_claimed")
         return items
 
     @staticmethod
@@ -226,7 +295,7 @@ class ListProcessor(BaseModule):
         """
         kids = list(payload.get("children_ids") or [])
         own = (payload.get("text") or "").strip()
-        parts: list[str] = []
+        parts: list[tuple[str, str]] = []
         text_kids: list[str] = []
         for cid in kids:
             ch = by_id.get(cid)
@@ -235,8 +304,11 @@ class ListProcessor(BaseModule):
             text_kids.append(cid)
             t = (ch.get("text") or "").strip()
             if t:
-                parts.append(t)
-        raw = own or " ".join(parts)
+                parts.append((t, ch.get("subtype") or ""))
+        # 256/T-0010 — a two-line item's second line states how it joins the
+        # first. Joined with a space here, "bound" + "ary item" came out as
+        # "bound ary item" (texbook Appendix G, rule at line 57).
+        raw = own or join_stated_lines(parts)
         if not raw:
             return "", "", text_kids
         marker = _detect_marker(raw) or "\u2022"
@@ -263,7 +335,7 @@ class ListProcessor(BaseModule):
         )
         obj.add_realization(Realization(
             stream=self.LINES_STREAM,
-            start=item["anchor"], end=item["anchor"],
+            start=item["anchor"], end=item.get("end_anchor") or item["anchor"],
             role="surface",
         ))
         self.bump("list_items_created")

@@ -46,3 +46,75 @@ def is_soft_break(tail_word: str, next_token: str) -> bool:
     if tail_word.lower() in PRESERVE_PREFIXES:
         return False
     return True
+
+
+#: 256 — MathPix states the join. A line's own `subtype` says how it attaches
+#: to the line BEFORE it; this maps that subtype to what to do at the break.
+#: `newline` is a source line break inside running prose, so it joins with a
+#: space exactly as `space` does. A subtype that is absent or unknown is not in
+#: here, and the caller's own heuristic owns the break (59% of corpus text
+#: lines). Three readers now share this dict: the paragraph composer, the
+#: DehyphenationProcessor's derived stream, and the Dehyphenate mutator.
+STATED_JOIN = {
+    "continues_line_no_hyphen": "drop_hyphen",
+    "continues_line_no_space": "no_space",
+    "continues_line_space": "space",
+    "continues_line_newline": "space",
+}
+
+
+def join_stated(prev: str, text: str, action: str) -> tuple[str, str, bool]:
+    """
+    Splice `text` onto `prev` as `action` (a STATED_JOIN value) states.
+
+    Returns `(prev, chunk, hyphen_dropped)`: the possibly-rewritten preceding
+    text, the piece to append to it, and whether a soft hyphen was removed.
+    `prev + chunk` is the joined result.
+
+    `drop_hyphen` is only a hyphen instruction when there IS one to drop. On a
+    line MathPix already stripped (139,660 corpus lines) it just means "no
+    extra character", so never amputate a real last letter.
+    """
+    head = prev.rstrip()
+    tail = text.lstrip()
+    dropped = False
+    if action == "drop_hyphen":
+        m = HYPHEN_TAIL.search(head)
+        if m is not None:
+            head = head[: m.start()] + m.group(1)
+            dropped = True
+        return head, tail, dropped
+    if action == "no_space":
+        return head, tail, False
+    return head, (" " + tail if tail else ""), False
+
+
+def join_stated_lines(parts, default="space") -> str:
+    """
+    Join `(text, subtype)` continuation lines into one string.
+
+    `subtype` decides via STATED_JOIN; where it is absent `default` decides —
+    either a STATED_JOIN action (`"space"` reproduces a plain `" ".join`) or a
+    callable `(joined_so_far, next_text) -> action` for a caller with its own
+    heuristic. Empty texts are skipped, as every caller already did.
+
+    This exists because four composers each concatenated the lines of one
+    object — paragraph, list item, abstract, sidenote — and each one joined
+    with a space, so MathPix's stated join was ignored four times over in the
+    very field it is stated in.
+    """
+    out = ""
+    started = False
+    for text, subtype in parts:
+        if not text:
+            continue
+        if not started:
+            out = text.rstrip()
+            started = True
+            continue
+        action = STATED_JOIN.get(subtype or "")
+        if action is None:
+            action = default(out, text) if callable(default) else default
+        head, chunk, _ = join_stated(out, text, action)
+        out = head + chunk
+    return out

@@ -25,6 +25,7 @@ from typing import Any, Optional
 
 from ..base_module import BaseModule
 from ..core import Document, DocObject, Realization
+from ..text_utils import STATED_JOIN, join_stated
 
 
 # Lines that always break a paragraph but never contribute to it.
@@ -197,7 +198,20 @@ class ParagraphProcessor(BaseModule):
                     current["_last_y"] = y
                 current["end_anchor"] = anchor
                 current["lines"].append((anchor, text, payload))
-                current["text"] += " " + text
+                # 256/T-0010 — the line's own subtype states how it attaches to
+                # the one before it. This used to be an unconditional space,
+                # which put one into the middle of every hyphenation-broken
+                # word: 31 of 143 stated no-space joins on Killing, Math. Ann.
+                # 33 (1889) read "Transformations gruppen". The rule was already
+                # written down in STATED_JOIN and already tested — against the
+                # Dehyphenate MUTATOR, which no build command runs. props.text
+                # is composed here, so the join has to be honoured here.
+                action = STATED_JOIN.get(payload.get("subtype") or "", "space")
+                head, chunk, dropped = join_stated(current["text"], text, action)
+                current["text"] = head + chunk
+                if dropped:
+                    current["soft_breaks_joined"] = (
+                        current.get("soft_breaks_joined", 0) + 1)
                 current["to_line_index"] = payload.get("_line_index")
 
         flush()

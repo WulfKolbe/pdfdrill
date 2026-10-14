@@ -11,6 +11,7 @@ from typing import Any, Optional
 
 from ..base_module import BaseModule
 from ..core import Document, DocObject, Realization
+from ..text_utils import join_stated_lines
 
 
 _BEGIN_RE = re.compile(r"\\begin\{abstract\}")
@@ -36,8 +37,11 @@ class AbstractProcessor(BaseModule):
                     child = by_id.get(cid)
                     if not child:
                         continue
-                    parts.append(child.get("text_display") or child.get("text") or "")
-                text = " ".join(parts)
+                    parts.append((child.get("text_display") or child.get("text") or "",
+                                  child.get("subtype") or ""))
+                # 256/T-0010 — honour the stated join, as the paragraph
+                # composer does; an abstract hyphenates like any prose.
+                text = join_stated_lines(parts)
             else:
                 text = payload.get("text_display") or payload.get("text") or ""
             text = _BEGIN_RE.sub("", text)
