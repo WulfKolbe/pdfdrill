@@ -555,16 +555,22 @@ never quote):
 
 | | before | after |
 |---|---|---|
-| paragraphs | 6,862 | 5,919 |
-| furniture spans | 0 | 4,177 |
-| headings | 4,773 | 3,277 |
-| band lines inside a paragraph | 2,845 | **164** |
-| paragraphs ending unterminated, then furniture | 352 | 184 |
+| paragraphs | 6,862 | 5,880 |
+| furniture spans | 0 | 4,341 |
+| headings (this node's own) | 4,773 | 3,274 |
+| headings (full pipeline L2) | 11,167 | 8,163 |
+| band lines inside a paragraph | 2,845 | **4** |
+| paragraphs ending unterminated, then furniture | 352 | 188 |
 
-The 164 that remain carry none of the three signals; the gate's yardstick is
-deliberately looser than the product (any short line outside the band), so it
-counts table cells and formula fragments at the page edge. 1,496 running heads
-had been read as HEADINGS, which is where the heading count falls from.
+The two heading rows are the correction the audit asked for: this node emits
+4,773 of main's 11,167 L2 headings and `EmphasisDetectorNode` the other 6,394.
+A count from a partial pipeline needs the pipeline named.
+
+The gate's yardstick is deliberately looser than the product (any short line
+outside the band), so what it still counts are table cells and formula
+fragments at the page edge. 1,496 running heads had been read as HEADINGS,
+which is where this node's heading count falls from; the full-pipeline figure
+falls further because the emphasis detector now declines the band too.
 
 `PDF-Declarations` (PDF Association, CC-BY-4.0, 10 pages): furniture 0 → 16,
 paragraphs 40 → 37, and `© 2019 PDF Association` in the markdown **9 → 1** —
@@ -581,8 +587,8 @@ paragraph span over pages 315–316 with 5 furniture holes and **0** band text
 inside it.
 
 End to end on the reading markdown, counted without quoting anything: the 40
-most common band shapes of ≥ 12 characters occur **16,602 times** in the
-baseline projection and **87** in the new one. The baseline projection is
+most common band shapes of ≥ 12 characters occur **20,250 times** in the
+baseline projection, 106 at 766795db and **60** now. The baseline projection is
 byte-identical to the published `.md` (same sha256), so that is the file the
 corpus has been reading.
 
@@ -593,10 +599,62 @@ are the declared holes. A hole-aware slice is a small change in one place and
 is not part of this task; it is named here so the next reader does not
 measure it as a regression.
 
-The suite is **5,371 → 5,389 passed, 60 skipped, 0 failed**: the difference is
-exactly the 18 new tests, so no existing test described the old rule. A page
+The suite is **5,371 → 5,392 passed, 60 skipped, 0 failed**: the difference is
+exactly the 21 new tests, so no existing test described the old rule. A page
 turn ending a paragraph was never written down as behaviour — it was just what
 the code did.
+
+### The audit returned two points, and both were invisible in the reading
+
+1. **The running head was still a HEADING.** The paragraph node had stopped
+   emitting one; `EmphasisDetectorNode` makes a heading of any short bold run
+   and knew nothing about furniture. ISO 32000-2 carried **1,500** heading
+   spans and **485** L4 emphasis spans lying wholly inside a furniture span
+   (PDF-Declarations: 9 and 0). The markdown was already right, so only a
+   reader of L2 could see it. The emphasis detector now declines any run
+   inside a furniture span — emphasis as well as headings, because italic in
+   the band is the same mistake: **1,500 → 0**, **485 → 4**, headings
+   9,671 → 8,163. The 4 that remain are `math_inline` ×2, `math_display` ×1
+   and one `flag`, from the math detector and the flagger, which do not
+   consult furniture. (L3 tokens are a lexical layer and still tokenise the
+   band; 31,655 of them lie inside one. That is what a token layer is for.)
+
+2. **A footer cut short is furniture that no per-line signal can reach.** Ten
+   ISO lines held footer wording and were not furniture. Nine are pure
+   PREFIXES of the canonical 70-character form (13–53 normalised characters,
+   checked character by character), each repeating on one or two pages, with
+   no rights wording and no folio shape — so repetition, wording and shape
+   all had to decline them. All ten print at y 823.1–823.2: the row where
+   **1,042 lines over 1,023 pages** print, 1,001 of them identical. So a row
+   the first pass confirms is now evidence in its own right, and a short line
+   on it is furniture by position (`why: "row"`). **164 lines newly marked;
+   band lines inside a paragraph 164 → 4.** The tenth line is that footer's
+   first 60 characters plus 40 more: only the **prefix** becomes furniture, 64
+   of its 110 graphemes, and the rest stays prose (`why: "row prefix"`). A
+   fused line is not a licence to delete the text fused to it.
+
+The four band lines that remain inside a paragraph are each unique, carry no
+rights wording, are no folio, and two of them sit exactly ON the band
+boundary. There is no evidence any of the four is furniture, so they stay —
+the rule is not widened until a number reaches zero.
+
+### 29 "stamp lines with text outside their span" were a page boundary
+
+Every one of the 29 ranges the audit named contains a **form feed**. Each is
+the stamp at the foot of page N followed by the first line of page N+1, which
+a line model that splits only on `\n` reads as one line. In this route's
+model the stamp part is covered in all 29, and the uncovered graphemes are the
+next page's own first line: 82 characters of the title page's title, 55 of a
+heading, 9 of an index entry. Two of the 29 were at band rows and are now
+covered end to end. Worth keeping because it is the second time in this task
+that a yardstick's own line model, not the code under test, produced the
+finding.
+
+**An observation, not a claim:** a 12-character line with no digits prints at
+y 97.6 on 155 pages, 9 points inside the body band, and is emitted as a
+HEADING. It never enters a paragraph (0 of 155), so it does not touch this
+task. Catching it would mean counting repetition INSIDE the band, which would
+also catch a repeated table header — a decision, not a fix.
 
 ### A defect of my own, found by the gate rather than by reading
 

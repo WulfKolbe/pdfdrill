@@ -140,16 +140,52 @@ def test_a_long_line_in_the_band_is_text_the_band_estimate_got_wrong():
                                 for s in ctx.L2 if s.kind == FURNITURE]
 
 
-def test_a_band_line_on_too_few_pages_with_no_rights_words_is_not_furniture():
-    # A line in the band that says nothing about rights, is no folio, and
-    # appears on ONE page is not evidence of anything. The route has no tag
-    # tree to ask, so it declines rather than guesses.
+def test_a_one_off_line_on_a_row_of_its_own_is_not_furniture():
+    # A line outside the band that says nothing about rights, is no folio,
+    # appears on ONE page and prints on a row no furniture uses is not
+    # evidence of anything. The route has no tag tree to ask, so it declines.
+    once = "Printed by hand"
+    pages = _doc_with_turn(continuation=HEAD2)
+    pages[-1].insert(1, (62.0, once))          # its own row, below the heads
+    text, ctx = _spans(pages)
+    assert once not in [text[s.start:s.end].strip()
+                        for s in ctx.L2 if s.kind == FURNITURE]
+
+
+def test_a_one_off_line_on_a_confirmed_furniture_row_is_furniture():
+    # The same line, printed on the row the running head uses on every page,
+    # IS furniture — by position, which is the only signal that can reach a
+    # footer cut short. On ISO 32000-2 nine footer fragments repeat on one or
+    # two pages, carry no rights wording and are no folio; all nine sit on
+    # the row where 1,001 of 1,023 pages print the same line.
     once = "Printed by hand"
     pages = _doc_with_turn(continuation=HEAD2)
     pages[-1][0] = (40.0, once)
     text, ctx = _spans(pages)
-    assert once not in [text[s.start:s.end].strip()
-                        for s in ctx.L2 if s.kind == FURNITURE]
+    furn = {text[s.start:s.end].strip(): (s.props or {}).get("why")
+            for s in ctx.L2 if s.kind == FURNITURE}
+    assert furn.get(once) == "row"
+
+
+def test_a_band_line_fused_with_text_gives_up_only_its_own_part():
+    # pdfplumber runs the footer together with a line of text often enough to
+    # matter (one line of ISO 32000-2 is the footer's first 60 characters plus
+    # 40 more). Marking the whole line furniture would delete the text; the
+    # band part is a span of its own and the rest stays prose.
+    footer = "© 2019 Some Body    12"
+    fused = footer + " and then real text that was fused onto the footer line"
+    pages = _doc_with_turn(continuation=HEAD2)
+    pages[-1][-1] = (BODY_BOTTOM + 60, fused)
+    text, ctx = _spans(pages)
+    partial = [s for s in ctx.L2 if s.kind == FURNITURE
+               and (s.props or {}).get("why") == "row prefix"]
+    assert len(partial) == 1, "the fused line gave up nothing, or too much"
+    s0 = partial[0]
+    assert text[s0.start:s0.end].strip() == footer
+    assert s0.end < text.index(fused) + len(fused)
+    md = MarkdownProjector().project(ctx)
+    assert "and then real text that was fused onto the footer line" in md
+    assert "© 2019 Some Body" not in md
 
 
 # ---------------------------------------------------------------------------
@@ -218,6 +254,25 @@ def test_a_paragraph_never_ends_on_a_furniture_line():
         tail = text[s.start:s.end].rstrip().splitlines()[-1].strip()
         assert not tail.startswith("© 2019 Some Body")
         assert tail != "A Running Head"
+
+
+def test_a_bold_running_head_does_not_also_become_a_heading():
+    # The running head is bold and short, which is what the emphasis detector
+    # reads as a heading — while `lines_paragraphs` has already called it the
+    # page's furniture. A span is one or the other. (T-0011 audit: 1,500
+    # heading spans of ISO 32000-2 lay wholly inside a furniture span.)
+    from pdfdrill.nodes.emphasis_detector import EmphasisDetectorNode
+    pages = _doc_with_turn(continuation=HEAD2)
+    text, meta, pm = _build(pages, bold=frozenset({"A Running Head"}))
+    ctx = DocumentContext(meta=DocMeta(source="t.pdf", pages=pm))
+    ctx.graphemes, ctx.char_meta = text, meta
+    LinesParagraphsNode().run(ctx)
+    EmphasisDetectorNode().run(ctx)
+    band = [(f.start, f.end) for f in ctx.L2 if f.kind == FURNITURE]
+    assert band, "the fixture produced no furniture to test against"
+    inside = [h for h in ctx.L2 if h.kind == HEADING
+              and any(a <= h.start and h.end <= b for a, b in band)]
+    assert not inside, f"{len(inside)} heading span(s) inside the band"
 
 
 # ---------------------------------------------------------------------------

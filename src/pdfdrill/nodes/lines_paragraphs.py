@@ -104,6 +104,31 @@ _FOLIO = re.compile(
 #: "Page 13" are the same running furniture.
 _DIGITS = re.compile(r"\d+")
 
+#: How close two lines' tops have to be to count as the same ROW of the page
+#: grid, in points. A footer printed from the same template lands within a
+#: point of itself; ISO 32000-2's bottom row is y 823.1-823.2 on 1,042 lines
+#: over 1,023 pages.
+ROW_TOLERANCE = 1.5
+
+#: A row of the page grid on which confirmed furniture appears on at least
+#: this many pages is a FURNITURE ROW, and a short line there is furniture by
+#: position alone. This is what catches what a per-line signal cannot: the
+#: footer cut short (9 lines on ISO 32000-2, each a pure prefix of the
+#: canonical form, repeating on one or two pages only, so neither repetition
+#: nor rights wording nor a folio could reach it), and the tail of a stamp
+#: that pdfplumber split over two lines.
+FURNITURE_ROW_MIN_PAGES = 3
+
+#: The least raw characters of the row's canonical line a longer line must
+#: begin with before its PREFIX is taken as that row's furniture. Below this a
+#: match is a coincidence, and the line stays text.
+ROW_PREFIX_MIN_CHARS = 12
+
+#: How much has to be LEFT after that prefix before the line counts as fused
+#: rather than as the band line itself (which varies by a few characters from
+#: page to page — a folio gains a digit, a date changes).
+ROW_FUSED_MIN_REST = 8
+
 
 def _normalized(s: str) -> str:
     return _DIGITS.sub("#", " ".join(s.split())).strip().lower()
@@ -152,7 +177,11 @@ def _furniture_lines(
     geom: list[tuple[float, float, int]],
     text: str,
 ) -> dict[int, str]:
-    """Which lines are page furniture, and on what evidence.
+    """Which lines are page furniture, on what evidence, and where exactly.
+
+    Returns `(whole, prefixes)`: line index -> why for lines that ARE
+    furniture, and line index -> (start, end, why) for a line that merely
+    BEGINS with the band line of its row and carries text after it.
 
     Three independent signals, each sufficient, all of them requiring the
     line to be SHORT and to sit OUTSIDE the band the body text occupies:
@@ -195,14 +224,14 @@ def _furniture_lines(
     band_top = _pct(tops, BAND_LOW_PCT) - BAND_MARGIN_LINES * line_h
     band_bottom = _pct(bots, BAND_HIGH_PCT) + BAND_MARGIN_LINES * line_h
 
-    outside: list[int] = []
-    for i, ((ls, le, _page), (y0, y1, n)) in enumerate(zip(lines, geom)):
-        if not n or n > FURNITURE_MAX_CHARS or not (y0 or y1):
-            continue
-        if y1 and y1 < band_top:
-            outside.append(i)
-        elif y0 and y0 > band_bottom:
-            outside.append(i)
+    def _outside(i: int) -> bool:
+        y0, y1, n = geom[i]
+        if not n or not (y0 or y1):
+            return False
+        return bool((y1 and y1 < band_top) or (y0 and y0 > band_bottom))
+
+    outside = [i for i in range(len(lines))
+               if _outside(i) and geom[i][2] <= FURNITURE_MAX_CHARS]
 
     found: dict[int, str] = {}
     for i in outside:
@@ -214,7 +243,72 @@ def _furniture_lines(
             found[i] = "rights"
         elif _FOLIO.match(body):
             found[i] = "folio"
-    return found
+
+    # ---- second pass: the ROWS of the page grid that furniture prints on ----
+    #
+    # A per-line signal cannot reach a footer that was cut short: the fragment
+    # repeats on one page, carries no rights wording and is no folio. Its
+    # POSITION still does — it is on the row where 1,001 of 1,023 pages print
+    # the same line. So rows confirmed by the first pass are evidence in their
+    # own right, and a short line on one of them is furniture by position.
+    rows: dict[float, set[int]] = {}
+    row_bodies: dict[float, Counter] = {}
+    for i, why in found.items():
+        key = round(geom[i][0] / (2 * ROW_TOLERANCE))
+        rows.setdefault(key, set()).add(lines[i][2])
+        row_bodies.setdefault(key, Counter())[
+            " ".join(text[lines[i][0]:lines[i][1]].split())] += 1
+    confirmed = {k for k, pages in rows.items()
+                 if len(pages) >= FURNITURE_ROW_MIN_PAGES}
+
+    prefixes: dict[int, tuple[int, int, str]] = {}
+    for i in range(len(lines)):
+        if not _outside(i):
+            continue
+        key = round(geom[i][0] / (2 * ROW_TOLERANCE))
+        if key not in confirmed:
+            continue
+        ls, le, _page = lines[i]
+        line = text[ls:le]
+        canon = row_bodies[key].most_common(1)[0][0]
+        k = _canonical_prefix(line, canon)
+        rest = len(line.rstrip()) - k
+        if k >= ROW_PREFIX_MIN_CHARS and rest >= ROW_FUSED_MIN_REST:
+            # The row's line and something else ran together — pdfplumber
+            # does this often enough to matter. Take the PREFIX that is the
+            # row's line and leave the rest as text: a fused line is not a
+            # licence to delete the text fused to it. This also overrides a
+            # first-pass decision, because `rights` matched the footer's own
+            # wording at the FRONT of a line whose tail is prose.
+            prefixes[i] = (ls, ls + k, "row prefix")
+            found.pop(i, None)
+        elif i not in found and geom[i][2] <= FURNITURE_MAX_CHARS:
+            found[i] = "row"
+    return found, prefixes
+
+
+def _canonical_prefix(line: str, canon: str) -> int:
+    """How many characters of `line` are the row's canonical band line.
+
+    Digits are wildcards (a folio changes every page) and a run of whitespace
+    matches a run of whitespace (the column gap is not a character count).
+    Returns 0 unless the line STARTS with it.
+    """
+    i = j = 0
+    while i < len(line) and j < len(canon):
+        a, b = line[i], canon[j]
+        if a.isspace() and b.isspace():
+            while i < len(line) and line[i].isspace():
+                i += 1
+            while j < len(canon) and canon[j].isspace():
+                j += 1
+            continue
+        if a == b or (a.isdigit() and b.isdigit()):
+            i += 1
+            j += 1
+            continue
+        break
+    return i
 
 
 def _pct(values: list[float], pct: float) -> float:
@@ -311,7 +405,9 @@ def _detect_paragraphs_with_positions(
     # a running head in a larger font reads as a heading and a folio reads as
     # a centered line; both are the page's furniture whatever font they use.
     geom = _line_geometry(lines, text, char_meta)
-    furniture = _furniture_lines(lines, geom, text)
+    # `furniture`: whole lines. `band_prefix`: a line that begins with the
+    # row's band line and continues into text — the band part only.
+    furniture, band_prefix = _furniture_lines(lines, geom, text)
 
     for line_i, (ls, le, page) in enumerate(lines):
         line_text = text[ls:le]
@@ -427,6 +523,16 @@ def _detect_paragraphs_with_positions(
             para_pages = [page]
             turned = False
             continue
+
+        # A line that begins with its row's band line: the band part is a
+        # furniture span of its own and the paragraph starts after it.
+        pre = band_prefix.get(i)
+        if pre:
+            spans.append(Span(start=pre[0], end=pre[1], kind=FURNITURE,
+                              props={"page": page, "why": pre[2]}))
+            if para_start >= 0:
+                pending.append([pre[0], pre[1]])
+            ls = pre[1]
 
         # a content line. If a page turn happened since the last content line,
         # this is where the paragraph is either continued or closed.

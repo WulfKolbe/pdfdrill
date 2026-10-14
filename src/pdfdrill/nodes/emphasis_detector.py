@@ -9,6 +9,7 @@ from __future__ import annotations
 from ..context import (
     CharMeta,
     DocumentContext,
+    FURNITURE,
     HEADING,
     Span,
     EMPHASIS_BOLD,
@@ -35,7 +36,19 @@ class EmphasisDetectorNode(Node):
         bold_spans = _detect_bold_runs(text, char_meta)
         italic_spans = _detect_italic_runs(text, char_meta)
 
+        # A running head is bold and short, so it reads as a heading here —
+        # and `lines_paragraphs` has already said it is the page's furniture.
+        # A span is one or the other (T-0011 audit): 1,500 heading spans of
+        # ISO 32000-2 lay wholly inside a furniture span, invisible in the
+        # markdown and plainly wrong to a reader of L2.
+        band = [(f.start, f.end) for f in ctx.L2 if f.kind == FURNITURE]
+
+        def _in_band(sp: Span) -> bool:
+            return any(a <= sp.start and sp.end <= b for a, b in band)
+
         for s in bold_spans:
+            if _in_band(s):
+                continue
             if (s.props or {}).get("interpretation") == "heading":
                 ctx.L2.append(Span(
                     start=s.start, end=s.end,
@@ -44,7 +57,7 @@ class EmphasisDetectorNode(Node):
                 ))
             else:
                 ctx.L4.append(s)
-        ctx.L4.extend(italic_spans)
+        ctx.L4.extend(s for s in italic_spans if not _in_band(s))
         return ctx
 
 
