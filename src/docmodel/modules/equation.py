@@ -181,25 +181,68 @@ _MULTI_EQ_ENVS = frozenset({
     "gather", "gathered", "gather*", "eqnarray", "eqnarray*",
 })
 _ENV_OPEN = re.compile(r"\\begin\{([A-Za-z*]+)\}")
+#: Environments whose opener carries a MANDATORY argument the body does not:
+#: `array`'s column spec and `alignat`'s column count. `\begin{array}{ll}` is
+#: matched by `_ENV_OPEN` up to the closing brace of the NAME, so without this
+#: the `{ll}` became the first characters of the first row — which typeset
+#: `{ll} x_1<x_2<x_3` as the first numbered equation of Hilbert's page 96.
+_ENV_ARG = {"array": 1, "alignat": 1, "alignat*": 1}
 _CMD_NAME = re.compile(r"[A-Za-z]+")
 #: An alignment point that is real, not the escaped literal `\&`.
 _LIVE_AMP = re.compile(r"(?<!\\)&")
 
 
-def alignment_rows(latex: str) -> list[str]:
+def _after_env_args(latex: str, pos: int, env: str) -> int:
+    r"""Past the opener's own arguments: `[t]` and then `{ll}`, if it takes one.
+
+    Only for the environments that DECLARE one (`_ENV_ARG`). A brace group is
+    ordinary content elsewhere — `\begin{gathered} {x \over y} \\ z` — and
+    skipping it there would eat the first row's first term.
+    """
+    if env not in _ENV_ARG:
+        return pos
+    i = pos
+    while i < len(latex) and latex[i].isspace():
+        i += 1
+    if i < len(latex) and latex[i] == "[":                 # optional [t]
+        j = latex.find("]", i)
+        if j < 0:
+            return pos
+        i = j + 1
+        while i < len(latex) and latex[i].isspace():
+            i += 1
+    if i >= len(latex) or latex[i] != "{":
+        return pos                                        # no spec: unchanged
+    depth = 0
+    for j in range(i, len(latex)):
+        if latex[j] == "{":
+            depth += 1
+        elif latex[j] == "}":
+            depth -= 1
+            if depth == 0:
+                return j + 1
+    return pos                                            # unbalanced: unchanged
+
+
+def alignment_rows(latex: str, envs=_MULTI_EQ_ENVS) -> list[str]:
     r"""The rows of a multi-equation alignment, or `[]` when it is not one.
 
     Splits on `\\` at environment depth 0 ONLY. A `\\` inside a nested
     `array`, `matrix` or `cases` is that environment's own row break and
     belongs to the formula; cutting there would take a matrix apart.
+
+    `envs` is which environments count as an alignment, and the default is the
+    only safe answer when the LaTeX is all there is to go on. `numbered_rows`
+    widens it, because the printed numbers are evidence the environment name
+    cannot supply.
     """
     m = _ENV_OPEN.search(latex or "")
-    if not m or m.group(1) not in _MULTI_EQ_ENVS:
+    if not m or m.group(1) not in envs:
         return []
     end = latex.rfind("\\end{%s}" % m.group(1))
     if end <= m.end():
         return []
-    body = latex[m.end():end]
+    body = latex[_after_env_args(latex, m.end(), m.group(1)):end]
     rows: list[str] = []
     cur: list[str] = []
     depth = i = 0
@@ -229,6 +272,52 @@ def alignment_rows(latex: str) -> list[str]:
         i = cmd.end()
     rows.append("".join(cur))
     return [r.strip() for r in rows if r.strip()]
+
+
+#: `array` is the one environment MathPix uses BOTH ways: as a matrix body and
+#: as a plain column alignment of several separately numbered equations. The
+#: name cannot tell them apart, which is why `_MULTI_EQ_ENVS` leaves it out and
+#: `alignment_rows` answers `[]` for a bare one.
+_NUMBERED_ROW_ENVS = _MULTI_EQ_ENVS | {"array"}
+
+#: An `array` wrapped in a fence is a matrix, whatever is printed beside it.
+_FENCED_ARRAY = re.compile(r"(?:\\left\s*[\(\[\|]|\\left\\[\{\|]|[\(\[]|\\\{)\s*$")
+
+
+def numbered_rows(latex: str, count: int) -> list[str]:
+    r"""The rows of a block that prints `count` numbers inside its own box.
+
+    The question `alignment_rows` cannot answer is whether a `\begin{array}`
+    is a matrix or a column alignment of separate equations. The printed page
+    answers it: a matrix drawn as one object does not have three equation
+    numbers printed down the inside of its own box, one per row. So an `array`
+    IS an alignment when the document numbered its rows individually — and
+    `count` rows against `count` numbers is the same unambiguous-evidence test
+    `_split_plan` already applies, not a new licence to guess.
+
+    Measured case (Hilbert 1902, Grundlagen der Geometrie, book p.96): one
+    MathPix `math` line at y 1061 h 170 holding `\begin{array}{ll}` with three
+    rows, and (1) (2) (3) printed at y 1057/1120/1182 — all three centres
+    inside the box. `alignment_rows` returned `[]`, the block was left to the
+    nearest-number fallback, and each of the three landed one object too high:
+    (1) on the line above, which prints no number, (2) on the array and (3) on
+    the `gathered` block below it. (4), two lines further down, was right — by
+    accident of being last. One refnum per DocObject was never the limit; the
+    split
+    that gives each row its own object and its own number already existed and
+    declined to fire.
+
+    `[]` whenever the evidence is short of that: fewer than two numbers (one
+    number on a block is the ordinary case and the geometric pairing's job), a
+    row count that disagrees, or a fenced `array`, which is a matrix.
+    """
+    if count < 2:
+        return []
+    m = _ENV_OPEN.search(latex or "")
+    if m and m.group(1) == "array" and _FENCED_ARRAY.search(latex[:m.start()]):
+        return []
+    rows = alignment_rows(latex, _NUMBERED_ROW_ENVS)
+    return rows if len(rows) == count else []
 
 
 def standalone_row(row: str) -> str:
@@ -404,8 +493,8 @@ class EquationProcessor(BaseModule):
                     continue
                 latex = _normalize_latex(
                     p.get("text_display") or p.get("text") or "")
-                rows = alignment_rows(latex)
-                if len(rows) != len(inside):
+                rows = numbered_rows(latex, len(inside))
+                if not rows:
                     self.bump("equation_number_blocks_unsplit")
                     continue
                 bands = number_bands(p.get("region") or {},

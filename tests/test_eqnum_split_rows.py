@@ -32,7 +32,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from docmodel.core import Document
 from docmodel.modules.page import ingest_lines_json, PageProcessor
 from docmodel.modules.equation import (
-    EquationProcessor, alignment_rows, standalone_row, number_bands,
+    EquationProcessor, alignment_rows, numbered_rows, standalone_row,
+    number_bands,
 )
 from docmodel.base_module import ModuleConfig
 
@@ -178,3 +179,105 @@ def test_bands_stay_inside_the_block():
     assert bands[0]["top_left_y"] == 100
     assert bands[-1]["top_left_y"] + bands[-1]["height"] == 200
     assert all(b["height"] >= 0 for b in bands)
+
+
+# ── T-0024 item 4 — the numbers the environment name hid ───────────────────
+#
+# Hilbert 1902, Grundlagen der Geometrie, book p.96 (scan page 5). MathPix set
+# three separately numbered inequalities as ONE `math` line holding
+# `\begin{array}{ll}`, with (1) (2) (3) printed down the inside of its own box
+# at y 1057/1120/1182 — all three centres within y 1061..1231.
+#
+# `array` is deliberately not an alignment by name: it is also how a matrix
+# body is written, and splitting a matrix on its `\\` takes it apart silently.
+# So the block was left to the nearest-number fallback, and every number
+# landed one object too high: (1) on the line above, which prints none, (2) on
+# the array, (3) on the `gathered` block below it, (4) — which belongs to the
+# line after that — on the line it does belong to, by accident of being last.
+#
+# What was reported as "a DocObject has one refnum, and one refnum cannot
+# describe a display whose rows each carry a number" was not the limit. The
+# split that gives each row its own object and its own number already existed
+# (823, above) and declined to fire. What it lacked was permission to read an
+# `array` as an alignment when the printed page says it is one: `count` rows
+# against `count` numbers inside the block's own box, the same unambiguous
+# evidence this file's refusals are built on.
+
+HILBERT_P96 = (
+    "\\begin{array}{ll} "
+    "x_{1}<x_{2}<x_{3}, & x_{1}>x_{2}>x_{3}, \\\\ "
+    "y_{1}<y_{2}<y_{3}, & y_{1}>y_{2}>y_{3}, \\\\ "
+    "z_{1}<z_{2}<z_{3}, & z_{1}>z_{2}>z_{3}, "
+    "\\end{array}"
+)
+
+
+def test_an_array_whose_rows_are_each_numbered_is_split():
+    eqs = _build(_page(HILBERT_P96, [("(1)", 1082), ("(2)", 1145), ("(3)", 1207)],
+                       top=1061, height=170))
+    assert [e.props["refnum"] for e in eqs] == ["1", "2", "3"]
+    assert [e.props["split_index"] for e in eqs] == [0, 1, 2]
+
+
+def test_each_row_keeps_its_own_inequality():
+    eqs = _build(_page(HILBERT_P96, [("(1)", 1082), ("(2)", 1145), ("(3)", 1207)],
+                       top=1061, height=170))
+    assert "x_{1}<x_{2}<x_{3}" in eqs[0].props["latex"]
+    assert "y_{1}<y_{2}<y_{3}" in eqs[1].props["latex"]
+    assert "z_{1}<z_{2}<z_{3}" in eqs[2].props["latex"]
+    assert "y_{1}" not in eqs[0].props["latex"]
+
+
+def test_the_column_spec_is_not_the_first_rows_first_term():
+    r"""`_ENV_OPEN` matches to the end of the NAME, so `{ll}` sat in the body
+    and typeset as part of the first numbered equation."""
+    rows = numbered_rows(HILBERT_P96, 3)
+    assert rows[0].startswith("x_{1}"), rows[0]
+    assert "{ll}" not in " ".join(rows)
+    # `alignat` declares a column COUNT the same way, and always did.
+    assert alignment_rows(
+        "\\begin{alignat}{2} a &= b \\\\ c &= d \\end{alignat}") == [
+            "a &= b", "c &= d"]
+    assert alignment_rows(
+        "\\begin{array}[t]{cc} a \\\\ b \\end{array}",
+        envs={"array"}) == ["a", "b"]
+
+
+def test_a_brace_group_that_is_content_is_not_eaten():
+    r"""`gathered` takes no argument, so `{x \over y}` is the first row's
+    first term and skipping it would lose the term."""
+    rows = alignment_rows(
+        "\\begin{gathered} {x \\over y} \\\\ z \\end{gathered}")
+    assert rows == ["{x \\over y}", "z"]
+
+
+def test_a_bare_array_is_still_not_an_alignment():
+    """Without the numbers there is no evidence, and the old answer stands."""
+    assert alignment_rows(HILBERT_P96) == []
+    assert numbered_rows(HILBERT_P96, 1) == []
+
+
+def test_one_number_on_an_array_does_not_split_it():
+    """One number on a block is the ordinary case: the whole block is that
+    equation, and the geometric pairing already handles it."""
+    eqs = _build(_page(HILBERT_P96, [("(7)", 1145)], top=1061, height=170))
+    assert [e.props["refnum"] for e in eqs] == ["7"]
+    assert eqs[0].props.get("split_count") is None
+
+
+def test_a_row_count_that_disagrees_is_still_a_refusal():
+    assert numbered_rows(HILBERT_P96, 2) == []
+    eqs = _build(_page(HILBERT_P96, [("(1)", 1082), ("(2)", 1207)],
+                       top=1061, height=170))
+    assert len(eqs) == 1, "two numbers over three rows is a guess"
+
+
+def test_a_fenced_array_is_a_matrix_whatever_is_printed_beside_it():
+    r"""`\left(\begin{array}...` is a matrix body. Three numbers inside its box
+    would be three numbers beside a matrix, not three equations."""
+    fenced = "\\left(" + HILBERT_P96 + "\\right)"
+    assert numbered_rows(fenced, 3) == []
+    eqs = _build(_page(fenced, [("(1)", 1082), ("(2)", 1145), ("(3)", 1207)],
+                       top=1061, height=170))
+    assert len(eqs) == 1
+
