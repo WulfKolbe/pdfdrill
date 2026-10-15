@@ -885,3 +885,95 @@ ListItem's realization needs to span its children, in which case
 marker text (`1. `) that `content` deliberately strips and the tiddler carries in
 its own `marker` field. Either route is a real change with its own regressions;
 both need measuring before and after.
+
+## Four measurements that were of the wrong page, or of nothing (T-0024)
+
+Four defects found while comparing two readings of the same scans (a Gemma
+transcription against MathPix's) over 138 rows of one document and 29 of
+another. None of them failed. Three produced numbers that looked like
+measurements, and the fourth printed equation numbers against the wrong
+equations.
+
+**1. A crop came from whatever page sorted first.** `pdf_reading.rasterize`
+returned `sorted(out_dir.glob("page-*.png"))` — every page in the output
+directory, not the pages the caller asked for. `refine.scan_crop` and
+`commands._deliver_region_crop` then took `imgs[0]`, and both share one
+directory across calls: `<doc>/refine/_pages` is reused by every row of a run
+and survives between runs (`commands.py` keeps `sc.blob_dir / "refine"`), and
+`snip/` keeps every page it has ever rendered. So after the first row, each
+crop came from the LOWEST page number present — at its own region's
+coordinates, scaled by its own page's dimensions, so the error grew down the
+page rather than announcing itself.
+
+Measured: re-cropping each row from its own page changes the ink signature on
+**131 of 138 rows** of the Killing document (135 of 138 on an earlier run of
+it, 27 of 29 on Hilbert), and a "lowest page present so far" model reproduces
+the stored signatures **138 of 138**. Replaying a row with the page it was
+actually cropped FROM matched 8 of 138; replaying with the row's OWN page
+dimensions matched 138 of 138 — which is what says the scale came from the
+right page and the pixels did not. Every raw refine ink number taken before
+this fix is of a crop of the wrong page.
+
+`pdf_reading.render_crops` already defended against exactly this, with the
+reason in a comment, and `pyramid.py` defends by unlinking each page after use
+— two of four call sites, which is the usual sign the guard belongs in the
+callee. It is now there: `rasterize` returns only the pages asked for, in page
+order (not filename order — `page-11232` sorts before `page-9999`), and
+`page_of(path)` is the one rule for reading a page number back out of a name.
+The files themselves are left alone.
+
+**2. `accept` crashed on a row it could not compare.** `select` writes
+`ink_before` only for the rows its own ink gate reached; `measure` writes
+`ink_after` for every validated row. A row with one half of a comparison met
+`after < before` — `int < None`, a TypeError — which ended the run BEFORE
+`record`, so proposals that had already been accepted and verified were never
+attached to the model. The comparison is now `refine.ink_verdict`, which has a
+third answer: `NO_REFERENCE` is not a rejection, nothing about the proposal
+has been found wanting, and the row stays proposed for a later run that gates
+it.
+
+**3. A row with half a comparison was counted as measured.** `ink_delta` was
+`after - (before or 0)`, which is `after`: a positive number that reads as a
+proposal that worsened the reading by exactly its own distance from the scan,
+written into `changes.json` as a measurement. `refine.ink_delta` returns None
+without a reference, and `measure`/`accept` each report `no_reference`
+separately. Note that 0 is a reference — a proposal matching the scan exactly
+has `ink_after` 0 — so the test is `is None`, never falsiness.
+
+**4. Three numbers that belonged to three rows went to three different
+objects.** Hilbert 1902, book p.96: MathPix set three separately numbered
+inequalities as ONE `math` line holding `\begin{array}{ll}`, with (1) (2) (3)
+printed down the inside of its own box (y 1057/1120/1182, all three centres
+within the block's y 1061..1231). `array` is deliberately not an alignment by
+name — it is also how a matrix body is written, and splitting a matrix on its
+`\\` takes it apart silently — so `alignment_rows` returned `[]`, the split
+declined (`equation_number_blocks_unsplit` 1), and the nearest-number fallback
+put every number one object too high: (1) on the line above, which prints
+none, (2) on the array, (3) on the `gathered` block below it.
+
+This was reported as a representation limit — one `refnum` per DocObject
+cannot describe a display whose rows each carry a number. It was not. The
+split that gives each row its own object, its own number and its own region
+band already existed (823) and declined to fire. What it lacked was permission
+to read an `array` as an alignment when the printed page says it is one:
+`numbered_rows(latex, count)` widens the environment set only where the
+numbers corroborate — `count` rows against `count` numbers inside the block's
+own box, which is the same unambiguous-evidence test the existing refusals are
+built on. A fenced `array` (`\left(\begin{array}…`) stays a matrix whatever is
+printed beside it, and fewer than two numbers is still the ordinary one-number
+case. After: (1) (2) (3) on the x/y/z rows and (4) on the line that prints it,
+with the two lines that print no number carrying none.
+
+Fixing that exposed a fifth, latent: `_ENV_OPEN` matches `\begin{array}` to the
+end of the NAME, so the column spec `{ll}` stayed in the body and became the
+first characters of the first row. `alignat{2}` carries a column count the same
+way and always did. `_after_env_args` skips an opener's own `[pos]` and `{spec}`
+— only for the environments that declare one, because a brace group is ordinary
+content elsewhere (`\begin{gathered} {x \over y} \\ z`) and eating it would
+lose the first row's first term.
+
+**What is NOT fixed here, and remains for the owner:** `select` overwrites the
+request file's `basis` and `author` on every row it keeps (`"basis":
+"inferred"`), while `ingest` honours them — 109 of 138 request rows were
+rewritten to `inferred` in one run. That is a decision about whose attribution
+wins, not a defect with one right answer.
