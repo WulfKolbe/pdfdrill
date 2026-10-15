@@ -279,6 +279,44 @@ def ink_distance(a: dict, b: dict) -> int:
             + abs(int(a.get("holes", 0)) - int(b.get("holes", 0))))
 
 
+#: The three answers the ink gate can give about a proposal. The third one it
+#: could not give before: `select` writes `ink_before` only for the rows its
+#: own gate reached, so a row arrives at `accept` with HALF a comparison —
+#: and `after < before` was then `int < None`, a TypeError that ended the run
+#: before `record`, stranding every proposal already accepted (T-0024, item 2).
+ACCEPTED = "accepted"
+NO_IMPROVEMENT = "no improvement"
+NO_REFERENCE = "no reference"
+
+
+def ink_verdict(before, after) -> str:
+    """Which of the three answers these two ink distances support.
+
+    `before` is the distance from the scan to the reading already in the model
+    and `after` the distance from the scan to the proposal, so a proposal is
+    accepted when it is CLOSER. Neither half can be inferred from the other:
+    without `before` the verdict is NO_REFERENCE, which is not a rejection —
+    nothing about the proposal has been found wanting — and the row stays
+    proposed for a later run that gates it.
+    """
+    if before is None or after is None:
+        return NO_REFERENCE
+    return ACCEPTED if after < before else NO_IMPROVEMENT
+
+
+def ink_delta(before, after):
+    """`after - before`, or None when there is no reference to subtract.
+
+    NOT `after - (before or 0)`. That is `after` — a positive number that
+    reads as a proposal which worsened the reading by exactly its own distance
+    from the scan — and it was written into changes.json as a measurement, on
+    rows nothing had ever measured (T-0024, item 3).
+    """
+    if before is None or after is None:
+        return None
+    return after - before
+
+
 # ---------------------------------------------------------------------------
 # rendering and cropping
 # ---------------------------------------------------------------------------
@@ -378,9 +416,15 @@ def scan_crop(pdf: Path, page: int, region: dict, out_png: Path,
     out_png.parent.mkdir(parents=True, exist_ok=True)
     imgs = pdf_reading.rasterize(pdf, out_png.parent / "_pages",
                                  pages=[page], dpi=dpi, use_cropbox=True)
-    if not imgs:
+    # THIS page's image, named rather than positional. `_pages` is shared by
+    # every row of a run and survives between runs, so `imgs[0]` was the lowest
+    # page number the directory happened to hold — and this crop is then scaled
+    # by the ROW's page dimensions, which made the error grow down the page
+    # instead of announcing itself (T-0024, item 1).
+    src = next((f for f in imgs if pdf_reading.page_of(f) == int(page)), None)
+    if src is None:
         return None
-    im = Image.open(imgs[0])
+    im = Image.open(src)
     box = pdf_reading.mathpix_to_raster(
         region["top_left_x"], region["top_left_y"],
         region["width"], region["height"],

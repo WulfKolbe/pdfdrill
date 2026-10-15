@@ -149,6 +149,17 @@ def filter_real_images(files: list[Path], min_bytes: int = 1024) -> tuple[list[P
 # umlauts ("Geschäftsführer") correctly. Every raster task renders at >= 400 DPI.
 RASTER_MIN_DPI = 400
 
+#: `rasterize` writes the page number into the filename so a caller can read it
+#: back. ONE rule for parsing it, because three callers had their own and the
+#: one that did not parse at all cropped from whatever page sorted first.
+_PAGE_IN_NAME = re.compile(r"page-(\d+)\.")
+
+
+def page_of(path) -> "int | None":
+    """The page number `rasterize` wrote into this filename, or None."""
+    m = _PAGE_IN_NAME.search(Path(path).name)
+    return int(m.group(1)) if m else None
+
 
 def gs_binary() -> Optional[str]:
     """The Ghostscript executable, or None."""
@@ -373,7 +384,18 @@ def rasterize(pdf: Path, out_dir: Path, *, pages: Optional[list[int]] = None,
         with cf.ThreadPoolExecutor(max_workers=len(shards)) as ex:
             list(ex.map(lambda sh: _render_shard(base, pdf, sh, out_dir, ext, pad),
                         shards))
-    return sorted(out_dir.glob(f"page-*.{ext}"))
+    # ONLY THE PAGES ASKED FOR, in page order. This used to return every
+    # page-*.{ext} in `out_dir`, which is a different list whenever the
+    # directory is shared between calls — and refine's `_pages` is shared by
+    # every row of a run, and persists between runs. A caller that then took
+    # `imgs[0]` cropped the LOWEST page number present at its own region's
+    # coordinates: plausible-looking and wrong, and a measured 131 of 138 rows
+    # of one document came from the wrong page that way (T-0024). `pages=None`
+    # asked for all of them, so that caller sees no change except that a page
+    # left behind by another document's run is no longer served as this one's.
+    want = {int(n) for n in pages}
+    made = [(page_of(f), f) for f in out_dir.glob(f"page-*.{ext}")]
+    return [f for _n, f in sorted((n, f) for n, f in made if n in want)]
 
 
 # One block of raw pages at 400 DPI: 16 x 14.75 MB = 236 MB peak. Small enough
@@ -538,9 +560,9 @@ def render_regions(pdf: Path, dest: Path, want: dict, dims: dict, *,
     # its neighbour's page — plausible-looking and wrong.
     by_page = {}
     for f in (imgs or []):
-        m = _re.search(r"page-(\d+)\.", f.name)
-        if m:
-            by_page[int(m.group(1))] = f
+        n = page_of(f)
+        if n is not None:
+            by_page[n] = f
     for page, jobs in want.items():
         src = by_page.get(page)
         if src is None:

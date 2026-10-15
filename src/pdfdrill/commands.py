@@ -10776,10 +10776,14 @@ def _deliver_region_crop(pdf: Path, sc: "Sidecar", page: int,
     from PIL import Image
     out_dir = sc.blob_dir / "snip"
     imgs = pdf_reading.rasterize(pdf, out_dir, pages=[page], dpi=ppi)
-    if not imgs:
+    # By name, not by position: `snip/` keeps every page it has ever rendered
+    # for this document, so the first entry is the lowest page number present
+    # and not the one asked for (T-0024, item 1).
+    src = next((f for f in imgs if pdf_reading.page_of(f) == int(page)), None)
+    if src is None:
         raise RuntimeError(f"could not rasterize page {page}")
     x0, y0, x1, y1 = (int(v) for v in rect)
-    crop = Image.open(imgs[0]).convert("RGB").crop((x0, y0, x1, y1))
+    crop = Image.open(src).convert("RGB").crop((x0, y0, x1, y1))
     crop_path = out_dir / f"snip_p{page}_{x0}-{y0}-{x1}-{y1}.png"
     crop.save(crop_path)
     return crop_path
@@ -20238,6 +20242,7 @@ def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
             for stale in ("recorded", "verified_by", "evidence", "reason",
                           "reason_detail", "record_error", "propose_error",
                           "measure_error", "validate_error",
+                          "measure_note", "accept_note",
                           "ink_after", "ink_delta"):
                 rec.pop(stale, None)
             rec.update({
@@ -20403,7 +20408,7 @@ def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
         dims = _rf.mathpix_page_dims(sc.blob_dir)
         todo = [p for p in data["proposals"]
                 if p.get("status") == "proposed" and p.get("validated")]
-        done = unmeasured = 0
+        done = unmeasured = noref = 0
         for p in todo:
             obj = doc.objects.get(p["id"])
             pr = (obj.props if obj else {}) or {}
@@ -20438,13 +20443,24 @@ def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
                 unmeasured += 1
                 continue
             p["ink_after"] = _rf.ink_distance(sig_scan, sig_after)
-            p["ink_delta"] = p["ink_after"] - (p.get("ink_before") or 0)
+            # `select` writes `ink_before` only for the rows its own ink gate
+            # reached, so a validated row can arrive here with one half of a
+            # comparison. That is not a measured row and is not counted as one
+            # (T-0024, items 2 and 3; see `refine.ink_delta`).
+            p["ink_delta"] = _rf.ink_delta(p.get("ink_before"), p["ink_after"])
+            if p["ink_delta"] is None:
+                p["measure_note"] = ("no ink_before: this row was never gated, "
+                                     "so there is nothing to compare against")
+                noref += 1
+                continue
             done += 1
         data["measure"] = {"measured": done, "unmeasured": unmeasured,
-                           "at": _rf._now()}
+                           "no_reference": noref, "at": _rf._now()}
         _rf.save_changes(cp, data)
         out.append(f"measure: {done} proposal(s) rendered and measured"
-                   + (f"; {unmeasured} could not be measured" if unmeasured else ""))
+                   + (f"; {unmeasured} could not be measured" if unmeasured else "")
+                   + (f"; {noref} with no reference to compare against"
+                      if noref else ""))
 
     # ---------------- accept ----------------------------------------------
     if "accept" in want:
@@ -20495,11 +20511,25 @@ def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
                        f"source, {grej} rejected")
         todo = [p for p in data["proposals"]
                 if p.get("status") == "proposed" and p.get("ink_after") is not None]
-        acc = noimp = 0
+        acc = noimp = noref = 0
         deltas = []
         for p in todo:
             before, after = p.get("ink_before"), p.get("ink_after")
-            if after < before:
+            verdict = _rf.ink_verdict(before, after)
+            if verdict == _rf.NO_REFERENCE:
+                # `int < None` is a TypeError in Python 3, and it was raised
+                # here — which ended the run before `record`, so an accepted
+                # proposal was never attached (T-0024, item 2). The row is
+                # LEFT PROPOSED rather than rejected: nothing about it has
+                # been found wanting, there is simply no reference, and a
+                # later run that gates it can still decide. Same rule as
+                # `candidates`: a row nobody scored is not a row that scored
+                # badly.
+                p["accept_note"] = ("no ink_before: not compared, nothing to "
+                                    "compare against")
+                noref += 1
+                continue
+            if verdict == _rf.ACCEPTED:
                 p.update({"status": "accepted",
                           "verified_by": _rf.VERIFIED_INK,
                           "at": _rf._now()})
@@ -20512,10 +20542,12 @@ def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
                 noimp += 1
         med = _median(deltas) if deltas else None
         data["accept"] = {"accepted": acc, "rejected_no_improvement": noimp,
-                          "median_delta": med, "at": _rf._now()}
+                          "no_reference": noref, "median_delta": med,
+                          "at": _rf._now()}
         _rf.save_changes(cp, data)
         out.append(
             f"accept: {acc} accepted, {noimp} rejected for no improvement"
+            + (f", {noref} left undecided for want of a reference" if noref else "")
             + (f"; median ink delta {med:+.1f}" if med is not None else ""))
 
     # ---------------- record ----------------------------------------------
