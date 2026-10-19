@@ -1112,3 +1112,39 @@ requests with four or more images. `cost_rank 0`, first for both page tasks.
 6. `glyphdrill` (under development, for large equations) replaces or complements
    this lane. The seam is `vision_router` — a provider entry and a task — and
    `linescmp` scores whatever it produces against the same references.
+
+### T-0026 follow-up — the OCR / born-digital pair, and the candidate pool
+
+The user's next ask: one good SCAN and one good BORN-DIGITAL document, read by
+both routes, to show progress in each direction and the remaining distance to
+MathPix. Both halves need a MathPix reading as the yardstick, so the pool is
+the library documents that hold one.
+
+Surveyed 2026-10-19 over all 1,607 held MathPix readings, restricted to 10-25
+pages and classified by how much text the PDF's own layer yields on pages 1-3
+(`pdftotext -f 1 -l 3`, under 200 characters = a scan): **620 candidates, of
+which 7 are scans and 613 are born-digital.** The scarce half is the OCR half:
+
+    10 pp  hilbert1902-foundations-math10   (already an example)
+    14 pp  penev_B
+    18 pp  US6100897A                       a patent
+    20 pp  UM-CS-1988-053                   a 1988 typewritten tech report
+    21 pp  groups
+    21 pp  844673279-LESSON-1-...           a chemistry lesson, 85 chars
+    22 pp  penev_A
+
+`penev_A` is the strongest OCR half: it is the document `footnote_extent` was
+measured on (45 of 45 same-page pairs; 48 printed footnotes that once gave 93
+objects), so it exercises the container class the lane copies hardest. A
+typewritten report (`UM-CS-1988-053`) would be the harder typography.
+
+For the born-digital half the choice is wide and should be made on content —
+tables plus display equations. Note the instrument already exists on that
+side: `conformance` (879) measures our born-digital reading against MathPix
+per line TYPE, and `linescmp` adds the geometry half. Running both on one
+document is the "distance to MathPix" the pair is meant to show.
+
+**What it costs:** the born-digital half is free (pdfminer). The OCR half
+needs a paid Gemma read of a document for which no Markdown is held — about
+0.016 EUR for 22 pages at the measured rate — so it is blocked only on
+`MAKORA_API_KEY` being present in `.env`, not on anything in the code.
