@@ -270,3 +270,69 @@ def test_whitening_nothing_returns_the_very_same_array():
     np = pytest.importorskip("numpy")
     gray = np.full((10, 10), 255, dtype="uint8")
     assert gr._whiten_array(gray, []) is gray
+
+
+# --------------------------------------------------------------------------- #
+#  A figure nobody wrote down
+# --------------------------------------------------------------------------- #
+
+def test_a_detected_figure_the_model_passed_over_still_gets_a_line():
+    """Once a figure is whitened before the read there is nothing on the page
+    for the model to transcribe, so saying nothing about it is the COMMON
+    case. MEASURED on penev_A: 1 of 14 `diagram` and 2 of 11 `chart`
+    reference lines boxed without this, 13 and 11 with it. A figure the
+    detector found and the reading does not mention is a hole nothing
+    downstream can see — `inspect` draws no box and `model` builds no object,
+    so the page looks complete and is not."""
+    items = [prose(), prose()]
+    placed = [gr.Placed(items[0], (100, 100, 900, 130), "ink"),
+              gr.Placed(items[1], (100, 700, 900, 730), "ink")]
+    assert gr.emit_figures(placed, [(120, 200, 880, 600)]) == 1
+    assert [p.item.type for p in placed] == ["text", "diagram", "text"]
+    fig = placed[1]
+    assert fig.box == (120, 200, 880, 600) and fig.geometry == "yolo"
+    assert fig.item.described is True and fig.item.text == ""
+
+
+def test_an_emitted_figure_goes_in_reading_order_not_at_the_end():
+    """`line` numbers a page top to bottom, and a reader sent to a figure
+    listed after the footnotes is being told something false."""
+    items = [prose(), prose(), prose()]
+    placed = [gr.Placed(items[0], (0, 100, 10, 130), "ink"),
+              gr.Placed(items[1], (0, 500, 10, 530), "ink"),
+              gr.Placed(items[2], (0, 900, 10, 930), "ink")]
+    gr.emit_figures(placed, [(0, 600, 10, 800), (0, 200, 10, 400)])
+    tops = [p.box[1] for p in placed]
+    assert tops == sorted(tops), tops
+
+
+def test_a_figure_below_everything_is_appended():
+    items = [prose()]
+    placed = [gr.Placed(items[0], (0, 100, 10, 130), "ink")]
+    gr.emit_figures(placed, [(0, 500, 10, 700)])
+    assert placed[-1].item.type == "diagram"
+
+
+def test_emitting_no_figures_changes_nothing():
+    items = [prose()]
+    placed = [gr.Placed(items[0], (0, 100, 10, 130), "ink")]
+    assert gr.emit_figures(placed, []) == 0
+    assert len(placed) == 1
+
+
+def test_an_emitted_figure_survives_page_lines_with_valid_ids():
+    """Insertion is safe only because every cross-reference between items is
+    an object reference and not an index; this is the test that holds that."""
+    kid = prose()
+    parent = Item("footnote", "", md="", children=[kid])
+    kid.parent = parent
+    placed = [gr.Placed(parent, (0, 800, 10, 860), "container"),
+              gr.Placed(kid, (0, 800, 10, 830), "ink")]
+    gr.emit_figures(placed, [(0, 100, 10, 300)])
+    lines = gr.page_lines(placed, 1)
+    assert [l["type"] for l in lines] == ["diagram", "footnote", "text"]
+    assert [l["line"] for l in lines] == [1, 2, 3]
+    by_id = {l["id"]: l for l in lines}
+    par = next(l for l in lines if l["type"] == "footnote")
+    assert par["children_ids"] and all(c in by_id for c in par["children_ids"])
+    assert by_id[par["children_ids"][0]]["parent_id"] == par["id"]

@@ -889,22 +889,23 @@ def _do_render(args):
 
 
 def _do_gemmaocr(args):
-    """pdfdrill gemmaocr <pdf> [--force] [--strips N] [--pages N-M]
-    [--nup auto|1|CxB] [--nup-order column|row] [--no-layout]
+    """pdfdrill gemmaocr <pdf> [--force] [--rebuild] [--strips N]
+    [--pages N-M] [--nup auto|1|CxB] [--nup-order column|row] [--no-layout]
     [--allow-download]"""
     from .commands import cmd_gemmaocr
     strips, args = _opt(args, "--strips")
     pages, args = _opt(args, "--pages")
     nup, args = _opt(args, "--nup")
     order, args = _opt(args, "--nup-order")
-    flags = {"--force", "--no-layout", "--allow-download"}
+    flags = {"--force", "--no-layout", "--allow-download", "--rebuild"}
     rest = [a for a in args if a not in flags]
     return cmd_gemmaocr(_pdf(rest), force="--force" in args,
                         strips=int(strips) if strips else 6,
                         pages=pages or "", nup=nup or "auto",
                         nup_order=order or "column",
                         no_layout="--no-layout" in args,
-                        allow_download="--allow-download" in args)
+                        allow_download="--allow-download" in args,
+                        rebuild="--rebuild" in args)
 
 
 def _do_yololayout(args):

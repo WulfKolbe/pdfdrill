@@ -3714,6 +3714,13 @@ commands:
     flag: --force
     type: flag
     help: re-read pages already on disk (SPENDS AGAIN)
+  - name: rebuild
+    flag: --rebuild
+    type: flag
+    help: 'assemble the lines.json again from the Markdown ALREADY READ and spend
+      nothing — refused if any printed page has none. The assembling half of the lane
+      is offline by design, so every change to the geometry, the types or the
+      containers can be re-measured against a reading already bought'
   - name: strips
     flag: --strips
     type: int

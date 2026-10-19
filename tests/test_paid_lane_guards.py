@@ -337,3 +337,45 @@ def test_a_missing_paid_prerequisite_names_the_cheaper_alternative(tmp_path):
     assert "mathpix (paid" in out
     assert "`pdfdrill gemmaocr`" in out
     assert "satisfies the same prerequisite" in out
+
+
+# --------------------------------------------------------------------------- #
+#  --rebuild: the free half of a paid lane, said out loud
+# --------------------------------------------------------------------------- #
+
+def test_rebuild_refuses_rather_than_buying_the_pages_it_is_missing(tmp_path,
+                                                                    monkeypatch):
+    """`--rebuild` means "assemble again from what has been bought". A rebuild
+    that quietly bought the missing pages would be the opposite of what it
+    says, and on a fixed prepayment that is the difference that matters: every
+    change to the geometry, the types or the containers wants re-measuring and
+    none of them should cost anything."""
+    from pathlib import Path
+
+    import pytest
+    from pdfdrill import gemma_reader as gr
+
+    pdf = tmp_path / "doc.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    monkeypatch.setattr(gr, "read_page",
+                        lambda *a, **k: pytest.fail("a rebuild must not spend"))
+
+    def fake_rasterize(path, out, pages=None, dpi=400, gray=True):
+        np = pytest.importorskip("numpy")
+        Image = pytest.importorskip("PIL.Image", reason="Pillow")
+        out = Path(out)
+        out.mkdir(parents=True, exist_ok=True)
+        dst = out / "page-0001.png"
+        Image.fromarray(np.full((80, 60), 255, dtype="uint8"),
+                        mode="L").save(dst)
+        return [dst]
+
+    from pdfdrill import pdf_reading
+    monkeypatch.setattr(pdf_reading, "rasterize", fake_rasterize)
+    monkeypatch.setattr(pdf_reading, "page_of", lambda p: 1)
+
+    with pytest.raises(gr.ReadRefused) as exc:
+        gr.fetch_gemma(pdf, rebuild=True, layout=False,
+                       blob_dir=tmp_path / "blob")
+    assert "--rebuild" in str(exc.value)
+    assert "SPENDS" in str(exc.value)

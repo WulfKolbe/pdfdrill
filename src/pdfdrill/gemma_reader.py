@@ -885,6 +885,43 @@ def place_by_order(placed: list[Placed], items: Sequence[Item],
     return n
 
 
+def emit_figures(placed: list[Placed], boxes: Sequence[Box]) -> int:
+    """Add a `diagram` line for each detected figure nobody wrote down.
+
+    `pagemd` already makes a `diagram` item when the model DESCRIBES a figure
+    (`[Graph ...]`, `[Figure ...]`), and those are matched to detector boxes by
+    `place_by_order`. What is left over is a figure the model passed over in
+    silence — which, once the figure is whitened before the read, is the
+    common case rather than the exception: there is nothing on the page for it
+    to transcribe.
+
+    MEASURED on penev_A: 1 of 14 `diagram` and 2 of 11 `chart` reference lines
+    boxed without this, against 13 and 11 by the reading this lane is being
+    held to. A figure the detector found and the reading does not mention is a
+    hole in the page that nothing downstream can see — `inspect` draws no box
+    there and `model` builds no object, so the page looks complete and is not.
+
+    Inserted IN READING ORDER rather than appended, because `line` numbers a
+    page top to bottom and a reader turning to a figure listed after the
+    footnotes is being told something false. Insertion is safe precisely
+    because every cross-reference between items is an object reference and
+    not an index.
+    """
+    added = 0
+    for box in boxes:
+        item = Item("diagram", "", md="", described=True)
+        entry = Placed(item, (int(box[0]), int(box[1]),
+                              int(box[2]), int(box[3])), "yolo")
+        at = len(placed)
+        for n, p in enumerate(placed):
+            if p.box is not None and p.box[1] > box[1]:
+                at = n
+                break
+        placed.insert(at, entry)
+        added += 1
+    return added
+
+
 def _whiten_array(gray, boxes: Sequence[Box], *, pad: int = 2):
     """A copy of `gray` with `boxes` filled with paper white.
 
@@ -952,9 +989,12 @@ def assemble_page(md: str, png: Optional[Path], page_no: int, *,
         # model described instead of transcribing.
         place_by_order(placed, items, yololayout.eqnum_boxes(dets),
                        types=("equation_number",), geometry="yolo")
-        place_by_order(placed, items, figures,
-                       types=("diagram", "table", "chart"), geometry="yolo")
+        used = place_by_order(placed, items, figures,
+                              types=("diagram", "table", "chart"),
+                              geometry="yolo")
     close_containers(placed, items)
+    if dets:
+        emit_figures(placed, figures[used:])
     missing = sum(1 for p in placed if p.box is None)
     return {
         "page": page_no,
@@ -1099,7 +1139,7 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
                 force: bool = False, strips: int = STRIPS,
                 blob_dir: Optional[Path] = None, nup: str = "auto",
                 nup_order: str = "column", layout: bool = True,
-                allow_download: bool = False) -> dict:
+                allow_download: bool = False, rebuild: bool = False) -> dict:
     """Read `pdf_path` with the model lane and write the outputs beside it.
 
     Returns `{"status": "cached"|"read", "files": {...}, "usage": {...}}` —
@@ -1112,7 +1152,7 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
     if not pdf_path.exists():
         raise FileNotFoundError(f"File not found: {pdf_path}")
     targets = expected_outputs(pdf_path)
-    if not force and is_gemma_lines(targets["lines.json"]):
+    if not force and not rebuild and is_gemma_lines(targets["lines.json"]):
         return {"status": "cached", "files": targets, "usage": {},
                 "provider": ""}
 
@@ -1185,9 +1225,21 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
     # the document.
     pending = [n for n in sorted(printed)
                if force or not (work / "printed" / f"page-{n:04d}.md").is_file()]
-    ok_pf, level_pf, msg_pf = read_preflight(len(pending))
-    if not ok_pf:
-        raise ReadRefused(msg_pf)
+    if rebuild and pending:
+        # `--rebuild` means "assemble again from what has been bought", and a
+        # rebuild that quietly bought the missing pages would be the opposite
+        # of what it says. The distinction matters on a fixed prepayment:
+        # every change to the geometry, the types or the containers wants to
+        # be re-measured, and none of them should cost anything.
+        raise ReadRefused(
+            f"--rebuild assembles from the Markdown already read, but "
+            f"{len(pending)} of {len(printed)} printed pages have none. "
+            f"Run without --rebuild to read them (that SPENDS), or with "
+            f"--pages to assemble a part of the document.")
+    if not rebuild:
+        ok_pf, level_pf, msg_pf = read_preflight(len(pending))
+        if not ok_pf:
+            raise ReadRefused(msg_pf)
 
     quads: list[tuple[int, str, Optional[Path], list]] = []
     usage = {"prompt_tokens": 0, "completion_tokens": 0, "pages": 0}
@@ -1232,7 +1284,8 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
         from . import callog
         callog.close_run(blob_dir, run_id, calls=usage["pages"],
                          outcome="read", extra=usage)
-    return {"status": "read", "files": targets, "usage": usage,
+    return {"status": "rebuilt" if rebuild else "read",
+            "files": targets, "usage": usage,
             "provider": provider, "nup": shape_kind,
             "printed_pages": len(amap), "layout": layout_note,
             "folios_ascending": [ok, cmp_pairs],

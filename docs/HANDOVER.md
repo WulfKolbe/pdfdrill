@@ -1276,3 +1276,53 @@ document's existing Markdown is carried over, so this upgrade re-buys nothing.
 Also fixed on the way: the cost preflight now runs INSIDE the lane, on the
 printed pages still to be read, not on the PDF's page count. For penev_A that
 is 88 and not 22, and for a resumed run it is only what is left to buy.
+
+### T-0026 follow-up (4) — penev_A re-read on the printed pages: 15% -> 88%
+
+The paid re-read, 88 printed pages, 363,642 tokens in / 77,188 out, estimated
+0.063 EUR. Scored with `linescmp` against the same MathPix reading; the POC's
+column is ITS output scored by the same instrument, not its own table.
+
+                                sheet read   printed-page read   POC
+    lines boxed at IoU>=0.5     474 (15%)    2,696 (88%)         2,740 (89%)
+    median IoU                  0.316        0.820               0.824
+    typed alike                 405          2,572               2,590
+    text                        439/2363     2,299/2363          2,306/2363
+    display math                5/116        110/116             110/116
+    equation numbers            3/116        112/116             112/116
+    diagrams                    0/14         13/14               13/14
+    charts                      0/11         11/11               11/11
+    footnotes                   3/28         22/28               19/28
+    words present               91.9%        93.5%               94.2%
+    words in order              71.2%        87.8%               88.0%
+
+Level with the POC on everything except THE TABLE OF CONTENTS: 49 of 79
+`table_of_contents_row` and 38 of 83 `table_of_contents_item` against 74 and
+48. Neither reader TYPES a contents list (0 of 79 typed alike for both), so it
+is a geometry gap on two sheets and it is the whole of the remaining point.
+That is the next thing to look at if this document is pushed further.
+
+`folios_ascending` is in the lines.json `ocr.nup` block and is the evidence
+that the reading order was right: every comparable adjacent pair ascends.
+
+Also added, because taking the four steps over required it and the gap was
+already recorded here: **`gemmaocr --rebuild`** assembles the lines.json again
+from the Markdown already read and spends nothing, refusing if any printed
+page has none. The assembling half of the lane is offline by design; without a
+verb for it, re-measuring a change to the geometry meant either editing a
+scratch script or re-buying the document.
+
+Example folder: `~/pdfdrill-examples/gemma-lane/penevA22/` (85 MB), with the
+previous sheet-level reading kept beside it as `penev_A.sheetread.lines.json`
+for the comparison. Inspector audited as the other four were: 1,280 elements,
+0 boxes outside their own page's frame, 0 missing, 24 zero-area, furthest edge
+0.999, no empty pages.
+
+STILL OPEN on this lane: `page_info` is 15 ours against 98 reference. Reading
+a single printed page, the model writes the folio as a bare line instead of
+the `<!-- page N | Head -->` furniture comment it emits for a sheet, so folios
+land as `text`. The detector's `abandon` class (running heads and folios) is
+already parsed and unused — retyping a line whose box sits inside an `abandon`
+box would fix it. It costs nothing in the score (page_info is excluded on both
+sides) and it is a type disagreement with MathPix, so it is honesty rather
+than accuracy.

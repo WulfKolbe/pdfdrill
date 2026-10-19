@@ -194,7 +194,7 @@ def cmd_mathpix(pdf: Path) -> str:
 def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
                  pages: str = "", nup: str = "auto",
                  nup_order: str = "column", no_layout: bool = False,
-                 allow_download: bool = False) -> str:
+                 allow_download: bool = False, rebuild: bool = False) -> str:
     """Read the PDF with the MODEL lane and write a MathPix-shaped lines.json.
 
     The same lane shape as `cmd_mathpix`, deliberately: the same two files
@@ -222,7 +222,7 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
     want = pdf_reading.parse_pages(pages) if pages else None
     cached = _gr.is_gemma_lines(_gr.expected_outputs(pdf)["lines.json"])
     warn = ""
-    if not cached or force:
+    if (not cached or force) and not rebuild:
         from . import probes
         probes.ensure(pdf, sc)
         n_pages = len(want) if want else probes.page_count(sc)
@@ -237,7 +237,8 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
         result = _gr.fetch_gemma(pdf, pages=want, force=force, strips=strips,
                                  blob_dir=sc.blob_dir, nup=nup,
                                  nup_order=nup_order, layout=not no_layout,
-                                 allow_download=allow_download)
+                                 allow_download=allow_download,
+                                 rebuild=rebuild)
     except NetworkBlocked as e:
         return str(e)
     except _gr.ReadRefused as e:
@@ -274,10 +275,17 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
     out = [warn.rstrip("\n")] if warn else []
     shape = result.get("nup") or "1-up"
     printed = result.get("printed_pages") or n_pages_read
-    out.append(
-        f"Read {printed} printed pages on {n_pages_read} sheets with "
-        f"{result.get('provider') or 'the model lane'}: {n_lines} lines -> "
-        f"{lines_path.name} (+ {Path(result['files']['md']).name}).")
+    if result["status"] == "rebuilt":
+        out.append(
+            f"Rebuilt from the Markdown already read — NOTHING SPENT. "
+            f"{printed} printed pages on {n_pages_read} sheets: {n_lines} "
+            f"lines -> {lines_path.name} "
+            f"(+ {Path(result['files']['md']).name}).")
+    else:
+        out.append(
+            f"Read {printed} printed pages on {n_pages_read} sheets with "
+            f"{result.get('provider') or 'the model lane'}: {n_lines} lines -> "
+            f"{lines_path.name} (+ {Path(result['files']['md']).name}).")
     if shape != "1-up":
         asc, pairs = result.get("folios_ascending") or [0, 0]
         folio = (f", folios ascend on {asc} of {pairs} adjacent pairs"
