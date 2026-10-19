@@ -425,15 +425,53 @@ def resolve_steps(target: str, pdf: Path) -> tuple[list[str], set[str]]:
     return plan(target, requires, sat), sat
 
 
+def equivalent_commands(manifest: dict) -> dict:
+    """Commands that satisfy the SAME `done_when` -> the set of them.
+
+    The prerequisite graph names a command (`requires: [mathpix]`) but the
+    condition it actually waits on is that command's `done_when` — and more
+    than one command can meet it. `mathpix` and `gemmaocr` both end with a
+    typed, geometry-bearing reading beside the PDF; either satisfies
+    `inspect`. Without this, a message about a missing prerequisite names
+    only the command the consumer happened to list.
+    """
+    by_cond: dict = {}
+    for c in manifest.get("commands", []):
+        cond = c.get("done_when")
+        if cond:
+            by_cond.setdefault(cond, set()).add(c["name"])
+    out: dict = {}
+    for names in by_cond.values():
+        for n in names:
+            out[n] = set(names)
+    return out
+
+
 def describe(target: str, pdf: Path) -> str:
     steps, sat = resolve_steps(target, pdf)
     prereqs = steps[:-1]
     if not prereqs:
         return (f"`{target}` for {pdf.name}: prerequisites satisfied "
                 f"({', '.join(sorted(sat)) or 'none required'}) — runs directly.")
-    paid = network_commands(load_manifest())
+    man = load_manifest()
+    paid = network_commands(man)
+    alts = equivalent_commands(man)
     def _tag(c):
-        return f"{c} (paid — run `pdfdrill {c}` yourself)" if c in paid else c
+        if c not in paid:
+            return c
+        other = sorted(alts.get(c, set()) - {c})
+        if other:
+            # NAME THE ALTERNATIVE. Two commands can satisfy one `done_when`
+            # — `mathpix` buys a typed reading and `gemmaocr` reads one with a
+            # model at about a fiftieth of the price — and a message that
+            # names only the first sends the operator to the dearer lane
+            # because it happens to be the one the consumer's `requires`
+            # mentions. `requires` names what a layer READS; which command
+            # produces it is the operator's choice.
+            return (f"{c} (paid — run `pdfdrill {c}` yourself; or "
+                    f"{', '.join('`pdfdrill %s`' % o for o in other)}, which "
+                    f"satisfies the same prerequisite)")
+        return f"{c} (paid — run `pdfdrill {c}` yourself)"
     return (f"`{target}` for {pdf.name} would run, in order:\n  "
             + " → ".join(f"{s}" for s in steps)
             + f"\n  (missing prerequisites: {', '.join(_tag(c) for c in prereqs)}; "

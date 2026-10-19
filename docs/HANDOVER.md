@@ -977,3 +977,138 @@ request file's `basis` and `author` on every row it keeps (`"basis":
 "inferred"`), while `ingest` honours them — 109 of 138 request rows were
 rewritten to `inferred` in one run. That is a decision about whose attribution
 wins, not a defect with one right answer.
+
+---
+
+## T-0026 — the model lane: a second reader that writes MathPix's file (2026-10-19)
+
+The user's decision: replace Tesseract with a Gemma-4 reading, and make the two
+lanes as alike as possible. `~/Gemma4` was the proof of concept; this is
+pdfdrill's own implementation of it, scored against MathPix's readings of the
+same pages.
+
+**The lane.** `gemmaocr` mirrors `mathpix` deliberately — the same two files
+under the same names beside the PDF (`<base>.lines.json`, `<base>.md`), the
+same `{status, files}` result, the same idempotence, the same refusal inside
+`no_paid_steps()`. Three stages, and only the middle one costs anything:
+
+    render    gs >= 400 dpi (pdf_reading.rasterize)       free, offline
+    read      page -> Markdown, via vision_router         PAID
+    assemble  Markdown + the page's ink -> lines.json     free, offline
+
+`assemble` is a separate public function because a 10 EUR account cannot fund a
+verification loop. Every number below was obtained from Markdown already on
+disk, at no cost.
+
+**Scored against MathPix** (`pdfdrill linescmp`, boxes normalised per page
+because the two readings are in different pixel frames — MathPix 1,220 x 1,880,
+this reader 1,952 x 3,008 for the same page):
+
+| document | reference lines | found at IoU>=0.5 | median IoU | typed alike |
+|---|---|---|---|---|
+| Killing 1889, 48 pp, bitonal | 1,694 | **1,581 (93%)** | **0.826** | 1,575/1,581 (100%) |
+| Hilbert 1902, 10 pp, greyscale | 306 | **250 (82%)** | **0.770** | 239/250 (96%) |
+
+Per type on Killing: text 1,379/1,434, math 150/193, equation_number 41/51,
+section_header 8/9, footnote 3/4. `model` builds **1,377 objects** from it
+(MathPix's reading gives 1,251, the POC's 1,332) with **4 Footnote objects on
+the right pages carrying bodies of 89/227/419/1,644 chars** — `footnote_adopted
+3`, `footnote_span_not_located 1`, and no duplicate-Footnote class.
+
+**The shapes that had to be copied exactly, each measured off a bought reading
+and each one a thing that silently does not work otherwise:**
+
+- A footnote is a CONTAINER: one `footnote` line with EMPTY text, `children_ids`,
+  region = the union, and the printed lines as `text` children carrying
+  `parent_id`. The first child's `text_display` opens `\footnotetext{` and the
+  last closes it. That wrapper is what `FootnoteProcessor` reads for the body —
+  0 bodies without it, 3 with. MathPix uses the same shape for `title`,
+  `authors` and `section_header`.
+- A two-line section heading (`§ 16.` then its title) is one container, 9 of 9
+  on the reference document.
+- A table is one `table` line carrying the whole `tabular` plus one
+  `simple_cell` per cell with its own tight box.
+- The folio and the running head are TWO `page_info` lines: they are printed at
+  opposite ends of one row, and one box spanning that row scores zero against
+  both while declaring a row of body text to be furniture.
+- `source` goes in the FIRST bytes of the file. `commands._lines_json_source`
+  reads only the head — "both producers emit `source` near the top" — so a
+  1.5 MB reading declaring its producer at the end declares it to nobody. The
+  lane's own cache check missed and it set out to buy a reading already on disk.
+
+**Geometry is by alignment, not by coordinates.** The model returns no boxes, so
+the items (printed lines, in order) are matched to the page's ink rows (in
+order) by a monotone DP: an item takes one row, or k consecutive rows
+(`MAX_ROWS_PROSE` 2, `MAX_ROWS_BLOCK` 12 — MathPix groups a multi-line display
+into one `math` line), or a row is skipped, or an item gets no row. A greedy
+1:1 walk is wrong in the case that matters: one mismatch early shifts every box
+after it, which is a crop of the wrong line with nothing in the output saying
+so — T-0024's defect arrived at from the other side.
+
+**Four measured constants, each from a failure:**
+
+| constant | what it fixes | measured |
+|---|---|---|
+| the MISS move in the DP | a page with more lines than ink rows was infeasible, so it placed NOTHING | 34 boxes of 311 before |
+| `rows(max_height=6*lh)` | a 97 x 3413 gutter band collapsed a page to one row | score 6% -> 42% |
+| `drop_scan_edges` + `drop_speck_rows` | border slivers joined text rows and stretched them to the page edge | 42% -> 73% |
+| `prune_row_outliers` (far AND small) | 1-2 px flecks in the outer margin, in clusters | 73% -> 82% |
+
+`prune_row_outliers` needs both conditions: far-and-large is an equation number
+(deliberately at the margin, 45 x 40 px, and its ink is needed to cut it out of
+the display's row), near-and-small is an `i` dot. Only far-and-small is nothing.
+It measures distance to the nearest LARGE component, because flecks arrive in
+pairs and peeling inwards stops at the first one.
+
+The equation-number split is the same lesson twice: taking a geometric fraction
+of the host box found **1 of 51**, because MathPix's number boxes are 3.6% of
+page width and one line tall while the display beside them is 27-54% wide and
+up to six rows tall. Cutting the host's own components at their widest gap
+finds 41, with the gap threshold in LINE HEIGHTS (the margin runs 70-204 px on
+pages of the same width, so a page-width threshold either misses the tight ones
+or starts cutting displays apart).
+
+**The budget is part of the design.** The account is a fixed prepayment: 10 EUR,
+0.28 spent over three days of POC testing. Measured from the POC's own
+`run.json` files — 390 pages billed, 1,711,193 tokens — that is **0.000718
+EUR/page**, so 9.72 EUR is ~13,500 pages, ~280 Killing-sized books, 0.41 EUR
+for the 576 remaining volume pages, and nowhere near the library's 11,989
+documents. When it empties the endpoint stops answering MID-DOCUMENT, so:
+
+- `gemmaocr` is declared `network: true` and estimates the read against
+  `PDFDRILL_OCR_BUDGET_EUR`, REFUSING rather than starting one it cannot finish;
+- `callog.log_call(usage=…)` records the provider's own token counts and
+  `pdfdrill spend <pdf>` adds them up — 447 kept every prompt, 466 made it
+  identifiable, neither recorded a number;
+- `commands._auto_run_offline_only(name)` makes the two places where a command
+  calls another directly (`cmd_model` and `cmd_visionocr` both reach for the
+  keyless OCR lane) ASSERT that the step is offline. The planner enforces
+  "declared, never auto-run" only for the steps it inserts; those two sites are
+  invisible to it, and they are where a free command silently becomes a bill the
+  moment an engine changes underneath.
+
+**Makora is its own provider**, not `NOVITA_API_BASE` pointed elsewhere: the key
+would be filed under a Novita name, and the hosts differ — Makora needs
+`{"reasoning_effort": "none"}` or it loops on an image prompt, and it hung on
+requests with four or more images. `cost_rank 0`, first for both page tasks.
+
+**Open, and for the owner:**
+
+1. `MAKORA_API_KEY` is not in pdfdrill's `.env` — only in `~/Gemma4/env.txt`.
+   One line (see `.env.example`), plus `PDFDRILL_OCR_BUDGET_EUR`.
+2. Novita's `gemma-4-26b-a4b-it` now answers a vision request with
+   `HTTP 400 "vision type image_url is not supported"`. That is the fallback
+   provider for both page tasks AND the route `snip --gemma` is documented on,
+   so Makora is currently the only working host for either.
+3. `ocr` is still declared offline, because its engine is still tesseract. The
+   flip to `network: true` belongs with the engine swap, and
+   `_auto_run_offline_only` is what makes forgetting it fail loudly.
+4. Not implemented: no YOLO, so a figure the model did not describe gets no
+   `diagram` box (3 such lines on the Hilbert pages), and `math_regions`
+   (inline formula boxes) is not produced — pdfdrill reads neither field today.
+5. Hilbert's 82% against Killing's 93% is the MODEL's reading, not the geometry:
+   it transcribed a ruled table as four display equations, so the reference's 15
+   `simple_cell` lines have no counterpart at all. Prompt work, not code.
+6. `glyphdrill` (under development, for large equations) replaces or complements
+   this lane. The seam is `vision_router` — a provider entry and a task — and
+   `linescmp` scores whatever it produces against the same references.

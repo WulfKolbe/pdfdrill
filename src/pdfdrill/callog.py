@@ -87,6 +87,7 @@ def log_call(blob_dir, run_id: str, *, prompt: str, system: str, reply: str,
              model: str = "", max_tokens=None, finish: str = "",
              error: str = "", seconds=None, images=(), subject: str = "",
              arm: str = "", prompt_name: str = "",
+             usage: dict | None = None, eur_per_page: float | None = None,
              extra: dict | None = None) -> None:
     """One call, VERBATIM. Appended immediately, never buffered.
 
@@ -119,6 +120,25 @@ def log_call(blob_dir, run_id: str, *, prompt: str, system: str, reply: str,
         "reply": reply,
         "images": [str(x) for x in (images or ())],
     }
+    # WHAT THE CALL COST. 447 kept every prompt and reply; 466 made the prompt
+    # identifiable. Neither recorded a number, and against a host whose
+    # account is a FIXED PREPAYMENT that is the one fact that matters: when it
+    # empties the endpoint stops answering mid-document. The provider's own
+    # `usage` is the only honest basis for the figure, so it is recorded
+    # verbatim and the estimate is kept beside it, clearly marked as an
+    # estimate — never instead of it.
+    if usage:
+        pt = usage.get("prompt_tokens")
+        ct = usage.get("completion_tokens")
+        rec["usage"] = {
+            "prompt_tokens": pt,
+            "completion_tokens": ct,
+            "total_tokens": usage.get("total_tokens")
+            or ((pt or 0) + (ct or 0) or None),
+        }
+        if eur_per_page is not None:
+            rec["usage"]["eur_estimate"] = round(eur_per_page, 6)
+            rec["usage"]["eur_estimate_basis"] = "measured per-page rate"
     if prompt_name:
         rec["prompt_name"] = prompt_name
         try:
@@ -146,6 +166,39 @@ def close_run(blob_dir, run_id: str, *, calls: int = 0,
     with p.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
     return p
+
+
+def spend(blob_dir) -> dict:
+    """What every logged call on this document has cost, from the logs.
+
+    The question a metered, fixed-prepayment account forces: not "is the key
+    set" but "how much is left, and what did this document consume". The
+    tokens are the provider's own `usage`; the EUR figure is the sum of the
+    per-call estimates and is labelled an estimate, because the authority on
+    a balance is the provider and never a local log.
+    """
+    out = {"calls": 0, "calls_with_usage": 0, "prompt_tokens": 0,
+           "completion_tokens": 0, "eur_estimate": 0.0, "by_model": {}}
+    for p in runs_for(blob_dir):
+        for rec in read_run(p):
+            if rec.get("kind") != "call":
+                continue
+            out["calls"] += 1
+            u = rec.get("usage") or {}
+            if not u:
+                continue
+            out["calls_with_usage"] += 1
+            out["prompt_tokens"] += u.get("prompt_tokens") or 0
+            out["completion_tokens"] += u.get("completion_tokens") or 0
+            out["eur_estimate"] += u.get("eur_estimate") or 0.0
+            m = out["by_model"].setdefault(
+                rec.get("model") or "?", {"calls": 0, "eur_estimate": 0.0})
+            m["calls"] += 1
+            m["eur_estimate"] += u.get("eur_estimate") or 0.0
+    out["eur_estimate"] = round(out["eur_estimate"], 6)
+    for m in out["by_model"].values():
+        m["eur_estimate"] = round(m["eur_estimate"], 6)
+    return out
 
 
 def read_run(path) -> list:
