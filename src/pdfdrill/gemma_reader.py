@@ -487,17 +487,35 @@ def split_cells(placed: list[Placed], items: Sequence[Item], *,
             continue
         head = shared.get(idx, idx)
         groups.setdefault(head, []).append(idx)
+    from .inkbox import union_box
     done = 0
     for head, members in groups.items():
         members = sorted(set(members) | {head})
         hp = placed[head]
         if hp.box is None or not hp.comps:
             continue
-        parts = split_into(hp.comps, len(members))
-        if parts is None:
+        # SPLIT INTO AS MANY CLUSTERS AS THERE ARE CELLS WITH CONTENT, not as
+        # many as there are cells. A printed table row has empty cells — a
+        # ditto mark column, a blank — and an empty cell deposits no ink, so
+        # asking the row's components for one cluster per cell asks for more
+        # clusters than the row has components and the split refuses.
+        # Measured on a 14-page document with 2,364 cells: 735 cells were
+        # left with no box at all because ONE empty cell in their row made the
+        # whole row unsplittable. An empty cell having no box is right; its
+        # neighbours losing theirs is not.
+        filled = [i for i in members if (placed[i].item.text or "").strip()]
+        if not filled:
             continue
-        from .inkbox import union_box
-        for idx, part in zip(members, parts):
+        parts = split_into(hp.comps, len(filled))
+        if parts is None:
+            # Still more cells than clusters: two cells' content merged into
+            # one component group, or a cell the model read that is not
+            # there. Give what ink there is to the cells in order and leave
+            # the rest boxless rather than box them wrongly.
+            parts = split_into(hp.comps, min(len(filled), len(hp.comps)))
+            if parts is None:
+                continue
+        for idx, part in zip(filled, parts):
             b = union_box(part)
             if b is None:
                 continue

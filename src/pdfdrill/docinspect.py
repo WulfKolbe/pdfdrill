@@ -276,6 +276,8 @@ def object_geometry(obj: dict, sidx: dict) -> tuple[Optional[int], Optional[dict
                            or obj.get("props", {}).get("page_number"))
     bbox: Optional[dict] = None
     texts: list[str] = []
+    #: Every anchor's (page, box), so the union can be taken over ONE page.
+    spans: list[tuple[Optional[int], Optional[dict]]] = []
 
     for rz in obj.get("realizations", []):
         if rz.get("stream") != "mathpix_lines":
@@ -292,13 +294,37 @@ def object_geometry(obj: dict, sidx: dict) -> tuple[Optional[int], Optional[dict
             i, j = j, i
         for aid in anchors[i : j + 1]:
             p = payload_of.get(aid, {})
-            box = _region_to_box(p.get("region") or {})
-            bbox = _union(bbox, box)
-            if page is None:
-                page = p.get("_page")
+            spans.append((p.get("_page"), _region_to_box(p.get("region") or {})))
             t = p.get("text") or p.get("text_display")
             if t:
                 texts.append(t)
+
+    # THE UNION IS TAKEN OVER ONE PAGE, NOT OVER THE REALIZATION.
+    #
+    # An object's realization is a RANGE of anchors, and a paragraph — with
+    # every inline Formula inside it — routinely runs across a page turn. The
+    # union of that whole range mixes two pages' coordinate frames, and the
+    # result is then drawn at `page`, which is one of them. On a scan, where
+    # each page has its own pixel size, the box visibly hangs off the edge:
+    # measured on a 20-page example, 14 Formula boxes, the worst reaching
+    # 1.135 of its page's width. On a born-digital document, where every page
+    # is the same size, it does not hang off — it is simply a box over the
+    # wrong part of the right-looking page, which is worse, because nothing
+    # in the picture says so.
+    #
+    # Every consumer of `bbox` assumes one page: the overlay filters
+    # `e.page === curPage`, and `cropBlob` cuts it out of that page's bitmap.
+    # So the box is the union of the anchors ON THE OBJECT'S OWN PAGE. The
+    # PREVIEW still joins all of them, because the text does span the turn —
+    # that part was never wrong.
+    if page is None:
+        page = next((pg for pg, _b in spans if pg is not None), None)
+    for pg, box in spans:
+        if box is None:
+            continue
+        if page is not None and pg is not None and pg != page:
+            continue
+        bbox = _union(bbox, box)
 
     if bbox is None:
         # image objects: region lives directly on props
