@@ -190,6 +190,148 @@ def cmd_mathpix(pdf: Path) -> str:
     return warn + _format_mathpix(result, files_meta) + note
 
 
+@_writes("gemmaocr")
+def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
+                 pages: str = "") -> str:
+    """Read the PDF with the MODEL lane and write a MathPix-shaped lines.json.
+
+    The same lane shape as `cmd_mathpix`, deliberately: the same two files
+    under the same names beside the PDF (`<base>.lines.json`, `<base>.md`),
+    the same `{status, files}` result, the same idempotence (outputs on disk
+    cost nothing — delete them or pass --force to re-read), and the same
+    refusal inside `no_paid_steps()`. What differs is the top-level `source`,
+    which says the reading was not bought.
+
+    PAID AND METERED. The provider is a fixed prepayment, not a subscription:
+    when the balance empties the endpoint stops answering mid-document, and a
+    half-read document is worse than an unread one. So the cost is estimated
+    and REFUSED against `PDFDRILL_OCR_BUDGET_EUR` before the first call, and
+    every call's own `usage` goes to the call log — `pdfdrill spend <pdf>`
+    reads it back.
+    """
+    if paid_blocked():
+        return (f"gemmaocr NOT run for {pdf.name}: reached from an "
+                f"auto-inserted prerequisite, where paid steps never run. "
+                f"Run it explicitly:\n  pdfdrill gemmaocr {pdf.name}")
+    from . import gemma_reader as _gr, pdf_reading
+    from .net import NetworkBlocked
+
+    sc = Sidecar(pdf)
+    want = pdf_reading.parse_pages(pages) if pages else None
+    cached = _gr.is_gemma_lines(_gr.expected_outputs(pdf)["lines.json"])
+    warn = ""
+    if not cached or force:
+        from . import probes
+        probes.ensure(pdf, sc)
+        n_pages = len(want) if want else probes.page_count(sc)
+        ok, level, msg = _gr.read_preflight(n_pages)
+        if not ok:
+            return f"Model-lane read refused — {msg}"
+        if level == "warn":
+            warn = f"\u26a0 {msg}\n"
+
+    t0 = time.monotonic()
+    try:
+        result = _gr.fetch_gemma(pdf, pages=want, force=force, strips=strips,
+                                 blob_dir=sc.blob_dir)
+    except NetworkBlocked as e:
+        return str(e)
+    except _gr.ReadRefused as e:
+        return (f"Model-lane read refused before spending: {e}\n"
+                f"(`pdfdrill doctor` lists which providers have keys.)")
+    except Exception as e:
+        return (f"Model-lane read failed: {e}\nThe pages already read are "
+                f"kept under .drill/gemmaocr/ and a rerun resumes from them.")
+
+    lines_path = Path(result["files"]["lines.json"])
+    n_lines = 0
+    n_pages_read = 0
+    try:
+        data = json.loads(lines_path.read_text(encoding="utf-8"))
+        n_pages_read = len(data.get("pages") or [])
+        n_lines = sum(len(p.get("lines") or []) for p in data["pages"])
+    except (OSError, ValueError, KeyError):
+        pass
+    sc.set_evidence("gemmaocr_lines", n_lines)
+    sc.set_evidence("gemmaocr_provider", result.get("provider") or "")
+    sc.set_evidence("gemmaocr_usage", result.get("usage") or {})
+    prev = ",".join(sorted(sc.facts - {MATHPIX_KNOWN})) or "INIT"
+    sc.add_fact(MATHPIX_KNOWN)
+    sc.log_transition("gemmaocr", prev, MATHPIX_KNOWN,
+                      cost_ms=(time.monotonic() - t0) * 1000,
+                      detail=result["status"])
+    sc.save()
+    if result["status"] == "cached":
+        return (warn + f"Model-lane reading already present for {pdf.name}: "
+                f"{n_lines} lines on {n_pages_read} pages "
+                f"({lines_path.name}). --force re-reads (and re-spends).")
+    u = result.get("usage") or {}
+    spent = u.get("pages", 0) * _gr.EUR_PER_PAGE
+    return (warn
+            + f"Read {n_pages_read} pages with {result.get('provider') or 'the model lane'}: "
+            f"{n_lines} lines -> {lines_path.name} (+ {Path(result['files']['md']).name}).\n"
+            f"  tokens {u.get('prompt_tokens', 0):,} in / "
+            f"{u.get('completion_tokens', 0):,} out over {u.get('pages', 0)} pages"
+            f" — estimated {spent:.4f} EUR (`pdfdrill spend {pdf.name}` for the log).\n"
+            f"Next: build the unified model from lines.json (pdfdrill model).")
+
+
+def cmd_linescmp(pdf: Path, reference: str = "") -> str:
+    """Score this document's lines.json against ANOTHER reading of it.
+
+    The acceptance test for any new reader, and it costs nothing: MathPix's
+    reading of the same pages already exists for every document that was ever
+    bought, and its geometry is exactly what a language model does not return.
+    `--reference` names the other lines.json; without it, a parked MathPix
+    backup beside the PDF is used.
+    """
+    from . import linescmp as _lc
+    ours = Path(f"{str(pdf)[:-4] if str(pdf).lower().endswith('.pdf') else pdf}"
+                f".lines.json")
+    if not ours.is_file():
+        return (f"No lines.json beside {pdf.name} — run `pdfdrill mathpix` or "
+                f"`pdfdrill gemmaocr` first.")
+    if reference:
+        ref = Path(reference)
+    else:
+        cands = sorted(pdf.parent.glob("*.mathpix.bak.json"))
+        if not cands:
+            return (f"No reference reading given and none parked beside "
+                    f"{pdf.name}. Pass --reference <other.lines.json>.")
+        ref = cands[0]
+    if not ref.is_file():
+        return f"Reference reading not found: {ref}"
+    res = _lc.compare_files(ours, ref)
+    if not res["pages"]:
+        return (f"{ours.name} and {ref.name} have no page numbers in common — "
+                f"are they readings of the same document?")
+    return _lc.report(res, ours_name=ours.name, theirs_name=ref.name)
+
+
+def cmd_spend(pdf: Path) -> str:
+    """What the paid calls on this document have cost, from the call log."""
+    from . import callog
+    sc = Sidecar(pdf)
+    s = callog.spend(sc.blob_dir)
+    if not s["calls"]:
+        return f"No logged model calls for {pdf.name}."
+    lines = [f"{pdf.name}: {s['calls']} logged calls, "
+             f"{s['calls_with_usage']} carrying provider usage",
+             f"  tokens     {s['prompt_tokens']:,} in / "
+             f"{s['completion_tokens']:,} out",
+             f"  estimated  {s['eur_estimate']:.4f} EUR "
+             f"(an estimate from the measured per-page rate; the provider's "
+             f"dashboard is the authority on the balance)"]
+    for m, v in sorted(s["by_model"].items()):
+        lines.append(f"    {m:40} {v['calls']:4} calls  "
+                     f"{v['eur_estimate']:.4f} EUR")
+    if s["calls_with_usage"] < s["calls"]:
+        lines.append(f"  {s['calls'] - s['calls_with_usage']} call(s) carry no "
+                     f"usage — a provider that reports none, or a call logged "
+                     f"before usage was recorded.")
+    return "\n".join(lines)
+
+
 def _format_mathpix(result: dict, files_meta: list[dict]) -> str:
     verb = "Already present" if result["status"] == "cached" else "Downloaded"
     lines = []
@@ -542,7 +684,17 @@ def _is_mathpix_lines(lines_path: Path) -> bool:
 #: construction (`_KEYLESS_TEXTONLY_SOURCES`) and their regions are PDF POINTS,
 #: not page pixels, so admitting them would hand a consumer coordinates in the
 #: wrong frame. The type test is necessary and not sufficient; both are checked.
-_TYPED_GEOMETRY_SOURCES = ("", "mathpix", "pdfminer-docmodel", "pdf2mmd2")
+#: 2026-10-19, the user's decision: `gemma4-ink-yolo` is admitted. It is the
+#: reader in `gemma_reader` (and the `~/Gemma4` pipeline it was built from):
+#: MathPix's line types, regions in PAGE PIXELS with the page's pixel size
+#: declared beside them, measured from the page's own ink. Both halves of the
+#: gate's question are therefore yes, and the consequence of leaving it out
+#: was that `steps inspect` demanded a paid MathPix run to satisfy a
+#: prerequisite the reading already satisfied. Admitting it is NOT a claim
+#: that the reading was bought: `_is_mathpix_lines` still answers no, which is
+#: what the four money-spending call sites ask.
+_TYPED_GEOMETRY_SOURCES = ("", "mathpix", "pdfminer-docmodel", "pdf2mmd2",
+                           "gemma4-ink-yolo")
 
 
 def _is_typed_geometry_lines(lines_path: Path) -> bool:
@@ -1178,6 +1330,36 @@ def no_paid_steps():
         _NO_PAID.reset(tok)
 
 
+def _auto_run_offline_only(name: str) -> None:
+    """Refuse to AUTO-RUN a command the manifest declares network/paid.
+
+    The rule "a paid step is declared and never auto-run" is enforced by the
+    planner for the steps IT inserts (`planner.network_commands`). It is not
+    enforced for the handful of places where one command calls another
+    directly, and those are the dangerous ones precisely because they are
+    invisible to the planner: `cmd_model` calls the keyless OCR lane itself
+    when a scan has no reading, and `cmd_visionocr` does the same to get a
+    prose layer to fold its equations into.
+
+    Today both call `ocr`, which is tesseract and free. The moment that
+    engine becomes a model behind a metered account, those two call sites
+    turn `pdfdrill model` — a free command — into a bill, with nothing in the
+    code saying so. This asserts the invariant at the call site instead of
+    trusting it: an auto-call to a command declared `network: true` raises,
+    and `test_auto_fallbacks_are_offline` holds every such site to it.
+    """
+    try:
+        from .planner import load_manifest, network_commands
+        paid = network_commands(load_manifest())
+    except Exception:
+        return                          # a manifest we cannot read gates nothing
+    if name in paid:
+        raise RuntimeError(
+            "refusing to AUTO-RUN the paid step %r: a command that spends "
+            "money is named for the operator to run, never inserted for "
+            "them (`pdfdrill %s <pdf>`)." % (name, name))
+
+
 def paid_blocked() -> bool:
     return _NO_PAID.get()
 
@@ -1681,6 +1863,8 @@ def cmd_doctor() -> str:
     lines.append("API keys (env / .env; only needed for the named routes):")
     for var, route in [("MATHPIX_APP_ID", "mathpix/model"), ("MATHPIX_APP_KEY", "mathpix/snip"),
                        ("OPENAI_API_KEY", "vision"), ("NOVITA_API_KEY", "snip --gemma / route (Gemma-4)"),
+                       ("MAKORA_API_KEY", "gemmaocr (Gemma-4, METERED prepayment — "
+                                          "set PDFDRILL_OCR_BUDGET_EUR too)"),
                        ("PERPLEXITY_API_KEY", "bibfetch"), ("DEEPL_API_KEY", "translate")]:
         lines.append(f"  [{'set ' if get(var) else 'unset'}] {var:<18} — {route}")
 
@@ -5684,6 +5868,7 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
                     return built
                 from .ocr_lines import tools_available
                 if tools_available()[0]:
+                    _auto_run_offline_only("ocr")
                     cmd_ocr(pdf)
             sc = Sidecar(pdf)
     if not lines_path.exists():
@@ -10069,6 +10254,7 @@ def cmd_visionocr(pdf: Path, ingest: str | None = None, dpi: int = 200,
     if not lines_path.exists():
         from .ocr_lines import tools_available
         if tools_available()[0]:
+            _auto_run_offline_only("ocr")
             cmd_ocr(pdf)                      # build the prose layer first
         if not lines_path.exists():
             return (f"visionocr needs a prose lines.json for {pdf.name} — run "

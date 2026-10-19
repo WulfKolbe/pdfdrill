@@ -3683,12 +3683,80 @@ commands:
     flag: --force
     type: flag
   typed: true
-- name: visionocr
+- name: gemmaocr
+  network: true
   section: OCR / model pipeline
-  summary: 'Keyless agent-delegated EQUATION OCR: rasterize each page → the running Claude reads the math →
+  summary: 'Read a scan with the MODEL lane (Gemma-4 on Makora/Novita) and write a
+    MathPix-shaped lines.json beside the PDF — the same two files under the same names
+    as `mathpix`, with top-level source "gemma4-ink-yolo" saying it was not bought.
+    Geometry is measured from the page''s own ink at >=400 dpi; types, containers and
+    text_display follow MathPix exactly, so `model`/`inspect` and every projector
+    read it without knowing which reader ran. PAID AND METERED: the estimate is
+    refused against PDFDRILL_OCR_BUDGET_EUR before the first call, every call''s usage
+    goes to the call log (`pdfdrill spend`), and outputs on disk cost nothing (--force
+    re-reads and re-spends).'
+  done_when: lines:typed-geometry
+  max_concurrency: 1
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: force
+    flag: --force
+    type: flag
+    help: re-read pages already on disk (SPENDS AGAIN)
+  - name: strips
+    flag: --strips
+    type: int
+    default: 6
+    help: horizontal strips per page (10 for dense or tabular pages); a host scales
+      each image to a fixed token budget, so strips and not dpi add detail
+  - name: pages
+    flag: --pages
+    type: pages
+    help: N | N-M | all (default all)
+  typed: true
+- name: linescmp
+  section: Introspection (fast, no extraction)
+  summary: 'Score this document''s lines.json against ANOTHER reading of the same
+    pages — per reference line, whether we found it at IoU>=0.5, the median IoU, type
+    agreement, and our boxes that match nothing. The acceptance test for a reader,
+    and it costs nothing; boxes are normalised per page, so two readings at different
+    resolutions compare. Complements `conformance`, which compares type DISTRIBUTIONS
+    and declines the alignment: that one says what a reading is missing, this says
+    whether what it has is in the right place.'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: reference
+    flag: --reference
+    type: str
+    help: 'the other lines.json; default: a *.mathpix.bak.json parked beside the PDF'
+  typed: true
+- name: spend
+  section: Introspection (fast, no extraction)
+  summary: 'What this document''s paid model calls have cost, read back from the call
+    log — provider usage per call, tokens, and the EUR estimate. The provider''s own
+    dashboard stays the authority on the remaining balance.'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+- name: visionocr
+  network: true
+  section: OCR / model pipeline
+  summary: 'PAID WHEN KEYED, keyless otherwise — agent-delegated EQUATION OCR: rasterize each page → the running Claude reads the math →
     fold {page,number,latex,kind} records into the lines.json as real Equation nodes (number paired by
     geometry). The keyless math route when tesseract built a doc prose-only (NEEDS_VISION_OCR)'
-  offline_ok: true
   positionals:
   - name: pdf
     type: pdf

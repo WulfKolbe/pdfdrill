@@ -888,6 +888,30 @@ def _do_render(args):
     return cmd_render(_pdf(pdf_args), force=force)
 
 
+def _do_gemmaocr(args):
+    """pdfdrill gemmaocr <pdf> [--force] [--strips N] [--pages N-M]"""
+    from .commands import cmd_gemmaocr
+    strips, args = _opt(args, "--strips")
+    pages, args = _opt(args, "--pages")
+    rest = [a for a in args if a != "--force"]
+    return cmd_gemmaocr(_pdf(rest), force="--force" in args,
+                        strips=int(strips) if strips else 6,
+                        pages=pages or "")
+
+
+def _do_linescmp(args):
+    """pdfdrill linescmp <pdf> [--reference other.lines.json]"""
+    from .commands import cmd_linescmp
+    ref, args = _opt(args, "--reference")
+    return cmd_linescmp(_pdf(args), reference=ref or "")
+
+
+def _do_spend(args):
+    """pdfdrill spend <pdf>"""
+    from .commands import cmd_spend
+    return cmd_spend(_pdf(args))
+
+
 def _do_mathpix(args):
     """pdfdrill mathpix <pdf>  (runs when asked; --force retired — delete the
     downloaded outputs to re-OCR; a stray --force is accepted and ignored)"""
@@ -2714,6 +2738,9 @@ HANDLERS = {
         "tsv": _do_tsv,
         "render": _do_render,
         "mathpix": _do_mathpix,
+        "gemmaocr": _do_gemmaocr,
+        "linescmp": _do_linescmp,
+        "spend": _do_spend,
         "ocr": _do_ocr,
         "continuity": _do_continuity,
         "pageside": _do_pageside,
