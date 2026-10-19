@@ -1148,3 +1148,58 @@ document is the "distance to MathPix" the pair is meant to show.
 needs a paid Gemma read of a document for which no Markdown is held — about
 0.016 EUR for 22 pages at the measured rate — so it is blocked only on
 `MAKORA_API_KEY` being present in `.env`, not on anything in the code.
+
+### T-0026 follow-up (2) — penev_A is a 4-UP SCAN, and the lane assumes 1-up
+
+`penev_A` was chosen as the OCR half and read: 22 sheets, 3,007 lines, 0.0158
+EUR on Makora (86,730 in / 67,927 out, 10 min). MEASURED against the held
+MathPix reading of the same 22 sheets:
+
+    transcription   89.4% of MathPix's words present   (as a bag of words)
+    reading order   71.2% of them in the same order    (LCS over words)
+    geometry        474/3,080 lines at IoU>=0.5 (15%), median IoU 0.316
+    typed alike     405/474 (85%)
+
+The 18-point gap between the bag and the sequence is the whole finding: the
+words are THERE and in the wrong order. One fact explains both that gap and
+the geometry, and it is a property of the document:
+
+**each PDF sheet carries two to four printed book pages, side by side and
+stacked.** MathPix types them `column` (2 per sheet typically, 4 on sheets 4
+and 9) and its `page_info` folios say it outright — sheet 2 carries `iv`, `v`,
+`vi`, `vii`; sheet 8 carries `19`, `20`, `21`, `22`. 22 sheets, ~88 printed
+pages.
+
+The lane assumes ONE printed page per sheet, at both stages:
+
+- the PAID stage cuts the sheet into six FULL-WIDTH horizontal strips, so every
+  strip spans all of the sheet's printed pages and the model has to choose an
+  order within it. It chooses sensibly (it emits `<!-- page 9 | -->` furniture
+  comments and the folios at the right places) but the choice is per strip
+  chunk, so the sheet's pages interleave at chunk boundaries — measured on
+  sheet 5, our first 43 lines are the left page's first 43 in order, then the
+  folio `7`, then the next printed page, while MathPix reads all 59 of the left
+  page first.
+- the FREE stage (`align`) is a monotone matching of ONE item sequence against
+  full-width ink rows. On a 4-up sheet four printed pages share every ink row,
+  so the matching is not merely inaccurate, it is describing the wrong object.
+  Measured on sheet 5: 81 ink rows for 144 items, rows spanning 317 px where
+  the line pitch is 48, and boxes landing on every fourth item.
+
+So the geometry number is not a tuning failure and no threshold reaches it. The
+missing capability is **n-up sheet segmentation**: split the sheet's ink into
+its printed-page blocks (vertical gutter, then horizontal band), then strip
+WITHIN a block and align WITHIN a block. That fixes the order and the geometry
+together, and it changes the paid stage, so it costs one fresh read (0.016 EUR).
+
+Not every candidate has this shape. Columns per sheet over the seven scans:
+`UM-CS-1988-053` 0 on all 20 sheets and `groups` 0 on all 21 — single printed
+page per sheet, the shape the lane is built for. `penev_B` is 2-up on 10 of 14,
+`US6100897A` mixed, `hilbert1902` 1-up (which is why it scored 82%).
+
+Also exposed, and worth fixing whatever is decided: `--force` re-READS every
+page, so there is no way to EXTEND a reading to more pages without re-buying
+the pages already on disk. The per-page Markdown cache under
+`.drill/gemmaocr/page-NNNN.md` already makes the data available; what is
+missing is a flag that means "top up", not "redo". On a metered prepayment that
+distinction is the one that matters.
