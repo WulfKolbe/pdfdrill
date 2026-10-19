@@ -192,7 +192,9 @@ def cmd_mathpix(pdf: Path) -> str:
 
 @_writes("gemmaocr")
 def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
-                 pages: str = "") -> str:
+                 pages: str = "", nup: str = "auto",
+                 nup_order: str = "column", no_layout: bool = False,
+                 allow_download: bool = False) -> str:
     """Read the PDF with the MODEL lane and write a MathPix-shaped lines.json.
 
     The same lane shape as `cmd_mathpix`, deliberately: the same two files
@@ -233,7 +235,9 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
     t0 = time.monotonic()
     try:
         result = _gr.fetch_gemma(pdf, pages=want, force=force, strips=strips,
-                                 blob_dir=sc.blob_dir)
+                                 blob_dir=sc.blob_dir, nup=nup,
+                                 nup_order=nup_order, layout=not no_layout,
+                                 allow_download=allow_download)
     except NetworkBlocked as e:
         return str(e)
     except _gr.ReadRefused as e:
@@ -267,13 +271,87 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
                 f"({lines_path.name}). --force re-reads (and re-spends).")
     u = result.get("usage") or {}
     spent = u.get("pages", 0) * _gr.EUR_PER_PAGE
-    return (warn
-            + f"Read {n_pages_read} pages with {result.get('provider') or 'the model lane'}: "
-            f"{n_lines} lines -> {lines_path.name} (+ {Path(result['files']['md']).name}).\n"
-            f"  tokens {u.get('prompt_tokens', 0):,} in / "
-            f"{u.get('completion_tokens', 0):,} out over {u.get('pages', 0)} pages"
-            f" — estimated {spent:.4f} EUR (`pdfdrill spend {pdf.name}` for the log).\n"
-            f"Next: build the unified model from lines.json (pdfdrill model).")
+    out = [warn.rstrip("\n")] if warn else []
+    shape = result.get("nup") or "1-up"
+    printed = result.get("printed_pages") or n_pages_read
+    out.append(
+        f"Read {printed} printed pages on {n_pages_read} sheets with "
+        f"{result.get('provider') or 'the model lane'}: {n_lines} lines -> "
+        f"{lines_path.name} (+ {Path(result['files']['md']).name}).")
+    if shape != "1-up":
+        asc, pairs = result.get("folios_ascending") or [0, 0]
+        folio = (f", folios ascend on {asc} of {pairs} adjacent pairs"
+                 if pairs else "")
+        out.append(f"  imposition {shape}: each sheet carries "
+                   f"{printed // max(1, n_pages_read)} printed pages{folio}.")
+    if result.get("layout"):
+        out.append(f"  {result['layout']}")
+    st = result.get("sanitize") or {}
+    if st:
+        out.append(f"  sanitized: {st.get('boxes_changed', 0)} boxes tightened, "
+                   f"{st.get('components_grown', 0)} stray components claimed, "
+                   f"{st.get('no_ink', 0)} lines with no ink in their box")
+    out.append(f"  tokens {u.get('prompt_tokens', 0):,} in / "
+               f"{u.get('completion_tokens', 0):,} out over "
+               f"{u.get('pages', 0)} printed pages"
+               f" — estimated {spent:.4f} EUR "
+               f"(`pdfdrill spend {pdf.name}` for the log).")
+    out.append("Next: build the unified model from lines.json (pdfdrill model).")
+    return "\n".join(out)
+
+
+def cmd_yololayout(pdf: Path, force: bool = False, pages: str = "",
+                   allow_download: bool = False) -> str:
+    """Detect page layout and cache one TSV per page. OFFLINE and free.
+
+    The detectors run in a separate interpreter because they are torch, which
+    pdfdrill's own environment does not carry and should not: this is an
+    external tool, wrapped the way poppler and ghostscript are. A machine
+    without it gets a named refusal and every other command still works — the
+    model lane simply aligns without anchors, which is what it did before.
+    """
+    from . import nup as _nup, pdf_reading, yololayout as _yolo
+    sc = Sidecar(pdf)
+    want = pdf_reading.parse_pages(pages) if pages else None
+    work = sc.blob_dir / "gemmaocr"
+    sheets = pdf_reading.rasterize(pdf, work / "pages",
+                                   pages=list(want) if want else None,
+                                   dpi=400, gray=True)
+    by_no = {pdf_reading.page_of(p): p for p in sheets}
+    amap = _nup.split([(n, by_no[n]) for n in sorted(k for k in by_no
+                                                     if k is not None)],
+                      work / "printed")
+    printed = [work / "printed" / f"page-{int(k):04d}.png"
+               for k in sorted(amap, key=lambda v: int(v))]
+    try:
+        info = _yolo.detect(printed, work / "yolo", force=force,
+                            allow_download=allow_download)
+    except _yolo.DetectorMissing as exc:
+        return f"Page layout detection unavailable: {exc}"
+
+    tally: dict[str, int] = {}
+    anchors = eqnums = figs = inline = 0
+    for png in printed:
+        dets = _yolo.load_for(work / "yolo", png)
+        for d in dets:
+            tally[d.cls] = tally.get(d.cls, 0) + 1
+        anchors += len(_yolo.display_boxes(dets))
+        eqnums += len(_yolo.eqnum_boxes(dets))
+        figs += len(_yolo.figure_boxes(dets))
+        inline += len(_yolo.inline_boxes(dets))
+    sc.set_evidence("yolo_pages", len(printed))
+    sc.set_evidence("yolo_classes", tally)
+    sc.save()
+    shape = next(iter({m["kind"] for m in amap.values()}), "1-up")
+    top = ", ".join(f"{k} {v}" for k, v in
+                    sorted(tally.items(), key=lambda kv: -kv[1])[:10])
+    return (f"Layout detected on {len(printed)} printed pages "
+            f"({shape}, {info['ran']} run, {info['cached']} cached) -> "
+            f"{work / 'yolo'}\n"
+            f"  {anchors} display formulas, {eqnums} equation numbers, "
+            f"{figs} figures/tables, {inline} inline formulas\n"
+            f"  classes: {top}\n"
+            f"Next: pdfdrill gemmaocr <pdf> uses these as alignment anchors.")
 
 
 def cmd_linescmp(pdf: Path, reference: str = "") -> str:
@@ -1867,6 +1945,19 @@ def cmd_doctor() -> str:
                                           "set PDFDRILL_OCR_BUDGET_EUR too)"),
                        ("PERPLEXITY_API_KEY", "bibfetch"), ("DEEPL_API_KEY", "translate")]:
         lines.append(f"  [{'set ' if get(var) else 'unset'}] {var:<18} — {route}")
+
+    # The layout detector is a TOOL and not a key: torch in its own
+    # interpreter, like poppler and ghostscript, so it belongs with them and
+    # not with the credentials.
+    lines.append("")
+    lines.append("External detectors:")
+    try:
+        from . import yololayout as _yolo
+        lines.append(f"  [{'OK ' if _yolo.available() else 'n/a'}] page layout "
+                     f"(`pdfdrill yololayout`) — display formula, equation "
+                     f"number and figure boxes; {_yolo.describe()}")
+    except Exception as exc:                            # pragma: no cover
+        lines.append(f"  [n/a] page layout — {exc}")
 
     # Math-OCR routes — which path types equations, given what's available.
     lines.append("")

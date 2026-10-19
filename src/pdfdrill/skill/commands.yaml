@@ -3689,12 +3689,19 @@ commands:
   summary: 'Read a scan with the MODEL lane (Gemma-4 on Makora/Novita) and write a
     MathPix-shaped lines.json beside the PDF — the same two files under the same names
     as `mathpix`, with top-level source "gemma4-ink-yolo" saying it was not bought.
-    Geometry is measured from the page''s own ink at >=400 dpi; types, containers and
-    text_display follow MathPix exactly, so `model`/`inspect` and every projector
-    read it without knowing which reader ran. PAID AND METERED: the estimate is
-    refused against PDFDRILL_OCR_BUDGET_EUR before the first call, every call''s usage
-    goes to the call log (`pdfdrill spend`), and outputs on disk cost nothing (--force
-    re-reads and re-spends).'
+    Five stages, one of which costs money: SPLIT each sheet into the printed pages on
+    it (`--nup`; a sheet is not always a page), DETECT the layout (`yololayout`,
+    offline), WHITEN the figures so the model stops transcribing a picture, READ each
+    printed page in strips (PAID), then ASSEMBLE — the detector''s display boxes
+    anchor the ink alignment, the reading comes back to SHEET coordinates because
+    `page` indexes the PDF''s own pages everywhere downstream, and one last pass
+    repairs every box against the page''s ink. Types, containers and text_display
+    follow MathPix exactly, so `model`/`inspect` and every projector read it without
+    knowing which reader ran. PAID AND METERED: the estimate is refused against
+    PDFDRILL_OCR_BUDGET_EUR before the first call — counted in PRINTED pages still to
+    be read, which for a 2x2 sheet is four times the PDF''s page count — every call''s
+    usage goes to the call log (`pdfdrill spend`), and pages already on disk cost
+    nothing (--force re-reads and re-spends).'
   done_when: lines:typed-geometry
   max_concurrency: 1
   positionals:
@@ -3717,6 +3724,65 @@ commands:
     flag: --pages
     type: pages
     help: N | N-M | all (default all)
+  - name: nup
+    flag: --nup
+    type: str
+    default: auto
+    help: 'sheets carrying several printed pages: auto | 1 | CxB (columns x bands,
+      e.g. 2x2). A sheet is not always a printed page — penev_A is a thesis
+      photographed four pages to a sheet — and a reading made on the sheet cannot
+      be repaired into one made on the page'
+  - name: nup-order
+    flag: --nup-order
+    type: str
+    default: column
+    help: 'reading order within an n-up sheet: column (finish a column before moving
+      right — the duplex imposition) or row. The folios in the result say whether the
+      choice was right'
+  - name: no-layout
+    flag: --no-layout
+    type: flag
+    help: skip the page layout detector, so display formulas, equation numbers and
+      figures get no boxes of their own and the ink alignment runs unanchored
+  - name: allow-download
+    flag: --allow-download
+    type: flag
+    help: let the detector fetch its weights once if they are not in the local cache
+      (pdfdrill never downloads them silently)
+  typed: true
+- name: yololayout
+  section: OCR / model pipeline
+  summary: 'Detect page layout with the DocLayout-YOLO + PDF-Extract-Kit MFD
+    detectors and cache one TSV per page beside the document — display formula and
+    equation-number boxes, figures, tables, running heads, and inline formulas.
+    OFFLINE and free, but it runs in a SEPARATE interpreter (torch), so it is
+    wrapped the way poppler and ghostscript are: PDFDRILL_YOLO_PYTHON names it and
+    `pdfdrill doctor` reports it. What it supplies is the geometry the ink cannot:
+    the ink alignment is one monotone walk down the page and a display formula is
+    several rows and one item, so its extent has to be guessed — MEASURED on
+    penev_A, 5 of 116 display formulas boxed by the ink alone against 110 with these
+    boxes as anchors. `gemmaocr` runs it itself and reuses the cache; this command
+    exists so it can be run, inspected and scored on its own.'
+  offline_ok: true
+  done_when: layout:yolo
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: force
+    flag: --force
+    type: flag
+    help: re-detect pages whose TSV is already cached
+  - name: pages
+    flag: --pages
+    type: pages
+    help: N | N-M | all (default all)
+  - name: allow-download
+    flag: --allow-download
+    type: flag
+    help: fetch the weights once if they are not in the local Hugging Face cache
   typed: true
 - name: linescmp
   section: Introspection (fast, no extraction)

@@ -889,14 +889,33 @@ def _do_render(args):
 
 
 def _do_gemmaocr(args):
-    """pdfdrill gemmaocr <pdf> [--force] [--strips N] [--pages N-M]"""
+    """pdfdrill gemmaocr <pdf> [--force] [--strips N] [--pages N-M]
+    [--nup auto|1|CxB] [--nup-order column|row] [--no-layout]
+    [--allow-download]"""
     from .commands import cmd_gemmaocr
     strips, args = _opt(args, "--strips")
     pages, args = _opt(args, "--pages")
-    rest = [a for a in args if a != "--force"]
+    nup, args = _opt(args, "--nup")
+    order, args = _opt(args, "--nup-order")
+    flags = {"--force", "--no-layout", "--allow-download"}
+    rest = [a for a in args if a not in flags]
     return cmd_gemmaocr(_pdf(rest), force="--force" in args,
                         strips=int(strips) if strips else 6,
-                        pages=pages or "")
+                        pages=pages or "", nup=nup or "auto",
+                        nup_order=order or "column",
+                        no_layout="--no-layout" in args,
+                        allow_download="--allow-download" in args)
+
+
+def _do_yololayout(args):
+    """pdfdrill yololayout <pdf> [--force] [--pages N-M] [--allow-download]"""
+    from .commands import cmd_yololayout
+    pages, args = _opt(args, "--pages")
+    flags = {"--force", "--allow-download"}
+    rest = [a for a in args if a not in flags]
+    return cmd_yololayout(_pdf(rest), force="--force" in args,
+                          pages=pages or "",
+                          allow_download="--allow-download" in args)
 
 
 def _do_linescmp(args):
@@ -2739,6 +2758,7 @@ HANDLERS = {
         "render": _do_render,
         "mathpix": _do_mathpix,
         "gemmaocr": _do_gemmaocr,
+        "yololayout": _do_yololayout,
         "linescmp": _do_linescmp,
         "spend": _do_spend,
         "ocr": _do_ocr,

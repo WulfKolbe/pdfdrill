@@ -1203,3 +1203,76 @@ the pages already on disk. The per-page Markdown cache under
 `.drill/gemmaocr/page-NNNN.md` already makes the data available; what is
 missing is a flag that means "top up", not "redo". On a metered prepayment that
 distinction is the one that matters.
+
+### T-0026 follow-up (3) — the four missing steps, taken over into pdfdrill
+
+The Gemma4 proof-of-concept read the same 22 sheets to 89% of MathPix's boxes
+against this lane's 15%, and named four steps the lane did not have. All four
+measured on penev_A, independently reproduced here by scoring the POC's own
+merged output with `linescmp` (2,740/3,080 at IoU>=0.5, median 0.824, 2,590
+typed alike — its table to the digit). The POC's numbers were right.
+
+**1. N-up sheet splitting** (`src/pdfdrill/nup.py`). Each sheet carries four
+printed pages. `detect` finds the gutters, `shape` decides ONE imposition for
+the document and `merge` brings the reading back to sheet coordinates. Three
+things in it are not in the POC's `split_nup.py` and each was forced by a
+measurement:
+
+  * the gutter is the blank run NEAREST THE MIDDLE, not the widest (the POC
+    has this too, and it is the detail the detector rests on: a sparse page
+    has a wider blank run inside it than the gutter);
+  * a BAND gutter is sought only INSIDE a column a vertical gutter made.
+    Sought unconditionally, all three of killing20's probe sheets, two of
+    collatz14's and one of hilbert10's were cut in half through their own
+    text. Printed text runs across the full measure, so a vertical blank
+    channel is extraordinary and a horizontal one is ordinary. The cost is
+    that a STACKED 2-up with no vertical gutter reads as 1-up; `--nup 1x2`
+    says so explicitly;
+  * the shape is a property of the DOCUMENT. Per sheet, penev_A reads as 2x2
+    on 19 of 22 sheets and 2-up/3-up on sheets 1, 3 and 16 — which do carry
+    four pages but lack the ink to prove the gutter. Trusting each sheet gives
+    84 printed pages where there are 88. The POC always cuts 4 and gets 88 by
+    assumption; `shape` gets 88 by majority vote (21/22) and still reads the
+    1-up documents as 1-up, unanimously.
+
+**2. The layout detector** (`src/pdfdrill/yololayout.py` + `yolo_driver.py`,
+command `yololayout`). DocLayout-YOLO + PDF-Extract-Kit MFD, run in a SEPARATE
+interpreter because they are torch — wrapped the way poppler and ghostscript
+are, named by `PDFDRILL_YOLO_PYTHON`, reported by `doctor`, cached one TSV per
+page. Display boxes become ANCHORS in the alignment (`align_anchored`), which
+is the real algorithmic change: `align` is one monotone walk and its errors are
+cumulative, so a display whose row count it guesses wrong shifts every box
+below it. MEASURED free on Killing pages 1-20, same Markdown, same reference:
+
+    ink walk alone   705/733 (96%), median IoU 0.824, math 73/81
+    + anchors        715/733 (98%), median IoU 0.832, math 76/81
+    + sanitizer      714/733 (97%), median IoU 0.830
+
+So anchors are worth +10 lines on a document that was already good, and the
+sanitizer is NEUTRAL there (-1). It is kept on because the boxes it is for are
+the detector's, which are loose at the left and right by construction.
+
+**3. The sanitizer** (`src/pdfdrill/sanitize.py`). claim -> grow -> shrink ->
+check against the page's ink, whoever made the box. On the 22-sheet reading it
+tightened 820 boxes, claimed 1,142 stray components and re-unioned 41
+containers, and named the 829 `geometry: none` + 95 `pending-split` lines it
+could not place. `pending-split` is an INTERNAL marker of `align` and should
+never have reached a file at all.
+
+**4. Figure whitening.** Before the paid read, so the model stops transcribing
+a picture, and before the ink pass, so a figure's strokes never join a text
+line. 25 of penev_A's 88 printed pages carry a figure box.
+
+A HAZARD THIS CREATED, and it is a money hazard: the per-page Markdown the
+paid read writes is named for the PRINTED PAGE, so a changed map makes page 1 a
+different picture than the page-1 Markdown on disk was read from — and a
+resumed run would serve it anyway. Live on penev_A, whose first reading
+numbered 22 SHEETS 1..22 while the split numbers 88 printed pages 1..88. The
+Markdown now lives beside the printed page it was read from, the map is
+compared before anything is written, and a changed map MOVES the old directory
+aside rather than removing it, because what is in it was paid for. A 1-up
+document's existing Markdown is carried over, so this upgrade re-buys nothing.
+
+Also fixed on the way: the cost preflight now runs INSIDE the lane, on the
+printed pages still to be read, not on the PDF's page count. For penev_A that
+is 88 and not 22, and for a resumed run it is only what is left to buy.

@@ -375,6 +375,217 @@ def align(items: Sequence[Item], rows: Sequence[list[Box]], *,
     return out
 
 
+#: How far from its rough ink position a display may be matched to a detector
+#: box, in line heights. Six is wide enough to survive the drift a dense page
+#: accumulates above the formula and narrow enough that two formulas on one
+#: page cannot swap.
+ANCHOR_REACH = 6.0
+
+
+def _row_centre(row: Sequence[Box]) -> float:
+    return (min(b[1] for b in row) + max(b[3] for b in row)) / 2.0
+
+
+def _rows_in(rows: Sequence[list[Box]], box: Box, *,
+             slack: float = 0.0) -> tuple[int, int]:
+    """The half-open range of rows whose centre lies inside `box`."""
+    first = last = None
+    for i, row in enumerate(rows):
+        cy = _row_centre(row)
+        if box[1] - slack <= cy <= box[3] + slack:
+            first = i if first is None else first
+            last = i + 1
+    return (0, 0) if first is None else (first, last)
+
+
+def _match_displays(disp: Sequence[int], rough: dict[int, Box],
+                    boxes: Sequence[Box], line_height: float
+                    ) -> dict[int, Box]:
+    """Monotone matching of display ITEMS to detector BOXES, by closeness.
+
+    Monotone because both sequences are in reading order, and a matching that
+    may cross is a matching that will: the model writes the rows of one
+    printed system as separate displays, so several items legitimately sit at
+    one box's position and a greedy nearest-box walk pairs them with the
+    neighbours' boxes instead.
+    """
+    n, m = len(disp), len(boxes)
+    if not n or not m:
+        return {}
+    thr = ANCHOR_REACH * max(1.0, line_height)
+    best = [[0.0] * (m + 1) for _ in range(n + 1)]
+    back: list[list[str]] = [[""] * (m + 1) for _ in range(n + 1)]
+    for i in range(1, n + 1):
+        rb = rough.get(disp[i - 1])
+        cy = (rb[1] + rb[3]) / 2.0 if rb else None
+        for j in range(1, m + 1):
+            opts = [(best[i - 1][j], "i"), (best[i][j - 1], "j")]
+            if cy is not None:
+                d = abs(cy - (boxes[j - 1][1] + boxes[j - 1][3]) / 2.0)
+                if d < thr:
+                    opts.append((best[i - 1][j - 1] + 1.0 - d / thr, "m"))
+            else:
+                # A display the plain walk could NOT place has no distance to
+                # judge, and it is the display that most needs an anchor: a
+                # page whose reading has more lines than the page has ink rows
+                # leaves its formulas unplaced first, because they are the
+                # items allowed to consume several rows. Matching it on
+                # monotonicity alone, at half the credit of a measured match,
+                # is what lets one row carry three written displays.
+                opts.append((best[i - 1][j - 1] + 0.5, "m"))
+            best[i][j], back[i][j] = max(opts, key=lambda o: o[0])
+    out: dict[int, Box] = {}
+    i, j = n, m
+    while i > 0 and j > 0:
+        step = back[i][j]
+        if step == "m":
+            out[disp[i - 1]] = boxes[j - 1]
+            i -= 1
+            j -= 1
+        elif step == "i":
+            i -= 1
+        else:
+            j -= 1
+    return out
+
+
+def align_anchored(items: Sequence[Item], rows: Sequence[list[Box]], *,
+                   page_width: int, displays: Sequence[Box] = (),
+                   line_height: float = 40.0) -> list[Placed]:
+    r"""`align`, with the detector's display boxes as fixed points.
+
+    WHY ANCHORS AND NOT A BETTER COST FUNCTION. `align` is one monotone walk
+    down the page, so its errors are CUMULATIVE: a single display whose row
+    count it guesses wrong shifts every box below it, and the cost function
+    cannot tell, because a formula's ink width is not predictable from its
+    LaTeX the way a prose line's is. MEASURED on penev_A: 5 of 116 display
+    formulas and 3 of 116 equation numbers boxed at IoU >= 0.5 by the ink walk
+    alone.
+
+    A detector box is independent evidence of exactly the thing the walk
+    guesses. So the displays are matched to those boxes first, and then the
+    walk runs only BETWEEN two anchors, over that band's rows alone — which
+    bounds every error to the band it happens in. A page with no detector and
+    a page whose displays all failed to match both fall back to the plain walk,
+    which is why this wraps `align` instead of replacing it.
+    """
+    placed = align(items, rows, page_width=page_width)
+    if not displays or not rows:
+        return placed
+
+    disp = [i for i, it in enumerate(items) if it.type == "math"]
+    if not disp:
+        return placed
+    rough = {i: p.box for i, p in enumerate(placed) if p.box is not None}
+    matched = _match_displays(disp, rough, list(displays), line_height)
+    if not matched:
+        return placed
+
+    # Each anchor carries the GROUP of consecutive display items that belong
+    # to its box: the model writes a printed system's rows as separate `$$`
+    # blocks while the detector boxes the system once.
+    dset = set(disp)
+    anchors: list[tuple[list[int], Box, tuple[int, int]]] = []
+    taken: set[int] = set()
+    for k in sorted(matched):
+        if k in taken:
+            continue
+        box = matched[k]
+        group = [k]
+        # A neighbouring display joins the group when its rough position is
+        # inside the box OR when it has no rough position at all: an unplaced
+        # display next to an anchored one is a row of the same printed system
+        # far more often than it is a formula of its own, and leaving it
+        # unplaced is the outcome anchoring exists to avoid.
+        j = k - 1
+        while (j in dset and j not in matched and j not in taken
+               and _groupable(rough.get(j), box, line_height)):
+            group.insert(0, j)
+            j -= 1
+        j = k + 1
+        while (j in dset and j not in matched and j not in taken
+               and _groupable(rough.get(j), box, line_height)):
+            group.append(j)
+            j += 1
+        taken.update(group)
+        span = _rows_in(rows, box, slack=line_height / 2.0)
+        anchors.append((group, box, span))
+
+    # Monotone in BOTH sequences or not an anchor: a matching that went
+    # backwards would make a segment with a negative row range, and the walk
+    # inside it would place boxes above the formula that precedes them.
+    kept: list[tuple[list[int], Box, tuple[int, int]]] = []
+    last_item = -1
+    last_row = 0
+    for group, box, span in sorted(anchors, key=lambda a: a[0][0]):
+        if span[1] <= span[0] or group[0] <= last_item or span[0] < last_row:
+            continue
+        kept.append((group, box, span))
+        last_item = group[-1]
+        last_row = span[1]
+    if not kept:
+        return placed
+
+    out = list(placed)
+    for group, box, span in kept:
+        a, b = span
+        if len(group) == 1:
+            out[group[0]] = Placed(items[group[0]], box, "yolo",
+                                   comps=[c for row in rows[a:b] for c in row])
+            continue
+        # One detector box, several written displays: divide it along the ink
+        # rows inside it when the counts agree, and evenly when they do not.
+        if b - a == len(group):
+            for idx, ri in zip(group, range(a, b)):
+                row = rows[ri]
+                out[idx] = Placed(items[idx], _row_box(rows, ri, ri + 1),
+                                  "yolo-row", comps=list(row))
+        else:
+            step = (box[3] - box[1]) / float(len(group))
+            for n, idx in enumerate(group):
+                part = (box[0], box[1] + n * step, box[2],
+                        box[1] + (n + 1) * step)
+                out[idx] = Placed(items[idx],
+                                  (int(part[0]), int(part[1]),
+                                   int(part[2]), int(part[3])),
+                                  "yolo-even")
+
+    # The bands between the anchors, each walked on its own rows only.
+    bounds: list[tuple[int, int, int, int]] = []
+    prev_item, prev_row = 0, 0
+    for group, _box, (a, b) in kept:
+        bounds.append((prev_item, group[0], prev_row, a))
+        prev_item, prev_row = group[-1] + 1, b
+    bounds.append((prev_item, len(items), prev_row, len(rows)))
+
+    for i0, i1, r0, r1 in bounds:
+        if i1 <= i0:
+            continue
+        seg_items = list(items[i0:i1])
+        seg_rows = list(rows[r0:r1])
+        if not seg_rows:
+            for off, it in enumerate(seg_items):
+                out[i0 + off] = Placed(it, None,
+                                       "container" if _owns_no_ink(it) else "none")
+            continue
+        for off, p in enumerate(align(seg_items, seg_rows,
+                                      page_width=page_width)):
+            out[i0 + off] = p
+    return out
+
+
+def _inside_y(box: Optional[Box], outer: Box, line_height: float) -> bool:
+    if box is None:
+        return False
+    cy = (box[1] + box[3]) / 2.0
+    return outer[1] - line_height / 2.0 <= cy <= outer[3] + line_height / 2.0
+
+
+def _groupable(box: Optional[Box], outer: Box, line_height: float) -> bool:
+    """`_inside_y`, and also true for an item the walk never placed."""
+    return box is None or _inside_y(box, outer, line_height)
+
+
 def split_numbers(placed: list[Placed], items: Sequence[Item], *,
                   page_width: int, line_height: float = 40.0) -> int:
     r"""Give each `equation_number` its own box, cut out of its display's row.
@@ -653,7 +864,52 @@ def page_lines(placed: list[Placed], page_no: int) -> list[dict]:
     return out
 
 
-def assemble_page(md: str, png: Optional[Path], page_no: int) -> dict:
+def place_by_order(placed: list[Placed], items: Sequence[Item],
+                   boxes: Sequence[Box], *, types: Sequence[str],
+                   geometry: str) -> int:
+    """Give the still-unboxed items of `types` the detector's boxes, in order.
+
+    By ORDER and not by position, because these are the items for which no
+    position was derived: an `equation_number` the row split could not cut
+    out, a `diagram` the model described rather than transcribed. Both
+    sequences are in reading order, so the k-th unboxed one is the k-th box.
+    A surplus on either side is left alone rather than forced.
+    """
+    want = [i for i, it in enumerate(items)
+            if it.type in types and placed[i].box is None]
+    n = 0
+    for i, box in zip(want, boxes):
+        placed[i] = Placed(items[i], (int(box[0]), int(box[1]),
+                                      int(box[2]), int(box[3])), geometry)
+        n += 1
+    return n
+
+
+def _whiten_array(gray, boxes: Sequence[Box], *, pad: int = 2):
+    """A copy of `gray` with `boxes` filled with paper white.
+
+    The ink alignment runs on THIS and not on the page: a figure is a large
+    connected mass of ink belonging to no printed line, and the row banding —
+    which must consume rows monotonically — hands it to whatever text line is
+    passing. MEASURED as the cause of the 97x3413 gutter band that collapsed
+    a whole Hilbert page to one ink row.
+    """
+    if not boxes:
+        return gray
+    out = gray.copy()
+    h, w = out.shape
+    for x0, y0, x1, y1 in boxes:
+        a = max(0, int(y0) - pad)
+        b = min(h, int(y1) + pad)
+        c = max(0, int(x0) - pad)
+        d = min(w, int(x1) + pad)
+        if b > a and d > c:
+            out[a:b, c:d] = 255
+    return out
+
+
+def assemble_page(md: str, png: Optional[Path], page_no: int, *,
+                  dets: Optional[Sequence] = None) -> dict:
     """One page of Markdown + its render -> one `pages[]` entry.
 
     With no render (`png=None`) the page still gets its lines, with zero
@@ -670,10 +926,12 @@ def assemble_page(md: str, png: Optional[Path], page_no: int) -> dict:
                 "parse_status": "no_render", "fallback_count": len(items),
                 "page_confidence": None, "languages_detected": []}
 
-    from . import inkbox
+    from . import inkbox, yololayout
     gray = inkbox.load_gray(Path(png))
     h, w = gray.shape
-    comps = inkbox.components(gray)
+    dets = list(dets or ())
+    figures = yololayout.figure_boxes(dets) if dets else []
+    comps = inkbox.components(_whiten_array(gray, figures))
     lh = inkbox.median_height(comps)
     comps = [b for b in comps
              if max(b[2] - b[0], b[3] - b[1]) >= inkbox.SPECK * lh]
@@ -682,10 +940,20 @@ def assemble_page(md: str, png: Optional[Path], page_no: int) -> dict:
     rows = inkbox.drop_speck_rows(rows, lh)
     rows = inkbox.prune_row_outliers(rows, lh)
 
-    placed = align(items, rows, page_width=w)
+    displays = yololayout.display_boxes(dets) if dets else []
+    placed = align_anchored(items, rows, page_width=w, displays=displays,
+                            line_height=lh)
     split_numbers(placed, items, page_width=w, line_height=lh)
     split_furniture(placed, items, page_width=w)
     split_cells(placed, items, page_width=w)
+    if dets:
+        # The detector answers for exactly the two it is better at than any
+        # row split: a number printed clear of its display, and a figure the
+        # model described instead of transcribing.
+        place_by_order(placed, items, yololayout.eqnum_boxes(dets),
+                       types=("equation_number",), geometry="yolo")
+        place_by_order(placed, items, figures,
+                       types=("diagram", "table", "chart"), geometry="yolo")
     close_containers(placed, items)
     missing = sum(1 for p in placed if p.box is None)
     return {
@@ -710,8 +978,13 @@ def assemble(pages: Iterable[tuple[int, str, Optional[Path]]], *,
     this lane can be verified at all without spending from a metered account.
     """
     out_pages = []
-    for page_no, md, png in pages:
-        out_pages.append(assemble_page(md, png, page_no))
+    for entry in pages:
+        # (page, markdown, png) or (page, markdown, png, detections). The
+        # three-element form is what every test and every caller without a
+        # detector passes, and it must keep working unchanged.
+        page_no, md, png = entry[0], entry[1], entry[2]
+        dets = entry[3] if len(entry) > 3 else None
+        out_pages.append(assemble_page(md, png, page_no, dets=dets))
     # `source` FIRST, and this is a contract and not a preference.
     # `commands._lines_source` is the cheap reader every routing decision
     # uses, and it searches only the first 8,192 bytes — "both producers emit
@@ -824,7 +1097,9 @@ def read_page(png: Path, work: Path, *, blob_dir: Optional[Path] = None,
 
 def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
                 force: bool = False, strips: int = STRIPS,
-                blob_dir: Optional[Path] = None) -> dict:
+                blob_dir: Optional[Path] = None, nup: str = "auto",
+                nup_order: str = "column", layout: bool = True,
+                allow_download: bool = False) -> dict:
     """Read `pdf_path` with the model lane and write the outputs beside it.
 
     Returns `{"status": "cached"|"read", "files": {...}, "usage": {...}}` —
@@ -841,12 +1116,80 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
         return {"status": "cached", "files": targets, "usage": {},
                 "provider": ""}
 
+    from . import nup as _nup, sanitize as _san, yololayout as _yolo
     work = (Path(blob_dir) if blob_dir else pdf_path.parent) / "gemmaocr"
-    renders = pdf_reading.rasterize(pdf_path, work / "pages",
-                                    pages=list(pages) if pages else None,
-                                    dpi=DPI, gray=True)
-    by_no = {pdf_reading.page_of(p): p for p in renders}
-    triples: list[tuple[int, str, Optional[Path]]] = []
+    sheets = pdf_reading.rasterize(pdf_path, work / "pages",
+                                   pages=list(pages) if pages else None,
+                                   dpi=DPI, gray=True)
+    sheet_by_no = {pdf_reading.page_of(p): p for p in sheets}
+
+    # STAGE 1 (free): the printed pages. A sheet is not always a page, and a
+    # reading made on the sheet cannot be repaired into one made on the page.
+    amap = _nup.split([(n, sheet_by_no[n])
+                       for n in sorted(k for k in sheet_by_no if k is not None)],
+                      work / "printed", order=nup_order, nup=nup)
+    identity = _nup.is_identity(amap)
+    printed = {int(k): work / "printed" / f"page-{int(k):04d}.png"
+               for k in amap}
+    shape_kind = next(iter({m["kind"] for m in amap.values()}), "1-up")
+
+    # The per-page Markdown now lives BESIDE the printed page it was read
+    # from, so it is archived with the map when the map changes and can never
+    # be served against a different picture. A document read before the split
+    # existed has it one directory up, and for a 1-up document those are the
+    # same pages under the same numbers — so it is carried over rather than
+    # bought again. For an n-up document it is NOT carried over, because
+    # there the numbers mean something else.
+    if identity:
+        for n in sorted(printed):
+            new = work / "printed" / f"page-{n:04d}.md"
+            old = work / f"page-{n:04d}.md"
+            if old.is_file() and not new.is_file():
+                new.write_text(old.read_text(encoding="utf-8"),
+                               encoding="utf-8")
+
+    # STAGE 2 (free, offline): the layout detector, BEFORE the paid read,
+    # because what it finds changes the image that is read — a figure is
+    # whitened so the model stops transcribing a picture.
+    dets: dict[int, list] = {}
+    layout_note = ""
+    if layout:
+        try:
+            info = _yolo.detect([printed[n] for n in sorted(printed)],
+                                work / "yolo", force=force,
+                                allow_download=allow_download)
+            dets = {n: _yolo.load_for(work / "yolo", printed[n])
+                    for n in sorted(printed)}
+            layout_note = (f"layout: {info['ran']} detected, "
+                           f"{info['cached']} cached")
+        except _yolo.DetectorMissing as exc:
+            layout_note = f"layout: SKIPPED — {exc}"
+
+    read_from: dict[int, Path] = {}
+    for n in sorted(printed):
+        figs = _yolo.figure_boxes(dets[n]) if dets.get(n) else []
+        if not figs:
+            read_from[n] = printed[n]
+            continue
+        dst = work / "whitened" / f"page-{n:04d}.png"
+        if force or not dst.is_file():
+            _yolo.whiten(printed[n], figs, dst)
+        read_from[n] = dst
+
+    # STAGE 3: the only stage that spends money, and the only place where
+    # what it will cost is actually known. The outer preflight in
+    # `cmd_gemmaocr` counts the PDF's pages, which is the right number for a
+    # 1-up document and a quarter of the right number for penev_A: the paid
+    # unit is a PRINTED page. It is also only the pages not already on disk,
+    # so a resumed run is charged for what it still has to buy and not for
+    # the document.
+    pending = [n for n in sorted(printed)
+               if force or not (work / "printed" / f"page-{n:04d}.md").is_file()]
+    ok_pf, level_pf, msg_pf = read_preflight(len(pending))
+    if not ok_pf:
+        raise ReadRefused(msg_pf)
+
+    quads: list[tuple[int, str, Optional[Path], list]] = []
     usage = {"prompt_tokens": 0, "completion_tokens": 0, "pages": 0}
     provider = ""
     run_id = ""
@@ -854,12 +1197,12 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
         from . import callog
         run_id = callog.new_run_id("gemmaocr")
         callog.open_run(blob_dir, "gemmaocr", script=__name__)
-    for n in sorted(k for k in by_no if k is not None):
-        md_path = work / f"page-{n:04d}.md"
+    for n in sorted(printed):
+        md_path = work / "printed" / f"page-{n:04d}.md"
         if md_path.is_file() and not force:
             md = md_path.read_text(encoding="utf-8")       # a resumed run
         else:
-            got = read_page(by_no[n], work / "strips", blob_dir=blob_dir,
+            got = read_page(read_from[n], work / "strips", blob_dir=blob_dir,
                             run_id=run_id, strips=strips)
             md = got["markdown"]
             md_path.write_text(md, encoding="utf-8")
@@ -867,9 +1210,22 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
             usage["prompt_tokens"] += got["usage"]["prompt_tokens"]
             usage["completion_tokens"] += got["usage"]["completion_tokens"]
             usage["pages"] += 1
-        triples.append((n, md, by_no[n]))
+        quads.append((n, md, printed[n], dets.get(n) or []))
 
-    doc = assemble(triples, prompt_name="page-ocr-markdown", model=provider)
+    # STAGE 4 (free): assemble on the printed pages, then back to the sheets
+    # the PDF has, because `page` indexes the PDF's own pages everywhere
+    # downstream. Then one last pass over the boxes against the SHEET's ink.
+    doc = assemble(quads, prompt_name="page-ocr-markdown", model=provider)
+    doc["ocr"]["nup"] = {"shape": shape_kind, "order": nup_order,
+                         "printed_pages": len(amap),
+                         "sheets": len({m["sheet"] for m in amap.values()})}
+    if not identity:
+        doc = _nup.merge(doc, amap)
+    ok, cmp_pairs = _nup.ascending(_nup.folios(doc))
+    doc["ocr"]["nup"]["folios_ascending"] = [ok, cmp_pairs]
+    doc = _san.sanitize(doc, {n: sheet_by_no[n] for n in sheet_by_no
+                              if n is not None})
+
     write_lines(doc, Path(targets["lines.json"]))
     Path(targets["md"]).write_text(markdown(doc), encoding="utf-8")
     if blob_dir is not None and run_id:
@@ -877,7 +1233,10 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
         callog.close_run(blob_dir, run_id, calls=usage["pages"],
                          outcome="read", extra=usage)
     return {"status": "read", "files": targets, "usage": usage,
-            "provider": provider}
+            "provider": provider, "nup": shape_kind,
+            "printed_pages": len(amap), "layout": layout_note,
+            "folios_ascending": [ok, cmp_pairs],
+            "sanitize": (doc.get("sanitize") or {}).get("stats") or {}}
 
 
 def write_lines(doc: dict, path: Path) -> Path:
