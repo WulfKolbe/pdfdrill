@@ -44,7 +44,7 @@ works today; pylepto skew is a provisional seam until pdfdrill exposes it.
 ### pdfdrill already covers most of II/III — on a PDF
 Relevant existing subcommands (`~/MX/PDFDRILL/pdfdrill --help`):
 - `folder <dir>` / `ls <dir> --images` — **folder ingestion already exists** (I-A over PDFs).
-- `route <pdf> --run` — auto-picks the OCR lane: born-digital→pdfminer, scanned≤20p→Gemma-4, larger→MathPix.
+- `route <pdf> --run` — auto-picks the lane by the contract in `docs/LANES.md` (own text layer → author's LaTeX → gemmaocr → mathpix → free geometry-only); page count does not pick a lane.
 - `ocr <pdf> --lang eng+equ` — **Tesseract → MathPix-compatible `lines.json`** (the Tesseract path the user named).
 - `segment` / `ordered` / `autosegment` — partition a scanned bundle into ordered documents by sender + continuity number + DataMatrix tracking codes.
 - `continuity` — margin OCR for "Seite N von M" sequence markers; attaches `seq` to Page objects.

@@ -891,13 +891,14 @@ def _do_render(args):
 def _do_gemmaocr(args):
     """pdfdrill gemmaocr <pdf> [--force] [--rebuild] [--strips N]
     [--pages N-M] [--nup auto|1|CxB] [--nup-order column|row] [--no-layout]
-    [--allow-download]"""
+    [--allow-download] [--geometry-only]"""
     from .commands import cmd_gemmaocr
     strips, args = _opt(args, "--strips")
     pages, args = _opt(args, "--pages")
     nup, args = _opt(args, "--nup")
     order, args = _opt(args, "--nup-order")
-    flags = {"--force", "--no-layout", "--allow-download", "--rebuild"}
+    flags = {"--force", "--no-layout", "--allow-download", "--rebuild",
+             "--geometry-only"}
     rest = [a for a in args if a not in flags]
     return cmd_gemmaocr(_pdf(rest), force="--force" in args,
                         strips=int(strips) if strips else 6,
@@ -905,7 +906,8 @@ def _do_gemmaocr(args):
                         nup_order=order or "column",
                         no_layout="--no-layout" in args,
                         allow_download="--allow-download" in args,
-                        rebuild="--rebuild" in args)
+                        rebuild="--rebuild" in args,
+                        geometry_only="--geometry-only" in args)
 
 
 def _do_yololayout(args):
@@ -1197,7 +1199,8 @@ def _do_model(args):
     # 836 — phase 4: two readers, one command.
     reader, args = _opt(args, "--reader")
     flags = ("--force", "--force-discard-translation",
-             "--force-discard-enrichments", "--ledger", "--no-source")
+             "--force-discard-enrichments", "--ledger", "--no-source",
+             "--mathpix")
     pdf_args = [a for a in args if a not in flags]
     # 634 fix round 1 — `--ledger` is READ-ONLY and is routed BEFORE
     # `cmd_model`, so the `@_writes` document lock is never taken (a read must
@@ -1210,7 +1213,8 @@ def _do_model(args):
         _pdf(pdf_args), force="--force" in args, bibkey=bibkey,
         force_discard_translation="--force-discard-translation" in args,
         force_discard_enrichments="--force-discard-enrichments" in args,
-        no_source="--no-source" in args, reader=reader)
+        no_source="--no-source" in args, reader=reader,
+        mathpix="--mathpix" in args)
 
 
 def _do_provenance(args):
@@ -1279,10 +1283,13 @@ def _do_nlp(args):
 
 
 def _do_geometry(args):
-    """pdfdrill geometry <pdf> [--force]"""
+    """pdfdrill geometry <pdf> [--force] [--layout] [--allow-download]"""
     from .commands import cmd_geometry
-    pdf_args = [a for a in args if a != "--force"]
-    return cmd_geometry(_pdf(pdf_args), force="--force" in args)
+    flags = {"--force", "--layout", "--allow-download"}
+    pdf_args = [a for a in args if a not in flags]
+    return cmd_geometry(_pdf(pdf_args), force="--force" in args,
+                        layout="--layout" in args,
+                        allow_download="--allow-download" in args)
 
 
 def _do_translate(args):
@@ -2219,26 +2226,41 @@ def _do_plan(args):
 
 
 def _do_drill(args):
-    """Auto-drill, status-driven by default.
+    """Drill a document the whole way, by the LANE CONTRACT, and end with an
+    inspector.
 
-    Runs only the steps whose fact is not yet present in the sidecar.
-    Use --full to wipe the sidecar first and re-run from cold (useful for
-    testing / forcing a fresh extraction).
+    `drill` used to stop at Markdown: size, fonts, abstract, toc, md. On an
+    arXiv paper that left a geometry-less source model on disk and no
+    inspect.html at all, and the next command to ask for one got a box-less
+    page — 131 elements, 131 without a box — because `model` saw MODEL_BUILT
+    and returned the cached one. "If I drill an arXiv document I want to see a
+    correct inspect.html" is the whole of this function's job.
+
+    So the chain is: the cheap probes, then `route` to pick the lane, then the
+    lane, then the model, then the free detector geometry, then `inspect`.
+    Every step is OFFLINE AND FREE or it is named and not run — the paid lanes
+    are reported with the exact command that satisfies them and `drill` never
+    reaches one. `--full` wipes the sidecar and re-runs from cold.
     """
     pdf_args: list[str] = []
     full = False
+    no_inspect = False
     for a in args:
         if a == "--full":
             full = True
+        elif a == "--no-inspect":
+            no_inspect = True
         elif not a.startswith("--"):
             pdf_args.append(a)
     pdf = _pdf(pdf_args[:1])
 
     from .commands import (
         cmd_size, cmd_fonts, cmd_abstract, cmd_toc, cmd_md, cmd_status,
+        cmd_model, cmd_geometry, cmd_inspect, cmd_gemmaocr,
         SIZE_KNOWN, FONTS_KNOWN, ABSTRACT_KNOWN, ABSTRACT_ABSENT,
-        TOC_KNOWN, TOC_ABSENT, MD_BUILT,
+        TOC_KNOWN, TOC_ABSENT, MD_BUILT, MODEL_BUILT,
     )
+    from . import ocr_router as _r
     from .sidecar import Sidecar
 
     if full:
@@ -2252,15 +2274,13 @@ def _do_drill(args):
     sc = Sidecar(pdf)
     facts = sc.facts
 
-    # Status-driven plan: each step contributes a line only if it actually ran.
+    # Phase 1 — the cheap probes. Each contributes a line only if it ran.
     plan: list[tuple[str, callable, set[str]]] = [
         ("size", lambda: cmd_size(pdf), {SIZE_KNOWN}),
         ("fonts", lambda: cmd_fonts(pdf), {FONTS_KNOWN}),
         ("abstract", lambda: cmd_abstract(pdf), {ABSTRACT_KNOWN, ABSTRACT_ABSENT}),
         ("toc", lambda: cmd_toc(pdf), {TOC_KNOWN, TOC_ABSENT}),
-        ("md", lambda: cmd_md(pdf), {MD_BUILT}),
     ]
-
     ran: list[tuple[str, str]] = []
     skipped: list[str] = []
     for name, fn, settled in plan:
@@ -2268,7 +2288,38 @@ def _do_drill(args):
             skipped.append(name)
             continue
         ran.append((name, fn()))
-        facts = Sidecar(pdf).facts  # refresh in case the step touched others
+        facts = Sidecar(pdf).facts
+
+    # Phase 2 — THE LANE. Reported before anything runs, so the reason a
+    # document took the lane it took is in the output next to the result.
+    sc = Sidecar(pdf)
+    dec = _r.route_for_sidecar(sc)
+    lane_note = _r.format_decision(dec, pdf.name)
+
+    # Phase 3 — the reading, and only a FREE one. `model` takes the
+    # born-digital and source lanes itself; the paid lanes it names.
+    if dec.lane == "geometry":
+        # The keyless scan lane. It reads no words, so `model` is not its
+        # consumer — a model keeps what has prose, and a 273-line page map
+        # comes out as ten empty Paragraphs. The report says what the
+        # lines.json IS for.
+        ran.append(("gemmaocr --geometry-only",
+                    cmd_gemmaocr(pdf, geometry_only=True)))
+    elif dec.cost in ("free", "none"):
+        ran.append(("model", cmd_model(pdf)))
+        ran.append(("md", cmd_md(pdf)))
+    else:
+        lane_note += (f"\n  NOT RUN by `drill`: this lane costs money. Run the "
+                      f"command above when you want it, then `pdfdrill drill` "
+                      f"again — everything after it is free.")
+
+    # Phase 4 — the geometry the reading could not give, and the inspector.
+    # `--layout` is offline; without the detector it is a one-line note.
+    tail: list[tuple[str, str]] = []
+    if MODEL_BUILT in Sidecar(pdf).facts:
+        tail.append(("geometry --layout", cmd_geometry(pdf, layout=True)))
+        if not no_inspect:
+            tail.append(("inspect", cmd_inspect(pdf)))
 
     lines: list[str] = []
     if ran:
@@ -2277,8 +2328,9 @@ def _do_drill(args):
             lines.append(f"\n--- {n} ---\n{out}")
     if skipped:
         lines.append(f"\nSkipped (already done): {', '.join(skipped)}")
-    if not ran and not skipped:
-        lines.append("Nothing to do.")
+    lines.append(f"\n--- lane ---\n{lane_note}")
+    for n, out in tail:
+        lines.append(f"\n--- {n} ---\n{out}")
     lines.append("")
     lines.append(cmd_status(pdf))
     return "\n".join(lines)

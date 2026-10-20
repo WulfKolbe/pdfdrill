@@ -67,7 +67,45 @@ def load_env(force: bool = False) -> None:
     _loaded = True
 
 
+#: The credential variables pdfdrill reads. Named explicitly rather than matched
+#: by shape, because `PDFDRILL_OCR_BUDGET_EUR` is an env var about a paid route
+#: and must keep working when the keys are gone — a budget of nothing is not the
+#: same as no budget.
+CREDENTIAL_NAMES = frozenset({
+    "MATHPIX_APP_ID", "MATHPIX_APP_KEY",
+    "OPENAI_API_KEY", "DEEPL_API_KEY", "PERPLEXITY_API_KEY",
+    "NOVITA_API_KEY", "MAKORA_API_KEY",
+})
+
+#: Set to 1 to make this machine answer as a FRESH SANDBOX does: every
+#: credential absent, `.env` not read at all.
+SANDBOX_ENV = "PDFDRILL_SANDBOX"
+
+
+def sandbox() -> bool:
+    """True when the caller asked to be answered as a keyless install.
+
+    The sandbox the work ships to starts with no keys, and the machine it is
+    built on has seven. Every lane decision is therefore a different decision
+    on the two machines, and the only way to check the one that matters is to
+    be able to ASK FOR IT — `PDFDRILL_SANDBOX=1 pdfdrill route <pdf>` answers
+    exactly as the sandbox will. Reading the real environment variable each
+    time (not a module constant) so it can be set per command.
+    """
+    return os.environ.get(SANDBOX_ENV, "").strip() not in ("", "0", "false", "no")
+
+
 def get(name: str, default: str = "") -> str:
-    """Return an env var, loading the .env file first if needed."""
+    """Return an env var, loading the .env file first if needed.
+
+    Under `PDFDRILL_SANDBOX=1` every name in `CREDENTIAL_NAMES` answers empty
+    and the `.env` file is never read, so a keyed machine can be asked what the
+    keyless one will do. Nothing else changes: the same code runs, it is simply
+    told the truth about a different install.
+    """
+    if sandbox():
+        if name in CREDENTIAL_NAMES:
+            return default
+        return os.environ.get(name, default)
     load_env()
     return os.environ.get(name, default)

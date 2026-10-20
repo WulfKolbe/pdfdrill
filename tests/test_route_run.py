@@ -1,9 +1,16 @@
 """
-`pdfdrill route --run` executes the chosen lane:
-  * born-digital → pdfminer (DRILLPDFse) → lines.json → cmd_model (FREE);
-  * scanned & small → Gemma (cmd_visionocr);
-  * scanned & large → MathPix (cmd_mathpix --force → cmd_model).
-Dispatch is tested with the lane commands monkeypatched (no real OCR/network).
+`pdfdrill route --run` executes the chosen lane, and the five lanes of the
+contract (docs/LANES.md) each dispatch to the command `route` NAMED:
+
+  * born_digital → pdfminer → lines.json → cmd_model                 (FREE)
+  * source       → cmd_model, which takes the author's LaTeX itself   (FREE)
+  * gemma        → cmd_gemmaocr → cmd_model --no-source           (METERED)
+  * mathpix      → cmd_mathpix --force → cmd_model                   (PAID)
+  * geometry     → cmd_gemmaocr --geometry-only, and STOPS there      (FREE)
+
+The report and the execution must not drift apart, which is why each of these
+asserts the command, not just the output. Dispatch is tested with the lane
+commands monkeypatched (no real OCR, no network, no spend).
 """
 import sys
 from pathlib import Path
@@ -27,12 +34,41 @@ def test_execute_born_digital_runs_pdfminer_then_model(monkeypatch):
     assert "born-digital" in out.lower()
 
 
-def test_execute_gemma_runs_visionocr(monkeypatch):
-    calls = []
-    monkeypatch.setattr(C, "cmd_visionocr",
-                        lambda pdf, **k: calls.append("vision") or "VISIONOCR ran")
+def test_execute_gemma_runs_gemmaocr_then_model(monkeypatch):
+    """The METERED model lane, not the old 50 s/page vision call. `--no-source`
+    because a scan this lane read has no author's LaTeX to prefer."""
+    order = []
+    monkeypatch.setattr(C, "cmd_gemmaocr",
+                        lambda pdf, **k: order.append(("gemmaocr", k)) or "GEMMA")
+    monkeypatch.setattr(C, "cmd_model",
+                        lambda pdf, **k: order.append(("model", k)) or "MODEL")
     out = C._execute_lane(Path("x.pdf"), _dec("gemma"))
-    assert calls == ["vision"] and "VISIONOCR ran" in out
+    assert [n for n, _ in order] == ["gemmaocr", "model"]
+    assert order[1][1].get("no_source") is True
+    assert "GEMMA" in out and "MODEL" in out
+
+
+def test_execute_source_lane_is_model(monkeypatch):
+    calls = []
+    monkeypatch.setattr(C, "cmd_model",
+                        lambda pdf, **k: calls.append("model") or "MODEL")
+    out = C._execute_lane(Path("x.pdf"), _dec("source"))
+    assert calls == ["model"] and "MODEL" in out
+
+
+def test_execute_geometry_lane_is_free_and_stops_at_the_lines_json(monkeypatch):
+    """No words are read, so `model` is not its consumer — a model keeps what
+    has prose. Running one here would print ten empty Paragraphs and look like
+    a failure."""
+    order = []
+    monkeypatch.setattr(C, "cmd_gemmaocr",
+                        lambda pdf, **k: order.append(("gemmaocr", k)) or "SHAPE")
+    monkeypatch.setattr(C, "cmd_model",
+                        lambda pdf, **k: order.append(("model", k)) or "MODEL")
+    out = C._execute_lane(Path("x.pdf"), _dec("geometry"))
+    assert [n for n, _ in order] == ["gemmaocr"]
+    assert order[0][1].get("geometry_only") is True
+    assert "SHAPE" in out
 
 
 def test_execute_mathpix_runs_mathpix_force_then_model(monkeypatch):

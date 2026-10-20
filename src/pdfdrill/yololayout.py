@@ -307,6 +307,58 @@ def abandon_boxes(dets: Iterable[Det]) -> list[Box]:
                   key=lambda b: b[1])
 
 
+#: The detector's vocabulary → MathPix's line types. The geometry-only lane has
+#: no words to type a line from, so the TYPE comes from the class of the box the
+#: line sits in. Only the classes that name something a reader downstream knows
+#: are mapped: `formula_caption` is an equation number, `abandon` is the page's
+#: own furniture (running head, folio). A class absent from this map contributes
+#: no line, which is why `plain text` is here and `embedding` is not — an inline
+#: formula lives INSIDE a text line and is not a line of its own.
+CLASS_TO_TYPE = {
+    "title": "title",
+    "plain text": "text",
+    "abandon": "page_info",
+    "figure": "diagram",
+    "chart": "chart",
+    "figure_caption": "figure_label",
+    "table": "table",
+    "table_caption": "figure_label",
+    "table_footnote": "text",
+    "isolate_formula": "math",
+    DISPLAY_MFD: "math",
+    EQNUM_CLASS: "equation_number",
+}
+
+#: The classes whose box REPLACES the lines inside it rather than typing them:
+#: a figure is one object, not the sixty ink rows its strokes happen to form.
+WHOLE_BOX_TYPES = ("diagram", "chart", "table")
+
+
+def typed_boxes(dets: Iterable[Det]) -> list[tuple[str, Box]]:
+    """`(line type, box)` for every detection this reader can name a type for,
+    top to bottom. The geometry-only lane's whole input.
+
+    The layout model is preferred over the MFD one for a display formula, for
+    the reason `display_boxes` gives: two boxes for one printed object
+    guarantees that one of them is wrong. So the MFD `isolated` boxes come in
+    only where the layout model found no formula.
+    """
+    dets = list(dets)
+    out: list[tuple[str, Box]] = []
+    for d in dets:
+        if d.model != "layout":
+            continue
+        kind = CLASS_TO_TYPE.get(d.cls)
+        if kind:
+            out.append((kind, d.box))
+    lay_disp = [b for k, b in out if k == "math"]
+    for b in (d.box for d in dets
+              if d.model == "mfd" and d.cls == DISPLAY_MFD):
+        if all(_iou(b, l) < 0.3 and _inside_share(b, l) < 0.6 for l in lay_disp):
+            out.append(("math", b))
+    return sorted(out, key=lambda kb: (kb[1][1], kb[1][0]))
+
+
 def whiten(png: Path, boxes: Sequence[Box], dst: Path, *,
            pad: int = 2) -> Path:
     """Fill `boxes` with paper white and write the result to `dst`.

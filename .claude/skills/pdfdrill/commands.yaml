@@ -216,10 +216,20 @@ commands:
   typed: true
 - name: route
   section: Introspection (fast, no extraction)
-  summary: 'Auto-pick the OCR lane and (with --run) EXECUTE it: born-digital → pdfminer/text-layer
-    (free); scanned & ≤20 pages → Gemma 4 (5-parallel); scanned & larger → MathPix (large books).
-    Auto-chains size. Without --run reports the decision; with --run runs the chosen lane (paid/keyed
-    lanes degrade gracefully when creds are absent).'
+  summary: 'THE LANE CONTRACT — which reading this document gets, in one decision, reported in
+    the same words everywhere. Five lanes in a FIXED ORDER, each taken only because every cheaper
+    one above it is unavailable: (1) born_digital, the PDF''s OWN text layer, free and exact at
+    any page count, with the author''s LaTeX merged in on an arXiv paper; (2) source, no text
+    layer but an arXiv e-print, so the author''s LaTeX is gold and free; (3) gemma, a scan and a
+    MAKORA/NOVITA key — METERED at a measured 0.000718 EUR per printed page and refused against
+    PDFDRILL_OCR_BUDGET_EUR; (4) mathpix, a scan with only a MathPix key — PAID, the richest
+    reading, and lane 4 and not 3 because gemmaocr measured 88% of its boxes on penev_A at about
+    a fortieth of the price; (5) geometry, a scan with NO reading key (the sandbox default) — the
+    detector is offline and free, so the page''s STRUCTURE is still available with no words in it.
+    OCR IS THE LAST RESORT: lanes 3-5 are reached only when the document has neither a text layer
+    of its own nor an author''s source. Key-aware (`PDFDRILL_SANDBOX=1` answers as a keyless
+    install does), detector-aware, and PURE — the decision reads no file. Auto-chains size.
+    Without --run it reports; with --run it executes, and never the paid half of a lane unasked.'
   offline_ok: true
   positionals:
   - name: pdf
@@ -470,7 +480,14 @@ commands:
   typed: true
 - name: drill
   section: Planning & automation
-  summary: Full auto-drill
+  summary: 'ONE COMMAND, THE WHOLE WAY — the cheap probes (size, fonts, abstract, toc), then
+    `route` to pick the lane and SAY why, then the lane, then the model, then the free detector
+    geometry (`geometry --layout`), then `inspect`. Ends with an inspect.html you can open. It
+    stopped at Markdown before, which on an arXiv paper left a geometry-less source model on disk
+    and an inspector with 131 elements and 131 missing boxes. Everything it runs is OFFLINE AND
+    FREE: when the lane costs money it is NAMED with the exact command and not run, and `drill`
+    again afterwards finishes the rest. --no-inspect stops before the inspector; --full wipes the
+    sidecar and re-runs from cold.'
   offline_ok: true
   positionals:
   - name: pdf
@@ -483,6 +500,10 @@ commands:
     flag: --full
     type: flag
     help: wipe sidecar + re-run from cold
+  - name: no-inspect
+    flag: --no-inspect
+    type: flag
+    help: stop before building the inspector
 - name: pdfinfo
   section: Introspection (fast, no extraction)
   summary: Full PdfInfo struct (title/author/dates/flags)
@@ -1140,9 +1161,14 @@ commands:
   typed: true
 - name: model
   section: Introspection (fast, no extraction)
-  summary: 'Build unified docmodel from lines.json. No lines.json → MathPix (if key) → arXiv LaTeX
-    source (arXiv) → born-digital text layer (pdfplumber, FREE/fast) → tesseract OCR (scans only).
-    --bibkey KEY sets the tiddler prefix (persisted)'
+  summary: 'Build unified docmodel from lines.json. No lines.json → the FREE lanes only, in the
+    order docs/LANES.md fixes: the arXiv author''s LaTeX merged with the PDF''s own text layer →
+    the text layer alone (pdfminer, free/fast) → the author''s LaTeX alone → tesseract (installed
+    scans only). It NEVER BUYS A READING: `model` used to call MathPix whenever a key was present,
+    which made it a paid command reachable from forty places that do not say so and bought 9 pages
+    of 2402.13444v1 in a session measuring the free lanes. The paid lane is now NAMED in the
+    refusal, with the exact command; --mathpix is the explicit opt-in. --bibkey KEY sets the
+    tiddler prefix (persisted)'
   offline_ok: true
   positionals:
   - name: pdf
@@ -1158,6 +1184,12 @@ commands:
     flag: --no-source
     type: flag
     help: build from the lines.json ALONE — suppress the gold author-LaTeX (arXiv e-print) lanes, so the reader's own line types become objects instead of the source supplying the structure. For comparing readers or measuring a change to one; the default (source preferred) gives the better model.
+  - name: mathpix
+    flag: --mathpix
+    type: flag
+    help: 'the explicit opt-in to the PAID lane: with no lines.json on disk, buy a MathPix
+      conversion first. Without it `model` takes only the free lanes and names this one —
+      a paid step is always asked for, never inferred from a key being present'
   - name: bibkey
     type: str
     flag: --bibkey
@@ -1326,7 +1358,18 @@ commands:
   - *id001
 - name: geometry
   section: Introspection (fast, no extraction)
-  summary: Fuse pdftotext -tsv layout (indent/margins) onto the model — substrate for block detection
+  summary: 'Fuse cheap layout onto the model. Two layers, both offline and free. LINE layer:
+    pdftotext -tsv indentation and margins as each line''s `_geom` — the substrate the
+    algorithm/itemize/equation-number detectors read. OBJECT layer with --layout: the page LAYOUT
+    DETECTOR''s boxes for the objects whose printed form is not their text, which is the one thing
+    a text match structurally cannot place — an inline formula''s text is `ax^2+bx+c = 0` and the
+    page carries a picture of it. Chosen by a MONOTONE WALK between the objects the text match DID
+    place, so no object can take a box outside its own neighbours, and where the window holds no
+    box of the right class the object keeps NONE (a wrong box cannot be detected downstream).
+    This is the OCR path used for nothing but geometry: `yololayout` is run for its boxes, the
+    words come from the source, nothing is bought. MEASURED on arXiv 2402.13444v1: the merged
+    route left 54 of 131 elements with no box; with --layout and the bibliography''s own entries
+    matched, 8 remain.'
   offline_ok: true
   positionals:
   - name: pdf
@@ -1336,6 +1379,14 @@ commands:
   typed: true
   flags:
   - *id001
+  - name: layout
+    flag: --layout
+    type: flag
+    help: also put the layout detector's boxes on objects the text match could not place
+  - name: allow-download
+    flag: --allow-download
+    type: flag
+    help: let the detector fetch its weights (otherwise cache-only)
   done_when: model:geometry
 - name: tiddlers
   section: Introspection (fast, no extraction)
@@ -3756,6 +3807,19 @@ commands:
     type: flag
     help: let the detector fetch its weights once if they are not in the local cache
       (pdfdrill never downloads them silently)
+  - name: geometry-only
+    flag: --geometry-only
+    type: flag
+    help: 'FREE and offline — the half of this lane that costs nothing. Splits the
+      sheets, detects the layout, and writes a lines.json in which every line has a
+      box and a TYPE and no text: the ink gives the rows, the detector gives each
+      row its type, a figure or a table is one object rather than the rows its
+      strokes form. This is the keyless install''s scan lane. Its consumers are
+      `linescmp` (score the geometry against a reading), `geometry --layout` (put
+      these boxes on a model that has none) and the detector cache, which makes the
+      metered read cheaper when a key arrives. It refuses to overwrite a READING
+      that was paid for, and `model` is not its consumer — a model keeps what has
+      prose'
   typed: true
 - name: yololayout
   section: OCR / model pipeline

@@ -113,9 +113,22 @@ tests failing against correct source (HANDOVER-RULES rule 4).
 - **Ghostscript at ≥400 dpi is the ONLY rasterizer** (`pdf_reading.rasterize`/
   `render_page`); no pdftoppm/fitz fallback. For table-rule measurements use
   800 dpi (HANDOVER-RULES §3 T2).
+- **The LANE CONTRACT is `docs/LANES.md`** — five lanes in a fixed order,
+  decided by one pure function (`ocr_router.choose_route`), reported in the same
+  words by `route`, `drill` and `doctor`: the PDF's own text layer (free) → the
+  arXiv author's LaTeX (free) → `gemmaocr` (metered) → `mathpix` (paid) → the
+  free geometry-only lane (no reading key at all). **OCR is the last resort**:
+  lanes 3-5 are reached only when the document has neither a text layer of its
+  own nor an author's source. Page count no longer selects a lane — the old
+  ">20pp → MathPix" threshold was set when the alternative was a 50 s/page
+  vision call. `pdfdrill drill <pdf>` runs the contract to an inspect.html and
+  runs nothing that costs money. `PDFDRILL_SANDBOX=1` answers as the keyless
+  sandbox does, on a keyed machine.
+- **No command buys a reading unasked.** `model` took the paid lane whenever a
+  key was present; it now names it (`--mathpix` is the opt-in). The rule is the
+  planner's and it had leaked one level down.
 - **Scan acquisition never adds an OCR text layer** (it would misroute `route`
-  to the born-digital lane). Scanned & ≤20pp → Gemma vision; >20pp → MathPix;
-  text layer present → pdfminer.
+  to the born-digital lane).
 - **Projected LaTeX compiles with xelatex**, not pdflatex (models carry raw
   Unicode). `injectlatex` = INPUT (author source → gold provenance);
   `latex`/`beamer` = OUTPUT (docmodel → .tex).
@@ -186,6 +199,7 @@ tests failing against correct source (HANDOVER-RULES rule 4).
 
 | Topic | Doc |
 |---|---|
+| Which reading a document gets, and why | `docs/LANES.md` |
 | State of play, constants, open work | `docs/HANDOVER.md` |
 | Rules learned by defect, env facts | `docs/HANDOVER-RULES.md` |
 | Full per-feature guidance (historic CLAUDE.md) | `docs/CLAUDE-FULL.md` |

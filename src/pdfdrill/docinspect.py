@@ -475,7 +475,13 @@ def collect_elements(model: dict, sidx: dict, *, with_blobs: bool = False):
         # the flat blob layer instead of a DOM node each.
         from .ink_view import category as _cat, is_structure as _struct, suspicions as _susp
         rec["cat"] = _cat(obj["type"], pr)
-        _s = _susp(pr, has_region=bbox is not None)
+        from .layoutgeom import not_printed as _not_printed
+        _printed = not _not_printed(obj["type"], pr)
+        if not _printed:
+            # Stated on the element, so a reader of the tree and an audit of
+            # the file answer "why has this no box?" the same way.
+            rec["not_printed"] = True
+        _s = _susp(pr, has_region=bbox is not None, printed=_printed)
         if _s:
             rec["susp"] = _s
         if _struct(obj["type"], pr):

@@ -184,16 +184,14 @@ required" for scans. Tests: `tests/test_text_layer.py`
 (`test_born_digital_with_cover_page_figure_is_text`, the pure decision).
 
 **Automatic OCR-lane router (`pdfdrill route`, `src/pdfdrill/ocr_router.py`).**
-The state machine picks the extraction lane from the `size` signals and REPORTS
-it — nothing silent: **born-digital → pdfminer/text-layer** (free, exact; a text
-layer beats any page count, so a 2000-page born-digital book still goes here);
-**scanned & ≤20 pages → Gemma 4** (Novita, ~50s/page, 5-parallel adaptive);
-**scanned & >20 pages (or unknown) → MathPix** (the only viable OCR for large
-books). `choose_route(...)` is PURE; `pdfdrill route <pdf>` auto-chains `size`,
-reports the decision + the exact command per lane, and does NOT execute a
-paid/keyed lane. Verified on the sensorcloud corpus: born-digital papers/books →
-pdfminer; the scanned Audi Gutachten (26pp) + Gödel (79pp) → MathPix. Tests:
-`tests/test_ocr_router.py` (8, incl. the ≤20 cutoff + unknown-page default).
+SUPERSEDED HERE — the contract is **`docs/LANES.md`**, which is canonical. This
+section described the two-lane split by page count ("scanned & ≤20 pages →
+Gemma 4; scanned & >20 pages → MathPix"), a threshold set when the only
+alternative to MathPix was a 50 s/page vision call. `gemmaocr` made the large
+book the CHEAP case, so page count no longer selects a lane, and the free
+author-LaTeX lane now stands ABOVE the paid ones rather than below them. What
+survives unchanged: `choose_route(...)` is PURE, a text layer beats any page
+count, and `route` reports rather than spends.
 
 ## Tests
 

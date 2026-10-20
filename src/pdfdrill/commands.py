@@ -194,7 +194,8 @@ def cmd_mathpix(pdf: Path) -> str:
 def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
                  pages: str = "", nup: str = "auto",
                  nup_order: str = "column", no_layout: bool = False,
-                 allow_download: bool = False, rebuild: bool = False) -> str:
+                 allow_download: bool = False, rebuild: bool = False,
+                 geometry_only: bool = False) -> str:
     """Read the PDF with the MODEL lane and write a MathPix-shaped lines.json.
 
     The same lane shape as `cmd_mathpix`, deliberately: the same two files
@@ -211,7 +212,10 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
     every call's own `usage` goes to the call log — `pdfdrill spend <pdf>`
     reads it back.
     """
-    if paid_blocked():
+    # `--geometry-only` and `--rebuild` SPEND NOTHING, so the paid-step guard
+    # must not refuse them: a guard that blocks the free half of a lane makes
+    # the keyless install the one place pdfdrill cannot be used at all.
+    if paid_blocked() and not (geometry_only or rebuild):
         return (f"gemmaocr NOT run for {pdf.name}: reached from an "
                 f"auto-inserted prerequisite, where paid steps never run. "
                 f"Run it explicitly:\n  pdfdrill gemmaocr {pdf.name}")
@@ -222,7 +226,7 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
     want = pdf_reading.parse_pages(pages) if pages else None
     cached = _gr.is_gemma_lines(_gr.expected_outputs(pdf)["lines.json"])
     warn = ""
-    if (not cached or force) and not rebuild:
+    if (not cached or force) and not rebuild and not geometry_only:
         from . import probes
         probes.ensure(pdf, sc)
         n_pages = len(want) if want else probes.page_count(sc)
@@ -238,7 +242,8 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
                                  blob_dir=sc.blob_dir, nup=nup,
                                  nup_order=nup_order, layout=not no_layout,
                                  allow_download=allow_download,
-                                 rebuild=rebuild)
+                                 rebuild=rebuild,
+                                 geometry_only=geometry_only)
     except NetworkBlocked as e:
         return str(e)
     except _gr.ReadRefused as e:
@@ -275,6 +280,28 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
     out = [warn.rstrip("\n")] if warn else []
     shape = result.get("nup") or "1-up"
     printed = result.get("printed_pages") or n_pages_read
+    if result["status"] == "geometry":
+        out.append(
+            f"GEOMETRY ONLY — nothing read, nothing spent. {printed} printed "
+            f"pages on {n_pages_read} sheets: {n_lines} lines, each with a box "
+            f"and a type and NO TEXT -> {lines_path.name}.")
+        if result.get("layout"):
+            out.append(f"  {result['layout']}")
+        st0 = result.get("sanitize") or {}
+        if st0:
+            out.append(f"  sanitized: {st0.get('boxes_changed', 0)} boxes "
+                       f"tightened, {st0.get('no_ink', 0)} with no ink")
+        out.append("  A line here has a box and a type and no words, so "
+                   "`model` is not its consumer (it keeps what has prose). "
+                   "What is: `pdfdrill linescmp <pdf> --reference <lines.json>` "
+                   "scores this geometry against a reading, `pdfdrill geometry "
+                   "<pdf> --layout` puts these boxes on a model that has none, "
+                   "and the detector cache makes the metered read cheaper when "
+                   "a key arrives.")
+        out.append(f"Next, when there is a key: `pdfdrill gemmaocr {pdf.name}` "
+                   f"reads the words (METERED, ~{_gr.EUR_PER_PAGE * printed:.3f} "
+                   f"EUR for this document).")
+        return "\n".join(out)
     if result["status"] == "rebuilt":
         out.append(
             f"Rebuilt from the Markdown already read — NOTHING SPENT. "
@@ -294,6 +321,11 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
                    f"{printed // max(1, n_pages_read)} printed pages{folio}.")
     if result.get("layout"):
         out.append(f"  {result['layout']}")
+    if result.get("furniture"):
+        out.append(f"  {result['furniture']} line(s) retyped as the page's own "
+                   f"furniture (running head / folio) from the detector's "
+                   f"`abandon` boxes — reading one printed page, the model "
+                   f"writes a folio as a bare line.")
     st = result.get("sanitize") or {}
     if st:
         out.append(f"  sanitized: {st.get('boxes_changed', 0)} boxes tightened, "
@@ -976,8 +1008,12 @@ def merge_page_geometry(doc, lines_path: Path) -> dict:
         # skipping it on `page` made that upgrade a no-op.
         if o.type == "Page" or o.props.get("region"):
             continue
+        # `raw_text` is last and it matters: a Reference built from the
+        # author's `.bbl` keeps the entry there and has no `text` at all, so 27
+        # of the 34 box-less elements on 2402.13444v1 were bibliography entries
+        # that ARE printed, on pages 8 and 9, and were never looked for.
         src = str(o.props.get("text") or o.props.get("content")
-                  or o.props.get("caption") or "")
+                  or o.props.get("caption") or o.props.get("raw_text") or "")
         if not src.strip():
             continue
         pno, at = _find(src)
@@ -1946,13 +1982,23 @@ def cmd_doctor() -> str:
                  f"extract_addresses); auto-preloaded from /usr/local/lib")
 
     lines.append("")
-    lines.append("API keys (env / .env; only needed for the named routes):")
+    from .env import sandbox as _sandbox
+    if _sandbox():
+        lines.append("API keys — PDFDRILL_SANDBOX=1: ANSWERING AS A KEYLESS "
+                     "INSTALL. Every key below reads unset and `.env` is not "
+                     "read, so every lane decision in this run is the one the "
+                     "fresh sandbox will make.")
+    else:
+        lines.append("API keys (env / .env; only needed for the named routes):")
     for var, route in [("MATHPIX_APP_ID", "mathpix/model"), ("MATHPIX_APP_KEY", "mathpix/snip"),
                        ("OPENAI_API_KEY", "vision"), ("NOVITA_API_KEY", "snip --gemma / route (Gemma-4)"),
                        ("MAKORA_API_KEY", "gemmaocr (Gemma-4, METERED prepayment — "
                                           "set PDFDRILL_OCR_BUDGET_EUR too)"),
                        ("PERPLEXITY_API_KEY", "bibfetch"), ("DEEPL_API_KEY", "translate")]:
         lines.append(f"  [{'set ' if get(var) else 'unset'}] {var:<18} — {route}")
+    if not _sandbox():
+        lines.append("  (PDFDRILL_SANDBOX=1 answers as the keyless sandbox does "
+                     "— the way to check a lane decision before it ships.)")
 
     # The layout detector is a TOOL and not a key: torch in its own
     # interpreter, like poppler and ghostscript, so it belongs with them and
@@ -5785,7 +5831,8 @@ def model_ledger(pdf: Path) -> str:
 def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
               force_discard_translation: bool = False,
               force_discard_enrichments: bool = False,
-              no_source: bool = False, reader: "str | None" = None) -> str:
+              no_source: bool = False, reader: "str | None" = None,
+              mathpix: bool = False) -> str:
     """Build the unified docmodel Document from MathPix lines.json.
 
     Auto-chains `mathpix` if the lines.json isn't there yet. Writes the
@@ -5932,14 +5979,21 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
             return merged_out
 
     if not lines_path.exists():
-        # 1) MathPix if a key is present (best: page geometry + LaTeX + CDN crops).
-        #    Skips for arXiv unless --force; a no-key / blocked host just returns
-        #    without a lines.json, so we fall through to the free routes below.
-        try:
-            cmd_mathpix(pdf)
-        except (Exception, SystemExit):     # missing creds raise SystemExit — must
-            pass                            # still fall through to the free routes
-        sc = Sidecar(pdf)
+        # 1) MathPix — ONLY WHEN ASKED. This used to run whenever a key was
+        #    present, which made `model` a paid command on any document with no
+        #    lines.json, reachable from about forty places that do not say so.
+        #    It bought 9 pages of 2402.13444v1 during a session whose whole
+        #    purpose was to measure the FREE lanes, and the project's own rule
+        #    has said since the planner was written that a paid layer is
+        #    DECLARED in a chain and never auto-run. The free lanes below are
+        #    what `route` promises; the paid one is named in the refusal and in
+        #    `--mathpix`.
+        if mathpix:
+            try:
+                cmd_mathpix(pdf)
+            except (Exception, SystemExit):  # missing creds raise SystemExit —
+                pass                         # still fall through to the free routes
+            sc = Sidecar(pdf)
         if not lines_path.exists():
             # 2) BORN-DIGITAL default (the no-OCR route): read the PDF's OWN text
             #    stream with pdfminer (chars → lines.json WITH page geometry) —
@@ -5971,11 +6025,27 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
                     cmd_ocr(pdf)
             sc = Sidecar(pdf)
     if not lines_path.exists():
-        return (f"No lines.json for {pdf.name}: it has no born-digital text layer "
-                f"(a scan), MathPix is unavailable (no creds / blocked host), and "
-                f"tesseract OCR is not installed. Provide a lines.json, set MathPix "
-                f"creds, or install ghostscript + tesseract-ocr and run "
-                f"`pdfdrill ocr {pdf.name}`.")
+        from . import ocr_router as _r
+        keys = _r.keys_present()
+        if _r.GEMMA_KEY in keys:
+            nxt = (f"`pdfdrill gemmaocr {pdf.name}` — the model lane, METERED at "
+                   f"a measured 0.000718 EUR per printed page and refused "
+                   f"against PDFDRILL_OCR_BUDGET_EUR before the first call")
+        elif _r.MATHPIX_KEY in keys:
+            nxt = f"`pdfdrill mathpix {pdf.name}` — PAID, and the richest reading"
+        else:
+            nxt = (f"no reading key is set, so the WORDS cannot be had here. "
+                   f"Set MAKORA_API_KEY (metered, cheapest) or "
+                   f"MATHPIX_APP_ID/KEY, or take the page's SHAPE for free: "
+                   f"`pdfdrill gemmaocr {pdf.name} --geometry-only` gives every "
+                   f"line a box and a type and no text")
+        return (f"No lines.json for {pdf.name}, and no free lane reaches one: it "
+                f"has no text layer of its own (a scan) and no author's source "
+                f"(not an arXiv e-print). `model` does not buy a reading — a "
+                f"paid step is always named, never auto-run.\n"
+                f"  Next: {nxt}.\n"
+                f"  (`pdfdrill route {pdf.name}` states the lane and why; "
+                f"`pdfdrill doctor` lists the keys.)")
 
     sc.blob_dir.mkdir(parents=True, exist_ok=True)
     t0 = time.monotonic()
@@ -13481,8 +13551,54 @@ def cmd_translate(pdf: Path, target_lang: str = "EN-US",
 # Geometry fusion — lift pdftotext -tsv layout onto the model (cross-level)
 # ---------------------------------------------------------------------------
 
+def _layout_geometry(pdf: Path, sc: "Sidecar", doc, *,
+                     force: bool = False,
+                     allow_download: bool = False) -> "tuple[dict, str]":
+    """Put the layout DETECTOR's boxes on the objects the text match could not
+    place. Offline and free — the OCR path used for nothing but geometry.
+
+    Reuses `yololayout`'s cache under `.drill/gemmaocr/`, so a document the
+    detector has already seen costs a file read. Returns `(stats, note)`; a
+    missing detector is a note and not an error, because every other thing this
+    command does still works without it.
+    """
+    from . import layoutgeom, nup as _nup, pdf_reading, yololayout as _yolo
+    if not _yolo.available():
+        return {}, ("layout detector not installed, so the objects the text "
+                    "match could not place keep no box "
+                    "(`pdfdrill doctor` → External detectors)")
+    work = sc.blob_dir / "gemmaocr"
+    try:
+        sheets = pdf_reading.rasterize(pdf, work / "pages", dpi=400, gray=True)
+        by_no = {pdf_reading.page_of(s): s for s in sheets}
+        amap = _nup.split([(n, by_no[n]) for n in sorted(k for k in by_no
+                                                         if k is not None)],
+                          work / "printed")
+        printed = {int(k): work / "printed" / f"page-{int(k):04d}.png"
+                   for k in amap}
+        _yolo.detect([printed[n] for n in sorted(printed)], work / "yolo",
+                     force=force, allow_download=allow_download)
+    except _yolo.DetectorMissing as exc:
+        return {}, f"layout detection unavailable — {exc}"
+    except Exception as exc:                                 # noqa: BLE001
+        return {}, f"layout detection failed — {type(exc).__name__}: {exc}"
+    # Only a 1-up document can have its detections put on model objects: on an
+    # imposed sheet the printed page and the PDF page are different pages, and
+    # the model's `page` is the PDF's. Saying so beats placing four pages of
+    # boxes on one.
+    if not _nup.is_identity(amap):
+        return {}, ("the sheets carry several printed pages each, so the "
+                    "detector's boxes are in printed-page coordinates and the "
+                    "model's pages are the PDF's — not placed")
+    dets = {n: _yolo.load_for(work / "yolo", printed[n]) for n in printed}
+    sizes = {n: layoutgeom.png_size(printed[n]) for n in printed}
+    stats = layoutgeom.place(doc, dets, {n: s for n, s in sizes.items() if s})
+    return stats, ""
+
+
 @_writes("geometry")
-def cmd_geometry(pdf: Path, force: bool = False) -> str:
+def cmd_geometry(pdf: Path, force: bool = False, layout: bool = False,
+                 allow_download: bool = False) -> str:
     """Fuse cheap pdftotext -tsv word geometry onto the unified model.
 
     Adds a `pdf_lines` stream, aligns each MathPix line to its pdftotext line
@@ -13517,12 +13633,35 @@ def cmd_geometry(pdf: Path, force: bool = False) -> str:
         if upgraded:
             save_model(model_path, doc)
 
+    # `--layout`: the detector's boxes for the objects whose printed form is
+    # not their text — an inline formula, a tabular, a heading. Runs before the
+    # early return below, because it is the whole reason the flag exists.
+    layout_note = ""
+    if layout:
+        lstats, why = _layout_geometry(pdf, sc, doc, force=force,
+                                       allow_download=allow_download)
+        if lstats:
+            save_model(model_path, doc)
+            sc.set_evidence("layout_geometry", lstats)
+            sc.save()
+            by = ", ".join(f"{k} {v}" for k, v in
+                           sorted((lstats.get("by_type") or {}).items()))
+            layout_note = (
+                f"\nLayout detector: boxed {lstats['boxed']} of "
+                f"{lstats['candidates']} object(s) whose printed form is not "
+                f"their text" + (f" ({by})" if by else "")
+                + f"; {lstats['no_box']} had no box of their class in the "
+                  f"window and keep none, {lstats['no_window']} had no anchor "
+                  f"to walk between. Offline and free.")
+        elif why:
+            layout_note = f"\nLayout detector: {why}."
+
     if "pdf_lines" in doc.streams and not force:
         out = _format_geometry(sc)
         if upgraded:
             out += (f"\nAttached a region to {upgraded} object(s) that had none "
                     f"(so `inspect` can box them).")
-        return out
+        return out + layout_note
     if force:
         clear_geometry(doc)
 
@@ -13543,7 +13682,7 @@ def cmd_geometry(pdf: Path, force: bool = False) -> str:
         detail=f"{stats['matched']}/{stats['pdf_lines']} matched",
     )
     sc.save()
-    return _format_geometry(sc)
+    return _format_geometry(sc) + layout_note
 
 
 def _format_geometry(sc: Sidecar) -> str:
@@ -15160,13 +15299,26 @@ def _execute_lane(pdf: Path, d) -> str:
     head = f"Route → {label} [{d.cost}] — running…\n"
     if d.lane == "born_digital":
         return head + _run_born_digital(pdf)
+    if d.lane == "source":
+        # The author's LaTeX. `model` takes it itself — this lane is `model`,
+        # named so the report and the execution cannot drift apart.
+        return head + cmd_model(pdf)
     if d.lane == "gemma":
-        # keyless per-page LLM OCR; vision_router routes the pages to Gemma when
-        # NOVITA_API_KEY is set, else to the running agent. Degrades gracefully.
-        return head + cmd_visionocr(pdf)
+        # The MODEL lane (gemmaocr): METERED, budget-guarded, and the one that
+        # replaced the 50 s/page vision call. It refuses rather than overspend,
+        # so running it here is safe; what it must not do is run UNASKED, and
+        # `route --run` is asking.
+        return head + cmd_gemmaocr(pdf) + "\n" + cmd_model(pdf, no_source=True)
     if d.lane == "mathpix":
         m = cmd_mathpix(pdf, force=True)            # graceful when no creds
         return head + m + "\n" + cmd_model(pdf)
+    if d.lane == "geometry":
+        # FREE and offline. No words are read, so this stops at the lines.json:
+        # `model` keeps only what has prose, and a 273-line page map would come
+        # out as ten empty Paragraphs. What the map IS for is said in the
+        # command's own report, and `--run` on the keyless lane must not end in
+        # a refusal the user cannot act on.
+        return head + cmd_gemmaocr(pdf, geometry_only=True)
     return head + "unclassified — run `pdfdrill size` first."
 
 
@@ -15282,17 +15434,21 @@ def cmd_ls(directory: Path, images: bool = False) -> str:
 
 
 def cmd_route(pdf: Path, run: bool = False) -> str:
-    """Pick the OCR-lane automatically and, with --run, EXECUTE it.
+    """THE LANE CONTRACT — which reading this document gets, and why.
 
-    The state machine classifies the document from the cheap `size` signals and
-    picks the extraction lane — born-digital → pdfminer/text-layer (FREE);
-    scanned & ≤20 pages → Gemma 4 (5-parallel); scanned & larger → MathPix (the
-    only viable OCR for large books). Auto-chains `size`.
+    Five lanes in a fixed order, decided by one pure function and written down
+    in `docs/LANES.md`: the PDF's own text layer (free) → the arXiv author's
+    LaTeX (free) → `gemmaocr` (metered) → `mathpix` (paid) → the free
+    geometry-only lane when there is no reading key at all. OCR is the LAST
+    RESORT: the three OCR lanes are reached only when the document has neither
+    a text layer of its own nor an author's source. Auto-chains `size`.
 
-    Without `--run` it reports the decision (and the command per lane) so you
-    never hand-pick per document. With `--run` it runs the chosen lane: the free
-    born-digital lane always; the paid/keyed lanes degrade gracefully to a clear
-    message when their creds/key are absent (no accidental spend).
+    Key-aware and detector-aware, so the answer is this install's answer —
+    `PDFDRILL_SANDBOX=1` makes a keyed machine answer as the keyless sandbox
+    will. Without `--run` it reports the decision and the exact command; with
+    `--run` it executes, and the metered/paid lanes refuse rather than overspend
+    (`gemmaocr` against PDFDRILL_OCR_BUDGET_EUR, both gracefully when a key is
+    absent).
     """
     from . import ocr_router as _r
     sc = Sidecar(pdf)
@@ -16993,6 +17149,21 @@ def cmd_status(pdf: Path, html: bool = False) -> str:
         for p in arts:
             parts.append(f"  {p.relative_to(sc.pdf_path.parent)}  "
                          f"({p.stat().st_size / 1024:.0f} KB)")
+
+    # THE LANE, and therefore the next command — on every `status`, because
+    # "which reading does this document get?" is the question every other one
+    # depends on and the user should not have to know to ask it. One line, from
+    # the same pure function `route` and `drill` use (docs/LANES.md), so the
+    # three can never give different advice.
+    try:
+        from . import ocr_router as _r
+        _d = _r.route_for_sidecar(sc)
+        if _d.lane != "unknown" or not sc.has(MODEL_BUILT):
+            parts.append(f"\nLane [{_d.cost}]: "
+                         f"{_r._LANE_LABEL.get(_d.lane, _d.lane)} — "
+                         f"{_d.command}")
+    except Exception:                                   # noqa: BLE001
+        pass                                            # never fail a report
 
     last = sc.last_node
     n_trans = len(sc.transitions)

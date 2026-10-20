@@ -1326,3 +1326,97 @@ already parsed and unused — retyping a line whose box sits inside an `abandon`
 box would fix it. It costs nothing in the score (page_info is excluded on both
 sides) and it is a type disagreement with MathPix, so it is honesty rather
 than accuracy.
+
+---
+
+## T-0026 follow-up (5) — the lane contract, and the OCR path used for geometry
+
+**`docs/LANES.md` is the contract.** Five lanes in a fixed order, one pure
+function (`ocr_router.choose_route`), the same words from `route`, `drill` and
+`doctor`: the PDF's own text layer (free) → the arXiv author's LaTeX (free) →
+`gemmaocr` (metered, 0.000718 EUR/printed page) → `mathpix` (paid) → the free
+geometry-only lane. Read that file rather than this summary.
+
+Two things the old router got wrong, both measured, both worth keeping written
+down because each looked reasonable when it was written:
+
+- **`model` bought MathPix whenever a key was present** and no lines.json
+  existed, which made it a paid command reachable from about forty places that
+  do not say so. It bought 9 pages of arXiv 2402.13444v1 during this session,
+  whose whole purpose was to measure the free lanes. The planner's rule — a
+  paid layer is DECLARED and never auto-run — had been written for `--ensure`
+  and did not reach one level down. `model` now names the lane;
+  `model --mathpix` is the opt-in.
+- **The scan lanes split on page count** (">20pp → MathPix"). That threshold
+  was set when the only alternative was a 50 s/page vision call and left
+  standing after `gemmaocr` made the large book the cheap case. Page count no
+  longer selects a lane.
+
+**`PDFDRILL_SANDBOX=1`** makes a keyed machine answer as the keyless sandbox
+does: every name in `env.CREDENTIAL_NAMES` reads empty and `.env` is not read.
+`PDFDRILL_OCR_BUDGET_EUR` keeps working — a budget of nothing is not no budget.
+This is how a lane decision is checked before it ships.
+
+**`drill` goes the whole way now.** It stopped at Markdown, which on an arXiv
+paper left a geometry-less source model on disk and no inspector at all; the
+next command to ask for one got 131 elements with 131 missing boxes, because
+`model` saw MODEL_BUILT and returned the cached one. The chain is now the cheap
+probes → `route` (reported, with the reason) → the lane, **but only a free
+one** → `model` → `md` → `geometry --layout` → `inspect`. A paid lane is named
+with its exact command and not run.
+
+### The geometry half of the OCR path, which costs nothing
+
+`geometry --layout` (`src/pdfdrill/layoutgeom.py`) gives the detector's boxes to
+the objects whose printed form is not their text — an inline formula's text is
+`ax^2+bx+c = 0` and the page carries a picture of it, so no text match can
+reach it. Chosen by a MONOTONE WALK between the objects the text match did
+place: each unboxed object may only take a box of its own class inside its
+neighbours' window, each box once, and where the window holds no box of the
+right class the object keeps NONE. The window is built from BOTH edges of an
+anchor — with tops alone, 23 of 26 candidates found nothing, because an inline
+formula sits inside its host paragraph and the next anchor's top is below it.
+
+Measured on arXiv 2402.13444v1, 9 pages, keyless, from cold:
+
+    elements with no box      131 of 131   drill as it was (source model)
+                               54          + the text match
+                               29          + `raw_text` consulted, so the
+                                             author's .bbl entries are matched
+                                8          + geometry --layout
+
+0 boxes outside their page frame, 0 zero-area, furthest edge 0.949. The
+remaining 8 are 2 Formula, 2 Table, 2 Reference, 1 Section, 1 Paragraph.
+
+`gemmaocr --geometry-only` is the keyless install's scan lane: split, detect,
+and a lines.json in which every line has a box and a type and no text — the ink
+gives the rows, the detector gives each row its type, a figure is one object
+rather than the rows its strokes form. 12 printed pages of penev_A, 273 typed
+boxed lines, 0.0000 EUR. `model` is NOT its consumer (a model keeps what has
+prose); `linescmp`, `geometry --layout` and the detector cache are.
+
+A Reference the bibliography made from a `\cite` key is **not an object with a
+missing box** — it is an object with nothing to box. `layoutgeom.not_printed`
+says so and the inspector records it as `not_printed`, so an audit stops
+counting 27 citation stubs as missing geometry.
+
+### `page_info`, closed
+
+The open item above is done. `gemma_reader.retype_furniture` retypes a `text`
+line as `page_info` on FOUR conditions, and the conjunction is the whole of it:
+the detector's `abandon` box, the margin band (top/bottom 12%), a short line
+(≤55% of the measure), and a detector box no taller than 2.2 line heights.
+
+Measured the other way round first: with the band and the detector's word
+alone, 128 lines were retyped and the score fell from 2,696 of 3,080 reference
+lines to 2,617 — 79 lines of body text typed as furniture and dropped from the
+Markdown, because the top twelfth of a scanned page holds the first body line
+as often as a running head. With all four, `page_info` is **63** (was 15,
+reference 98) and the score is unchanged at 2,696/3,080, median 0.82, 2,572
+typed alike. Each condition alone is dangerous in the same direction:
+`markdown()` drops a `page_info` line, so a wrong retype deletes prose, and a
+deletion is not visible in the result.
+
+STILL OPEN: the table of contents, unchanged — 49 of 79
+`table_of_contents_row`, and neither reader types a contents list. A leader-dot
+run is a measurable thing and nothing looks for it.

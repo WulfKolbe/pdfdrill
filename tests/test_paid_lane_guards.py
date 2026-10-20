@@ -379,3 +379,95 @@ def test_rebuild_refuses_rather_than_buying_the_pages_it_is_missing(tmp_path,
                        blob_dir=tmp_path / "blob")
     assert "--rebuild" in str(exc.value)
     assert "SPENDS" in str(exc.value)
+
+
+# ── `model` does not buy a reading ─────────────────────────────────────────
+
+def test_model_does_not_call_mathpix_when_a_key_is_present(tmp_path,
+                                                           monkeypatch):
+    r"""`model` called `cmd_mathpix` whenever a key existed and no lines.json
+    did, which made it a PAID command reachable from about forty places that
+    do not say so — and `--ledger`'s own docstring records an accidental run
+    that bought 8 pages. It bought 9 pages of arXiv 2402.13444v1 during the
+    session that wrote this test. The planner's rule (a paid layer is declared,
+    never auto-run) had been written for `--ensure` and did not reach one level
+    down."""
+    from pdfdrill import commands as C
+
+    pdf = tmp_path / "scan.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n%%EOF\n")
+    monkeypatch.setenv("MATHPIX_APP_ID", "id")
+    monkeypatch.setenv("MATHPIX_APP_KEY", "key")
+    bought = []
+    monkeypatch.setattr(C, "cmd_mathpix",
+                        lambda p, **k: bought.append(p) or "BOUGHT")
+    monkeypatch.setattr(C, "_write_born_digital_lines", lambda p: False)
+    monkeypatch.setattr(C, "_build_arxiv_source_model",
+                        lambda *a, **k: None)
+    # tesseract is the last-resort free lane and is not what this test is about
+    monkeypatch.setattr("pdfdrill.ocr_lines.tools_available",
+                        lambda: (False, "no tesseract"))
+    out = C.cmd_model(pdf)
+    assert bought == [], "model bought a MathPix conversion unasked"
+    assert "does not buy a reading" in out
+
+
+def test_models_refusal_names_the_lane_that_would_work(tmp_path, monkeypatch):
+    """A refusal that does not name the next command is a dead end. Which
+    command it names depends on the KEYS, so the sandbox and the keyed machine
+    get different, correct advice from the same code."""
+    from pdfdrill import commands as C
+
+    pdf = tmp_path / "scan.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n%%EOF\n")
+    monkeypatch.setattr(C, "_write_born_digital_lines", lambda p: False)
+    monkeypatch.setattr(C, "_build_arxiv_source_model", lambda *a, **k: None)
+    monkeypatch.setattr("pdfdrill.ocr_lines.tools_available",
+                        lambda: (False, "no tesseract"))
+
+    monkeypatch.setenv("PDFDRILL_SANDBOX", "1")
+    out = C.cmd_model(pdf)
+    assert "--geometry-only" in out and "MAKORA_API_KEY" in out
+
+    monkeypatch.delenv("PDFDRILL_SANDBOX")
+    monkeypatch.setenv("MAKORA_API_KEY", "k")
+    monkeypatch.setenv("MATHPIX_APP_ID", "")
+    monkeypatch.setenv("MATHPIX_APP_KEY", "")
+    out = C.cmd_model(pdf)
+    assert "gemmaocr" in out and "PDFDRILL_OCR_BUDGET_EUR" in out
+
+
+def test_model_mathpix_is_the_explicit_opt_in(tmp_path, monkeypatch):
+    from pdfdrill import commands as C
+
+    pdf = tmp_path / "scan.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n%%EOF\n")
+    bought = []
+    monkeypatch.setattr(C, "cmd_mathpix",
+                        lambda p, **k: bought.append(p) or "BOUGHT")
+    monkeypatch.setattr(C, "_write_born_digital_lines", lambda p: False)
+    monkeypatch.setattr(C, "_build_arxiv_source_model", lambda *a, **k: None)
+    monkeypatch.setattr("pdfdrill.ocr_lines.tools_available",
+                        lambda: (False, "no tesseract"))
+    C.cmd_model(pdf, mathpix=True)
+    assert bought == [pdf]
+
+
+def test_the_free_half_of_the_metered_lane_is_not_blocked_as_paid(tmp_path,
+                                                                  monkeypatch):
+    """`--geometry-only` and `--rebuild` spend nothing. A guard that refuses
+    them makes the keyless install the one place pdfdrill cannot be used."""
+    from pdfdrill import commands as C
+
+    pdf = tmp_path / "scan.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n%%EOF\n")
+    monkeypatch.setattr(C, "paid_blocked", lambda: True)
+    assert "NOT run" in C.cmd_gemmaocr(pdf)
+    ran = []
+    monkeypatch.setattr(
+        "pdfdrill.gemma_reader.fetch_gemma",
+        lambda p, **k: ran.append(k) or {
+            "status": "geometry", "files": {"lines.json": str(pdf)},
+            "usage": {"pages": 0}, "provider": ""})
+    C.cmd_gemmaocr(pdf, geometry_only=True)
+    assert ran and ran[0].get("geometry_only") is True

@@ -885,6 +885,77 @@ def place_by_order(placed: list[Placed], items: Sequence[Item],
     return n
 
 
+#: How much of a line's box must lie inside an `abandon` box for the line to be
+#: that furniture. Not all of it: the detector's box is drawn around the ink it
+#: saw, and a folio's descender or a rule under a running head falls outside.
+FURNITURE_SHARE = 0.6
+
+#: …and how near the paper's edge furniture sits.
+FURNITURE_BAND = 0.12
+
+#: …and how wide it is. A running head and a folio are SHORT; a line of body
+#: text runs the full measure. Measured the other way round first: with the
+#: band and the detector's word alone, 128 lines were retyped on penev_A and
+#: the score fell from 2,696 of 3,080 reference lines to 2,617 — 79 lines of
+#: body text, typed as furniture and dropped from the Markdown, because the top
+#: twelfth of a scanned page holds the first body line as often as a head.
+FURNITURE_WIDTH = 0.55
+
+#: …and how tall the detector's own box is. `abandon` drawn over a whole block
+#: is the detector mislabelling a block, not a page carrying a four-line
+#: running head.
+FURNITURE_LINES = 2.2
+
+
+def retype_furniture(placed: list[Placed], boxes: Sequence[Box], *,
+                     page_height: int, page_width: int = 0,
+                     line_height: float = 0.0) -> int:
+    """Retype a `text` line that is the page's own furniture as `page_info`.
+
+    Reading ONE PRINTED PAGE, the model has no document to count pages in, so
+    it writes the folio as a bare line — `23`, or `CHAPTER 2  23` — instead of
+    the `<!-- page N | Head -->` comment the whole-document prompt asks for.
+    Those land as `text`, and a running head is not a sentence: the
+    transclusion gate, the reading order and every projection treat it as one.
+    MEASURED on penev_A: 15 `page_info` lines against MathPix's 98.
+
+    The detector already names them (`abandon`) and the class was parsed and
+    unused. FOUR conditions, and the conjunction is the whole of it: the
+    detector's word, the margin band, a short line, and a detector box no
+    taller than a line or two. Each alone is dangerous in the same direction —
+    `markdown()` drops a `page_info` line, so retyping a body paragraph deletes
+    its prose from the output, and a deletion is not visible in the result.
+
+    Returns how many lines were retyped.
+    """
+    if not boxes or page_height <= 0:
+        return 0
+    top = FURNITURE_BAND * page_height
+    bottom = (1.0 - FURNITURE_BAND) * page_height
+    max_w = FURNITURE_WIDTH * page_width if page_width else None
+    max_h = FURNITURE_LINES * line_height if line_height else None
+    n = 0
+    for p in placed:
+        if p.box is None or p.item.type != "text":
+            continue
+        x0, y0, x1, y1 = p.box
+        if not (y1 <= top or y0 >= bottom):
+            continue                       # not in a margin band
+        if max_w is not None and (x1 - x0) > max_w:
+            continue                       # a full-measure line is body text
+        area = max(1.0, (x1 - x0) * (y1 - y0))
+        for b in boxes:
+            if max_h is not None and (b[3] - b[1]) > max_h:
+                continue                   # the detector boxed a block
+            ix = max(0.0, min(x1, b[2]) - max(x0, b[0]))
+            iy = max(0.0, min(y1, b[3]) - max(y0, b[1]))
+            if ix * iy / area >= FURNITURE_SHARE:
+                p.item.type = "page_info"
+                n += 1
+                break
+    return n
+
+
 def emit_figures(placed: list[Placed], boxes: Sequence[Box]) -> int:
     """Add a `diagram` line for each detected figure nobody wrote down.
 
@@ -993,8 +1064,16 @@ def assemble_page(md: str, png: Optional[Path], page_no: int, *,
                               types=("diagram", "table", "chart"),
                               geometry="yolo")
     close_containers(placed, items)
+    furniture = 0
     if dets:
         emit_figures(placed, figures[used:])
+        # LAST, because it changes a line's TYPE and every pass above reads the
+        # type: a line retyped before `split_furniture` would be split as
+        # furniture twice, and one retyped before `close_containers` would be
+        # a container's child of the wrong kind.
+        furniture = retype_furniture(placed, yololayout.abandon_boxes(dets),
+                                     page_height=h, page_width=w,
+                                     line_height=lh)
     missing = sum(1 for p in placed if p.box is None)
     return {
         "page": page_no,
@@ -1004,9 +1083,115 @@ def assemble_page(md: str, png: Optional[Path], page_no: int, *,
         "lines": page_lines(placed, page_no),
         "parse_status": "parsed",
         "fallback_count": missing,
+        "furniture_retyped": furniture,
         "page_confidence": None,
         "languages_detected": [],
     }
+
+
+# --------------------------------------------------------------------------- #
+#  The geometry-only lane: the OCR path used for nothing but the page's shape
+# --------------------------------------------------------------------------- #
+#
+# A reading has two halves and only one of them costs money. The words come
+# from the model; the SHAPE — where the lines are, which of them is a formula,
+# which is a running head, which is a figure — comes from the page's own ink
+# and from a detector that runs offline. On an install with no reading key the
+# second half is still available, and refusing the whole document because the
+# first half is not is a worse answer than giving what there is and saying what
+# is missing.
+#
+# What this produces is a lines.json with every field in its place and `text`
+# empty: `model` builds a Document from it, `inspect` draws it, `linescmp`
+# scores its geometry against a reference. What it must never do is pretend to
+# be a reading — hence `source: "yolo-geometry"`, `text_source: "none"` on
+# every line, and a `geometry_only` flag on the document that `model` reads.
+
+
+def geometry_page(png: Optional[Path], page_no: int, *,
+                  dets: Optional[Sequence] = None) -> dict:
+    """One page's SHAPE, with no words in it.
+
+    The ink gives the rows, the detector gives each row its type, and a figure
+    or a table is one object rather than the ink rows its strokes form. A row
+    inside no detector box is `text`, which is what an unclassified printed row
+    on a page of prose is.
+    """
+    from . import inkbox, yololayout
+    if png is None or not Path(png).is_file():
+        return {"page": page_no, "page_width": 0, "page_height": 0,
+                "image_id": "", "lines": [], "parse_status": "no_render",
+                "fallback_count": 0, "page_confidence": None,
+                "languages_detected": []}
+    dets = list(dets or ())
+    gray = inkbox.load_gray(Path(png))
+    h, w = gray.shape
+    wholes = [(k, b) for k, b in yololayout.typed_boxes(dets)
+              if k in yololayout.WHOLE_BOX_TYPES]
+    comps = inkbox.components(_whiten_array(gray, [b for _k, b in wholes]))
+    lh = inkbox.median_height(comps)
+    comps = [b for b in comps
+             if max(b[2] - b[0], b[3] - b[1]) >= inkbox.SPECK * lh]
+    comps = inkbox.drop_scan_edges(comps, w, h)
+    rows = inkbox.rows(comps, max_height=TALL_DROP * lh)
+    rows = inkbox.drop_speck_rows(rows, lh)
+    rows = inkbox.prune_row_outliers(rows, lh)
+
+    typed = yololayout.typed_boxes(dets)
+    parts: list[tuple[str, Box]] = list(wholes)
+    for row in rows:
+        box = inkbox.union_box(row)
+        if box is None:
+            continue
+        parts.append((_type_for_row(box, typed), box))
+    parts.sort(key=lambda kb: (kb[1][1], kb[1][0]))
+
+    placed = [Placed(Item(type=k, text=""), b, "ink-yolo")
+              for k, b in parts]
+    lines = page_lines(placed, page_no)
+    for ln in lines:
+        # Said once per line, because a line is what a consumer reads: this
+        # one has a box and no words, and nothing downstream may infer the
+        # words are empty on the page.
+        ln["text_source"] = "none"
+    return {"page": page_no, "page_width": int(w), "page_height": int(h),
+            "image_id": "", "lines": lines, "parse_status": "geometry_only",
+            "fallback_count": 0, "page_confidence": None,
+            "languages_detected": []}
+
+
+def _type_for_row(box: Box, typed: Sequence[tuple[str, Box]]) -> str:
+    """The type of the SMALLEST detector box that contains this ink row's
+    centre, or `text`. Smallest, because an equation number sits inside the
+    formula block as often as beside it, and the inner box is the one that
+    names what the row actually is."""
+    cx = (box[0] + box[2]) / 2.0
+    cy = (box[1] + box[3]) / 2.0
+    best: Optional[tuple[float, str]] = None
+    for kind, b in typed:
+        if b[0] <= cx <= b[2] and b[1] <= cy <= b[3]:
+            area = max(1.0, (b[2] - b[0]) * (b[3] - b[1]))
+            if best is None or area < best[0]:
+                best = (area, kind)
+    return best[1] if best else "text"
+
+
+def assemble_geometry(pages: Iterable[tuple[int, Optional[Path], Sequence]], *,
+                      detector: str = "") -> dict:
+    """The whole document's shape — the geometry-only counterpart of
+    `assemble`."""
+    out = {
+        "source": "yolo-geometry",
+        "geometry_only": True,
+        "ocr": {"lane": "geometry", "detector": detector,
+                "words": "NOT READ — this document's lines carry a box and a "
+                         "type and no text. `pdfdrill gemmaocr <pdf>` reads "
+                         "the words (METERED); this lane never spends."},
+        "pages": [],
+    }
+    for page_no, png, dets in pages:
+        out["pages"].append(geometry_page(png, page_no, dets=dets))
+    return out
 
 
 def assemble(pages: Iterable[tuple[int, str, Optional[Path]]], *,
@@ -1139,7 +1324,8 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
                 force: bool = False, strips: int = STRIPS,
                 blob_dir: Optional[Path] = None, nup: str = "auto",
                 nup_order: str = "column", layout: bool = True,
-                allow_download: bool = False, rebuild: bool = False) -> dict:
+                allow_download: bool = False, rebuild: bool = False,
+                geometry_only: bool = False) -> dict:
     """Read `pdf_path` with the model lane and write the outputs beside it.
 
     Returns `{"status": "cached"|"read", "files": {...}, "usage": {...}}` —
@@ -1152,6 +1338,24 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
     if not pdf_path.exists():
         raise FileNotFoundError(f"File not found: {pdf_path}")
     targets = expected_outputs(pdf_path)
+    # The geometry-only lane writes the same file under the same name, so a
+    # reading already on disk must not be replaced by a shape: the words cost
+    # money and the shape is free, and the free thing never overwrites the
+    # bought one. It refuses and names what it found.
+    if geometry_only and not force and is_gemma_lines(targets["lines.json"]):
+        import json as _json
+        try:
+            head = _json.loads(Path(targets["lines.json"]).read_text(
+                encoding="utf-8"))
+        except Exception:                                    # noqa: BLE001
+            head = {}
+        if not head.get("geometry_only"):
+            raise ReadRefused(
+                f"{Path(targets['lines.json']).name} is a READING (words and "
+                f"boxes) and --geometry-only would replace it with boxes "
+                f"alone. That reading was paid for. Run `pdfdrill gemmaocr "
+                f"{pdf_path.stem} --rebuild` to re-assemble it for free, or "
+                f"--force if the shape is really what you want.")
     if not force and not rebuild and is_gemma_lines(targets["lines.json"]):
         return {"status": "cached", "files": targets, "usage": {},
                 "provider": ""}
@@ -1204,6 +1408,34 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
                            f"{info['cached']} cached")
         except _yolo.DetectorMissing as exc:
             layout_note = f"layout: SKIPPED — {exc}"
+
+    # STAGE 2b (free): the whole lane, when only the shape was asked for. No
+    # strips are cut, no call is made, and nothing can be charged — the branch
+    # is here, above the read, so there is no path from `--geometry-only` to a
+    # provider call to be reasoned about.
+    if geometry_only:
+        doc = assemble_geometry(
+            ((n, printed[n], dets.get(n) or []) for n in sorted(printed)),
+            detector=_yolo.describe())
+        doc["ocr"]["nup"] = {"shape": shape_kind, "order": nup_order,
+                             "printed_pages": len(amap),
+                             "sheets": len({m["sheet"]
+                                            for m in amap.values()})}
+        if not identity:
+            doc = _nup.merge(doc, amap)
+        doc = _san.sanitize(doc, {n: sheet_by_no[n] for n in sheet_by_no
+                                  if n is not None})
+        write_lines(doc, Path(targets["lines.json"]))
+        n_lines = sum(len(pg.get("lines") or []) for pg in doc["pages"])
+        return {"status": "geometry", "files": {"lines.json":
+                                                targets["lines.json"]},
+                "usage": {"prompt_tokens": 0, "completion_tokens": 0,
+                          "pages": 0},
+                "provider": "", "nup": shape_kind,
+                "printed_pages": len(amap), "layout": layout_note,
+                "lines": n_lines,
+                "folios_ascending": [None, 0],
+                "sanitize": (doc.get("sanitize") or {}).get("stats") or {}}
 
     read_from: dict[int, Path] = {}
     for n in sorted(printed):
@@ -1289,6 +1521,8 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
             "provider": provider, "nup": shape_kind,
             "printed_pages": len(amap), "layout": layout_note,
             "folios_ascending": [ok, cmp_pairs],
+            "furniture": sum(int(pg.get("furniture_retyped") or 0)
+                             for pg in doc.get("pages") or []),
             "sanitize": (doc.get("sanitize") or {}).get("stats") or {}}
 
 

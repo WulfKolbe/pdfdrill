@@ -1,26 +1,75 @@
 """
-Automatic OCR-lane router — the state machine picks the extraction lane from the
-cheap `size` signals and REPORTS the decision (nothing silent).
+The LANE CONTRACT — which reading pdfdrill uses for a document, decided once,
+in one pure function, and reported in the same words by `route`, `drill` and
+`doctor`.
 
-Three lanes, per the project's OCR strategy:
+Five lanes, in a FIXED ORDER. The order is the contract: a lane is taken only
+because every cheaper one above it is unavailable, so the same document always
+gets the same answer and the answer never depends on who asked.
 
-  * born-digital  → pdfminer / text-layer extraction (FREE, exact). A PDF with a
-    real text layer is never OCR'd; DRILLPDFse's pdfminer route recovers its
-    math as gold. Wins even for a huge book — a text layer beats any page count.
-  * scanned, small (≤ gemma_max pages) → Gemma 4 (Novita), ~50s/page, 5-parallel
-    adaptive prompt. Great on small documents.
-  * scanned, large (> gemma_max) → MathPix — the only viable OCR for large books.
+  1. born_digital  — the PDF carries its OWN text layer (and is not a scan with
+     somebody's OCR underlaid). FREE and exact: the glyphs are the author's,
+     with their coordinates. Wins at any page count — a text layer beats a page
+     count. On an arXiv document the author's LaTeX merges into it, so this lane
+     gives geometry AND gold math.
+  2. source        — no text layer, but the document is an arXiv e-print, so the
+     author's LaTeX is downloadable once and free. Gold structure and gold math;
+     no page geometry of its own (see `geometry`).
+  3. gemma         — a scan, and a Makora/Novita key is present. METERED, at a
+     measured 0.000718 EUR per printed page, refused against
+     PDFDRILL_OCR_BUDGET_EUR before the first call.
+  4. mathpix       — a scan, no Makora key, a MathPix key present. PAID, and the
+     richest reading there is; it is lane 4 and not lane 3 because gemmaocr
+     measured 88% of its boxes on penev_A at about a fortieth of the price.
+  5. geometry      — a scan and NO reading key at all: the sandbox's default.
+     The layout detector is offline and free, so the page's STRUCTURE can still
+     be had — a lines.json of typed boxes with no text in them — without a word
+     being read. What it does not give is the words, and it says so. `model` is
+     not its consumer (a model keeps what has prose); `linescmp`,
+     `geometry --layout` and the detector cache are.
 
-Unknown page count on a scan defaults to MathPix (the safe choice for a possibly
-large book). `choose_route` is PURE; `format_decision` renders one line.
+OCR IS THE LAST RESORT, NOT THE FIRST. Lanes 3-5 are reached only when the
+document has neither a text layer of its own nor an author's source. That is
+the whole of the rule the previous version got wrong in two ways: it offered
+MathPix (paid) above the free source lane, and it split the scan lanes by page
+count — "> 20 pages means MathPix" — a threshold set when the only alternative
+to MathPix was a 50 s/page vision call, and left standing after gemmaocr made
+the large book the CHEAP case.
+
+`choose_route` is PURE: it reads no file and makes no call. Everything it needs
+is passed in, which is why `PDFDRILL_SANDBOX=1` can ask a keyed machine what
+the keyless one will do and get a true answer.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Optional
 
-# Default scanned-doc cutoff between Gemma (small) and MathPix (large).
-GEMMA_MAX_PAGES = 20
+# Lane names, in contract order. The tuple IS the order — a reader deciding
+# whether a lane is "above" another must not have to read the function.
+LANES = ("born_digital", "source", "gemma", "mathpix", "geometry")
+
+#: What a lane costs. `metered` is its own answer and not a synonym for `paid`:
+#: gemmaocr's rate is MEASURED (0.000718 EUR per printed page over 390 pages)
+#: and guarded by a budget, so a caller can decide; MathPix's is not.
+COSTS = ("free", "metered", "paid", "none")
+
+#: The reading keys a lane can need. `route_for_sidecar` fills this from the
+#: environment; a test passes it literally.
+MATHPIX_KEY = "mathpix"
+GEMMA_KEY = "gemma"
+
+
+def keys_present() -> frozenset:
+    """Which reading keys this install has. Honours `PDFDRILL_SANDBOX=1`, so the
+    answer is the one the sandbox would give."""
+    from .env import get
+    out = set()
+    if get("MATHPIX_APP_ID") and get("MATHPIX_APP_KEY"):
+        out.add(MATHPIX_KEY)
+    if get("MAKORA_API_KEY") or get("NOVITA_API_KEY"):
+        out.add(GEMMA_KEY)
+    return frozenset(out)
 
 
 @dataclass(frozen=True)
@@ -69,69 +118,133 @@ def is_scanned_page_images(images, page_count, page_w, page_h) -> bool:
 
 
 def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
-                 page_count: Optional[int], gemma_max: int = GEMMA_MAX_PAGES,
-                 scanned_images: Optional[bool] = None) -> RouteDecision:
-    """Pick the OCR/extraction lane from the `size` signals. Pure.
+                 page_count: Optional[int],
+                 scanned_images: Optional[bool] = None,
+                 arxiv_source: Optional[bool] = None,
+                 keys: Optional[frozenset] = None,
+                 detector: Optional[bool] = None) -> RouteDecision:
+    """Pick the lane. PURE — see the module docstring for the contract.
 
     `scanned_images` (from `is_scanned_page_images`) overrides a text layer that
-    is really an OCR underlay on a scan — otherwise the free text-layer lane is
-    offered for a document whose "text" is somebody else's OCR output, described
-    as "free and exact". Omitted → previous behaviour, unchanged.
+    is really an OCR underlay on a scan: extracting it re-serves somebody
+    else's reading and never recovers math, so it is not the free lane it looks
+    like.
+
+    `arxiv_source` — the document is an arXiv e-print, so the author's LaTeX is
+    free (downloaded once, cached). `keys` — the reading keys present
+    (`keys_present()`). `detector` — whether the layout detector is installed,
+    which is what makes lane 5 worth offering.
+
+    Every optional argument defaults to the ANSWER THAT ASSUMES LEAST: no
+    source, no keys, no detector. A caller that knows nothing is told to use
+    the free lanes, never to spend.
     """
     pc = page_count or 0
+    keys = frozenset(keys or ())
     # A text layer sitting on full-page scans is an OCR UNDERLAY, not a born-digital
     # text layer: extracting it re-serves that OCR (and never recovers math).
-    if text_layer and scanned_images:
+    underlay = bool(text_layer and scanned_images)
+    if underlay:
         needs_ocr, text_layer = True, False
-    # A real text layer wins outright — free, exact, no OCR (any size).
-    if text_layer:
-        return RouteDecision(
-            lane="born_digital",
-            reason=f"born-digital (has a text layer, {pc or '?'} pages)",
-            command="pdfdrill model  (text-layer extraction via pdfminer — free "
-                    "and exact; no OCR)",
-            cost="free")
-    # Not classified yet (size never ran).
-    if not needs_ocr and text_layer is None:
+
+    # 0 — not classified yet. `size` is free and cheap and decides everything
+    # below, so it is never guessed around.
+    if text_layer is None and not needs_ocr:
         return RouteDecision(
             lane="unknown",
-            reason="not classified — run `pdfdrill size` to detect text-layer vs scan",
+            reason="not classified — `size` reads the page count and whether "
+                   "there is a text layer, and every lane below turns on that",
             command="pdfdrill size <pdf>",
             cost="none")
-    # A scan: split by page count.
-    if needs_ocr:
-        if pc and pc <= gemma_max:
+
+    # 1 — THE PDF'S OWN TEXT. Free, exact, and it carries coordinates.
+    if text_layer:
+        if arxiv_source:
+            return RouteDecision(
+                lane="born_digital",
+                reason=f"born-digital, {pc or '?'} pages, and an arXiv e-print — "
+                       f"the text layer gives the geometry, the author's LaTeX "
+                       f"gives the structure and the math, and `model` merges "
+                       f"both. No OCR, nothing to pay",
+                command="pdfdrill model <pdf>   (free: own text layer + the "
+                        "author's LaTeX)",
+                cost="free")
+        return RouteDecision(
+            lane="born_digital",
+            reason=f"born-digital (its own text layer, {pc or '?'} pages) — free "
+                   f"and exact at any page count; a text layer beats a page count",
+            command="pdfdrill model <pdf>   (free: the PDF's own text layer)",
+            cost="free")
+
+    # 2 — THE AUTHOR'S SOURCE. A scan with no text of its own, but an arXiv id:
+    # the e-print is gold and free. OCR would be reading a worse copy of a
+    # document we can have the source of.
+    if arxiv_source:
+        return RouteDecision(
+            lane="source",
+            reason=f"no text layer, but an arXiv e-print is available ({pc or '?'} "
+                   f"pages) — the author's LaTeX is gold and free, so there is "
+                   f"nothing for OCR to add but geometry",
+            command="pdfdrill model <pdf>   (free: the author's LaTeX e-print)",
+            cost="free")
+
+    # 3-5 — ONLY NOW is this an OCR document: no text of its own, no source.
+    if needs_ocr or text_layer is False:
+        if GEMMA_KEY in keys:
             return RouteDecision(
                 lane="gemma",
-                reason=f"scanned, {pc} pages (≤{gemma_max}) — small enough for Gemma",
-                command="pdfdrill visionocr  (Gemma 4 via Novita, 5-parallel, "
-                        "adaptive prompt)",
-                cost="keyed")
-        if pc > gemma_max:
+                reason=f"a scan with no text layer and no author's source, "
+                       f"{pc or '?'} sheets — the model lane reads it at a "
+                       f"measured 0.000718 EUR per printed page, and refuses "
+                       f"against PDFDRILL_OCR_BUDGET_EUR before the first call",
+                command="pdfdrill gemmaocr <pdf>   (METERED; add --nup 1 if the "
+                        "sheets are not imposed)",
+                cost="metered")
+        if MATHPIX_KEY in keys:
             return RouteDecision(
                 lane="mathpix",
-                reason=f"scanned, {pc} pages (>{gemma_max}) — the large-book lane",
-                command="pdfdrill mathpix <pdf> --force",
+                reason=f"a scan with no text layer, no author's source and no "
+                       f"MAKORA_API_KEY, {pc or '?'} pages — MathPix is the "
+                       f"reading that is left, and it is the richest one",
+                command="pdfdrill mathpix <pdf>   (PAID)",
                 cost="paid")
-        # scan with unknown page count → MathPix (safe for a possibly-large book)
+        if detector is False:
+            return RouteDecision(
+                lane="geometry",
+                reason=f"a scan with no text layer, no author's source and no "
+                       f"reading key, {pc or '?'} pages — and no layout detector "
+                       f"either, so there is no free lane on this install",
+                command="set MAKORA_API_KEY (metered, cheapest) or "
+                        "MATHPIX_APP_ID/KEY, or install the detector "
+                        "(PDFDRILL_YOLO_PYTHON; `pdfdrill doctor`) for the free "
+                        "geometry-only lane",
+                cost="none")
         return RouteDecision(
-            lane="mathpix",
-            reason="scanned, page count unknown — assuming large; MathPix is the "
-                   "safe lane (run `size` to enable the Gemma small-doc route)",
-            command="pdfdrill mathpix <pdf> --force",
-            cost="paid")
-    # text_layer explicitly False but needs_ocr False (shouldn't happen) → unknown
+            lane="geometry",
+            reason=f"a scan with no text layer, no author's source and no "
+                   f"reading key, {pc or '?'} pages — so the words cannot be had "
+                   f"for free, but the STRUCTURE can: the layout detector is "
+                   f"offline and free, and gives a lines.json in which every "
+                   f"line has a box and a type and no text, to score with "
+                   f"`linescmp` or lay on a model with `geometry --layout`",
+            command="pdfdrill gemmaocr <pdf> --geometry-only   (FREE, offline: "
+                    "boxes and types, no words)",
+            cost="free")
+
+    # text_layer is False and needs_ocr is False — the two signals disagree.
     return RouteDecision(
         lane="unknown",
-        reason="ambiguous classification — run `pdfdrill size`",
+        reason="the text-layer and scan signals disagree — re-run `size`",
         command="pdfdrill size <pdf>",
         cost="none")
 
 
 _LANE_LABEL = {
-    "born_digital": "born-digital → pdfminer/text-layer",
-    "gemma": "scanned → Gemma 4",
+    "born_digital": "born-digital → its own text layer",
+    "source": "no text layer → the author's LaTeX",
+    "gemma": "scanned → the model lane (gemmaocr)",
     "mathpix": "scanned → MathPix",
+    "geometry": "scanned, keyless → geometry only",
     "unknown": "unclassified",
 }
 
@@ -204,9 +317,34 @@ def _page_size_pt(info: dict) -> "tuple[float, float]":
     return (float(m.group(1)), float(m.group(2))) if m else (0.0, 0.0)
 
 
+def arxiv_source_for(pdf, sc) -> bool:
+    """Is the author's LaTeX reachable for this document? True iff an arXiv id is
+    known for it — the e-print is then one cached download away, and free.
+
+    Asked here rather than inside `choose_route` because the decision function
+    is pure: this is the one lookup that touches the filename and the sidecar.
+    """
+    try:
+        from .commands import _arxiv_id_for
+        return bool(_arxiv_id_for(pdf, sc))
+    except Exception:                                        # noqa: BLE001
+        return False
+
+
+def detector_available() -> "Optional[bool]":
+    """Is the layout detector installed? None when the question itself failed."""
+    try:
+        from . import yololayout
+        return bool(yololayout.available())
+    except Exception:                                        # noqa: BLE001
+        return None
+
+
 def route_for_sidecar(sc) -> RouteDecision:
     """Build a decision from a Sidecar's `size` evidence (text_layer / needs_ocr /
-    page_count). Works before `size` too (fields absent → unknown)."""
+    page_count) plus the three install facts the contract turns on: the author's
+    source, the reading keys, the detector. Works before `size` too (fields
+    absent → unknown)."""
     pages = sc.get_evidence("pages", 0)
     text_layer = sc.get_evidence("text_layer")
     # Only worth asking when a text layer claims the free lane — that is the one
@@ -216,7 +354,10 @@ def route_for_sidecar(sc) -> RouteDecision:
         text_layer=text_layer,
         needs_ocr=sc.get_evidence("needs_ocr"),
         page_count=pages,
-        scanned_images=scanned)
+        scanned_images=scanned,
+        arxiv_source=arxiv_source_for(sc.pdf_path, sc),
+        keys=keys_present(),
+        detector=detector_available())
 
 
 # ---------------------------------------------------------------------------

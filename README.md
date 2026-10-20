@@ -93,6 +93,33 @@ Without the installed console script, run as a module:
 PYTHONPATH=src python3 -m pdfdrill <command> <pdf> [args]
 ```
 
+## Which reading a document gets — one command, no choosing
+
+```bash
+pdfdrill drill <pdf>        # the whole way, free only, ends in an inspect.html
+pdfdrill route <pdf>        # just the lane, and why
+```
+
+Five lanes in a fixed order; a lane is taken only because every cheaper one
+above it is unavailable, so the same document always gets the same answer.
+**OCR is the last resort** — the three OCR lanes are reached only when the
+document has neither a text layer of its own nor an author's source.
+
+| # | lane | when | cost |
+|---|---|---|---|
+| 1 | its own text layer | the PDF carries real text (not an OCR underlay) | free |
+| 2 | the author's LaTeX | no text layer, but an arXiv e-print | free |
+| 3 | `gemmaocr` | a scan + `MAKORA_API_KEY` | metered, ~0.0007 EUR/page |
+| 4 | `mathpix` | a scan + `MATHPIX_APP_ID/KEY` only | paid |
+| 5 | `gemmaocr --geometry-only` | a scan + **no reading key** | free (boxes and types, no words) |
+
+**Nothing buys a reading unasked.** A lane that costs money is named with the
+exact command and not run — by `route`, by `drill`, and by `model`, whose
+`--mathpix` is the explicit opt-in. `PDFDRILL_SANDBOX=1` makes a keyed machine
+answer as a keyless install does, which is how a lane decision is checked
+before it ships. The contract, the measurements behind it and the two things
+its previous version got wrong are in **`docs/LANES.md`**.
+
 ## Projections — one docmodel, many outputs
 
 The unified docmodel is the canonical IR; every projection is **codegen** from it
@@ -310,7 +337,7 @@ The whole offline path (`folder`, `model`, `compare`, `report`, `tiddlers`,
 |-----|---------|--------|
 | `MATHPIX_APP_ID` / `MATHPIX_APP_KEY` | `mathpix`, `model` (OCR → `lines.json`), `snip` | <https://mathpix.com/> → Console → API Keys |
 | `OPENAI_API_KEY` | `vision` (GPT-4o reads CDN crops MathPix left as images → math/TikZ/table) | <https://platform.openai.com/api-keys> |
-| `NOVITA_API_KEY` | `snip --gemma` / `route` (Gemma-4 vision OCR of scanned ≤20-page docs → LaTeX/tables; `GEMMA_MODEL`/`NOVITA_BASE_URL` override) | <https://novita.ai/> → Settings → Key Management |
+| `NOVITA_API_KEY` | `snip --gemma` / the metered scan lane (`gemmaocr`; `GEMMA_MODEL`/`NOVITA_BASE_URL` override). The lane contract is `docs/LANES.md` — page count no longer picks a lane | <https://novita.ai/> → Settings → Key Management |
 | `DEEPL_API_KEY` | `translate` (DeepL-translate prose tiddlers) | <https://www.deepl.com/your-account/keys> (free keys end in `:fx`) |
 | `PERPLEXITY_API_KEY` | `bibfetch` (online BibTeX enrichment) | <https://www.perplexity.ai/> → Settings → API |
 

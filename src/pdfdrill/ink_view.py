@@ -60,16 +60,24 @@ def category(obj_type: str, props: Optional[dict]) -> str:
     return "glyph"
 
 
-def suspicions(props: Optional[dict], *, has_region: bool) -> list[str]:
+def suspicions(props: Optional[dict], *, has_region: bool,
+               printed: bool = True) -> list[str]:
     """Which of the six classes this element falls into. Empty is the norm.
 
     Each is a POSITIVE signal from inkdrill or the model — never "we could not
     tell", which would make every unmeasured element suspicious and drown the
     view it exists to keep small.
+
+    `printed=False` says this object has NO PRINTED FORM, so a missing box is
+    not a missing measurement: a Reference the bibliography made from a `\cite`
+    key is a placeholder for an entry nobody has read, and a Citation is an
+    inline marker. Counting them as "ink with no region" made a model look
+    worse the more citations it had — 27 of the 34 box-less elements on arXiv
+    2402.13444v1 are stubs, and none of them is printed anywhere.
     """
     p = props or {}
     out: list[str] = []
-    if not has_region:
+    if not has_region and printed:
         out.append(NO_REGION)
     if p.get("ink.straddles_region"):
         out.append(STRADDLES)
