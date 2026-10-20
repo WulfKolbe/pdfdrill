@@ -283,23 +283,38 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
     shape = result.get("nup") or "1-up"
     printed = result.get("printed_pages") or n_pages_read
     if result["status"] == "geometry":
+        # TYPED or UNTYPED is the difference between the two halves of this
+        # lane, and the report may not blur it: the ink finds the lines, the
+        # DETECTOR types them. With no detector every line comes out `text` and
+        # a figure arrives as its ink rows instead of one object — still a free
+        # measurement, but a weaker one, and a reader who is told "a box and a
+        # type" would look for types that are not there.
+        typed = "SKIPPED" not in str(result.get("layout") or "")
         out.append(
             f"GEOMETRY ONLY — nothing read, nothing spent. {printed} printed "
             f"pages on {n_pages_read} sheets: {n_lines} lines, each with a box "
-            f"and a type and NO TEXT -> {lines_path.name}.")
+            + ("and a type " if typed else "and NO TYPE (no layout detector: "
+                                           "every line is `text`) ")
+            + f"and NO TEXT -> {lines_path.name}.")
         if result.get("layout"):
             out.append(f"  {result['layout']}")
         st0 = result.get("sanitize") or {}
         if st0:
             out.append(f"  sanitized: {st0.get('boxes_changed', 0)} boxes "
                        f"tightened, {st0.get('no_ink', 0)} with no ink")
-        out.append("  A line here has a box and a type and no words, so "
+        out.append("  A line here has a box and no words, so "
                    "`model` is not its consumer (it keeps what has prose). "
                    "What is: `pdfdrill linescmp <pdf> --reference <lines.json>` "
                    "scores this geometry against a reading, `pdfdrill geometry "
                    "<pdf> --layout` puts these boxes on a model that has none, "
                    "and the detector cache makes the metered read cheaper when "
                    "a key arrives.")
+        if not typed:
+            out.append("  Set PDFDRILL_YOLO_PYTHON to the python of an "
+                       "environment with torch + doclayout-yolo + ultralytics "
+                       "and re-run: the same lines come back TYPED, and "
+                       "`geometry --layout` can then box a Formula or a Table "
+                       "on a model that has no geometry.")
         out.append(f"Next, when there is a key: `pdfdrill gemmaocr {pdf.name}` "
                    f"reads the words (METERED, ~{_gr.EUR_PER_PAGE * printed:.3f} "
                    f"EUR for this document).")

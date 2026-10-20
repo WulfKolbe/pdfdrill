@@ -109,11 +109,24 @@ def test_keyless_scan_gets_the_free_geometry_lane():
     assert "STRUCTURE" in d.reason and "linescmp" in d.reason
 
 
-def test_keyless_scan_with_no_detector_says_there_is_no_free_lane():
+def test_keyless_scan_with_no_detector_still_gets_the_ink(monkeypatch):
+    """It used to answer "there is no free lane on this install", and then
+    `drill` produced 355 boxed lines on hilbert10 in 6.6 s. Without the
+    detector the ink still finds the lines; what is missing is their TYPE."""
+    monkeypatch.setattr(R, "ink_available", lambda: True)
+    d = R.choose_route(text_layer=False, needs_ocr=True, page_count=22,
+                       keys=frozenset(), detector=False)
+    assert d.lane == "geometry" and d.cost == "free"
+    assert "NO type" in d.reason and "PDFDRILL_YOLO_PYTHON" in d.reason
+    assert "no types" in d.command
+
+
+def test_without_the_ink_either_there_really_is_no_free_lane(monkeypatch):
+    monkeypatch.setattr(R, "ink_available", lambda: False)
     d = R.choose_route(text_layer=False, needs_ocr=True, page_count=22,
                        keys=frozenset(), detector=False)
     assert d.lane == "geometry" and d.cost == "none"
-    assert "MAKORA_API_KEY" in d.command and "detector" in d.command
+    assert "MAKORA_API_KEY" in d.command and "numpy" in d.command.lower()
 
 
 # --------------------------------------------------------------------------- #

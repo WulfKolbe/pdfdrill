@@ -209,16 +209,39 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
                 command="pdfdrill mathpix <pdf>   (PAID)",
                 cost="paid")
         if detector is False:
+            # MEASURED, after the first version of this branch said "there is no
+            # free lane on this install" and `drill` then produced 355 boxed
+            # lines on hilbert10 in 6.6 s anyway: without the detector the lane
+            # still runs on the page's own INK, which needs nothing but numpy.
+            # What it loses is the TYPES — every line comes out `text`, so a
+            # figure is ink rows rather than one object. That is a weaker lane,
+            # not an absent one, and the honest answer is to say which half is
+            # missing. `cost="none"` is kept for the install where even the ink
+            # cannot be had.
+            if ink_available() is False:
+                return RouteDecision(
+                    lane="geometry",
+                    reason=f"a scan with no text layer, no author's source and "
+                           f"no reading key, {pc or '?'} pages — and neither "
+                           f"the layout detector nor NumPy, so there is no free "
+                           f"lane on this install",
+                    command="set MAKORA_API_KEY (metered, cheapest) or "
+                            "MATHPIX_APP_ID/KEY, or `pip install numpy` for the "
+                            "ink-only geometry lane and PDFDRILL_YOLO_PYTHON "
+                            "for its types (`pdfdrill doctor`)",
+                    cost="none")
             return RouteDecision(
                 lane="geometry",
                 reason=f"a scan with no text layer, no author's source and no "
                        f"reading key, {pc or '?'} pages — and no layout detector "
-                       f"either, so there is no free lane on this install",
-                command="set MAKORA_API_KEY (metered, cheapest) or "
-                        "MATHPIX_APP_ID/KEY, or install the detector "
-                        "(PDFDRILL_YOLO_PYTHON; `pdfdrill doctor`) for the free "
-                        "geometry-only lane",
-                cost="none")
+                       f"either, so the page's own INK gives the lane: every "
+                       f"printed line gets a box and NO type (a figure arrives "
+                       f"as its ink rows, not as one object) and no text. Free, "
+                       f"and about 6x faster than the typed lane. Set "
+                       f"PDFDRILL_YOLO_PYTHON to get the types",
+                command="pdfdrill gemmaocr <pdf> --geometry-only   (FREE, "
+                        "offline: boxes, no types, no words)",
+                cost="free")
         return RouteDecision(
             lane="geometry",
             reason=f"a scan with no text layer, no author's source and no "
@@ -329,6 +352,19 @@ def arxiv_source_for(pdf, sc) -> bool:
         return bool(_arxiv_id_for(pdf, sc))
     except Exception:                                        # noqa: BLE001
         return False
+
+
+def ink_available() -> "Optional[bool]":
+    """Can the ink route run at all? It is `inkbox`, and `inkbox` is NumPy.
+
+    None when the question itself failed, matching `detector_available`: a
+    caller that could not ask is not told "no".
+    """
+    try:
+        import importlib.util
+        return importlib.util.find_spec("numpy") is not None
+    except Exception:                                        # noqa: BLE001
+        return None
 
 
 def detector_available() -> "Optional[bool]":

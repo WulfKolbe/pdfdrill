@@ -199,3 +199,40 @@ def test_the_four_thresholds_are_named_constants():
     assert 0 < G.FURNITURE_WIDTH < 1.0
     assert G.FURNITURE_LINES > 1.0
     assert 0 < G.FURNITURE_SHARE <= 1.0
+
+
+# ---- the lane without the detector: boxes, no types -----------------------
+
+def test_route_calls_the_inkonly_geometry_lane_free(monkeypatch):
+    """MEASURED after the first version of this branch said "there is no free
+    lane on this install" and `drill` produced 355 boxed lines on hilbert10 in
+    6.6 s anyway. The ink finds the lines with nothing but NumPy; the detector
+    types them. A weaker lane is not an absent one."""
+    from pdfdrill import ocr_router as R
+    monkeypatch.setattr(R, "ink_available", lambda: True)
+    d = R.choose_route(text_layer=False, needs_ocr=True, page_count=10,
+                       scanned_images=10, arxiv_source=None, keys=set(),
+                       detector=False)
+    assert d.lane == "geometry" and d.cost == "free"
+    assert "NO type" in d.reason or "no type" in d.reason.lower()
+    assert "PDFDRILL_YOLO_PYTHON" in d.reason
+    assert "--geometry-only" in d.command
+
+
+def test_no_detector_and_no_numpy_is_the_only_lane_that_costs_none(monkeypatch):
+    from pdfdrill import ocr_router as R
+    monkeypatch.setattr(R, "ink_available", lambda: False)
+    d = R.choose_route(text_layer=False, needs_ocr=True, page_count=10,
+                       scanned_images=10, arxiv_source=None, keys=set(),
+                       detector=False)
+    assert d.lane == "geometry" and d.cost == "none"
+    assert "numpy" in d.command.lower()
+
+
+def test_the_typed_lane_is_still_the_one_with_a_detector(monkeypatch):
+    from pdfdrill import ocr_router as R
+    d = R.choose_route(text_layer=False, needs_ocr=True, page_count=10,
+                       scanned_images=10, arxiv_source=None, keys=set(),
+                       detector=True)
+    assert d.lane == "geometry" and d.cost == "free"
+    assert "a box and a type" in d.reason

@@ -168,6 +168,22 @@ Measured on arXiv 2402.13444v1 (9 pages, keyless, cold):
 
 0 boxes outside their page frame, 0 zero-area, furthest edge 0.949.
 
+### The lane has two halves, and the detector is only one of them
+
+The ink finds the lines; the DETECTOR types them. On an install with no
+`PDFDRILL_YOLO_PYTHON` — which is what a plain sandbox is — the lane still runs
+on NumPy alone: hilbert10 gave **355 boxed lines in 6.6 s** against 328 typed
+lines in 39.3 s, so the untyped half is real and about six times faster. What it
+loses is the type: every line comes out `text`, and a figure arrives as its ink
+rows rather than as one object, so `geometry --layout` can no longer box a
+Formula or a Table by class.
+
+`route` says which half you have, and `cost="none"` is now reserved for the
+install where even the ink cannot be had (no detector AND no NumPy). The first
+version of this branch announced "there is no free lane on this install" and
+`drill` then produced those 355 lines anyway — a decision function that is
+wrong about its own install is worse than one that is coarse.
+
 ### 2. `gemmaocr --geometry-only` — the keyless install's scan lane
 
 Splits the sheets, detects the layout, and writes a `lines.json` in which every
