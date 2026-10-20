@@ -38,6 +38,13 @@ cd pdfdrill
 PYTHONPATH=src python3 -m pdfdrill <command> <pdf> [args]
 # e.g.
 PYTHONPATH=src python3 -m pdfdrill size  paper.pdf
+# ONCE per working directory: build/extract commands are GATED until you ack
+# the SKILL token. size/route/links/doctor stay open so you can always get here.
+PYTHONPATH=src python3 -m pdfdrill preflight             # the rules
+tail -3 src/pdfdrill/skill/SKILL.md                      # the DRILL-… token is the
+                                                         #   line ABOVE the END marker
+PYTHONPATH=src python3 -m pdfdrill preflight --ack DRILL-xxxxxxxx
+
 PYTHONPATH=src python3 -m pdfdrill model paper.pdf      # offline if lines.json exists
 PYTHONPATH=src python3 -m pdfdrill report paper.pdf     # formula-report.html
 ```
@@ -56,7 +63,12 @@ release: delete those two files and rotate the keys** (env vars still work).
 
 - **poppler-utils** (`pdfinfo`/`pdftotext`/`pdffonts`/`pdfimages`/`pdftoppm`) —
   core; the Claude.ai sandbox already has it (`pdfplumber`/`pydantic` too).
-- **tesseract-ocr** (+ `eng`/`deu`/`equ`) — the keyless OCR route (`pdfdrill ocr`).
+- **NO OCR ENGINE.** pdfdrill installs and calls none, and `bootstrap.sh` does not
+  pull one in — a reading comes from a LANE (`docs/LANES.md`), never from a local
+  binary. A sandbox image that already ships `tesseract` next to texlive and
+  LibreOffice did not get it from pdfdrill and nothing here invokes it. The keyless
+  measurement of a scan is `pdfdrill gemmaocr <pdf> --geometry-only` (free, offline:
+  a box per line, no words); the words cost `gemmaocr` (metered) or `mathpix` (paid).
 - **LaTeX DVI toolchain + dvisvgm** (`latex`/`pdflatex`/`dvips` + `dvisvgm`,
   with `texlive-pictures`/`texlive-latex-extra` for TikZ/standalone) — the
   TikZ/table SVG route (`pdfdrill svg`, `latexbook`).

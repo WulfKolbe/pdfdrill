@@ -1100,9 +1100,12 @@ requests with four or more images. `cost_rank 0`, first for both page tasks.
    `HTTP 400 "vision type image_url is not supported"`. That is the fallback
    provider for both page tasks AND the route `snip --gemma` is documented on,
    so Makora is currently the only working host for either.
-3. `ocr` is still declared offline, because its engine is still tesseract. The
-   flip to `network: true` belongs with the engine swap, and
-   `_auto_run_offline_only` is what makes forgetting it fail loudly.
+3. ~~`ocr` is still declared offline, because its engine is still tesseract. The
+   flip to `network: true` belongs with the engine swap.~~ CLOSED by 905k: the
+   engine is gone and the verb reads nothing, so there is no network lane to
+   declare. `ocr` is a POINTER that prints the lane contract's decision and the
+   command that replaced it; it writes nothing and spends nothing, which is why
+   it stays offline and exempt from `_auto_run_offline_only`'s concern.
 4. Not implemented: no YOLO, so a figure the model did not describe gets no
    `diagram` box (3 such lines on the Hilbert pages), and `math_regions`
    (inline formula boxes) is not produced — pdfdrill reads neither field today.

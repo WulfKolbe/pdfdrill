@@ -409,7 +409,8 @@ move. pdfdrill almost always has a better, deterministic route — use it:
 
   Likewise, if `pdfdrill inspect` reports the model has NO page geometry (a
   LaTeX-source / prose species), do NOT improvise boxes — follow the message: get
-  a geometry-bearing model via `mathpix` or `ocr` → `model --force` →
+  a geometry-bearing model via `mathpix` (paid) or `gemmaocr --geometry-only`
+  (FREE, offline) → `model --force` →
   `inspect`. `model` records `model_caps` (geometry/math/source) so the species is
   never guessed.
 
@@ -690,6 +691,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the line directly below, which is the last CONTENT line of this SKILL (one HTML end-marker follows it, so `tail -1` gives the marker and `tail -2 | head -1` gives the token). If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-255bf82b` before any build/extract command.
-DRILL-255bf82b
+Attestation token — the line directly below, which is the last CONTENT line of this SKILL (one HTML end-marker follows it, so `tail -1` gives the marker and `tail -2 | head -1` gives the token). If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-776714d9` before any build/extract command.
+DRILL-776714d9
 <!-- PREFLIGHT-TOKEN:END -->

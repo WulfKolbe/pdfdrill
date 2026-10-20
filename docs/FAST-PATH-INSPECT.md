@@ -18,7 +18,7 @@ file and a 14 MB one.
 
 | stage | cost | notes |
 |---|---|---|
-| `model` (born-digital, arXiv) | ~0.3 s from LaTeX source | 60 s if it falls to tesseract OCR |
+| `model` (born-digital, arXiv) | ~0.3 s from LaTeX source | the chain now ENDS at the free lanes; the 60 s tesseract fallthrough was removed with the engine (905k) |
 | pdfminer text extraction | ~19 s per 335-page book | ~1.5 s for a 16-page paper |
 | `geometry` (object regions) | < 1 s | text-matching against the lines |
 | gs rasterize, 6 pages @400 DPI | 2.8 s | the dominant cost once pages are involved |

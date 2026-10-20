@@ -179,7 +179,8 @@ destination. pylepto is likewise a pdfdrill incubator.
 
 - `~/WKprivate/Scanned/scanp.sh` — tested ADF-duplex producer (scan + blank +
   deskew + naming). Reuse as the D) producer, don't re-implement.
-- `~/MX/PDFDRILL` — target pipeline. Relevant subcommands: `route --run`, `ocr`,
+- `~/MX/PDFDRILL` — target pipeline. Relevant subcommands: `route --run`,
+  `gemmaocr --geometry-only` (`ocr` is RETIRED — pdfdrill runs no OCR engine),
   `autosegment`/`segment`/`ordered`, `continuity`, `pageside`, `folder`. Read
   `src/pdfdrill/skill/SKILL.md` before writing integration code; `pdfdrill
   preflight --ack` gates build/extract commands.

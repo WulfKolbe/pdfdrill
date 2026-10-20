@@ -30,4 +30,5 @@ dump (600–800 MB on a huge book) lives in `book.pdf.drill/` and is a regenerab
 intermediate.
 
 **Gotcha:** a scanned book (no text layer) is a different lane — `route` sends it to
-Gemma (≤20 pages) or MathPix (larger); there is no keyless math for a scan.
+Gemma (metered) or MathPix (paid) — page count selects nothing, the ≤20-page
+threshold is gone; there is no keyless math for a scan.

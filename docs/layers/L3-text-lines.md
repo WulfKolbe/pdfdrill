@@ -30,7 +30,8 @@ Note: tesseract's TSV already carries a block/paragraph/line/word hierarchy —
 | `src/pdfdrill/geometry.py` | TSV → `pdf_lines` Stream; geometry fusion onto `mathpix_lines` (`Alignment(kind="geometry")`, y-tolerance + nearest-line fallback) |
 | `src/pdfdrill/lines_paragraphs.py` | line/paragraph grouping in the engine path |
 
-CLI: `tsv`, `ocr`, `geometry`.
+CLI: `tsv`, `geometry`, `gemmaocr` (`--geometry-only` for the free, offline
+shape). `ocr` is RETIRED — it reads nothing and only names the lane.
 
 ## Inter-layer notes
 

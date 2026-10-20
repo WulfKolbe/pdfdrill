@@ -57,6 +57,24 @@ pip install -e .                   # installs the `pdfdrill` console script
 pip install -r requirements.txt
 ```
 
+## First, unlock the build commands (once per working directory)
+
+`size`, `route`, `links`, `doctor` and the other read-only commands answer
+immediately. **Everything that BUILDS — `model`, `report`, `inspect`, `md`,
+`drill`, … — is blocked until you attest that you read the SKILL**, because
+pdfdrill prose looks authoritative and is silently wrong when used without the
+usage rules:
+
+```bash
+pdfdrill preflight                            # the rules, and where the SKILL is
+tail -3 .claude/skills/pdfdrill/SKILL.md      # the DRILL-… token, ABOVE the END marker
+pdfdrill preflight --ack DRILL-xxxxxxxx       # the token you just read
+```
+
+The token is a checksum of the SKILL body and changes whenever the SKILL does, so
+read it from the file. Automation that has read the rules sets
+`PDFDRILL_NO_PREFLIGHT=1`. Full walk-through: **QUICKSTART.md**.
+
 ## Quick start
 
 ```bash
@@ -333,7 +351,9 @@ abstraction maps, split recovery, level skipping, metrics) in
 Network features read their credentials from **environment variables** (or a
 git-ignored `.env` — copy `.env.example`); keys are never stored in the repo.
 The whole offline path (`folder`, `model`, `compare`, `report`, `tiddlers`,
-`ocr`, `embedimages`, `bibsource`, `latexbook`, …) needs **no keys at all**.
+`drill`, `geometry`, `embedimages`, `bibsource`, `latexbook`, …) needs **no keys at
+all**. (`ocr` used to be in this list; it is RETIRED and reads nothing — the keyless
+measurement of a scan is `gemmaocr --geometry-only`, free and offline.)
 
 | Key | Used by | Get it |
 |-----|---------|--------|
