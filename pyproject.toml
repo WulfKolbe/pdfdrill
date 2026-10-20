@@ -49,7 +49,7 @@ features = [
     "email-validator>=2.0",
 ]
 # Layout-element GNN (the vendored `pdfdrill.tsv_gcn`): a pure-NumPy
-# geometric-attention model over tesseract word boxes that isolates addresses /
+# geometric-attention model over the document's word boxes that isolates addresses /
 # BOM line items as content-addressed tiddlers (`pdfdrill elements`). numpy is
 # required for the GNN; blake3 is optional (content_hash falls back to sha256).
 # The vendored `pdfdrill.extract_addresses` heuristic (no-model address path) is

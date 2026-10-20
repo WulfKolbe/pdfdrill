@@ -210,7 +210,7 @@ def test_warns_when_our_ocr_layer_misroutes_a_scan():
     m = _adf_manifest(ocr={"applied": True, "engine": "tesseract", "lang": "deu"})
     warns = ho.route_warnings(m, {"route": {"rc": 0, "out": ROUTE_BORN}})
     assert len(warns) == 1
-    assert "BORN-DIGITAL" in warns[0] and "--ocr" in warns[0]
+    assert "BORN-DIGITAL" in warns[0] and "OCR layer" in warns[0]
 
 
 def test_no_warning_when_scan_routes_as_scanned():

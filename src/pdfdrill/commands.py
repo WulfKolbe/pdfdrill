@@ -147,8 +147,9 @@ def cmd_mathpix(pdf: Path) -> str:
         pages = probes.page_count(sc)
         ok, level, msg = upload_preflight(size, pages)
         if not ok:
-            return (f"MathPix upload skipped — {msg}\n(Built-in fallback: `pdfdrill "
-                    f"model` will use tesseract OCR instead when no lines.json appears.)")
+            return (f"MathPix upload skipped — {msg}\n(There is no built-in "
+                    f"fallback: `pdfdrill route {pdf.name}` names the lane that "
+                    f"can read it, and `model` never buys a reading.)")
         if level == "warn":
             warn = f"⚠ {msg}\n"
 
@@ -158,9 +159,10 @@ def cmd_mathpix(pdf: Path) -> str:
     except NetworkBlocked as e:
         return str(e)
     except Exception as e:        # 413 too-large / API error / oversize → degrade to OCR
-        return (f"MathPix upload/conversion failed: {e}\nUse `pdfdrill ocr {pdf.name}` "
-                f"(keyless tesseract) — `pdfdrill model` falls back to it automatically "
-                f"when no lines.json appears.")
+        return (f"MathPix upload/conversion failed: {e}\nThe other reading lanes: "
+                f"`pdfdrill gemmaocr {pdf.name}` (METERED, ~0.000718 EUR per printed "
+                f"page) or `pdfdrill gemmaocr {pdf.name} --geometry-only` (FREE: a box "
+                f"and a type per line, no words). `pdfdrill route {pdf.name}` picks.")
 
     files_meta = []
     for ext, path in result["files"].items():
@@ -543,10 +545,10 @@ def _is_keyless_textonly_source(source: str) -> bool:
 def _has_usable_math(objects: list, source: str) -> bool:
     """True if the model carries math that is actually USABLE (real LaTeX).
 
-    A keyless TEXT-only source cannot produce LaTeX **by construction**: tesseract
-    reads glyphs, pdfminer reads the text layer. The enriched tesseract module
-    still emits typed `equation` lines — with a CORRECT region but GARBLED text —
-    and the EquationProcessor stores that text in `latex`. So neither an Equation
+    A keyless TEXT-only source cannot produce LaTeX **by construction**: a
+    glyph reader reads glyphs, pdfminer reads the text layer. Such a route still
+    emits typed `equation` lines — with a CORRECT region but GARBLED text — and
+    the EquationProcessor stores that text in `latex`. So neither an Equation
     COUNT nor a non-empty `latex` proves the math was captured; on those sources
     only a gold-source overlay (`added_by="latex"`, from `pdfdrill injectlatex`) or a
     keyed route (MathPix/visionocr) supplies real LaTeX.
@@ -1350,9 +1352,9 @@ def _write_born_digital_lines(pdf: Path) -> bool:
     **pdfminer.six** (pdfplumber fallback) and write a MathPix-shape
     `<stem>.lines.json` (source `pdfminer-chars`/`pdfplumber-chars`). FREE and
     fast — no MathPix, no OCR. Returns False when there is effectively no text
-    layer (a scan → let OCR handle it) or extraction fails, so the caller falls
-    through to tesseract. This is what `route`'s "born-digital → text-layer (free)"
-    promise resolves to inside `model`."""
+    layer (a scan → a lane reads it, or nothing does) or extraction fails, so the
+    caller falls through to the next free lane. This is what `route`'s
+    "born-digital → text-layer (free)" promise resolves to inside `model`."""
     from . import chars_to_lines
     # PRODUCER POLICY (the cheapest signal — pdfinfo — decides the lane BEFORE
     # any parsing). Some writers emit font subsets this lane mishandles;
@@ -1463,12 +1465,12 @@ def _auto_run_offline_only(name: str) -> None:
     when a scan has no reading, and `cmd_visionocr` does the same to get a
     prose layer to fold its equations into.
 
-    Today both call `ocr`, which is tesseract and free. The moment that
-    engine becomes a model behind a metered account, those two call sites
-    turn `pdfdrill model` — a free command — into a bill, with nothing in the
-    code saying so. This asserts the invariant at the call site instead of
-    trusting it: an auto-call to a command declared `network: true` raises,
-    and `test_auto_fallbacks_are_offline` holds every such site to it.
+    That is exactly what happened: the engine they called became a model
+    behind a metered account, and `model`'s own auto-call to the keyless lane
+    is gone with tesseract for that reason. This asserts the invariant at the
+    call site rather than trusting it: an auto-call to a command declared
+    `network: true` raises, and `test_auto_fallbacks_are_offline` holds every
+    such site to it.
     """
     try:
         from .planner import load_manifest, network_commands
@@ -1597,8 +1599,8 @@ def _tiddlers_stale(pdf: Path, sc: "Sidecar", tid: Path | None) -> bool:
     # No model at all is NOT the same as "the tiddlers are behind the model":
     # with nothing to compare against, a hand-supplied or externally-produced
     # array is all there is, and rebuilding would try to construct a model from
-    # scratch — on a PDF with no lines.json that reaches tesseract OCR, which is
-    # how the first version of this guard broke test_standalone.
+    # scratch — on a PDF with no lines.json that had no reading at all, which
+    # is how the first version of this guard broke test_standalone.
     if not model_path.exists():
         return False
     if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
@@ -1898,8 +1900,10 @@ def cmd_doctor() -> str:
     """Requirement check: report which system tools / Python deps / API keys are
     present, which routes they enable, and the apt-get line to fix any gaps.
 
-    The LaTeX DVI toolchain + dvisvgm (the TikZ/table SVG route) and
-    poppler/tesseract are system packages `bootstrap.sh` installs via apt-get.
+    The LaTeX DVI toolchain + dvisvgm (the TikZ/table SVG route) and poppler
+    are system packages `bootstrap.sh` installs via apt-get. There is no OCR
+    engine in that list: `docs/LANES.md` decides which lane reads a document,
+    and none of them is a local binary.
     """
     import shutil
     import importlib.util
@@ -1911,7 +1915,6 @@ def cmd_doctor() -> str:
         ("pdfimages", "poppler-utils", "core: images/embedimages"),
         ("gs", "ghostscript", "REQUIRED page rasterizer (the ONLY one; >=400 DPI for OCR/vision/layout)"),
         ("pdfinfo", "poppler-utils", "size/links/dests"),
-        ("tesseract", "tesseract-ocr", "keyless OCR route (pdfdrill ocr)"),
         ("latex", "texlive-latex-base", "TikZ/table SVG (pdfdrill svg)"),
         ("pdflatex", "texlive-latex-base", "SVG / latex expansion"),
         ("dvips", "texlive-binaries", "DVI toolchain"),
@@ -2028,8 +2031,19 @@ def cmd_doctor() -> str:
     lines.append(f"  [{'OK ' if agent_ok else 'n/a'}] delegated vision OCR "
                  f"(`pdfdrill visionocr`) — KEYLESS math route: the running Claude "
                  f"agent reads each page (runtime: {rt})")
-    lines.append("  [n/a] tesseract (`pdfdrill ocr`) — PROSE ONLY; cannot type "
-                 "equations (a math doc built this way sets NEEDS_VISION_OCR)")
+    try:
+        from . import yololayout
+        det_ok = yololayout.available()
+    except Exception:
+        det_ok = False
+    lines.append(f"  [{'OK ' if det_ok else 'n/a'}] the FREE geometry lane "
+                 f"(`pdfdrill gemmaocr <pdf> --geometry-only`) — the layout "
+                 f"detector, offline: every line gets a box and a type and no "
+                 f"words, and nothing is spent "
+                 f"(set PDFDRILL_YOLO_PYTHON when n/a)")
+    lines.append("  [—  ] no OCR engine is installed or wanted: pdfdrill reads "
+                 "a scan through a lane (`pdfdrill route <pdf>`), never through "
+                 "a local binary")
 
     lines.append("")
     if missing_pkgs:
@@ -2499,102 +2513,35 @@ def cmd_artifacts(pdf: Path, all_files: bool = False,
     return "\n".join(lines)
 
 
-@_writes("ocr")
-def cmd_ocr(pdf: Path, lang: str = "eng", ppi: int = 300, force: bool = False,
-            min_conf: float | None = None, typing: bool = True) -> str:
-    """Build a MathPix-compatible `<pdf>.lines.json` via tesseract OCR (enriched).
+def cmd_ocr(pdf: Path) -> str:
+    """RETIRED — the keyless tesseract reading lane, and what replaced it.
 
-    The MathPix-free OCR input path: render each page with Ghostscript (>=400 DPI
-    floor), OCR with tesseract, and write a `lines.json` of the shape
-    `pdfdrill model` ingests — so the whole toolkit runs without a MathPix key.
+    This command rendered every page with Ghostscript, ran tesseract, and wrote
+    a MathPix-shaped `lines.json`. It is gone, with the engine. Two measurements
+    retired it: `gemmaocr` reads a scan's WORDS at 0.000718 EUR per printed page
+    and 88% of MathPix's boxes, and `gemmaocr --geometry-only` gets the page's
+    SHAPE for nothing — while this lane's text was unusable for mathematics by
+    its own docstring, and its equation lines carried garbled text that looked
+    like a reading.
 
-    The lines are TYPED MathPix-compatibly (section_header / table / equation /
-    diagram / page_info), carry per-line `conf` + `words` + block/par/line, and
-    their regions are PDF POINTS (`ocr.units="pt"`, `image_id="tesseract-p{N}"`),
-    so `/cropped/…&units=pt` local-pyramid crops work on the keyless path.
-    Second passes add Greek re-OCR of equation regions, a pdftotext text-layer
-    merge, and barcodes.
-
-    HONEST LIMIT: an equation line gets a correct REGION but its TEXT is garbled
-    (tesseract cannot read math) — there is no LaTeX on this route. Use
-    `pdfdrill visionocr` / `mathpix` for the math itself; the regions are what
-    let those crop it. `--lang eng+deu` for German (the module also
-    auto-corrects the language order); `--min-conf` tunes the noise filter;
-    `--no-typing` falls back to untyped text lines.
+    No `@_writes` lock: it writes nothing. It reads the lane decision and says
+    which command this document wants, in `route`'s words.
     """
-    from . import ocr_lines
-
+    from . import ocr_router
     sc = Sidecar(pdf)
-    lines_path = _lines_json_path(pdf)
-    overwrite_note = ""
-    if lines_path.exists():
-        try:
-            existing = json.loads(lines_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            existing = {}
-        if existing.get("source") != "tesseract":
-            # The named command executes; the PAID MathPix output is backed up
-            # first, not destroyed (guard became a note, never a refusal).
-            bak = lines_path.with_suffix(".mathpix.bak.json")
-            if not bak.exists():
-                bak.write_bytes(lines_path.read_bytes())
-            overwrite_note = (f"\nNote: the existing MathPix {lines_path.name} "
-                              f"was backed up to {bak.name} before being "
-                              f"replaced by tesseract OCR — copy it back to "
-                              f"restore the MathPix layer.")
-
-    ok, msg = ocr_lines.tools_available()
-    if not ok:
-        return msg
-
-    t0 = time.monotonic()
-    out_dir = sc.blob_dir / "ocr"
-    sc.blob_dir.mkdir(parents=True, exist_ok=True)
-    kw: dict = {"ppi": ppi, "lang": lang, "typing": typing}
-    if min_conf is not None:
-        kw["min_conf"] = float(min_conf)
-    lj = ocr_lines.build_lines_json(pdf, out_dir, **kw)
-    lines_path.write_text(_jsonio.dumps(lj), encoding="utf-8")
-
-    n_pages = len(lj["pages"])
-    n_lines = sum(len(p["lines"]) for p in lj["pages"])
-    meta = lj.get("ocr") or {}
-    counts = meta.get("type_counts") or {}
-    lang_eff = meta.get("lang_effective") or lang
-    sc.set_evidence("ocr_lang", lang)
-    sc.set_evidence("ocr_lang_effective", lang_eff)
-    sc.set_evidence("ocr_pages", n_pages)
-    sc.set_evidence("ocr_lines", n_lines)
-    sc.set_evidence("ocr_units", meta.get("units"))
-    sc.set_evidence("ocr_render_dpi", meta.get("render_dpi"))
-    sc.set_evidence("ocr_type_counts", counts)
-    if meta.get("warnings"):
-        sc.set_evidence("ocr_warnings", meta["warnings"])
-    prev = ",".join(sorted(sc.facts - {OCR_BUILT})) or "INIT"
-    sc.add_fact(OCR_BUILT)
-    sc.log_transition("ocr", prev, OCR_BUILT, cost_ms=(time.monotonic() - t0) * 1000,
-                      detail=f"{n_pages} pages, {n_lines} lines, lang={lang_eff}")
-    sc.save()
-
-    typed = ", ".join(f"{k}={v}" for k, v in counts.items()
-                      if v and k not in ("absorbed_lines",)) or "none"
-    lang_note = (f" (auto-corrected from '{lang}')" if lang_eff != lang else "")
-    warn = ("  ⚠ " + "; ".join(meta["warnings"][:2])) if meta.get("warnings") else ""
-    eq = counts.get("equation", 0)
-    math_note = (
-        f" {eq} equation region(s) typed — their TEXT is garbled (tesseract can't "
-        f"read math); run `pdfdrill visionocr {pdf.name}` or `mathpix` for the "
-        f"LaTeX (the regions are what let those crop it)." if eq else
-        " No equation regions found — if this doc has math, the LaTeX routes are "
-        "`visionocr` / `mathpix`.")
+    dec = ocr_router.route_for_sidecar(sc)
     return (
-        f"Tesseract OCR ({lang_eff}{lang_note}): {n_lines} line(s) across "
-        f"{n_pages} page(s) at {meta.get('render_dpi', '?')} DPI → "
-        f"{lines_path.name} (MathPix-compatible; regions in "
-        f"{meta.get('units', '?')}, crops via /cropped/…&units=pt).\n"
-        f"  typed: {typed}\n"
-        f"  Build the structure with `pdfdrill model {pdf.name}`.{math_note}{warn}"
-        f"{overwrite_note}"
+        f"`pdfdrill ocr` is RETIRED: pdfdrill runs no OCR engine of its own "
+        f"(tesseract is not a dependency any more — see docs/LANES.md).\n"
+        f"\nFor {pdf.name} the lane contract says:\n"
+        f"  {ocr_router.format_decision(dec, pdf.name)}\n"
+        f"\nWhat replaced this command:\n"
+        f"  pdfdrill gemmaocr {pdf.name}                  the words, METERED "
+        f"(~0.000718 EUR per printed page)\n"
+        f"  pdfdrill gemmaocr {pdf.name} --geometry-only  the shape, FREE and "
+        f"offline: a box and a type per line, no words\n"
+        f"  pdfdrill drill {pdf.name}                     the whole contract, "
+        f"and it spends nothing"
     )
 
 
@@ -3916,16 +3863,19 @@ def _born_digital_scan_guard(pdf: Path, cmd: str) -> "str | None":
 @_writes("continuity")
 def cmd_continuity(pdf: Path, force: bool = False, ppi: int = 250,
                    lang: str = "deu+eng") -> str:
-    """Recover page-continuity markers from the page MARGINS via full-page OCR.
+    """Recover page-continuity markers from the page MARGINS.
 
     German documents print "Seite N von M" / "Fortsetzung Seite N" / control
     numbers in the margin, OUTSIDE MathPix's content crop — so they're invisible
-    to the MathPix path. This renders each page and OCRs the whole page
-    (margins included) with tesseract, then classifies the continuity tokens
-    (with their margin position). When a `model` exists, the page-sequence is
-    also attached to each `Page` (`seq_in_doc`/`doc_total`/`is_continuation`/
-    `control_no`) — see `pdfdrill status`. Reuses the `ocr`/`geometry` plumbing;
-    never routes through the MathPix crop. Cached in the sidecar.
+    to the MathPix path. This reads the WHOLE page (margins included) from the
+    PDF's own text layer via `word_boxes`, then classifies the continuity tokens
+    with their margin position. When a `model` exists, the page-sequence is also
+    attached to each `Page` (`seq_in_doc`/`doc_total`/`is_continuation`/
+    `control_no`) — see `pdfdrill status`. Never routes through the MathPix crop,
+    and never renders or OCRs anything. Cached in the sidecar.
+
+    A scan therefore yields nothing here: the markers are TEXT, and no free lane
+    reads text off a scan — the message names the lane that would.
     """
     if not force:
         guard = _born_digital_scan_guard(pdf, "continuity")
@@ -3934,8 +3884,13 @@ def cmd_continuity(pdf: Path, force: bool = False, ppi: int = 250,
     sc = Sidecar(pdf)
     data, err = _load_or_build_continuity(pdf, sc, force=force, ppi=ppi, lang=lang)
     if err:
-        return (f"Continuity OCR needs {err} Install poppler-utils + "
-                f"tesseract-ocr (with the `deu` language pack) and rerun.")
+        return f"Continuity needs {err}"
+    if not data:
+        # NOT "0 of 0 pages carry a marker" — that reads like a finding. There
+        # were no words to look in: the markers are text in the margins, and a
+        # scan has no text layer to read them from.
+        from . import word_boxes
+        return word_boxes.no_words_note(pdf, what="margin text")
 
     # ISSUE 2: attach the page-sequence to the model's Page objects, if built.
     attached = 0
@@ -3981,7 +3936,7 @@ def cmd_continuity(pdf: Path, force: bool = False, ppi: int = 250,
             where = ",".join(sorted({m["where"] for m in i.get("markers", [])}))
             lines.append(f"  p{page_no:>2}: {' | '.join(bits)}  [{where}]")
     body = "\n".join(lines) if lines else "  (no continuity markers found)"
-    head = (f"Continuity (full-page OCR, margins included): {n_marker}/{len(data)} "
+    head = (f"Continuity (the whole page, margins included): {n_marker}/{len(data)} "
             f"page(s) carry a continuity marker ({n_seq} a 'Seite N' sequence, "
             f"{n_marker - n_seq} a 'Fortsetzung' pointer)"
             + (f"; page-sequence attached to {attached} Page object(s)" if attached else "")
@@ -4161,7 +4116,8 @@ def cmd_elements(pdf: Path, force: bool = False, model: str | None = None,
                  bibkey: str | None = None, source: str | None = None,
                  ppi: int = 300, lang: str = "deu+eng") -> str:
     """Find structured layout ELEMENTS (postal addresses, BOM line items) with
-    the geometric-attention GNN over tesseract word boxes (`pdfdrill.tsv_gcn`).
+    the geometric-attention GNN over the document's word boxes
+    (`pdfdrill.tsv_gcn` over `word_boxes`).
 
     The layout analogue of the MathPix→LaTeX layer: each element is isolated,
     given a content-addressed identity (blake3/sha256), and emitted as a
@@ -4174,8 +4130,10 @@ def cmd_elements(pdf: Path, force: bool = False, model: str | None = None,
     a trained model supplied via `--model` (train one with `python -m
     pdfdrill.tsv_gcn synth/train`); without a model it falls back to the optional
     `extract_addresses` heuristic (address-only) if that module is importable,
-    else returns an actionable message. Degrades cleanly when NumPy/OCR tools are
-    absent. Reuses the `ocr`/`geometry` page-render + tesseract plumbing.
+    else returns an actionable message. Degrades cleanly when NumPy is absent,
+    and refuses by naming the lane when the document has no text layer to take
+    word boxes from — an address is found by what it SAYS as well as where it
+    sits, so this layer needs a word with its text.
     """
     from . import layout_elements
 
@@ -4557,15 +4515,46 @@ _BANK_RE = re.compile(r"\b(Bank|Sparkasse|Commerzbank|Volksbank|Raiffeisen|Postb
 
 
 def _per_page_ocr_text(pdf: Path, sc: "Sidecar", lang: str = "deu+eng") -> dict[int, str]:
-    """Per-PHYSICAL-page full OCR text, blank duplex backsides dropped. The
-    ordered scorer + the mode detector need complete per-page text (the MathPix
-    logical model fragments pages and collapses BoW cosine → over-segmentation)."""
-    from . import ocr_lines, geometry
-    ok, msg = ocr_lines.tools_available()
-    if not ok:
-        raise RuntimeError(msg)
-    words, _ = ocr_lines._render_and_ocr(pdf, sc.blob_dir / "ordered_pages", 200, lang)
-    by_page: dict[int, list] = {}
+    """Per-PHYSICAL-page full text, blank duplex backsides dropped. The ordered
+    scorer + the mode detector need complete per-page text (the MathPix logical
+    model fragments pages and collapses BoW cosine → over-segmentation).
+
+    It comes from A READING THAT IS ALREADY THERE — the `lines.json` beside the
+    PDF, whatever lane wrote it — or from the PDF's own text layer. This command
+    used to render and OCR the document itself, which meant a bundle of scans
+    got read by a pass nobody chose; now the lane decides, and a bundle with no
+    reading says so. `lang` is accepted and unused.
+    """
+    from . import geometry, word_boxes
+    lines_path = _lines_json_path(pdf)
+    if lines_path.exists():
+        try:
+            doc = json.loads(lines_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            doc = {}
+        by_page: dict[int, list] = {}
+        for page in doc.get("pages") or []:
+            pno = int(page.get("page") or 0)
+            for ln in page.get("lines") or []:
+                txt = (ln.get("text") or "").strip()
+                if txt:
+                    by_page.setdefault(pno, []).append(txt)
+        out = {p: "\n".join(v) for p, v in by_page.items()
+               if len("\n".join(v).strip()) >= 25}
+        if out:
+            return out
+        # A geometry-only reading has boxes and no words: a real file, and
+        # still nothing to score. Say which it was rather than "no text".
+        if doc.get("geometry_only"):
+            raise RuntimeError(
+                f"{lines_path.name} is a GEOMETRY-ONLY reading: every line has a "
+                f"box and a type and no words, so there is no text to score. "
+                f"Read the words with `pdfdrill gemmaocr {pdf.name}` (METERED).")
+
+    words, _dims, src = word_boxes.words_for(pdf)
+    if not words:
+        raise RuntimeError(word_boxes.no_words_note(pdf, what="per-page text"))
+    by_page = {}
     for ln in geometry.group_lines(words):
         by_page.setdefault(ln["page"], []).append(ln["text"])
     return {p: "\n".join(v) for p, v in by_page.items()
@@ -4697,6 +4686,9 @@ def cmd_autosegment(pdf: Path, threshold: float = 0.5) -> str:
     return head + cmd_segment(pdf)
 
 
+FONTID_MIN_ASPECT = 2.5   # a 5-letter word is ~2.5x as wide as tall at any size
+
+
 @_writes("fontid")
 def cmd_fontid(pdf: Path, pages: str | None = None, limit: int = 12,
                ppi: int = 200) -> str:
@@ -4713,7 +4705,7 @@ def cmd_fontid(pdf: Path, pages: str | None = None, limit: int = 12,
     import subprocess
     import numpy as np
     from PIL import Image
-    from . import font_classify as fc, geometry, pdf_reading
+    from . import font_classify as fc, pdf_reading, word_boxes
 
     ok, msg = fc.tools_available()
     if not ok:
@@ -4741,21 +4733,36 @@ def cmd_fontid(pdf: Path, pages: str | None = None, limit: int = 12,
 
     # WORD-level crops grouped per TEXT FIELD: a word's ~5:1 aspect fills the
     # classifier's square box (vs a full line's thin band), and font is a property
-    # of each OCR block (heading vs body vs fine-print), NOT one document vote.
+    # of each field (heading vs body vs fine-print), NOT one document vote.
+    #
+    # The word boxes come from the page's own INK (`word_boxes.ink_words`), not
+    # from an OCR engine, because this command never wanted the words — it wanted
+    # the PIXELS a word occupies, and the ink knows where those are for free. Two
+    # things change with no text to read:
+    #   - "at least five letters" becomes an ASPECT floor. A five-letter word at
+    #     any type size is at least ~2.5x as wide as it is tall; a ratio travels
+    #     between type sizes where a letter count cannot.
+    #   - "per OCR block" becomes PER SIZE BAND (quarter-of-median glyph height).
+    #     A field's defining property here is its type size, and that is exactly
+    #     what separates a heading from body from fine print.
     classified: list[tuple[dict, tuple[str, float]]] = []
     n_words = 0
     for pno, img_path in zip(page_list, imgs):
         if n_words >= limit:
             break
         page_img = np.array(Image.open(img_path).convert("RGB"))
-        res = subprocess.run(["tesseract", str(img_path), "-", "--psm", "1", "tsv"],
-                             capture_output=True, text=True)
-        words, _ = geometry.parse_tsv(res.stdout)
-        cands = [w for w in words
-                 if len(re.sub(r"[^A-Za-zÄÖÜäöüß]", "", w["text"])) >= 5
-                 and (w["x1"] - w["x0"]) >= 40 and (w["y1"] - w["y0"]) >= 10]
-        # within each OCR block keep the widest few words (most glyph signal),
-        # so every field is sampled rather than spending the budget on one block.
+        boxes = word_boxes.ink_words(Path(img_path))
+        if not boxes:
+            continue
+        heights = sorted((b[3] - b[1]) for b in boxes)
+        med_h = heights[len(heights) // 2] or 1
+        cands = [{"x0": b[0], "y0": b[1], "x1": b[2], "y1": b[3], "text": "",
+                  "block": max(1, int(round((b[3] - b[1]) / med_h * 4)))}
+                 for b in boxes
+                 if (b[2] - b[0]) >= 40 and (b[3] - b[1]) >= 10
+                 and (b[2] - b[0]) >= FONTID_MIN_ASPECT * (b[3] - b[1])]
+        # within each size band keep the widest few words (most glyph signal),
+        # so every field is sampled rather than spending the budget on one band.
         from collections import defaultdict
         by_block: dict[int, list] = defaultdict(list)
         for w in cands:
@@ -4808,7 +4815,11 @@ def cmd_fontid(pdf: Path, pages: str | None = None, limit: int = 12,
         cat = f["category"] or "uncertain"
         weak = "" if (f["category"] and f["cat_agreement"] >= 0.5) else " ⚠"
         out.append(
-            f"  p{f['page']} field {f['block']:>2} {f['sample']!r:46} → {cat} "
+            # A field whose words came from the INK has no sample, because
+            # nothing read it. Say that, rather than printing '' as if the
+            # words were there and empty.
+            f"  p{f['page']} field {f['block']:>2} "
+            f"{(f['sample'] or '(ink: no text read)'):46.46} → {cat} "
             f"({f['cat_votes']}/{f['cat_total']}); face≈{f['font']} "
             f"(conf {f['mean_conf']}){weak}")
     out.append(f"Report with statistics written to {report_path}")
@@ -6009,8 +6020,9 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
                 if built:
                     return built
             if not wrote_born_digital:
-                # 3) No text layer → a genuine SCAN. arXiv gold e-print if cached
-                #    (content, no geometry), else tesseract OCR.
+                # 3) No text layer → a genuine SCAN. arXiv gold e-print if
+                #    cached (content, no geometry); otherwise nothing free
+                #    reads it and the lane gets named, not run.
                 # A SCAN with no text layer and no source left is the one
                 # case `--no-source` cannot help: there would be nothing to
                 # build from at all. So the flag is honoured everywhere the
@@ -6019,10 +6031,10 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
                 built = _build_arxiv_source_model(pdf, sc, key, model_path)
                 if built:
                     return built
-                from .ocr_lines import tools_available
-                if tools_available()[0]:
-                    _auto_run_offline_only("ocr")
-                    cmd_ocr(pdf)
+                # Here the chain ENDS. It used to fall through to the keyless
+                # tesseract lane, which is why `model` could read a scan nobody
+                # asked it to read; the engine is gone and so is the fallthrough.
+                # The refusal below names the lane instead — see docs/LANES.md.
             sc = Sidecar(pdf)
     if not lines_path.exists():
         from . import ocr_router as _r
@@ -6183,8 +6195,8 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
     # — flag NEEDS_VISION_OCR and instruct the keyless delegation route
     # (visionocr). The MathPix path and non-math docs are untouched.
     #
-    # It keys on MISSING LaTeX, not on "0 Equations": the enriched tesseract module
-    # DOES emit equation lines (correct region, GARBLED text — it cannot read math),
+    # It keys on MISSING LaTeX, not on "0 Equations": a text-only route DOES
+    # emit equation lines (correct region, GARBLED text — it cannot read math),
     # and an Equation's `latex` prop is then just that OCR text
     # ("Ih=glly <7 =3k € = < | =] (4)"). A count- or empty-latex-based gate is
     # satisfied by that garbage and silently passes a broken math doc.
@@ -6199,7 +6211,8 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
             n_eq = by_type.get("Equation", 0)
             src = _lines_json_source(lines_path)
             how = ("the born-digital text layer (pdfminer.six)"
-                   if src in ("pdfminer-chars", "pdfplumber-chars") else "tesseract OCR")
+                   if src in ("pdfminer-chars", "pdfplumber-chars")
+                   else f"a text-only reading (source: {src or 'unknown'})")
             # Be precise about WHY it failed: 0 equations, or equations whose
             # "LaTeX" is really the route's garbled OCR/plain text.
             got = (f"{n_para} Paragraph and 0 Equation" if not n_eq else
@@ -6535,8 +6548,8 @@ def _keyless_math_steering(pdf_name: str, inline: int, eqs: int, bearing: bool,
                       f"arXiv equations → real Equation objects)")
     routes.append(f"`pdfdrill visionocr {pdf_name}` (keyless: an LLM reads each page)")
     routes.append(f"`pdfdrill mathpix {pdf_name} --force` (paid MathPix)")
-    return ("⚠ 0 formulas because the model was built from keyless "
-           f"tesseract OCR, which cannot type equations ({why}). Recover them with:\n  - "
+    return ("⚠ 0 formulas because the model was built from a TEXT-ONLY route, "
+           f"which cannot type equations ({why}). Recover them with:\n  - "
            + "\n  - ".join(routes) + "\nthen re-run `evidence`.")
 
 
@@ -7915,7 +7928,7 @@ def cmd_mathcheck(pdf: Path, limit: int = 8) -> str:
     lines += [
         "",
         "These were transcribed visually without preserving the 2-D math layout "
-        "(the tesseract chain, or a hand-rolled pseudo-lines.json). To rebuild "
+        "(a text-only reading, or a hand-rolled pseudo-lines.json). To rebuild "
         "them as real LaTeX (so transclusion works):",
         f"  pdfdrill remath {pdf.name}",
         "then `pdfdrill markdown <key>.mathpix.md` to re-model. `remath` delegates "
@@ -8635,7 +8648,7 @@ def sre_engine_dir() -> Path | None:
     """Where the npm speech-rule-engine lives, or None.
 
     The Python half of la2speech is vendored; the ENGINE is 9.6 MB of JavaScript
-    and belongs in an install step, like poppler or tesseract. Looked up in the
+    and belongs in an install step, like poppler or ghostscript. Looked up in the
     order a user would expect: an explicit env var, next to the vendored package,
     then the standalone project it came from.
     """
@@ -10197,7 +10210,7 @@ def cmd_remath(pdf: Path, pages: "list[int] | None" = None, force: bool = False)
     """Rebuild MathPix-quality Markdown (WITH LaTeX math) from rendered pages by
     delegating each page to the Claude agent (openai_vision.MATHPIX_MD_PROMPT).
 
-    The keyless fix for the broken-transclusion problem: tesseract's text layer
+    The keyless fix for the broken-transclusion problem: a text-only reading
     has no LaTeX, so equations never become `{{…||FO}}`. This renders the pages
     and has a multimodal model re-emit MathPix-shape Markdown (inline `\\(..\\)`,
     display `$$..$$`) that `markdown_source` turns into real Equation objects.
@@ -18111,8 +18124,10 @@ def cmd_md(pdf: Path, pages: str | None = None,
         lp = _lines_json_path(pdf)
         hint = (f"A MathPix lines.json is present but no `{pdf.stem}.md` — re-run "
                 f"`pdfdrill mathpix {pdf.name}`." if lp.exists() else
-                f"Run `pdfdrill mathpix {pdf.name}` (OCR markdown; needs MathPix "
-                f"creds) or `pdfdrill ocr {pdf.name}` (keyless tesseract).")
+                f"Run `pdfdrill gemmaocr {pdf.name}` (METERED, the cheapest "
+                f"reading) or `pdfdrill mathpix {pdf.name}` (PAID), or take the "
+                f"shape for free with `pdfdrill gemmaocr {pdf.name} "
+                f"--geometry-only`.")
         return (f"{pdf.name} is a SCANNED PDF (no text layer) — `pdfdrill md` "
                 f"extracts the text layer and finds nothing. {hint}")
 
@@ -19058,21 +19073,18 @@ def _format_images_layer(images: list) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Text-with-positions layer (pdftotext -tsv → tesseract fallback)
+# Text-with-positions layer (the PDF's own text layer)
 # ---------------------------------------------------------------------------
 
-def cmd_tsv(pdf: Path, force_ocr: bool = False) -> str:
-    """Extract per-word records with bounding boxes.
+def cmd_tsv(pdf: Path) -> str:
+    """Extract per-word records with bounding boxes from the PDF's text layer.
 
-    Uses pdftotext -tsv if the PDF has a text layer (cheap, accurate). Falls
-    back to tesseract on rendered PNGs if there's no text layer or the
-    caller forces OCR. Tesseract is opt-in: missing binary returns a
-    clear prose error instead of failing.
+    `pdftotext -tsv`: cheap, exact, and the ONLY route to a word's text. The
+    `--ocr` flag that used to render every page and run tesseract is gone — a
+    document with no text layer has no word boxes to give, and the answer is a
+    lane (`word_boxes.no_words_note`), not a binary.
     """
-    from .text_layers import (
-        fetch_pdftotext_tsv, fetch_tesseract_tsv,
-        summarize_tsv, tesseract_available,
-    )
+    from .text_layers import fetch_pdftotext_tsv, summarize_tsv
 
     sc = Sidecar(pdf)
     if not sc.has(SIZE_KNOWN):
@@ -19082,27 +19094,18 @@ def cmd_tsv(pdf: Path, force_ocr: bool = False) -> str:
         cmd_fonts(pdf)
         sc = Sidecar(pdf)
 
-    if sc.has(TSV_KNOWN) and not force_ocr:
+    if sc.has(TSV_KNOWN):
         return _format_tsv(sc)
-
-    has_text_layer = bool(sc.get_evidence("text_layer"))
-    use_ocr = force_ocr or not has_text_layer
-    if use_ocr and not tesseract_available():
-        return ("No text layer in this PDF and tesseract is not installed. "
-                "Install with `apt install tesseract-ocr` (and a language pack like "
-                "`tesseract-ocr-eng`) then rerun.")
 
     t0 = time.monotonic()
     try:
-        if use_ocr:
-            ocr_dir = sc.blob_dir / "tesseract"
-            words = fetch_tesseract_tsv(pdf, ocr_dir)
-            source = "tesseract"
-        else:
-            words = fetch_pdftotext_tsv(pdf)
-            source = "pdftotext"
+        words = fetch_pdftotext_tsv(pdf)
+        source = "pdftotext"
     except Exception as exc:
         return f"TSV extraction failed: {exc}"
+    if not words:
+        from . import word_boxes
+        return word_boxes.no_words_note(pdf)
 
     sc.set_tsv_layer(words)
     sc.set_evidence(TSV_SOURCE, source)
@@ -19128,13 +19131,13 @@ def _format_tsv(sc: Sidecar) -> str:
         f"Extracted {s['words']} words with bounding boxes across "
         f"{s['pages']} page(s) via {source}.",
     ]
-    if source == "tesseract":
-        lines.append(f"  Average OCR confidence: {s['avg_conf']:.1f}")
-        if s["low_conf_words"]:
-            lines.append(
-                f"  ⚠ {s['low_conf_words']} word(s) below 60 confidence — "
-                f"likely OCR noise"
-            )
+    if s["low_conf_words"]:
+        # A text layer grafted onto a scan by SOMEBODY ELSE's OCR carries their
+        # confidences; a born-digital layer reports -1 and never lands here.
+        lines.append(
+            f"  ⚠ {s['low_conf_words']} word(s) below 60 confidence — this text "
+            f"layer was OCR'd by whoever made the PDF, not by pdfdrill"
+        )
     return "\n".join(lines)
 
 

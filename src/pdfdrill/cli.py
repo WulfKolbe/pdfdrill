@@ -866,14 +866,14 @@ def _do_images(args):
 
 def _do_tsv(args):
     from .commands import cmd_tsv
-    pdf_args: list[str] = []
-    force_ocr = False
-    for a in args:
-        if a == "--ocr":
-            force_ocr = True
-        else:
-            pdf_args.append(a)
-    return cmd_tsv(_pdf(pdf_args), force_ocr=force_ocr)
+    # `--ocr` is accepted and IGNORED rather than rejected: it used to force the
+    # tesseract route, and a chat session that still passes it should get the
+    # text layer plus the reason, not an argument error.
+    pdf_args = [a for a in args if a != "--ocr"]
+    note = ("\nNote: `--ocr` no longer does anything — pdfdrill runs no OCR "
+            "engine. `pdfdrill route <pdf>` names the lane that reads a scan."
+            if "--ocr" in args else "")
+    return cmd_tsv(_pdf(pdf_args)) + note
 
 
 def _do_render(args):
@@ -1145,31 +1145,25 @@ def _do_continuity(args):
 
 
 def _do_ocr(args):
-    """pdfdrill ocr <pdf> [--lang eng] [--ppi 400] [--min-conf 5] [--no-typing]
-    [--force] — enriched tesseract OCR → typed lines.json in PDF points."""
+    """pdfdrill ocr <pdf> — RETIRED. Names the lane that reads this document.
+
+    The verb is kept, and kept answering, because three CLI sessions and three
+    chat sessions know the name: a session that types it should be told which
+    lane reads this document, not `Unknown command`. Its old flags
+    (`--lang/--ppi/--min-conf/--no-typing/--force`) are swallowed.
+    """
     from .commands import cmd_ocr
+    skip_value = {"--lang", "--ppi", "--min-conf"}
     pdf_args: list[str] = []
-    lang = "eng"
-    ppi = 300                      # floored to the module's >=400 DPI gs minimum
-    force = False
-    min_conf = None
-    typing = True
     i = 0
     while i < len(args):
-        if args[i] == "--lang" and i + 1 < len(args):
-            lang = args[i + 1]; i += 2
-        elif args[i] == "--ppi" and i + 1 < len(args):
-            ppi = int(args[i + 1]); i += 2
-        elif args[i] == "--min-conf" and i + 1 < len(args):
-            min_conf = float(args[i + 1]); i += 2
-        elif args[i] == "--no-typing":
-            typing = False; i += 1
-        elif args[i] == "--force":
-            force = True; i += 1
+        if args[i] in skip_value and i + 1 < len(args):
+            i += 2
+        elif args[i].startswith("-"):
+            i += 1
         else:
             pdf_args.append(args[i]); i += 1
-    return cmd_ocr(_pdf(pdf_args), lang=lang, ppi=ppi, force=force,
-                   min_conf=min_conf, typing=typing)
+    return cmd_ocr(_pdf(pdf_args))
 
 
 def _opt(args, name):
@@ -2274,6 +2268,21 @@ def _do_drill(args):
     sc = Sidecar(pdf)
     facts = sc.facts
 
+    # EVERY PART IS TIMED. A reading that finishes is only half the question in
+    # a sandbox: the other half is how long each part took, on which document,
+    # at how many pages. So each step is wrapped here and the totals are printed
+    # as their own section — one number per part, the total, and the per-page
+    # rate, which is the only figure that transfers to a different document.
+    import time as _time
+    timings: list[tuple[str, float]] = []
+
+    def _timed(name, fn):
+        t0 = _time.monotonic()
+        try:
+            return fn()
+        finally:
+            timings.append((name, _time.monotonic() - t0))
+
     # Phase 1 — the cheap probes. Each contributes a line only if it ran.
     plan: list[tuple[str, callable, set[str]]] = [
         ("size", lambda: cmd_size(pdf), {SIZE_KNOWN}),
@@ -2287,13 +2296,13 @@ def _do_drill(args):
         if settled & facts:
             skipped.append(name)
             continue
-        ran.append((name, fn()))
+        ran.append((name, _timed(name, fn)))
         facts = Sidecar(pdf).facts
 
     # Phase 2 — THE LANE. Reported before anything runs, so the reason a
     # document took the lane it took is in the output next to the result.
     sc = Sidecar(pdf)
-    dec = _r.route_for_sidecar(sc)
+    dec = _timed("route", lambda: _r.route_for_sidecar(sc))
     lane_note = _r.format_decision(dec, pdf.name)
 
     # Phase 3 — the reading, and only a FREE one. `model` takes the
@@ -2304,10 +2313,11 @@ def _do_drill(args):
         # comes out as ten empty Paragraphs. The report says what the
         # lines.json IS for.
         ran.append(("gemmaocr --geometry-only",
-                    cmd_gemmaocr(pdf, geometry_only=True)))
+                    _timed("gemmaocr --geometry-only",
+                           lambda: cmd_gemmaocr(pdf, geometry_only=True))))
     elif dec.cost in ("free", "none"):
-        ran.append(("model", cmd_model(pdf)))
-        ran.append(("md", cmd_md(pdf)))
+        ran.append(("model", _timed("model", lambda: cmd_model(pdf))))
+        ran.append(("md", _timed("md", lambda: cmd_md(pdf))))
     else:
         lane_note += (f"\n  NOT RUN by `drill`: this lane costs money. Run the "
                       f"command above when you want it, then `pdfdrill drill` "
@@ -2317,9 +2327,11 @@ def _do_drill(args):
     # `--layout` is offline; without the detector it is a one-line note.
     tail: list[tuple[str, str]] = []
     if MODEL_BUILT in Sidecar(pdf).facts:
-        tail.append(("geometry --layout", cmd_geometry(pdf, layout=True)))
+        tail.append(("geometry --layout",
+                     _timed("geometry --layout",
+                            lambda: cmd_geometry(pdf, layout=True))))
         if not no_inspect:
-            tail.append(("inspect", cmd_inspect(pdf)))
+            tail.append(("inspect", _timed("inspect", lambda: cmd_inspect(pdf))))
 
     lines: list[str] = []
     if ran:
@@ -2332,8 +2344,39 @@ def _do_drill(args):
     for n, out in tail:
         lines.append(f"\n--- {n} ---\n{out}")
     lines.append("")
-    lines.append(cmd_status(pdf))
+    lines.append(_timed("status", lambda: cmd_status(pdf)))
+    lines.append(_format_timings(timings, pdf))
     return "\n".join(lines)
+
+
+def _format_timings(timings, pdf) -> str:
+    """One line per part, the total, and the per-page rate.
+
+    The per-page rate is the only number that transfers: a 9-page paper and a
+    576-page volume take wildly different totals through the same lane, and the
+    question a sandbox run answers is which PART grows with the page count.
+    Pages come from the sidecar probe, so this costs nothing.
+    """
+    if not timings:
+        return ""
+    total = sum(s for _n, s in timings)
+    pages = 0
+    try:
+        from .sidecar import Sidecar as _S
+        from . import probes as _p
+        pages = int(_p.page_count(_S(pdf)) or 0)
+    except Exception:                                        # noqa: BLE001
+        pages = 0
+    width = max(len(n) for n, _s in timings)
+    out = ["", "--- timing ---"]
+    for name, secs in timings:
+        share = (secs / total * 100) if total > 0 else 0.0
+        out.append(f"  {name.ljust(width)}  {secs:8.2f} s  {share:4.0f}%")
+    out.append(f"  {'TOTAL'.ljust(width)}  {total:8.2f} s")
+    if pages:
+        out.append(f"  {'per page'.ljust(width)}  {total / pages:8.2f} s  "
+                   f"({pages} page(s))")
+    return "\n".join(out)
 
 
 def _print_help():

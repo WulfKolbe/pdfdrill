@@ -21,7 +21,7 @@ bash cocalc-setup.sh
 It runs four steps: the missing apt packages (`sudo apt-get install -y
 poppler-utils dvisvgm texlive-latex-extra`), `bun` (into `~/.bun`), `uv`+`uvx`
 (into `~/.local/bin`), then `bootstrap.sh` for the shared Python deps and the
-remaining system packages (ghostscript, tesseract, libvips) — finishing with
+remaining system packages (ghostscript, libvips) — finishing with
 `pdfdrill doctor`.
 
 `bun` and `uv` are appended to `~/.bashrc`, so **open a fresh shell** (or
@@ -134,7 +134,7 @@ artifact routes (files under the served roots only).
 - **`uv: command not found`** — `export PATH="$HOME/.local/bin:$PATH"`.
 - **Port 8787 already in use** — launch with `--port N` and use that port in
   both the page URL and the `wss://…/server/N/ws` string.
-- **Missing system tool** (poppler / dvisvgm / ghostscript / tesseract) —
+- **Missing system tool** (poppler / dvisvgm / ghostscript) —
   re-run `pdfdrill doctor`; it prints the exact `apt-get` line to fix each.
 - **`pdfdrill pyramid` won't start** (`imageserve` / the deep-zoom viewer) — it
   needs **pyvips**, which `bootstrap.sh` does NOT install. `pyvips[binary]` bundles

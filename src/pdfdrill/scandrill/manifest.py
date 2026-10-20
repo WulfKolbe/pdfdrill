@@ -59,7 +59,9 @@ class Manifest:
     source_root: str | None = None
     schema: int = SCHEMA_VERSION
     # Set when an OCR text layer was grafted, e.g.
-    # {"applied": True, "engine": "tesseract", "lang": "deu"}.
+    # {"applied": True, "engine": "tesseract", "lang": "deu"}. RETIRED as an
+    # output — `assemble` refuses to graft one — but still READ, because
+    # manifests written when it did are on disk and the warning depends on it.
     # This is load-bearing downstream, not decoration: a text layer makes
     # pdfdrill's `route` classify a SCAN as born-digital (verified), so the
     # provenance must travel with the PDF to keep that decision honest.

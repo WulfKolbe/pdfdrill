@@ -22,7 +22,6 @@ from . import handoff as ho
 from .config import Config
 from .manifest import Manifest
 from .meta import DEFAULT_PRODUCER, DocMeta
-from .ocr import tesseract_lang
 from .producers import adf as adf_mod
 from .tools import DEFAULT as TOOLS
 
@@ -67,7 +66,7 @@ def cmd_assemble(a) -> int:
                    ocr=a.ocr, ocr_lang=a.ocr_lang)
     # persist pdf name back into the manifest next to itself
     m.save(a.manifest)
-    extra = f", OCR text layer ({a.ocr_lang or tesseract_lang(meta.lang)})" if a.ocr else ""
+    extra = ""
     print(f"assembled {len(m.kept_pages())} pages → {out}  "
           f"(/Lang={meta.lang}{extra})")
     return 0
@@ -82,7 +81,7 @@ def cmd_build(a) -> int:
     out = assemble(m, a.out, job_dir=a.dir, meta=meta, ocr=a.ocr, ocr_lang=a.ocr_lang)
     m.save(manifest_path)
     kept = len(m.kept_pages())
-    extra = " + OCR text layer" if a.ocr else ""
+    extra = ""
     print(f"built {out} from {len(pages)} images ({kept} kept){extra} "
           f"+ sidecar {manifest_path}")
     return 0
@@ -261,9 +260,13 @@ def _add_meta_args(p: argparse.ArgumentParser) -> None:
     g.add_argument("--producer", help=f"default: {DEFAULT_PRODUCER}")
     g.add_argument("--lang", help="BCP-47, e.g. de-DE (default: the job's)")
     o = p.add_argument_group("OCR text layer (opt-in; image stays byte-identical)")
+    # RETIRED: both are parsed so an old command line still gets a reason
+    # (assemble raises one) rather than an argparse error. A text layer on a
+    # scan misroutes `pdfdrill route` to the born-digital lane.
     o.add_argument("--ocr", action="store_true",
-                   help="graft an invisible tesseract text layer")
-    o.add_argument("--ocr-lang", help="tesseract code, e.g. deu (default: from --lang)")
+                   help="RETIRED — refused: a text layer on a scan misroutes "
+                        "`pdfdrill route`; read it with `pdfdrill gemmaocr`")
+    o.add_argument("--ocr-lang", help="RETIRED — see --ocr")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -360,7 +363,15 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except ValueError as e:
+        # A refused request is prose and an exit code, not a traceback. The one
+        # that matters today is `--ocr`: assemble REFUSES to graft a text layer
+        # onto a scan, because it would make `pdfdrill route` read it as
+        # born-digital. The caller deserves the reason on one line.
+        print(f"scandrill: {e}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

@@ -1,8 +1,11 @@
-"""Metadata control + the OCR text-layer graft.
+"""Metadata control, and the refusal where the OCR graft used to be.
 
-The load-bearing assertion: grafting a searchable text layer must leave the image
-stream BYTE-IDENTICAL. If that ever regresses, we have quietly traded the whole
-point of the project (a lossless projection of ingest.json) for searchability.
+The graft is gone (`docs/LANES.md`): a text layer on a scan makes `pdfdrill
+route` read it as born-digital and send it to the text-layer lane instead of one
+that can read it. Its tests went with it — they asserted that grafting left the
+image stream byte-identical, which is no longer a thing that can happen. What
+remains here is the metadata half, plus one test that `assemble` REFUSES the
+flag rather than ignoring it.
 """
 
 from __future__ import annotations
@@ -18,12 +21,6 @@ from PIL import Image, ImageDraw, ImageFont
 from pdfdrill.scandrill.assemble import assemble
 from pdfdrill.scandrill.manifest import Manifest, Page
 from pdfdrill.scandrill.meta import DocMeta, _pdf_date, stamp
-from pdfdrill.scandrill import ocr as ocr_mod
-
-needs_tess = pytest.mark.skipif(not ocr_mod.have_tesseract(),
-                                reason="tesseract not installed")
-
-
 _TTF = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
 
@@ -127,104 +124,27 @@ def test_lang_default_still_stamped(job):
 
 # ---- OCR ------------------------------------------------------------------------
 
-def test_lang_mapping():
-    assert ocr_mod.tesseract_lang("de-DE") == "deu"
-    assert ocr_mod.tesseract_lang("en-GB") == "eng"
-    assert ocr_mod.tesseract_lang("deu") == "deu"      # already 3-letter
-    assert ocr_mod.tesseract_lang("xx-YY") == "eng"    # unknown -> eng
-    assert ocr_mod.tesseract_lang("") == "eng"
 
 
-@needs_tess
-def test_ocr_graft_keeps_image_streams_byte_identical(job):
-    """THE test. Adding searchability must not re-encode a single pixel."""
-    tmp_path, raw, m = job
-    out = assemble(m, tmp_path / "out.pdf", job_dir=raw, title="pre-ocr")
+# ---- the graft is refused, not ignored -----------------------------------------
 
-    def raw_streams(p):
-        with pikepdf.open(p) as pdf:
-            got = []
-            for page in pdf.pages:
-                obj = page.images[next(iter(page.images))]
-                got.append((obj.read_raw_bytes(), str(obj.get("/Filter"))))
-            return got
+def test_assemble_refuses_the_ocr_flag(job):
+    """A caller that still passes `ocr=True` is told WHY, not quietly obliged.
 
-    before = raw_streams(out)
-    n = ocr_mod.graft_text_layer(out, [raw / "p1.png", raw / "p2.jpg"], lang="eng")
-    after = raw_streams(out)
-
-    assert n == 2
-    assert before == after, "grafting the text layer rewrote an image stream"
-    # and the JPEG page is still verbatim DCT
-    assert after[1][1] == "/DCTDecode"
-    assert after[1][0] == (raw / "p2.jpg").read_bytes()
+    Ignoring the flag would hand back a PDF without the text layer and no reason
+    for it; raising names the misroute and the command that reads a scan.
+    """
+    tmp, raw, m = job
+    with pytest.raises(ValueError) as e:
+        assemble(m, tmp / "out.pdf", job_dir=raw, ocr=True)
+    msg = str(e.value)
+    assert "born-digital" in msg, msg
+    assert "gemmaocr" in msg, msg
 
 
-@needs_tess
-def test_ocr_makes_text_extractable(job):
-    tmp_path, raw, m = job
-    out = assemble(m, tmp_path / "out.pdf", job_dir=raw, ocr=True, ocr_lang="eng")
-    import fitz
-    d = fitz.open(out)
-    text = " ".join(pg.get_text() for pg in d).replace("\n", " ")
-    assert "12345" in text
-    assert "67890" in text
-
-
-@needs_tess
-def test_ocr_preserves_metadata(job):
-    """The graft must not cost us the metadata we just stamped."""
-    tmp_path, raw, m = job
-    out = assemble(m, tmp_path / "out.pdf", job_dir=raw, ocr=True, ocr_lang="eng",
-                   meta=DocMeta(title="Searchable", author="WK", lang="de-DE"))
+def test_assemble_without_the_flag_still_writes_a_pdf(job):
+    tmp, raw, m = job
+    out = assemble(m, tmp / "plain.pdf", job_dir=raw)
+    assert out.exists() and out.stat().st_size > 0
     with pikepdf.open(out) as pdf:
-        assert str(pdf.docinfo["/Title"]) == "Searchable"
-        assert str(pdf.Root.Lang) == "de-DE"
-        assert pdf.open_metadata()["dc:creator"] == ["WK"]
-
-
-@needs_tess
-def test_graft_rejects_page_image_mismatch(job):
-    tmp_path, raw, m = job
-    out = assemble(m, tmp_path / "out.pdf", job_dir=raw)
-    with pytest.raises(ocr_mod.OcrError, match="mismatch"):
-        ocr_mod.graft_text_layer(out, [raw / "p1.png"], lang="eng")   # 2 pages, 1 image
-
-
-@needs_tess
-def test_text_only_pdf_embeds_no_image(tmp_path: Path):
-    """textonly_pdf=1 is the whole safety property — assert it really holds."""
-    img = tmp_path / "x.png"
-    _text_page("no image here 55555").save(img)
-    layer = ocr_mod.text_only_pdf(img, tmp_path / "layer.pdf", lang="eng")
-    with pikepdf.open(layer) as pdf:
-        assert len(list(pdf.pages[0].images)) == 0, "text-only layer carries an image!"
-
-
-def test_ghostscript_pdfocr_is_absent_here():
-    """Documents WHY we don't use gs pdfocr8/24/32: this build lacks them (and
-    they rasterize anyway). If a future gs gains them, this test fails loudly and
-    the decision gets revisited on purpose rather than by accident."""
-    p = subprocess.run(["gs", "-h"], capture_output=True, text=True, timeout=30)
-    devices = p.stdout
-    assert "pdfocr8" not in devices, (
-        "gs now ships pdfocr8 — revisit docs/PROPOSAL-ASSEMBLY.md. It still "
-        "rasterizes (pdfocr8 is grayscale), so the graft is likely still right."
-    )
-
-
-@needs_tess
-def test_ocr_refuses_a_missing_language_pack(job):
-    """Better to fail than to OCR German as English and graft a plausible-looking
-    wrong text layer."""
-    tmp_path, raw, m = job
-    out = assemble(m, tmp_path / "out.pdf", job_dir=raw)
-    with pytest.raises(ocr_mod.OcrError, match="not installed"):
-        ocr_mod.graft_text_layer(out, [raw / "p1.png", raw / "p2.jpg"],
-                                 lang="xxx_not_a_lang")
-
-
-@needs_tess
-def test_available_langs_reports_installed_packs():
-    langs = ocr_mod.available_langs()
-    assert "eng" in langs and "deu" in langs
+        assert len(pdf.pages) == 2

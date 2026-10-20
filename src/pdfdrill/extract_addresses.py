@@ -20,8 +20,9 @@ Why three layers:
 
 Input formats (--format auto picks by extension):
   text / md   plain or markdown OCR text          (no geometry)
-  tsv         `tesseract IMG out tsv`              (word boxes + block/par/line + conf)
-  box         `tesseract IMG out makebox`          (char boxes, bottom-left origin)
+  tsv         a 12-column word TSV                 (word boxes + block/par/line + conf)
+              — `pdftotext -tsv FILE.pdf -`, or `pdfdrill tsv FILE.pdf`
+  box         a char-box file                      (char boxes, bottom-left origin)
 
 Geometry readers reconstruct lines and emit a blank boundary segment wherever a
 block changes or a vertical gap opens, so the same upward-context detector works
@@ -39,7 +40,7 @@ Usage:
 
 Examples:
   extract_addresses.py page-20.md
-  tesseract page-20.png stdout tsv > page-20.tsv && extract_addresses.py page-20.tsv
+  pdftotext -tsv doc.pdf - > doc.tsv && extract_addresses.py doc.tsv
   extract_addresses.py page-20.tsv --min-conf 60 --json
   extract_addresses.py invoice.tsv --i2d ./templates --json
 """

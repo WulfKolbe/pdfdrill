@@ -40,7 +40,7 @@ def test_unrelated_producers_keep_the_pdfminer_lane():
 def test_policy_note_names_the_producer_and_the_working_lanes():
     note = policy_note("OpenOffice.org 3.2")
     assert "OpenOffice" in note
-    for lane in ("pdftotext", "MathPix", "tesseract"):
+    for lane in ("pdftotext", "MathPix"):
         assert lane in note
     assert policy_note("pdfTeX-1.40.25") == ""
 

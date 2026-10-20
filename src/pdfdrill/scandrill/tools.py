@@ -94,6 +94,10 @@ class SheetSkew:
     disagreement_deg: float | None = None
 
 
+ORIENT_MIN_COMPONENTS = 40   # below this a side is blank/graphical: no vote
+ORIENT_MIN_RATIO = 1.8       # how much rowier the turned page must be to call it
+
+
 @dataclass
 class Tools:
     pdfdrill_home: Path = None  # type: ignore[assignment]
@@ -288,34 +292,61 @@ class Tools:
 
     def detect_orientation(self, image: str | Path,
                            timeout: float = 30.0) -> "tuple[int, float] | None":
-        """Tesseract OSD (`--psm 0`): the page's cardinal rotation to UPRIGHT.
+        """Is this page SIDEWAYS? From the ink alone — no OCR engine.
 
-        Returns `(rotate_deg, confidence)` where rotate_deg ∈ {0,90,180,270} is
-        how many degrees CLOCKWISE to rotate the image to make text upright (the
-        `Rotate:` line — same sense as `rotate_image`), and confidence is OSD's
-        own score (arbitrary scale, higher better; low on sparse pages). None when
-        tesseract is absent, the page has too little text for OSD, or it errors —
-        so a blank/graphical side simply doesn't vote."""
+        This used to be tesseract OSD (`--psm 0`), which reported the page's
+        cardinal rotation to upright, 180° included. The engine is gone, and so
+        is half the answer: printed text makes long horizontal ink rows, so the
+        ink can see that a page is turned a quarter-turn, but it cannot tell 90°
+        from 270° and cannot see 180° AT ALL — upside-down text makes rows of
+        exactly the same shape.
+
+        So this reports only what it can prove, and the caller is told rather
+        than rotated: `(90, confidence)` when the rows run DOWN the page,
+        otherwise None. `confidence` is how many times rowier the page is the
+        other way round — 1.0 means no preference. `measure_orientation` turns a
+        sideways reading into a warning on the manifest and still rotates
+        NOTHING, because a quarter-turn guessed the wrong way leaves the text
+        upside down, which is worse than leaving it alone.
+        """
         try:
-            proc = subprocess.run(
-                ["tesseract", str(image), "stdout", "--psm", "0"],
-                capture_output=True, timeout=timeout, text=True)
-        except (subprocess.SubprocessError, OSError):
+            from pdfdrill import inkbox
+        except Exception:                                   # noqa: BLE001
             return None
-        rot: int | None = None
-        conf: float = 0.0
-        for line in (proc.stdout or "").splitlines():
-            if "Rotate:" in line:
-                try:
-                    rot = int(line.split(":", 1)[1].strip()) % 360
-                except ValueError:
-                    return None
-            elif "Orientation confidence:" in line:
-                try:
-                    conf = float(line.split(":", 1)[1].strip())
-                except ValueError:
-                    conf = 0.0
-        return (rot, conf) if rot is not None else None
+        try:
+            gray = inkbox.load_gray(Path(image))
+            comps = inkbox.components(gray)
+        except Exception:                                   # noqa: BLE001
+            return None
+        if len(comps) < ORIENT_MIN_COMPONENTS:
+            return None                       # a blank or graphical side: no vote
+
+        def rowiness(boxes) -> float:
+            """Median (row width / row height) after grouping into rows."""
+            lh = inkbox.median_height(boxes)
+            row_list = inkbox.rows(boxes, max_height=4.0 * lh)
+            ratios = []
+            for row in row_list:
+                b = inkbox.union_box(row)
+                if b is None:
+                    continue
+                w, h = b[2] - b[0], b[3] - b[1]
+                if h > 0:
+                    ratios.append(w / h)
+            if not ratios:
+                return 0.0
+            ratios.sort()
+            return ratios[len(ratios) // 2]
+
+        upright = rowiness(comps)
+        # the same components with x and y exchanged — the page a quarter-turn on
+        turned = rowiness([(b[1], b[0], b[3], b[2]) for b in comps])
+        if turned <= 0:
+            return None
+        ratio = turned / upright if upright > 0 else float("inf")
+        if ratio >= ORIENT_MIN_RATIO:
+            return (90, round(ratio, 2))
+        return None
 
     # ---- pdfdrill: sidecar layout + analysis -------------------------------------
     def _pdfdrill_sidecar_module(self):

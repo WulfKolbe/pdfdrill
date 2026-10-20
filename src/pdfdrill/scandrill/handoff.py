@@ -63,10 +63,11 @@ def route_warnings(manifest: Manifest, analyses: dict | None) -> list[str]:
 
     `route` infers born-digital from the presence of a text layer, so grafting
     OCR makes a scan look born-digital and sends pdfdrill to pdfminer — which
-    would merely re-extract our plain tesseract text instead of running the
-    vision lane that reads equations (SKILL rule 4: never accept a 0-equation
-    model of a math paper). The OCR layer helps a human search the PDF and
-    actively hurts pdfdrill's routing, so it must be surfaced, not buried.
+    would merely re-extract that grafted text instead of running the lane that
+    reads equations (SKILL rule 4: never accept a 0-equation model of a math
+    paper). scandrill no longer grafts such a layer — `assemble` refuses — but
+    PDFs and manifests built when it did still exist, so the check stays: it
+    reads the provenance, and the provenance is the point.
     """
     if not analyses:
         return []
@@ -81,8 +82,9 @@ def route_warnings(manifest: Manifest, analyses: dict | None) -> list[str]:
         return [
             "pdfdrill routed this as BORN-DIGITAL because of the OCR text layer "
             "WE added — but these pages are a scan. pdfminer will just re-read "
-            "our tesseract text instead of running a vision lane. Hand pdfdrill "
-            "the PDF built WITHOUT --ocr, or force the lane explicitly."
+            "that grafted text instead of running a reading lane. Re-assemble "
+            "without the OCR layer (scandrill now refuses to add one), or force "
+            "the lane explicitly."
         ]
     if scanned_origin and "born-digital" in route and not ocr_applied:
         return [

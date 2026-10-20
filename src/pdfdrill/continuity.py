@@ -4,20 +4,25 @@ Margin-aware continuity extraction (the scan-triage blocker).
 MathPix crops to the main content block, so the page-sequence markers German
 documents print in the MARGIN — "Seite N von M", "Fortsetzung (siehe) Seite N",
 bare "Seite N", and Druck-/Kontrollnummern — are dropped or misfiled. This
-module OCRs the FULL page (margins included) with tesseract, reusing the
-page-render + TSV plumbing from `ocr_lines`/`geometry`, and classifies the
-continuity tokens with their margin position. It NEVER routes through the
-MathPix content crop.
+module reads the FULL page (margins included) from the PDF's own text layer via
+`word_boxes`, groups the words with `geometry`, and classifies the continuity
+tokens with their margin position. It NEVER routes through the MathPix content
+crop.
 
-Pure helpers (`classify_lines`, the regexes) are unit-testable without tesseract;
-`extract_continuity` does the render+OCR.
+It also never renders: the margin words come from the text layer or not at all.
+A scan therefore yields nothing here, and that is the honest answer — the
+markers are text, and no free lane reads text off a scan.
+
+Pure helpers (`classify_lines`, the regexes) are unit-testable with no PDF at
+all; `extract_continuity` is the only part that touches one.
 """
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any, Optional
 
-from . import geometry, ocr_lines
+from . import geometry
 
 # "Seite 2 von 6" (this page's number + the doc's total).
 _SEITE_VON = re.compile(r"\bSeite\s+(\d{1,3})\s+von\s+(\d{1,3})\b", re.I)
@@ -97,9 +102,17 @@ def classify_lines(lines: list[dict], dims: tuple[float, float]) -> dict[str, An
 
 def extract_continuity(pdf, out_dir, ppi: int = 250,
                        lang: str = "deu+eng") -> dict[int, dict[str, Any]]:
-    """Render every page, OCR the FULL page (margins included) with tesseract,
-    and classify continuity metadata per page. Returns {page_no: info}."""
-    words, page_dims = ocr_lines._render_and_ocr(pdf, out_dir, ppi, lang)
+    """Classify continuity metadata per page from the PDF's own word boxes.
+
+    Continuity lives in the FURNITURE — "Blatt 2 von 3", a control number, a
+    "Fortsetzung" — which is text in the margins, so it needs a word with its
+    text and its place. That used to mean rendering and OCRing every page; it
+    now means the text layer, because a word's text can only come from
+    something that read it. `out_dir`/`ppi`/`lang` are accepted and unused:
+    nothing is rendered here any more.
+    """
+    from . import word_boxes
+    words, page_dims, _src = word_boxes.words_for(Path(pdf))
     by_page: dict[int, list[dict]] = {}
     for ln in geometry.group_lines(words):
         by_page.setdefault(ln["page"], []).append(ln)
@@ -114,4 +127,5 @@ def extract_continuity(pdf, out_dir, ppi: int = 250,
 
 
 def tools_available() -> tuple[bool, str]:
-    return ocr_lines.tools_available()
+    """Continuity needs a word with its text, which only a text layer gives."""
+    return True, ""

@@ -23,15 +23,39 @@ HAVE_NUMPY = importlib.util.find_spec("numpy") is not None
 from pdfdrill import layout_elements as le
 
 
-def test_patch_page_column_renumbers_and_drops_header():
+def test_combined_tsv_comes_from_the_text_layer(monkeypatch, tmp_path):
+    """The per-page renumbering this layer used to do is gone with the per-image
+    OCR calls that needed it: `pdftotext -tsv` numbers its own pages, and the
+    page column arrives correct. What is asserted now is the SOURCE — the
+    document's own text layer, not a rendered page handed to an engine.
+    """
+    from pdfdrill import word_boxes
     tsv = ("level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\t"
            "width\theight\tconf\ttext\n"
-           "1\t1\t0\t0\t0\t0\t0\t0\t2480\t3508\t-1\t\n"
-           "5\t1\t1\t1\t1\t1\t300\t600\t120\t40\t92\tHello\n")
-    rows = le._patch_page_column(tsv, 7)
-    assert len(rows) == 2                      # header dropped, 2 data rows kept
-    assert all(r.split("\t")[1] == "7" for r in rows)   # page_num -> 7
-    assert rows[0].split("\t")[0] == "1" and rows[1].split("\t")[11] == "Hello"
+           "1\t7\t0\t0\t0\t0\t0\t0\t2480\t3508\t-1\t\n"
+           "5\t7\t1\t1\t1\t1\t300\t600\t120\t40\t92\tHello\n")
+    monkeypatch.setattr(word_boxes, "text_layer_tsv", lambda *a, **k: tsv)
+    out = le.build_combined_tsv(tmp_path / "x.pdf", tmp_path)
+    rows = [r for r in out.splitlines() if r and not r.startswith("level")]
+    assert len(rows) == 2
+    assert all(r.split("\t")[1] == "7" for r in rows)
+    assert rows[1].split("\t")[11] == "Hello"
+
+
+def test_a_document_with_no_text_layer_is_refused_by_naming_the_lane(monkeypatch, tmp_path):
+    """An address is found by what it SAYS as well as where it sits, so this
+    layer cannot run on a scan at all now. It must say which lane would read
+    one rather than return an empty element list that looks like a finding."""
+    if not HAVE_NUMPY:
+        print("SKIP (numpy absent)"); return
+    from pdfdrill import word_boxes
+    monkeypatch.setattr(word_boxes, "text_layer_tsv", lambda *a, **k: "")
+    res = le.find_elements(tmp_path / "scan.pdf", model_path=None, bibkey="bk",
+                           source="scan.pdf", blob_dir=tmp_path / "blob",
+                           force=True)
+    assert res["available"] is False
+    assert "gemmaocr" in res["message"] and "--geometry-only" in res["message"]
+    assert res["elements"] == [] and res["tiddlers"] == []
 
 
 def test_find_elements_graceful_without_model_or_heuristic(monkeypatch):

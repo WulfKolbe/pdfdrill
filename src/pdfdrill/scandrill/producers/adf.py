@@ -372,16 +372,24 @@ def measure_orientation(
     cfg: Config | None = None,
     tools: Tools | None = None,
 ) -> int:
-    """Measure page orientation by OSD and record the DOC-level decision.
+    """Measure whether the stack is SIDEWAYS and record it. Rotates nothing.
 
-    Mirrors `measure_skew`: nothing is rotated here. Each non-blank page is run
-    through tesseract OSD; `decide_orientation` votes across them, and the single
-    document rotation (0/90/180/270) is stamped on every kept page's `extra`
-    (`orientation_deg` + its own `osd_deg`/`osd_conf` + the `orientation_votes`
-    tally). `apply_deskew` folds it into the rotation it already performs.
+    Mirrors `measure_skew`. Each non-blank page is read by
+    `Tools.detect_orientation`, which is now the page's own ink rather than
+    tesseract OSD, and `decide_orientation` votes across the stack.
 
-    Returns the number of pages that produced a usable OSD reading (0 when
-    tesseract is absent — orientation then stays 0 and only fine deskew runs)."""
+    What changed with the engine: the ink can prove a page is a quarter-turn
+    out, and cannot tell 90° from 270° or see 180° at all. So a sideways
+    majority is recorded as `orientation_sideways` + a WARNING and the document
+    rotation stays 0 — a quarter-turn guessed the wrong way leaves the text
+    upside down, which is worse than leaving it alone, and `raw/` keeps the
+    original either way. Re-feed the stack, or rotate it yourself and re-run.
+
+    Every kept page still carries `orientation_deg` (now always 0), its own
+    `osd_deg`/`osd_conf` reading and the `orientation_votes` tally, so the whole
+    decision stays re-derivable.
+
+    Returns the number of pages that produced a usable reading."""
     cfg = cfg or DEFAULT_CONFIG
     tools = tools or DEFAULT_TOOLS
     base = Path(job_dir)
@@ -397,11 +405,19 @@ def measure_orientation(
         per_page.append((page, reading))
 
     deg, agree, total = decide_orientation([r for _p, r in per_page])
+    sideways = deg != 0
     for page, (osd_deg, osd_conf) in per_page:
         page.extra["osd_deg"] = osd_deg
         page.extra["osd_conf"] = osd_conf
-        page.extra["orientation_deg"] = deg
+        # Always 0: see the docstring — nothing here knows WHICH quarter-turn.
+        page.extra["orientation_deg"] = 0
         page.extra["orientation_votes"] = f"{agree}/{total}"
+        if sideways:
+            page.extra["orientation_sideways"] = True
+            page.extra["orientation_warning"] = (
+                f"{agree} of {total} page(s) look a quarter-turn out (the ink "
+                f"rows run down the page). Nothing was rotated: the ink cannot "
+                f"tell 90 from 270. Re-feed the stack or rotate it yourself.")
     return total
 
 

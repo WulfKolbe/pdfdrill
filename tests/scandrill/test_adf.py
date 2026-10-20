@@ -487,10 +487,16 @@ def test_decide_orientation_empty_is_zero():
     assert adf.decide_orientation([(None, None)]) == (0, 0, 0)
 
 
-def test_measure_orientation_records_doc_decision(tmp_path):
-    """OSD each non-blank page, vote, and stamp the DOC-level orientation on every
-    kept page (blanks don't vote and aren't stamped). No pixels touched here —
-    measure only, mirroring measure_skew."""
+def test_measure_orientation_warns_and_rotates_nothing(tmp_path):
+    """Read each non-blank page, vote, and record SIDEWAYS as a warning.
+
+    The reading used to come from tesseract OSD, which could tell 0 from 180.
+    It now comes from the page's own ink, which cannot: upside-down text makes
+    ink rows of exactly the same shape. So a sideways majority is recorded and
+    the document rotation stays 0 — a quarter-turn guessed the wrong way leaves
+    the text upside down, which is worse than leaving it alone. Blanks don't
+    vote and aren't stamped. No pixels are touched here either way.
+    """
     from pdfdrill.scandrill.manifest import Page
 
     class FakeTools:
@@ -504,13 +510,16 @@ def test_measure_orientation_records_doc_decision(tmp_path):
              Page(seq=4, src="raw_4.png", status=REMOVED_BLANK)]
     for p in (pages[0], pages[1], pages[2]):
         (tmp_path / p.src).write_bytes(b"x")
-    tools = FakeTools({"raw_1.png": (180, 11.0), "raw_2.png": (180, 8.0),
-                       "raw_3.png": (180, 14.0)})   # raw_4 blank → not queried
+    tools = FakeTools({"raw_1.png": (90, 2.4), "raw_2.png": (90, 3.1),
+                       "raw_3.png": (90, 2.0)})   # raw_4 blank → not queried
     total = adf.measure_orientation(pages, job_dir=tmp_path, tools=tools)
     assert total == 3
     for p in pages[:3]:
-        assert p.extra["orientation_deg"] == 180
+        assert p.extra["orientation_deg"] == 0          # NOTHING is rotated
+        assert p.extra["orientation_sideways"] is True
+        assert "quarter-turn" in p.extra["orientation_warning"]
         assert p.extra["orientation_votes"] == "3/3"
+        assert p.extra["osd_deg"] == 90                 # the reading is kept
     assert "orientation_deg" not in pages[3].extra           # blank untouched
 
 

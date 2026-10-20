@@ -110,7 +110,7 @@ def upload_preflight(size_bytes: int, pages: Optional[int] = None) -> tuple[bool
         return (False, "refuse",
                 f"{mb:.0f} MB exceeds MathPix's ~{MATHPIX_MAX_BYTES // (1024 * 1024)} MB "
                 f"upload limit — pdfdrill will not attempt a doomed upload. Use "
-                f"`pdfdrill ocr` (keyless tesseract) for the text layer, or split with "
+                f"`pdfdrill gemmaocr` (METERED, no upload limit) for the reading, or split with "
                 f"`pdfseparate in.pdf part-%d.pdf` and run `mathpix` per chunk.")
     if size_bytes > MATHPIX_WARN_BYTES or (pages and pages > MATHPIX_WARN_PAGES):
         return (True, "warn",

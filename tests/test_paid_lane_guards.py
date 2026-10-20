@@ -29,7 +29,8 @@ def test_the_manifest_declares_every_lane_that_spends_money():
 
 
 def test_the_free_counterparts_are_not_declared_paid():
-    """`ocr` is tesseract and `model`, `linescmp`, `spend` touch no network.
+    """`ocr` only reports a lane now, and `model`, `linescmp`, `spend` touch
+    no network.
     Declaring a free step paid would stop `--ensure` running it, which costs
     the operator a step they never had to ask for."""
     from pdfdrill.planner import load_manifest, network_commands
@@ -404,9 +405,6 @@ def test_model_does_not_call_mathpix_when_a_key_is_present(tmp_path,
     monkeypatch.setattr(C, "_write_born_digital_lines", lambda p: False)
     monkeypatch.setattr(C, "_build_arxiv_source_model",
                         lambda *a, **k: None)
-    # tesseract is the last-resort free lane and is not what this test is about
-    monkeypatch.setattr("pdfdrill.ocr_lines.tools_available",
-                        lambda: (False, "no tesseract"))
     out = C.cmd_model(pdf)
     assert bought == [], "model bought a MathPix conversion unasked"
     assert "does not buy a reading" in out
@@ -422,8 +420,6 @@ def test_models_refusal_names_the_lane_that_would_work(tmp_path, monkeypatch):
     pdf.write_bytes(b"%PDF-1.4\n%%EOF\n")
     monkeypatch.setattr(C, "_write_born_digital_lines", lambda p: False)
     monkeypatch.setattr(C, "_build_arxiv_source_model", lambda *a, **k: None)
-    monkeypatch.setattr("pdfdrill.ocr_lines.tools_available",
-                        lambda: (False, "no tesseract"))
 
     monkeypatch.setenv("PDFDRILL_SANDBOX", "1")
     out = C.cmd_model(pdf)
@@ -447,8 +443,6 @@ def test_model_mathpix_is_the_explicit_opt_in(tmp_path, monkeypatch):
                         lambda p, **k: bought.append(p) or "BOUGHT")
     monkeypatch.setattr(C, "_write_born_digital_lines", lambda p: False)
     monkeypatch.setattr(C, "_build_arxiv_source_model", lambda *a, **k: None)
-    monkeypatch.setattr("pdfdrill.ocr_lines.tools_available",
-                        lambda: (False, "no tesseract"))
     C.cmd_model(pdf, mathpix=True)
     assert bought == [pdf]
 

@@ -8,7 +8,7 @@ open the results. Everything below is copy-pasteable and needs **no API key**.
 ```bash
 git clone https://github.com/pdfdrill/pdfdrill && cd pdfdrill
 bash bootstrap.sh          # system deps via apt-get (poppler, ghostscript,
-                           #   tesseract, LaTeX+dvisvgm, libvips) — installs only
+                           #   LaTeX+dvisvgm, libvips) — installs only
                            #   what's missing, then runs the requirement check
 pip install -e .           # puts the `pdfdrill` command on PATH
 pdfdrill doctor            # confirm: present/missing tools + Python deps + keys

@@ -7,9 +7,10 @@ Three pdfdrill providers need a hosted chat-LLM:
   - openai_vision     : an unresolved image crop  -> structured {selector, ...} JSON
   - perplexity_client : a truncated reference      -> full BibTeX / download links
 
-(MathPix is OCR, not chat — full-page OCR already falls back to keyless
-tesseract via ocr_lines.py; DeepL already degrades to returning the original
-text. So the *only* hard gaps when no API keys exist are these two.)
+(MathPix is OCR, not chat — a document with no reading is handled by the lane
+contract, `docs/LANES.md`, whose last lane is free; DeepL already degrades to
+returning the original text. So the *only* hard gaps when no API keys exist are
+these two.)
 
 The observation that makes a good fallback possible: pdfdrill is, in practice,
 almost always executed *by a Claude agent* — either inside the Claude.ai code

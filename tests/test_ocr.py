@@ -31,7 +31,10 @@ def _words():
 
 def test_lines_json_from_words_shape():
     lj = ocr_lines.lines_json_from_words(_words(), {1: (600, 800), 2: (600, 800)})
-    assert lj["source"] == "tesseract"
+    # The default label is the PRODUCER-NEUTRAL "tsv": this assembler stopped
+    # being tesseract's in particular when the engine was removed, and a caller
+    # that knows its producer passes `source=`.
+    assert lj["source"] == "tsv"
     assert [p["page"] for p in lj["pages"]] == [1, 2]
     p1 = lj["pages"][0]
     assert p1["page_width"] == 600 and p1["page_height"] == 800
@@ -73,30 +76,22 @@ def test_lines_json_feeds_the_docmodel():
     assert any("Hello world" in (p.props.get("text") or "") for p in paras)
 
 
-def test_cmd_ocr_backs_up_mathpix_instead_of_refusing(monkeypatch):
-    """The named command executes (2026-08-18); the PAID MathPix lines.json is
-    backed up first, never destroyed and never a reason to refuse."""
-    monkeypatch.setattr(ocr_lines, "tools_available",
-                        lambda: (False, "no tesseract here"))
+def test_cmd_ocr_is_retired_and_touches_nothing(monkeypatch):
+    """`ocr` used to back up a MathPix lines.json before overwriting it with
+    tesseract output. It cannot overwrite anything any more: the engine is gone
+    and the verb only reports the lane. So the MathPix reading must come through
+    the call untouched — no backup copy, no replacement, no new file.
+    """
     with tempfile.TemporaryDirectory() as d:
         pdf = Path(d) / "doc.pdf"
         pdf.write_bytes(b"%PDF-1.4\n")
-        # A MathPix-style lines.json (no "source" key) next to it.
-        (Path(d) / "doc.lines.json").write_text(json.dumps({"pages": []}))
+        lines = Path(d) / "doc.lines.json"
+        lines.write_text(json.dumps({"pages": []}))
+        before = lines.read_bytes()
         out = cmd_ocr(pdf)
-        assert "Refusing" not in out
-        bak = Path(d) / "doc.lines.mathpix.bak.json"
-        assert bak.exists(), "backup must exist BEFORE any overwrite"
-        assert json.loads(bak.read_text()) == {"pages": []}
-
-
-def test_cmd_ocr_graceful_when_tools_missing(monkeypatch):
-    monkeypatch.setattr(ocr_lines, "tools_available", lambda: (False, "no tesseract here"))
-    with tempfile.TemporaryDirectory() as d:
-        pdf = Path(d) / "doc.pdf"
-        pdf.write_bytes(b"%PDF-1.4\n")
-        out = cmd_ocr(pdf)
-        assert out == "no tesseract here"
+        assert lines.read_bytes() == before, "the paid reading was touched"
+        assert not (Path(d) / "doc.lines.mathpix.bak.json").exists()
+        assert "RETIRED" in out and "gemmaocr" in out
 
 
 if __name__ == "__main__":
@@ -107,7 +102,7 @@ if __name__ == "__main__":
             for o, n, v in reversed(self._u): setattr(o, n, v)
             self._u = []
     fns = [test_lines_json_from_words_shape, test_blank_page_still_listed,
-           test_lines_json_feeds_the_docmodel, test_cmd_ocr_backs_up_mathpix_instead_of_refusing]
+           test_lines_json_feeds_the_docmodel, test_cmd_ocr_is_retired_and_touches_nothing]
     for fn in fns:
         fn(); print(f"PASS {fn.__name__}")
     mp = _MP()

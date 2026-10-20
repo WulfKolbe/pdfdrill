@@ -47,6 +47,71 @@ the answer never depends on who asked.
 **OCR is the last resort, not the first.** Lanes 3–5 are reached only when the
 document has neither a text layer of its own nor an author's source.
 
+## There is no OCR engine any more
+
+tesseract is gone from the distribution: `bootstrap.sh` does not install it,
+`doctor` does not look for it, and no command runs it. The verb `pdfdrill ocr`
+survives as a POINTER — it names the lane this document gets and the command
+that replaced it — because three CLI sessions and three chat sessions know the
+name, and `Unknown command` is a worse answer than the contract.
+
+Two measurements retired it. `gemmaocr` reads a scan's words at 0.000718 EUR
+per printed page with 88% of MathPix's boxes; `gemmaocr --geometry-only` gets
+the page's shape for nothing. Against that, the keyless engine lane cost a
+render plus a recognition pass per page and produced text that was unusable for
+mathematics *by its own docstring* — its equation lines carried garbled glyphs
+in the `latex` prop, which is exactly the failure `_has_usable_math` had to be
+written to catch.
+
+### Where a word box comes from now
+
+Seven features wanted word geometry and every one of them got it by rendering
+the page and running tesseract: `tsv`, `elements`, `continuity`, `ordered`,
+`autosegment`, `fontid`, and `model`'s own fallback. That made an OCR engine a
+*dependency of measurement* rather than a reading lane, and on a scan they all
+produced words nobody chose to buy. `src/pdfdrill/word_boxes.py` replaced it
+with three answers and no fourth:
+
+| source | gives | who takes it |
+|---|---|---|
+| the PDF's own text layer (`pdftotext -tsv`) | word boxes **with their text**, in points | `tsv`, `elements`, `continuity` |
+| the page's own ink (connected components, split at the inter-word gap) | word boxes with **no text**, in render pixels | `fontid` (it wanted the pixels, never the words) |
+| nothing | the lane that would change that, in `route`'s words | everything else |
+
+A reading bought from a provider is deliberately NOT a source: `gemmaocr` and
+`mathpix` both emit LINE boxes, and a line box offered where a word box is
+expected is a wrong measurement rather than a missing one. `ordered` and
+`autosegment` take per-page TEXT from whatever reading is already on disk,
+which is a different thing and allowed.
+
+The inter-word gap is 0.35 of the row's median glyph height, measured on
+2402.13444v1 — born digital, so its own text layer is the ground truth for both
+a word's count and its extent. Ink words matched the text layer's 5,264 word
+boxes at IoU ≥ 0.5 in 82.9% of cases (mean IoU 0.786, count ratio 0.951); 0.30
+splits too many, 0.60 fuses too many. The 17% that never match are mostly the
+inline formulas of a math paper, where "one word" is not a thing the ink can
+know.
+
+### What was lost with it, honestly
+
+- **`continuity`, `elements`, `ordered` and `autosegment` on a SCAN.** They need
+  a word with its text, which no free lane reads off a scan. They work on a
+  born-digital document, and on a scan they name the lane instead of inventing
+  words.
+- **Cardinal page orientation in `scandrill`.** tesseract OSD could tell 0 from
+  180; the ink cannot — upside-down text makes rows of exactly the same shape.
+  `Tools.detect_orientation` now proves only that a page is a quarter-turn out,
+  and `measure_orientation` records that as a WARNING and rotates nothing,
+  because a quarter-turn guessed the wrong way leaves the text upside down.
+- **The OCR text-layer graft in `scandrill` (`scan --ocr`).** It is refused, not
+  removed quietly: a text layer on a scan makes `route` read it as born-digital
+  and send it to the text-layer lane instead of one that can read it — the
+  misroute this contract exists to prevent. The *detection* of an old grafted
+  layer stays, because PDFs built when it existed are on disk.
+- **Two passes inside the retired engine**: the text-layer merge (use `linescmp`
+  to compare two readings) and the barcode pass (`pdfdrill qr` decodes every
+  symbology with the same zxing-cpp engine, standalone).
+
 ## What the previous version got wrong
 
 Two things, both now fixed, both worth keeping written down because each looked

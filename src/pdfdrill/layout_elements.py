@@ -8,17 +8,17 @@ element gets a content-addressed identity (blake3, or sha256 fallback) and is
 emitted as a TiddlyWiki tiddler (`<bibkey>_<TYPE>_<serial>`) with data fields,
 a normalised `geo-projection`, and a learned `projection` embedding.
 
-This module is the thin, **additive** wiring: it renders the PDF pages, runs
-tesseract over each page to a single combined TSV (page numbers patched to the
-real page), and calls the two public `tsv_gcn` entry points —
+This module is the thin, **additive** wiring: it takes the document's word
+boxes from `word_boxes` (the PDF's own text layer) as one combined TSV, and
+calls the two public `tsv_gcn` entry points —
 `crosscheck(tsv_path, model_path)` and `emit_tiddlers(tsv_path, model_path,
 bibkey, source)`. It never touches the docmodel/docops pipeline; the result is
 written to the sidecar as a `layout` layer + a sibling tiddlers file by the
 `pdfdrill elements` command.
 
-It degrades gracefully on every missing piece: NumPy absent, OCR tools absent,
-no trained `.npz` model AND no `extract_addresses` heuristic — each returns a
-clear, actionable message instead of raising. The GNN path needs a model the
+It degrades gracefully on every missing piece: NumPy absent, no text layer to
+take word boxes from, no trained `.npz` model AND no `extract_addresses`
+heuristic — each returns a clear, actionable message instead of raising. The GNN path needs a model the
 caller supplies via `--model` (train one with `python -m pdfdrill.tsv_gcn
 train …`); the heuristic-only path needs the optional `extract_addresses`
 module on PYTHONPATH.
@@ -26,8 +26,6 @@ module on PYTHONPATH.
 from __future__ import annotations
 
 import importlib.util
-import shutil
-import subprocess
 from pathlib import Path
 from typing import Any, Optional
 
@@ -37,63 +35,35 @@ def numpy_available() -> bool:
 
 
 def tools_available() -> tuple[bool, str]:
-    """Return (ok, message). The element layer needs NumPy (the GNN) plus
-    Ghostscript + tesseract (gs renders the pages, tesseract makes the TSV word boxes)."""
+    """Return (ok, message). The element layer needs NumPy (the GNN); the word
+    boxes come from the PDF's own text layer, so nothing is rendered or OCR'd."""
     if not numpy_available():
         return False, ("the layout-element GNN needs NumPy. Install it with "
                        "`pip install 'pdfdrill[layout]'` (numpy + blake3).")
-    from . import pdf_reading
-    missing = (["ghostscript"] if pdf_reading.gs_binary() is None else []) + \
-              (["tesseract"] if shutil.which("tesseract") is None else [])
-    if missing:
-        return False, (f"layout-element OCR needs {' and '.join(missing)} on "
-                       f"PATH. Install ghostscript and tesseract-ocr "
-                       f"(plus a language pack, e.g. tesseract-ocr-deu).")
     return True, ""
 
 
 # ---------------------------------------------------------------------------
-# Combined per-page tesseract TSV (page_num patched to the real page)
+# The combined TSV the GNN consumes
 # ---------------------------------------------------------------------------
-
-def _patch_page_column(tsv: str, page_num: int) -> list[str]:
-    """Rewrite the `page_num` column (index 1) of every tesseract TSV data row
-    to `page_num`, dropping the header. tesseract reports page 1 for every
-    single-image call, so per-page calls must be renumbered before they are
-    concatenated (tsv_gcn keys words + page dims by that column)."""
-    rows: list[str] = []
-    for row in tsv.splitlines():
-        f = row.split("\t")
-        if not f or f[0] == "level" or len(f) < 12:
-            continue
-        f[1] = str(page_num)
-        rows.append("\t".join(f))
-    return rows
-
 
 def build_combined_tsv(pdf: Path, out_dir: Path, *, ppi: int = 300,
                        lang: str = "deu+eng") -> str:
-    """Render each page (Ghostscript) and OCR it (tesseract `tsv`), returning ONE
-    combined TSV string whose `page_num` column carries the real page number.
-    Reuses the same render+tesseract invocation as the `ocr` path; here we keep
-    the raw TSV (the GNN consumes word geometry directly) rather than grouping
-    it into lines."""
-    out_dir.mkdir(parents=True, exist_ok=True)
-    from . import pdf_reading                    # Ghostscript >= 400 DPI (only rasterizer)
-    # GRAY: tesseract-only pages — see text_layers for the measurement.
-    pngs = pdf_reading.rasterize(pdf, out_dir, dpi=ppi, fmt="png", gray=True)
-    header = "\t".join(["level", "page_num", "block_num", "par_num", "line_num",
-                        "word_num", "left", "top", "width", "height", "conf", "text"])
-    rows: list[str] = [header]
-    for png in pngs:
-        digits = "".join(c for c in png.stem if c.isdigit())
-        page_num = int(digits) if digits else 0
-        res = subprocess.run(
-            ["tesseract", str(png), "-", "-l", lang, "--psm", "1", "tsv"],
-            capture_output=True, text=True, timeout=300,
-        )
-        rows.extend(_patch_page_column(res.stdout, page_num))
-    return "\n".join(rows) + "\n"
+    """ONE 12-column TSV for the whole document, from the PDF's own text layer.
+
+    An address is found by what it SAYS and where it sits, so this layer needs a
+    word with its text — which is the text layer's to give and no free lane's to
+    read off a scan. The per-page renumbering this function used to do is gone
+    with the per-image OCR calls that needed it: `pdftotext -tsv` numbers its own
+    pages. `out_dir`, `ppi` and `lang` are accepted and unused — nothing is
+    rendered here any more.
+
+    Returns "" when the document has no text layer; `analyze` turns that into
+    `word_boxes.no_words_note`, which names the lane rather than a binary.
+    """
+    from . import word_boxes
+    tsv, _source = word_boxes.combined_tsv(Path(pdf))
+    return tsv
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +162,12 @@ def find_elements(pdf: Path, *, model_path: Optional[Path], bibkey: str,
     tsv_path = blob_dir / "elements.tsv"
     if force or not tsv_path.exists():
         tsv = build_combined_tsv(pdf, blob_dir / "elements_pages", ppi=ppi, lang=lang)
+        if not tsv.strip():
+            from . import word_boxes
+            return {"available": False, "tsv_path": None, "tiddlers": [],
+                    "elements": [],
+                    "message": word_boxes.no_words_note(
+                        pdf, what="word boxes for the element layer")}
         tsv_path.write_text(tsv, encoding="utf-8")
 
     model = str(model_path) if model_path else None

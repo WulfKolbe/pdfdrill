@@ -3,7 +3,7 @@
 If you are an AI assistant (Claude Code, Codex, Cursor, Aider, …) working with a
 PDF, **pdfdrill is the source of truth for every extraction step**. Your job is to
 call small pdfdrill commands and relay their prose. pdfdrill owns the heavy tools
-(poppler, ghostscript, tesseract, MathPix, LaTeX) and the state machine.
+(poppler, ghostscript, MathPix, Gemma-4, LaTeX) and the state machine.
 
 The one rule behind all the others: **never solve a PDF-extraction step yourself if
 pdfdrill has a command for it.** When something fails, take the next *valid*
@@ -63,13 +63,14 @@ carry page geometry:
 | `mathpix`         | ✅ | ✅ | MathPix key / cached lines.json |
 | `pdfminer` / `pdfplumber` | ✅ | ⚠️ garbled | keyless born-digital text layer |
 | `latex` (arXiv source) | ❌ | ✅ gold | keyless arXiv e-print |
-| `tesseract`       | ✅ (weak) | ❌ | keyless OCR fallback |
+| `gemmaocr`        | ✅ | ✅ | the model lane, METERED (~0.000718 EUR/printed page) |
+| `gemmaocr --geometry-only` | ❌ | ❌ | FREE + offline: a box and a type per line, NO words |
 
 `pdfdrill model` records this as `model_caps` in the sidecar. So:
 - **`inspect` / `locate` need GEOMETRY.** On a `latex`-source model (no geometry)
   `inspect` will TELL you: *"no page geometry — rebuild via mathpix/ocr."* Do exactly
   that; do **not** improvise boxes.
-- **`report` / `compare` need MATH.** A keyless tesseract model has 0 equations and
+- **`report` / `compare` need MATH.** A text-only model has 0 equations and
   sets `NEEDS_VISION_OCR` — run `visionocr`, don't present it as complete.
 
 Check `pdfdrill status <pdf>` for the species/caps before assuming a command will work.

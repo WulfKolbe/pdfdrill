@@ -1,19 +1,20 @@
-"""Text + position layers from pdftotext -tsv and (optionally) tesseract.
+"""Text + position layers from the PDF's own text layer.
 
-pdftotext -tsv emits a 12-column TSV with bounding boxes per word. Same
-schema as tesseract TSV, so both produce records of the same shape.
+`pdftotext -tsv` emits a 12-column TSV with a bounding box per word.
 
 Schema (per word):
     page, par, block, line, word, left, top, width, height, conf, text
 
-Tesseract is opt-in: if not on PATH the cmd warns and stops at pdfplumber.
-Use it when the PDF has no text layer (pdffonts returned nothing). The
-state machine consults `has_text_layer` evidence before choosing.
+There used to be a second route here: render every page and run tesseract. It
+is gone, and with it the idea that a measurement can manufacture its own
+reading. A PDF with no text layer has no word boxes to give; which lane WOULD
+read it is `ocr_router.choose_route`'s decision and `word_boxes.no_words_note`'s
+sentence. The schema stayed because it was never tesseract's — any 12-column
+TSV still parses here.
 """
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -80,63 +81,6 @@ def summarize_tsv(words: list[dict[str, Any]]) -> dict[str, Any]:
         "avg_conf": round(sum(confs) / len(confs), 1) if confs else 0.0,
         "low_conf_words": sum(1 for w in words if 0 <= w["conf"] < 60),
     }
-
-
-# ---------------------------------------------------------------------------
-# Tesseract OCR (opt-in fallback for scanned PDFs)
-# ---------------------------------------------------------------------------
-
-def tesseract_available() -> bool:
-    return shutil.which("tesseract") is not None
-
-
-def fetch_tesseract_tsv(
-    pdf: Path,
-    out_dir: Path,
-    ppi: int = 300,
-    lang: str = "eng",
-) -> list[dict[str, Any]]:
-    """Render each page to PNG via Ghostscript (>=400 DPI) and OCR with tesseract.
-
-    Produces the same per-word record shape as pdftotext -tsv, so
-    downstream consumers don't need to know which tool ran.
-    """
-    if not tesseract_available():
-        raise RuntimeError(
-            "tesseract is not on PATH. Install with `apt install tesseract-ocr` "
-            "and the relevant language packs."
-        )
-
-    out_dir.mkdir(parents=True, exist_ok=True)
-    # Render all pages via Ghostscript >= 400 DPI (the only rasterizer).
-    from . import pdf_reading
-    # GRAY: these pages only ever reach tesseract. Scored against the text
-    # layer on four documents, pnggray is within 0.2 points of png16m every
-    # time, for 2.1-2.5x less render and read time.
-    page_pngs = pdf_reading.rasterize(pdf, out_dir, dpi=ppi, fmt="png", gray=True)
-
-    all_words: list[dict[str, Any]] = []
-    for png in page_pngs:
-        page_num = _page_num_from_filename(png.name)
-        result = subprocess.run(
-            ["tesseract", str(png), "-", "-l", lang, "--psm", "1", "tsv"],
-            capture_output=True, text=True, timeout=120,
-        )
-        page_words = _parse_tsv(result.stdout)
-        # Patch the page_num: tesseract emits page=1 for every call
-        for w in page_words:
-            w["page"] = page_num
-            # Convert pixel coordinates to PDF points for consistency
-            for k in ("left", "top", "width", "height"):
-                w[k] = w[k] / ppi * 72.0
-        all_words.extend(page_words)
-    return all_words
-
-
-def _page_num_from_filename(name: str) -> int:
-    # gs rasterizer names: page-0001.png (any zero-padding; digits are parsed out)
-    digits = "".join(c for c in name if c.isdigit())
-    return int(digits) if digits else 0
 
 
 # ---------------------------------------------------------------------------

@@ -8,7 +8,6 @@
 #   - ghostscript                    -> the ONLY page rasterizer (>=400 DPI:
 #     OCR/vision/layout/image-locate all render via gs; required)
 #   - poppler-utils                  -> pdftotext/pdfimages/pdfinfo (core)
-#   - tesseract-ocr (+eng/deu/equ)   -> the keyless OCR route (`pdfdrill ocr`)
 #   - LaTeX DVI toolchain + dvisvgm  -> TikZ/table SVG route (`pdfdrill svg`,
 #     `latexbook`): latex/pdflatex/dvips + dvisvgm + tikz/standalone packages
 # System installs use apt-get when present (Debian/Ubuntu, e.g. the Claude.ai
@@ -37,9 +36,9 @@ if command -v apt-get >/dev/null 2>&1; then
   # pyramid`/`imageserve` (the MathPix-free image source). Optional but installed
   # here so the image stack works out of the box.
   command -v vips >/dev/null 2>&1 || PKGS+=(libvips-tools)
-  if ! command -v tesseract >/dev/null 2>&1; then
-    PKGS+=(tesseract-ocr tesseract-ocr-eng tesseract-ocr-deu tesseract-ocr-equ)
-  fi
+  # NO OCR ENGINE. tesseract used to be installed here for `pdfdrill ocr`; both
+  # are gone. Which reading a document gets is docs/LANES.md's decision, and the
+  # last lane (`gemmaocr --geometry-only`) is free and needs no engine at all.
   # SANE — the scanner ADF acquisition route (`pdfdrill scan`). Optional: only a
   # box with a scanner needs it; every other route is unaffected without it.
   command -v scanimage >/dev/null 2>&1 || PKGS+=(sane-utils)

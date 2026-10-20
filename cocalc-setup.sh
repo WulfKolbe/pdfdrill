@@ -32,7 +32,7 @@ echo "== 1/4  System packages the CoCalc image is missing (sudo apt-get) =="
 if command -v apt-get >/dev/null 2>&1; then
   $SUDO apt-get update -q || true
   # The known-good minimal set for the drillui + LaTeX-SVG paths on CoCalc.
-  # bootstrap.sh (step 4) adds the rest (ghostscript, tesseract, libvips) and
+  # bootstrap.sh (step 4) adds the rest (ghostscript, libvips) and
   # skips whatever is already present, so latex/dvisvgm here keep it from
   # pulling the full texlive set.
   $SUDO apt-get install -y poppler-utils dvisvgm texlive-latex-extra \
@@ -75,7 +75,7 @@ fi
 echo
 echo "== 4/5  Shared Python + system deps (bootstrap.sh) =="
 # bootstrap.sh installs the Python deps via pip and the remaining apt packages
-# (ghostscript, tesseract, libvips), then runs `pdfdrill doctor`.
+# (ghostscript, libvips), then runs `pdfdrill doctor`.
 bash "$ROOT/bootstrap.sh"
 echo
 

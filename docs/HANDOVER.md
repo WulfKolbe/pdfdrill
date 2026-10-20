@@ -1420,3 +1420,65 @@ deletion is not visible in the result.
 STILL OPEN: the table of contents, unchanged — 49 of 79
 `table_of_contents_row`, and neither reader types a contents list. A leader-dot
 run is a measurable thing and nothing looks for it.
+
+### tesseract is out of the distribution, and what replaced it
+
+`bootstrap.sh` installs no OCR engine, `doctor` looks for none, and no module
+invokes one. `tests/test_no_ocr_engine.py` holds that shape: an argv head or a
+`which()` probe for any of eight engines fails the suite. Proved at runtime too
+— a trap script named `tesseract`, first on PATH, logged **0 calls** across two
+full `drill` runs and `ocr`/`tsv`/`continuity`/`elements`/`fontid`/`doctor`.
+
+Seven features had been getting word geometry by rendering a page and running
+tesseract: `tsv`, `elements`, `continuity`, `ordered`, `autosegment`, `fontid`
+and `model`'s own fallback. That made an OCR engine a dependency of
+*measurement* rather than a reading lane. `src/pdfdrill/word_boxes.py` now gives
+three answers and no fourth: the PDF's own text layer (word boxes **with their
+text**, in points), the page's own ink (boxes with **no** text, in render
+pixels), or nothing — plus the lane that would change that, in `route`'s words.
+
+**The inter-word gap is 0.35 of the row's median glyph height.** Measured on
+2402.13444v1 (born digital, so its own text layer is the ground truth for a
+word's count *and* its extent): ink words matched the text layer's 5,264 word
+boxes at IoU ≥ 0.5 —
+
+    gap      0.25   0.30   0.35   0.40   0.45   0.50   0.60
+    matched  77.6%  80.8%  82.9%  82.8%  82.3%  77.6%  61.7%
+    n/truth  1.148  1.032  0.951  0.945  0.939  0.900  0.767
+
+0.35 is the peak and the count closest to 1 from below; mean IoU of a matched
+box is 0.786 there. The ~17% that never match are mostly the inline formulas of
+a math paper, where "one word" is not a thing the ink can know.
+
+`fontid` is the ink route's natural consumer — it never wanted the words, it
+wanted the pixels a word occupies. Its "field" was an OCR block and is now a
+SIZE BAND (quarter-of-median glyph height), because a field's defining property
+here is its type size. On hilbert10 (a keyless scan) it reports 3 fields,
+predominantly serif, and labels each sample `(ink: no text read)` rather than
+printing `''`.
+
+LOST, and named in `docs/LANES.md`: `continuity`/`elements`/`ordered`/
+`autosegment` on a SCAN (they need a word's text, which no free lane reads off
+one); cardinal page orientation in `scandrill` (OSD could tell 0 from 180, the
+ink cannot — `measure_orientation` now records SIDEWAYS as a warning and rotates
+nothing); the `scan --ocr` text-layer graft (refused, because a text layer on a
+scan misroutes `route` to the born-digital lane); and two passes whose only
+caller was the retired engine (the text-layer merge → use `linescmp`; the
+barcode pass → `pdfdrill qr` already does it with the same zxing-cpp).
+
+### `drill` reports what each part cost in seconds
+
+The sandbox question is not only whether every report finishes. `drill` times
+every step and ends with one line per part, the total, and the per-page rate —
+the only figure that transfers to a document of another length. Measured cold,
+keyless, on this machine:
+
+    2402.13444v1 (9 pp, born-digital)   TOTAL 46.75 s   5.19 s/page
+      geometry --layout 42.36 s (91%)   inspect 3.07 s (7%)   model 1.05 s (2%)
+      size/fonts/abstract/toc/route/md/status together under 0.2 s
+
+    hilbert10 (10 pp, keyless scan)     TOTAL 39.35 s   3.94 s/page
+      gemmaocr --geometry-only 39.32 s (100%)
+
+So on both lanes the cost IS the layout detector, and everything else is noise.
+That is the number to watch when the test documents arrive.

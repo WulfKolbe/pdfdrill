@@ -8,7 +8,7 @@ SCANDRILL). Unchanged apart from the two intra-package imports.
 The Python side is vendored; the SPEECH ENGINE is not. `SRESpeechBackend` drives
 the npm `speech-rule-engine` (the engine inside MathJax) as a long-lived node
 process over NDJSON — 9.6 MB of JavaScript that belongs in an install step, not
-in git, exactly like poppler or tesseract. `pdfdrill doctor` reports whether it
+in git, exactly like poppler or ghostscript. `pdfdrill doctor` reports whether it
 is present; `src/pdfdrill/la2speech/setup.sh` installs it.
 
 Public API used by `pdfdrill speak`:

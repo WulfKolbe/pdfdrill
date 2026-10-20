@@ -102,7 +102,7 @@ fail a check; the equivalent for our own output is a reader who looks first.
 self-learning extraction loop. Three packages under `src/` (import root `src`):
 
 1. **`src/pdfdrill/`** — flat CLI returning prose, state in a `.drill/` sidecar
-   next to each PDF; wraps poppler/pdfplumber/tesseract. The entry point the
+   next to each PDF; wraps poppler/pdfplumber/ghostscript. The entry point the
    Claude.ai chatbot drives (the `pdfdrill` SKILL).
 2. **`src/docmodel/`** — the unified document model: typed `Document` of
    `DocObject`s with anchor-based `Stream`s, `Realization`s, `Alignment`s,
@@ -130,9 +130,9 @@ Python 3 only. `pip install -e .` gives the `pdfdrill` console script; or:
 PYTHONPATH=src python3 -m pdfdrill <command> <pdf> [args]
 ```
 
-- `bash bootstrap.sh` installs missing system deps (poppler, tesseract,
-  ghostscript, LaTeX+dvisvgm) via apt-get; **`pdfdrill doctor`** reports
-  tools/deps/keys anytime.
+- `bash bootstrap.sh` installs missing system deps (poppler, ghostscript,
+  LaTeX+dvisvgm) via apt-get; **`pdfdrill doctor`** reports tools/deps/keys
+  anytime. **No OCR engine is installed or wanted** — see the lane contract.
 - Build/extract commands are gated by `pdfdrill preflight --ack <TOKEN>` per
   working directory; automation sets `PDFDRILL_NO_PREFLIGHT=1`.
 - `<pdf>` may be a local path, a known-host https URL, or a bare arXiv id —
@@ -183,6 +183,16 @@ tests failing against correct source (HANDOVER-RULES rule 4).
   vision call. `pdfdrill drill <pdf>` runs the contract to an inspect.html and
   runs nothing that costs money. `PDFDRILL_SANDBOX=1` answers as the keyless
   sandbox does, on a keyed machine.
+- **pdfdrill runs NO OCR ENGINE.** tesseract is out of the distribution:
+  `bootstrap.sh` installs none, `doctor` looks for none, no module invokes one,
+  and `tests/test_no_ocr_engine.py` fails the suite if an argv head or a
+  `which()` probe for one comes back. The verb `pdfdrill ocr` is kept as a
+  POINTER that names the lane. Word boxes come from `word_boxes`: the PDF's own
+  text layer (boxes WITH text, in points), the page's own ink (boxes with NO
+  text, in render pixels — what `fontid` always actually wanted), or nothing
+  plus the lane that would change that. A reading bought from a provider is NOT
+  a word-box source: `gemmaocr`/`mathpix` give LINE boxes, and a line box where
+  a word box is expected is a wrong measurement, not a missing one.
 - **No command buys a reading unasked.** `model` took the paid lane whenever a
   key was present; it now names it (`--mathpix` is the opt-in). The rule is the
   planner's and it had leaked one level down.
@@ -196,9 +206,10 @@ tests failing against correct source (HANDOVER-RULES rule 4).
   guard). Read-only commands use the ~10× faster DocGraph path.
 - **A stale lines.json is never silently served** — projectors rebuild via
   `_stale_or_absent`/`_fresh_docgraph`.
-- **Keyless math**: tesseract cannot type equations; a 0-equation model on a
-  math-bearing doc sets `NEEDS_VISION_OCR` and the fix is `pdfdrill latex`
-  (arXiv gold, free) / `visionocr` (LLM delegation) / `mathpix` (paid).
+- **Keyless math**: a text-only route cannot type equations; a 0-equation
+  model on a math-bearing doc sets `NEEDS_VISION_OCR` and the fix is `pdfdrill
+  latex` (arXiv gold, free) / `visionocr` (LLM delegation) / `gemmaocr`
+  (metered) / `mathpix` (paid).
 - **LLM delegation** (`llm_delegate`): no API key → route sub-tasks to the
   running Claude (CLI `claude -p`, or sandbox file handshake); image tasks are
   BATCHED (≤10/call) to amortize the ~180K-token harness tax.

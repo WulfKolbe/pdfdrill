@@ -11,8 +11,9 @@ invocation: PYTHONPATH=src python3 -m pdfdrill
 commands:
 - name: doctor
   section: Introspection (fast, no extraction)
-  summary: 'Requirement check: system tools (poppler/tesseract/LaTeX+dvisvgm), Python deps, API keys +
-    the apt-get fix line'
+  summary: 'Requirement check: system tools (poppler/ghostscript/LaTeX+dvisvgm), Python deps, API
+    keys, the free layout detector, plus the apt-get fix line. No OCR engine is checked for,
+    because none is installed or wanted (docs/LANES.md).'
   offline_ok: true
   typed: true
 - name: preflight
@@ -487,7 +488,9 @@ commands:
     and an inspector with 131 elements and 131 missing boxes. Everything it runs is OFFLINE AND
     FREE: when the lane costs money it is NAMED with the exact command and not run, and `drill`
     again afterwards finishes the rest. --no-inspect stops before the inspector; --full wipes the
-    sidecar and re-runs from cold.'
+    sidecar and re-runs from cold. EVERY PART IS TIMED: the report ends with one line per part,
+    the total, and the per-page rate, which is the only figure that transfers to a document of a
+    different length.'
   offline_ok: true
   positionals:
   - name: pdf
@@ -592,7 +595,9 @@ commands:
   typed: true
 - name: tsv
   section: Introspection (fast, no extraction)
-  summary: Word-level bounding boxes (pdftotext -tsv; --ocr forces tesseract)
+  summary: Word-level bounding boxes from the OWN TEXT LAYER of the PDF (pdftotext -tsv). A
+    document with no text layer has no word boxes to give and is told which lane would read it.
+    `--ocr` used to force a tesseract pass; it is swallowed now, with that reason.
   offline_ok: true
   positionals:
   - name: pdf
@@ -604,7 +609,7 @@ commands:
   - name: ocr
     flag: --ocr
     type: flag
-    help: force OCR TSV (no text layer)
+    help: RETIRED — swallowed; pdfdrill runs no OCR engine
 - name: render
   section: Introspection (fast, no extraction)
   summary: Render the built markdown to PDF (pandoc + lualatex)
@@ -636,42 +641,26 @@ commands:
   typed: true
 - name: ocr
   section: Introspection (fast, no extraction)
-  summary: 'MathPix-free OCR for COMMERCIAL documents (scans/letters/tables/forms): Ghostscript (>=400 DPI)
-    → tesseract → a MathPix-compatible lines.json. Lines are TYPED (section_header/table/equation/diagram),
-    carry per-line conf + words, and their regions are PDF POINTS (units=pt) so local /cropped/ pyramid
-    crops work keylessly. Language autocorrection, OSD auto-upright, text-layer merge (as a SEPARATE
-    text_layer_text channel), barcodes. NO LaTeX: an equation gets a correct REGION but GARBLED text —
-    math papers want mathpix/visionocr. A MathPix lines.json is backed up to
-    <name>.lines.mathpix.bak.json before being replaced (executes, never refuses).'
+  summary: 'RETIRED — it names the lane instead of reading. This was the keyless tesseract lane;
+    pdfdrill runs no OCR engine any more (docs/LANES.md). Two measurements retired it: `gemmaocr`
+    reads a scan at 0.000718 EUR per printed page with 88 percent of the MathPix boxes, and
+    `gemmaocr --geometry-only` gets the shape of the page for nothing — while this lane emitted
+    equation lines whose `latex` prop was garbled glyphs. The verb still answers: it prints the
+    lane decision for this document and the exact command that replaced it. It writes nothing,
+    and the old flags are swallowed.'
   offline_ok: true
   positionals:
   - name: pdf
     type: pdf
     required: true
     help: PDF path, https URL, or bare arXiv id
-  flags:
-  - name: lang
-    type: str
-    flag: --lang
-    default: eng+equ
-    help: 'tesseract langs (eng+deu for German); the module auto-corrects the order'
-  - name: ppi
-    type: int
-    flag: --ppi
-    help: render DPI; floored at the >=400 gs minimum (a 300-DPI scan is only upsampled)
-  - name: min_conf
-    type: float
-    flag: --min-conf
-    help: 'drop words below this tesseract confidence (default 5.0 = noise floor)'
-  - name: no_typing
-    flag: --no-typing
-    type: flag
-    help: disable line typing — emit untyped "text" lines (legacy shape)
   typed: true
 - name: continuity
   section: Introspection (fast, no extraction)
-  summary: Full-page OCR of the MARGINS → page-sequence markers (Seite N von M / Fortsetzung) MathPix's
-    content crop drops; attaches seq to Page objects
+  summary: The MARGINS of every page, read from the own text layer of the PDF → the page-sequence
+    markers (Seite N von M / Fortsetzung) that the MathPix content crop drops; attaches seq to
+    Page objects. It renders and OCRs nothing, so a SCAN yields nothing here and is told which
+    lane would read it — the markers are text, and no free lane reads text off a scan.
   offline_ok: true
   positionals:
   - name: pdf
@@ -873,8 +862,10 @@ commands:
   - *id001
 - name: elements
   section: Introspection (fast, no extraction)
-  summary: Find layout elements (postal address / BOM line) via the geometric-attention GNN over tesseract
-    word boxes → content-addressed tiddlers (--model M.npz)
+  summary: Find layout elements (postal address / BOM line) via the geometric-attention GNN over
+    the own word boxes of the document (the text layer, via word_boxes) → content-addressed
+    tiddlers (--model M.npz). An address is found by what it SAYS as well as by where it sits, so
+    a scan with no text layer is refused by naming the lane that would read it.
   offline_ok: true
   positionals:
   - name: pdf
@@ -959,9 +950,12 @@ commands:
   typed: true
 - name: fontid
   section: Introspection (fast, no extraction)
-  summary: 'VISUAL font id for scanned/OCR input (no font layer): WORD crops → torch-free ONNX font-classify
-    → vote WITHIN each OCR block, so font is reported per text FIELD (heading/body/fine-print), not one
-    doc vote. Per-field confidence; weak on scanned generic sans. --limit 12 --ppi 200'
+  summary: 'VISUAL font id for scanned/OCR input (no font layer): WORD crops → torch-free ONNX
+    font-classify → vote WITHIN each SIZE BAND, so font is reported per text FIELD
+    (heading/body/fine-print), not one doc vote. The word boxes come from the INK of the page, not
+    from an OCR engine: this command never wanted the words, it wanted the pixels a word occupies,
+    and the ink knows where those are for free. Per-field confidence; weak on scanned generic
+    sans. --limit 12 --ppi 200'
   offline_ok: true
   positionals:
   - name: pdf
@@ -1163,8 +1157,9 @@ commands:
   section: Introspection (fast, no extraction)
   summary: 'Build unified docmodel from lines.json. No lines.json → the FREE lanes only, in the
     order docs/LANES.md fixes: the arXiv author''s LaTeX merged with the PDF''s own text layer →
-    the text layer alone (pdfminer, free/fast) → the author''s LaTeX alone → tesseract (installed
-    scans only). It NEVER BUYS A READING: `model` used to call MathPix whenever a key was present,
+    the text layer alone (pdfminer, free/fast) → the author''s LaTeX alone. There the chain ENDS:
+    it used to fall through to the keyless tesseract lane, which is how `model` could read a scan
+    nobody asked it to read — the engine is gone and so is the fallthrough. It NEVER BUYS A READING: `model` used to call MathPix whenever a key was present,
     which made it a paid command reachable from forty places that do not say so and bought 9 pages
     of 2402.13444v1 in a session measuring the free lanes. The paid lane is now NAMED in the
     refusal, with the exact command; --mathpix is the explicit opt-in. --bibkey KEY sets the
@@ -3893,7 +3888,7 @@ commands:
   section: OCR / model pipeline
   summary: 'PAID WHEN KEYED, keyless otherwise — agent-delegated EQUATION OCR: rasterize each page → the running Claude reads the math →
     fold {page,number,latex,kind} records into the lines.json as real Equation nodes (number paired by
-    geometry). The keyless math route when tesseract built a doc prose-only (NEEDS_VISION_OCR)'
+    geometry). The keyless math route when a text-only reading built a doc prose-only (NEEDS_VISION_OCR)'
   positionals:
   - name: pdf
     type: pdf

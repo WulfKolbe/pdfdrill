@@ -17,7 +17,7 @@ router should use instead:
 
     pdftotext (poppler)   fine
     MathPix               fine
-    tesseract (OCR)       fine
+    an OCR'd layer        fine
 
 DELIBERATELY NARROW. `PDFMINER_UNSAFE_PRODUCERS` is an explicit list, not a
 substring free-for-all: disabling the free/exact lane is costly, so a producer
@@ -64,5 +64,5 @@ def policy_note(producer: str | None) -> str:
         return ""
     return (f"Producer is {(producer or '').strip()!r} ({fam}): the pdfminer "
             f"text-layer lane is DECLINED for this family (it emits font subsets "
-            f"with no /Encoding, mapping only via /ToUnicode). pdftotext, MathPix "
-            f"and tesseract handle it correctly and are used instead.")
+            f"with no /Encoding, mapping only via /ToUnicode). pdftotext and "
+            f"MathPix handle it correctly and are used instead.")
