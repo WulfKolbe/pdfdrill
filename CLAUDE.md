@@ -16,6 +16,65 @@ cost time here.
 the non-obvious environment facts (LgEval pin, dictionaries, `resume.sh`), and
 the unverified assumptions.
 
+**The next section is not reference material — it is the shape of every task's
+result.** A task here is finished when a real `pdfdrill` command in a fresh
+shell has been run and its output recorded, not when the code looks right.
+
+## Every task: scratch tests while working, acceptance only on the real command line
+
+### Two kinds of test, and only one of them counts
+
+**While you work: scratch tests are allowed.** Use whatever is fastest to try an idea:
+`python3 -c`, a throwaway script, calling one function directly, `pytest -k` on one unit, a fake
+input, a monkeypatched network call. These tests are for you. They show that a piece behaves; they
+do not show that the user's command works. Keep them outside the repo, in `$TMPDIR` or
+`/tmp/scratch-<task>/`. Don't commit them, and don't cite them as evidence.
+
+**At the end: acceptance is a real command in bash.** A task counts as tested only through the
+commands a user types, run as a separate process in a fresh shell:
+
+```bash
+cd "$(mktemp -d)"                                  # not the repo, not your scratch dir
+env -i HOME="$HOME" PATH="$PATH" PDFDRILL_SANDBOX=1 \
+  pdfdrill drill <input> ; echo "exit=$?"
+```
+
+These rules apply to the acceptance run:
+
+1. **The installed entry point, not the module.** Call `pdfdrill …`, not `python3 -m`, not
+   `PYTHONPATH=src`, and not an import of `cmd_*`. If `pdfdrill` is not on PATH, the install is part
+   of what you are testing, so report that.
+2. **No flags the user wasn't told to use.** If the task says `pdfdrill drill <pdf>`, run exactly
+   that. A step that only works with `--force`, an environment variable or a pre-seeded file did not
+   pass.
+3. **Run from a fresh shell and a clean directory.** Use no state left over from scratch work: no
+   cached sidecar, no `.env` you made, no exported variable. Run the keyless case under
+   `PDFDRILL_SANDBOX=1`. Run the keyed case only if the owner says keys may be spent, and name the
+   key.
+4. **Check the output, not only the exit code.** For each acceptance command, record:
+   - the command line, verbatim
+   - `exit=<n>`
+   - the lines of stdout that prove the claim (lane chosen, files written)
+   - every file the command says it wrote, with its existence checked by `ls -l` and its content
+     checked by one concrete probe (e.g. `grep -c 'data-id=' x.inspect.html`, `python3 -m
+     json.tool x.lines.json >/dev/null`)
+5. **Real inputs only.** Use the example inputs named in the task. Don't use a PDF you generated to
+   make the test pass, unless the task asks for that.
+6. **A test that can't run is NOT RUN.** If there's no network, no key or no binary, write
+   `NOT RUN: <reason>`. It is not a pass, and it goes into the unverified list.
+
+### The report
+
+```
+Scratch tests (not evidence): <one line, what you tried>
+Acceptance (bash, fresh shell):
+  $ pdfdrill drill files/x.pdf            exit=0   lane=born_digital   x.inspect.html 1.2 MB, 412 data-id
+  $ pdfdrill drill 2402.13444             NOT RUN: arxiv.org unreachable from this machine
+Unverified: <every NOT RUN, every assumption>
+```
+
+Don't write "done", "works" or "fixed". The acceptance lines are the result.
+
 ## Before building anything that reads pdfdrill output or writes a projection
 
 Read these first, then check `pdfdrill --help` for a command that already does it:
@@ -199,6 +258,7 @@ tests failing against correct source (HANDOVER-RULES rule 4).
 
 | Topic | Doc |
 |---|---|
+| How a task is tested, and what counts as evidence | this file, § _Every task_ (above) |
 | Which reading a document gets, and why | `docs/LANES.md` |
 | State of play, constants, open work | `docs/HANDOVER.md` |
 | Rules learned by defect, env facts | `docs/HANDOVER-RULES.md` |
