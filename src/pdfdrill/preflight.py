@@ -7,9 +7,12 @@ so an LLM that skimmed or truncated the SKILL produces trusted-but-wrong results
 (wrong extraction route, duplicate equations, a directory stat'ed as a PDF). A CLI
 cannot force an LLM to read anything, so instead:
 
-1. SKILL.md ends with an ATTESTATION TOKEN — a checksum of the SKILL body printed
-   as its last line. An LLM that read the whole SKILL sees the token; one that
-   truncated/skimmed never does.
+1. SKILL.md ends with an ATTESTATION TOKEN — a checksum of the SKILL body, printed
+   as the last CONTENT line, immediately before the `PREFLIGHT-TOKEN:END` marker
+   that closes the region (the marker is the file's literal last line, and
+   `tail -1` therefore returns the marker, not the token: say "before the END
+   marker", never "the last line"). An LLM that read the whole SKILL sees the
+   token; one that truncated/skimmed never does.
 2. `pdfdrill preflight` prints the critical rules + a dep check and instructs the
    LLM to run `pdfdrill preflight --ack <TOKEN>`.
 3. `--ack <TOKEN>` verifies the token against pdfdrill's own copy of the SKILL and
@@ -78,9 +81,12 @@ def render_token_block(text: str) -> str:
     stripped = _strip_token_region(text).rstrip() + "\n"
     token = compute_token(text)
     block = (f"\n{TOKEN_BEGIN}\n"
-             f"Attestation token — the LAST line of this SKILL. If you can read "
-             f"this, you read the whole file. Run `pdfdrill preflight --ack "
-             f"{token}` before any build/extract command.\n"
+             f"Attestation token — the line directly below, which is the last "
+             f"CONTENT line of this SKILL (one HTML end-marker follows it, so "
+             f"`tail -1` gives the marker and `tail -2 | head -1` gives the "
+             f"token). If you can read this, you read the whole file. Run "
+             f"`pdfdrill preflight --ack {token}` before any build/extract "
+             f"command.\n"
              f"{token}\n"
              f"{TOKEN_END}\n")
     return stripped + block
@@ -215,6 +221,8 @@ def gate_message(cmd: str) -> str:
         f"Why: pdfdrill output looks authoritative, so using it without the usage "
         f"rules produces silently-WRONG results. Read the SKILL, then:\n"
         f"  1. run `pdfdrill preflight`\n"
-        f"  2. read SKILL.md to its LAST line to get the attestation token\n"
+        f"  2. read SKILL.md to the END — the token is the `DRILL-…` line just "
+        f"before the `PREFLIGHT-TOKEN:END` marker (`tail -1` returns the "
+        f"marker; the token is the line above it)\n"
         f"  3. run `pdfdrill preflight --ack <TOKEN>`\n"
         f"Then re-run your command. (Automation may set PDFDRILL_NO_PREFLIGHT=1.)")

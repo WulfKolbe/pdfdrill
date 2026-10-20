@@ -6,7 +6,7 @@ open the results. Everything below is copy-pasteable and needs **no API key**.
 ## Install
 
 ```bash
-git clone https://github.com/pdfdrill/pdfdrill && cd pdfdrill
+git clone https://github.com/WulfKolbe/pdfdrill.git && cd pdfdrill
 bash bootstrap.sh          # system deps via apt-get (poppler, ghostscript,
                            #   LaTeX+dvisvgm, libvips) — installs only
                            #   what's missing, then runs the requirement check
@@ -16,6 +16,28 @@ pdfdrill doctor            # confirm: present/missing tools + Python deps + keys
 
 Not on Debian/Ubuntu? `bootstrap.sh` prints the exact packages; install the
 equivalents, then `pip install -e .`.
+
+## Unlock the build commands (once per working directory)
+
+`size`, `route` and `doctor` answer immediately. **Every build/extract command —
+`model`, `report`, `inspect`, `md`, `drill`, … — is BLOCKED until you attest that
+you read the SKILL**, because pdfdrill output looks authoritative and is silently
+wrong when it is used without the usage rules. The gate is per working directory:
+
+```bash
+pdfdrill preflight                            # prints the rules and where the SKILL is
+tail -3 .claude/skills/pdfdrill/SKILL.md      # the token: the DRILL-… line, above the END marker
+pdfdrill preflight --ack DRILL-xxxxxxxx       # paste the token you just read
+```
+
+`tail -1` gives you the `<!-- PREFLIGHT-TOKEN:END -->` marker, not the token —
+the token is the line above it, which is why the command above asks for three.
+
+The token is a checksum of the SKILL body, so it CHANGES whenever the SKILL
+changes. No token is written on this page on purpose — read it from the file,
+and do not pipe `tail` straight into `--ack`, because the whole point of the
+gate is that something read the rules. Automation that has read them once sets
+`PDFDRILL_NO_PREFLIGHT=1` instead.
 
 ## Drill a paper (keyless — arXiv gold LaTeX, no OCR, no key)
 

@@ -73,4 +73,17 @@ PYTHONPATH=src python3 -m pdfdrill doctor || true
 
 echo
 echo "pdfdrill ready.  Run:  PYTHONPATH=src python3 -m pdfdrill <cmd> <pdf>"
-echo "  offline math (no key):  PYTHONPATH=src python3 -m pdfdrill report <pdf>"
+echo
+echo "FIRST, unlock the build commands (per working directory). size/route/doctor"
+echo "already answer; model/report/inspect/md/drill are BLOCKED until you ack that"
+echo "you read the SKILL, because the output looks authoritative and is silently"
+echo "wrong when used without the usage rules:"
+echo "    pdfdrill preflight                          # the rules, and where the SKILL is"
+echo "    tail -3 .claude/skills/pdfdrill/SKILL.md    # the DRILL-… token is the line"
+echo "                                                #   ABOVE the END marker; tail -1"
+echo "                                                #   gives you the marker"
+echo "    pdfdrill preflight --ack <TOKEN>            # paste the token you just read"
+echo "  The token is a checksum of the SKILL body and changes with it; read it from"
+echo "  the file. Automation that has read the rules sets PDFDRILL_NO_PREFLIGHT=1."
+echo
+echo "  THEN, offline math (no key):  PYTHONPATH=src python3 -m pdfdrill report <pdf>"

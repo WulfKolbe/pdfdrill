@@ -500,7 +500,8 @@ def _do_artifacts(args):
 def _do_preflight(args):
     """pdfdrill preflight [--ack <TOKEN>] — the mandatory first step. No arg:
     print the critical rules + how to attest. `--ack <TOKEN>`: acknowledge that
-    you read the whole SKILL (the token is its LAST line) → unlocks build/extract
+    you read the whole SKILL (the token is the `DRILL-…` line just before the
+    `PREFLIGHT-TOKEN:END` marker that ends it) → unlocks build/extract
     commands for this session."""
     from . import preflight as pf
     # accept `--ack TOKEN`, `--ack=TOKEN`, or a bare DRILL-… token positional
@@ -516,9 +517,12 @@ def _do_preflight(args):
         if pf.attest(token):
             return ("✓ preflight attested — build/extract commands unlocked for "
                     "this session (24h). You confirmed you read the SKILL.")
-        return ("✗ preflight NOT attested: wrong token. The token is the LAST "
-                "line of SKILL.md — read the whole file, then run "
-                "`pdfdrill preflight --ack <TOKEN>` with that exact value.\n"
+        return ("✗ preflight NOT attested: wrong token. The token is the "
+                "`DRILL-…` line at the END of SKILL.md, just before the "
+                "`PREFLIGHT-TOKEN:END` marker — `tail -1` returns that marker, "
+                "so the token is the line ABOVE it. Read the whole file, then "
+                "run `pdfdrill preflight --ack <TOKEN>` with that exact "
+                "value.\n"
                 f"(expected form: {pf.expected_token()[:6]}…)")
     lines = [pf.rules_card(), ""]
     # a quick env sanity line (full check: `pdfdrill doctor`)
@@ -530,7 +534,9 @@ def _do_preflight(args):
                             f"— run `pdfdrill doctor` / `bash bootstrap.sh`"))
     lines += [
         "",
-        "TO PROCEED: read SKILL.md to its LAST line to get the attestation token,",
+        "TO PROCEED: read SKILL.md to the END. The token is the `DRILL-…` line just",
+        "before the `PREFLIGHT-TOKEN:END` marker — `tail -1` returns the marker,",
+        "so the token is the line above it. Then:",
         "then run:  pdfdrill preflight --ack <TOKEN>",
         "Build/extract commands (model, mathpix, latex, tiddlers, …) are BLOCKED",
         "until you do. Read-only commands (size, pdfinfo, doctor, status) are open.",

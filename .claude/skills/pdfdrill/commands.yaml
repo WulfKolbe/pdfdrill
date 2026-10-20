@@ -20,13 +20,16 @@ commands:
   section: Introspection (fast, no extraction)
   summary: 'MANDATORY first step. Prints the critical usage rules + an env check; build/extract commands
     are hard-blocked until you attest you read the SKILL via `preflight --ack <TOKEN>` (the token is the
-    SKILL''s last line). Read-only commands stay open. Automation may set PDFDRILL_NO_PREFLIGHT=1.'
+    `DRILL-…` line at the END of the SKILL, just before the PREFLIGHT-TOKEN:END marker — tail -1 returns
+    that marker, so the token is the line above it). Read-only commands stay open. Automation may set
+    PDFDRILL_NO_PREFLIGHT=1.'
   offline_ok: true
   positionals:
   - name: token
     type: str
     required: false
-    help: 'the DRILL-… attestation token from the SKILL''s last line (or use --ack)'
+    help: 'the DRILL-… attestation token from the END of the SKILL, the line just before the
+      PREFLIGHT-TOKEN:END marker (or use --ack)'
   flags:
   - name: ack
     flag: --ack
@@ -2411,7 +2414,8 @@ commands:
 - name: latex
   section: Projection / export
   summary: 'PROJECT the docmodel to LaTeX (<drill>/latex/<bibkey>.tex) — the LaTeX analog of `md`; reads
-    the unified Document, so the SOURCE that built it (MathPix/arXiv/tesseract/textscan) is IRRELEVANT.
+    the unified Document, so the SOURCE that built it (MathPix/arXiv/gemmaocr/textscan, or the RETIRED
+    tesseract lane for a model already on disk) is IRRELEVANT.
     Resolves transclusion markers ({{id||FO}}→$..$ by array lookup), emits cite commands, builds the
     bibliography from References (+ a .bib). Compile with XELATEX (not pdflatex — the model can carry raw Unicode
     ≥ ✓ → ℃); --compile runs it in TWO xelatex passes (so each cite resolves against the first pass''s
@@ -2518,7 +2522,8 @@ commands:
 - name: merge
   section: Introspection (fast, no extraction)
   summary: 'Merge gold LaTeX prose onto a layout skeleton (MathPix OR born-digital pdfminer/pdfplumber OR
-    tesseract): the model''s Paragraphs fix the boundaries + regions, the author LaTeX supplies the text
+    gemmaocr — and a model the RETIRED tesseract lane left on disk still merges, though no new one can be
+    built): the model''s Paragraphs fix the boundaries + regions, the author LaTeX supplies the text
     (LaTeX always wins; original kept as text_source). On a born-digital 2-column paper this DROPS the
     column interleaving + arXiv margin watermark from the prose. Refuses a source-built model (already
     gold). Needs a model + a LaTeX source.'

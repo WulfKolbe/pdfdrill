@@ -2056,8 +2056,21 @@ def cmd_doctor() -> str:
                  f"detector, offline: every line gets a box and a type and no "
                  f"words, and nothing is spent "
                  f"(set PDFDRILL_YOLO_PYTHON when n/a)")
-    lines.append("  [—  ] no OCR engine is installed or wanted: pdfdrill reads "
-                 "a scan through a lane (`pdfdrill route <pdf>`), never through "
+    # NOT "no OCR engine is installed" — that is a claim about the MACHINE, and
+    # this line deliberately does not probe for one (tests/test_no_ocr_engine.py
+    # fails on a `which()` for an engine). A container image that ships
+    # tesseract with LibreOffice and texlive made the old wording simply false,
+    # and the reader's conclusion — "pdfdrill put it there" — was false too.
+    # Say what pdfdrill does; the machine's inventory is not ours to report.
+    # The word for the engine is deliberately absent: tests/test_no_ocr_engine.py
+    # asserts `doctor` never prints it, and a blunt guard is worth more than the
+    # name. The fact survives without it.
+    lines.append("  [—  ] pdfdrill INSTALLS and CALLS no OCR engine — and does "
+                 "not probe for one, so this line is NOT a claim about this "
+                 "machine: a container image that ships an engine next to "
+                 "texlive and LibreOffice still shows it here, and pdfdrill "
+                 "neither put it there nor ever invokes it. pdfdrill reads a "
+                 "scan through a lane (`pdfdrill route <pdf>`), never through "
                  "a local binary")
 
     lines.append("")
