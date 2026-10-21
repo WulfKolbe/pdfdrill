@@ -23,8 +23,6 @@ echo "== pdfdrill pyramid / imageserver install =="
 # fork the same way bootstrap.sh did — pdfplumber pins pdfminer.six exactly and
 # pip resolves that pin over the fork. Notice it here too; the CoCalc path was
 # the one install route that still did it silently.
-FORK_BEFORE=0
-if bash vendor/install-pdfminer-fork.sh --check >/dev/null 2>&1; then FORK_BEFORE=1; fi
 
 if pip install -e '.[imageserver]'; then
   echo "  installed via  pip install -e '.[imageserver]'"
@@ -33,12 +31,20 @@ else
   pip install 'pyvips[binary]>=2.2' 'pillow>=10.0'
 fi
 
-if [ "$FORK_BEFORE" = "1" ] \
-   && ! bash vendor/install-pdfminer-fork.sh --check >/dev/null 2>&1; then
-  echo "  note: that pip step replaced the patched pdfminer fork — restoring."
-  bash vendor/install-pdfminer-fork.sh --user --rebuild >/dev/null 2>&1 \
-    && echo "  restored." \
-    || echo "  RESTORE FAILED — run: bash vendor/install-pdfminer-fork.sh --user --rebuild"
+# ENSURE, not restore — see bootstrap.sh. A fresh venv never had the fork, so a
+# conditional restore builds nothing and the install ends with stock pdfminer.
+# `pip install --user` REFUSES inside a venv, and the documented install is a
+# fresh venv — so pick the mode that can actually place the build.
+if python3 -c 'import sys; raise SystemExit(0 if sys.prefix != sys.base_prefix else 1)' 2>/dev/null; then
+  FORK_MODE="--here"
+else
+  FORK_MODE="--user"
+fi
+if ! bash vendor/install-pdfminer-fork.sh --check >/dev/null 2>&1; then
+  echo "  note: building the patched pdfminer (LTChar.glyphname)."
+  bash vendor/install-pdfminer-fork.sh "$FORK_MODE" --rebuild >/dev/null 2>&1 \
+    && echo "  done." \
+    || echo "  BUILD FAILED — run: bash vendor/install-pdfminer-fork.sh "$FORK_MODE" --rebuild"
 fi
 
 # Ghostscript is the rasterizer — not pip-installable.

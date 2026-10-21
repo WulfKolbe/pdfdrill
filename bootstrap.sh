@@ -24,26 +24,43 @@ cd "$ROOT"
 # pdfPLUMBER pins `pdfminer.six==<release>` exactly, pip resolves that pin, and
 # the fork's git-describe version does not match it. The install looks clean and
 # the feature is gone. So: notice, and restore.
-FORK_BEFORE=0
-if bash vendor/install-pdfminer-fork.sh --check >/dev/null 2>&1; then FORK_BEFORE=1; fi
-
 pip install --quiet --break-system-packages -r requirements.txt 2>/dev/null \
   || pip install --quiet --break-system-packages \
        "pdfminer.six>=20221105" "pdfplumber>=0.11" "pydantic>=2.0" "pypdf>=4.0" \
+       "numpy>=1.24" \
   || true
 
-if [ "$FORK_BEFORE" = "1" ] \
-   && ! bash vendor/install-pdfminer-fork.sh --check >/dev/null 2>&1; then
-  echo "note: the pip step above replaced the patched pdfminer fork (pdfplumber"
-  echo "      pins pdfminer.six exactly). Restoring it — this is P1, not your"
-  echo "      doing."
-  if bash vendor/install-pdfminer-fork.sh --user --rebuild >/dev/null 2>&1 \
+# ENSURE, don't merely RESTORE. 905o made this conditional on FORK_BEFORE=1 — it
+# only put the fork back if the pip step had just removed one that was already
+# there. That is the wrong invariant, and a fresh install is exactly where it
+# fails: on a new clone in a new venv the fork was never present, FORK_BEFORE=0,
+# nothing is built, and the install ends with stock pdfminer.six and no
+# `LTChar.glyphname`. Everything still imports, so the gap is silent — which is
+# how it reached a reviewer instead of a test. The documented install must END
+# with the fork present, whatever it started with.
+# `pip install --user` REFUSES inside a venv, and the documented install is a
+# fresh venv — so pick the mode that can actually place the build.
+if python3 -c 'import sys; raise SystemExit(0 if sys.prefix != sys.base_prefix else 1)' 2>/dev/null; then
+  FORK_MODE="--here"
+else
+  FORK_MODE="--user"
+fi
+if bash vendor/install-pdfminer-fork.sh --check >/dev/null 2>&1; then
+  echo "note: the patched pdfminer (LTChar.glyphname) is in place."
+else
+  echo "note: building the patched pdfminer (gives LTChar.glyphname, which"
+  echo "      pdfdrill's glyph-identity features read; stock pdfminer parses the"
+  echo "      glyph name and discards it). pdfplumber pins pdfminer.six exactly,"
+  echo "      so a plain pip install replaces this build unless it carries a"
+  echo "      matching local version — the installer handles that."
+  if bash vendor/install-pdfminer-fork.sh "$FORK_MODE" --rebuild >/dev/null 2>&1 \
      && bash vendor/install-pdfminer-fork.sh --check >/dev/null 2>&1; then
-    echo "      restored."
+    echo "      done."
   else
-    echo "      RESTORE FAILED. Glyph-identity features (LTChar.glyphname) are"
-    echo "      unavailable until you run:"
-    echo "        bash vendor/install-pdfminer-fork.sh --user --rebuild"
+    echo "      BUILD FAILED. pdfdrill works, but the glyph-identity features"
+    echo "      (docmodel_six, the born-digital reader) do not. Needs git and a"
+    echo "      network; then:"
+    echo "        bash vendor/install-pdfminer-fork.sh ${FORK_MODE} --rebuild"
   fi
 fi
 

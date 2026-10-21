@@ -54,8 +54,12 @@ def _require_numpy():
         import numpy as np
     except ImportError as exc:                       # pragma: no cover - env
         raise RuntimeError(
-            "ink geometry needs numpy. Install the [layout] extra: "
-            "`pip install 'pdfdrill[layout]'`.") from exc
+            "ink geometry needs numpy, which is a BASE dependency of pdfdrill "
+            "(it is the free geometry lane's first half, docs/LANES.md) — so "
+            "`pip install numpy`, or re-run `pip install -e .` / "
+            "`bash bootstrap.sh`, which now install it. It was once only in the "
+            "[layout] extra, and that is how an install could end with no free "
+            "lane for a scan at all.") from exc
     return np
 
 

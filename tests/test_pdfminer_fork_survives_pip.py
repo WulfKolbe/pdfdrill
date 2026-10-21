@@ -87,9 +87,41 @@ def test_the_installer_versions_the_build_against_the_pin():
     assert "pin_release" in sh, "the pin is hardcoded rather than read from pdfplumber"
 
 
-def test_bootstrap_notices_when_its_own_pip_step_removes_the_fork():
+def test_the_documented_install_ENDS_with_the_fork_present():
+    """Not "restores it if it was there" — that was this test's first mistake.
+
+    905o made bootstrap.sh restore the fork only when FORK_BEFORE=1, i.e. only
+    when its own pip step had just removed one already present, and this test
+    asserted exactly that mechanism. A fresh clone in a fresh venv never had the
+    fork: FORK_BEFORE=0, nothing is built, and the documented install ends with
+    stock pdfminer.six and no `LTChar.glyphname`. Everything still imports, so
+    the gap is silent. A reviewer found it, not this test, because the test
+    encoded the mechanism instead of the requirement.
+
+    The requirement is unconditional: after the documented install the fork is
+    there. So assert the SHAPE that delivers it — an unconditional check with a
+    build on the failing branch — and never a before/after flag.
+    """
     from pathlib import Path
-    sh = (Path(__file__).resolve().parents[1] / "bootstrap.sh").read_text()
-    assert "FORK_BEFORE" in sh, "bootstrap.sh does not check for the fork before its pip step"
-    assert sh.index("FORK_BEFORE=0") < sh.index("pip install --quiet"), (
-        "the before-check must run BEFORE the pip step")
+    root = Path(__file__).resolve().parents[1]
+    for name in ("bootstrap.sh", "tools/imageserver/install.sh"):
+        sh = (root / name).read_text()
+        # Comments explain the history; only the LOGIC is the contract.
+        logic = "\n".join(l for l in sh.splitlines()
+                          if not l.lstrip().startswith("#"))
+        assert "install-pdfminer-fork.sh --check" in logic, (
+            f"{name}: never checks whether the fork is present")
+        assert "--rebuild" in logic, (
+            f"{name}: never builds the fork, so a fresh install cannot get it")
+        # `pip install --user` REFUSES inside a venv, and the documented install
+        # IS a fresh venv, so the mode cannot be hardcoded to --user: that was
+        # the second half of this defect, found only by running the real thing.
+        assert "FORK_MODE" in logic and "--here" in logic, (
+            f"{name}: hardcodes the install mode — inside a venv `--user` "
+            f"cannot place the build and the install ends without the fork")
+        # The defect was the GATE, not the absence of a build: a flag recording
+        # whether the fork existed BEFORE the pip step makes the build
+        # conditional on it having been there, which a fresh install never is.
+        assert "FORK_BEFORE" not in logic, (
+            f"{name}: still gates the build on the fork having been present "
+            f"before the pip step — a fresh clone in a fresh venv gets nothing")
