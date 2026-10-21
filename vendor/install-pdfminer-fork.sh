@@ -9,6 +9,9 @@
 #
 #   ./install-pdfminer-fork.sh                  # isolated venv (recommended)
 #   ./install-pdfminer-fork.sh --user           # pip --user, no venv
+#   ./install-pdfminer-fork.sh --here           # into the ACTIVE interpreter
+#                                               #   (the right mode inside a venv,
+#                                               #   where --user cannot work)
 #   ./install-pdfminer-fork.sh --venv ~/.pdfmm  # a venv somewhere else
 #   ./install-pdfminer-fork.sh --check          # only verify what is installed
 #   ./install-pdfminer-fork.sh --rebuild        # rebuild even if one works
@@ -37,6 +40,7 @@ CHECK=0        # a separate flag, so --check and --venv can be combined in
 while [ $# -gt 0 ]; do
     case "$1" in
         --user)   MODE="user"; shift ;;
+        --here)   MODE="here"; shift ;;
         --venv)   VENV="$2"; shift 2 ;;
         --check)  CHECK=1; shift ;;
         --rebuild) REBUILD=1; shift ;;
@@ -225,6 +229,17 @@ if [ "$MODE" = "venv" ]; then
     # pdf2mmd itself needs these; the venv must be self-sufficient, including
     # pytest, because the README tells you to run the tests from it
     "$PY" -m pip install -q pillow scipy pytest
+elif [ "$MODE" = "here" ]; then
+    # INTO THE ACTIVE INTERPRETER. `pip install --user` REFUSES inside a venv
+    # ("User site-packages are not visible in this virtualenv"), so on the
+    # documented install — fresh clone, fresh venv, bootstrap.sh — the --user
+    # mode cannot put the fork anywhere. This mode installs into whatever
+    # python3 is active, which in a venv is the venv and outside one is the
+    # system/user interpreter pip would choose anyway.
+    PY="python3"
+    echo "== installing into the active interpreter ($("$PY" -c 'import sys;print(sys.prefix)'))"
+    "$PY" -m pip install -q "$BUILD/src"
+    "$PY" -m pip install -q pillow scipy pytest
 else
     PY="python3"
     echo "== installing with pip --user"
@@ -271,7 +286,12 @@ else:
 PYS
 
 echo
-if [ "$MODE" = "venv" ]; then
+if [ "$MODE" = "here" ]; then
+    cat <<EOF
+Done, installed into the active interpreter. To undo:
+  python3 -m pip uninstall pdfminer.six && python3 -m pip install pdfminer.six
+EOF
+elif [ "$MODE" = "venv" ]; then
     cat <<EOF
 Done. pdf2mmd.sh finds this venv automatically when it sits at
   $HERE/.pdfmm-venv

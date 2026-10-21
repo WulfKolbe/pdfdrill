@@ -39,7 +39,8 @@ def tools_available() -> tuple[bool, str]:
     boxes come from the PDF's own text layer, so nothing is rendered or OCR'd."""
     if not numpy_available():
         return False, ("the layout-element GNN needs NumPy. Install it with "
-                       "`pip install 'pdfdrill[layout]'` (numpy + blake3).")
+                       "`pip install 'pdfdrill[layout]'` (blake3; numpy is a "
+                       "base dependency since 905p).")
     return True, ""
 
 

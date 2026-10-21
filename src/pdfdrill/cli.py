@@ -2259,6 +2259,7 @@ def _do_drill(args):
         cmd_model, cmd_geometry, cmd_inspect, cmd_gemmaocr,
         SIZE_KNOWN, FONTS_KNOWN, ABSTRACT_KNOWN, ABSTRACT_ABSENT,
         TOC_KNOWN, TOC_ABSENT, MD_BUILT, MODEL_BUILT,
+        _lines_json_path,
     )
     from . import ocr_router as _r
     from .sidecar import Sidecar
@@ -2331,7 +2332,25 @@ def _do_drill(args):
     # Phase 4 — the geometry the reading could not give, and the inspector.
     # `--layout` is offline; without the detector it is a one-line note.
     tail: list[tuple[str, str]] = []
-    if MODEL_BUILT in Sidecar(pdf).facts:
+    # THE GATE WAS TESTED TOO EARLY. `drill`'s own summary promises "Ends with an
+    # inspect.html you can open", unconditionally. On the GEOMETRY lane phase 3
+    # runs `gemmaocr --geometry-only`, which writes a lines.json and NO model, so
+    # `MODEL_BUILT` was absent here and the whole tail was skipped: exit 0, no
+    # inspect.html, and a timing table with no `inspect` line at all. Measured on
+    # a fresh 10-page scan (hilbert1902, keyless, no detector): 40.70 s spent and
+    # nothing to open.
+    #
+    # The gate was also unnecessary, because `inspect` ENSURES the model itself.
+    # Run standalone on exactly that state it built one (79 equations, 50
+    # paragraphs) and wrote a 1.6 MB inspect.html with 133 elements over 10
+    # pages. So the condition is not "a model exists" but "a READING exists" —
+    # which is what distinguishes the geometry lane (lines.json on disk, no model
+    # yet) from a paid lane that was named and deliberately not run (nothing on
+    # disk, and an inspector of nothing is worse than the note that names the
+    # command).
+    _facts = Sidecar(pdf).facts
+    _has_reading = MODEL_BUILT in _facts or _lines_json_path(pdf).is_file()
+    if _has_reading:
         tail.append(("geometry --layout",
                      _timed("geometry --layout",
                             lambda: cmd_geometry(pdf, layout=True))))

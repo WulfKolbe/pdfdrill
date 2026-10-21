@@ -16,6 +16,15 @@ dependencies = [
     "pydantic>=2.0",
     "pypdf>=4.0",
     "PyYAML>=6.0",
+    # NumPy IS THE FREE LANE'S FLOOR, not an extra. docs/LANES.md makes the
+    # geometry lane the LAST RESORT that always exists — the one reading a
+    # keyless install can always reach — and its first half is the page's own
+    # ink, which is NumPy. While numpy sat only in [layout], the documented
+    # install (bootstrap.sh + pip install -e .) produced a box where `drill
+    # <scan>` exited 0, wrote nothing, and said "ink geometry needs numpy",
+    # while `doctor` printed the lane OK. A last resort behind an extra is not
+    # a last resort.
+    "numpy>=1.24",
 ]
 
 [project.optional-dependencies]
@@ -60,6 +69,8 @@ features = [
 # from source, then `pip install postal`. Not declared here (the C-lib build is
 # not pip-installable); pdfdrill degrades silently to the raw block when absent.
 layout = [
+    # numpy moved to the base dependencies — the geometry lane needs it, not
+    # just the GNN. Kept named here so the extra still states its own needs.
     "numpy>=1.24",
     "blake3>=0.4",
 ]

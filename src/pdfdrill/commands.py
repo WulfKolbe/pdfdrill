@@ -1980,7 +1980,8 @@ def cmd_doctor() -> str:
                       ("pdfplumber", "core: tables / image rects / URL anchors"),
                       ("pydantic", "core (md/drill path)"),
                       ("pypdf", "core (formfields/attachments)"),
-                      ("numpy", "optional [layout] extra — pdfdrill elements GNN"),
+                      ("numpy", "REQUIRED base dep — the free geometry lane's "
+                                "ink half, and the elements GNN"),
                       ("stanza", "optional [nlp] extra — pdfdrill nlp"),
                       ("img2pdf", "optional [scan] extra — pdfdrill scan "
                                   "(lossless image→PDF)"),
@@ -2051,11 +2052,34 @@ def cmd_doctor() -> str:
         det_ok = yololayout.available()
     except Exception:
         det_ok = False
-    lines.append(f"  [{'OK ' if det_ok else 'n/a'}] the FREE geometry lane "
-                 f"(`pdfdrill gemmaocr <pdf> --geometry-only`) — the layout "
-                 f"detector, offline: every line gets a box and a type and no "
-                 f"words, and nothing is spent "
-                 f"(set PDFDRILL_YOLO_PYTHON when n/a)")
+    # THE LANE HAS TWO HALVES AND THIS LINE USED TO REPORT ONLY ONE. The ink
+    # finds the lines (NumPy) and the detector TYPES them, so a machine with the
+    # detector and no NumPy has no lane at all — yet this printed `[OK ]`, while
+    # `drill <scan>` exited 0, wrote nothing and said "ink geometry needs numpy".
+    # doctor reporting a lane available that cannot run is worse than the lane
+    # being unavailable, because it sends the reader looking somewhere else.
+    from . import ocr_router
+    ink_ok = ocr_router.ink_available()
+    if ink_ok is False:
+        lines.append("  [n/a] the FREE geometry lane "
+                     "(`pdfdrill gemmaocr <pdf> --geometry-only`) — NOT "
+                     "AVAILABLE: the lane's first half is the page's own ink "
+                     "and that needs NumPy, which is missing. `pip install "
+                     "numpy` (it is a base dependency of pdfdrill, so a plain "
+                     "`pip install -e .` also restores it). Without it this "
+                     "install has NO free reading for a scan at all.")
+    else:
+        # Available either way: with the detector the lines get types, without it
+        # they get boxes only. Both are the lane, and both are free.
+        lines.append(f"  [OK ] the FREE geometry lane "
+                     f"(`pdfdrill gemmaocr <pdf> --geometry-only`) — offline, "
+                     f"nothing is spent: the page's own ink gives every printed "
+                     f"line a box"
+                     + (", and the layout detector gives it a TYPE"
+                        if det_ok else
+                        " and NO type (no layout detector: every line is `text`,"
+                        " about 6x faster; set PDFDRILL_YOLO_PYTHON for types)")
+                     + ", never the words")
     # NOT "no OCR engine is installed" — that is a claim about the MACHINE, and
     # this line deliberately does not probe for one (tests/test_no_ocr_engine.py
     # fails on a `which()` for an engine). A container image that ships
