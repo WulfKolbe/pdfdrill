@@ -19,11 +19,26 @@ echo "== pdfdrill pyramid / imageserver install =="
 
 # pyvips[binary] ships a bundled libvips → no apt, no root. Prefer the editable
 # extra (uses the repo's pyproject); fall back to installing the packages directly.
+# P1 (auditing session, 2026-10-20): this pip step removes the patched pdfminer
+# fork the same way bootstrap.sh did — pdfplumber pins pdfminer.six exactly and
+# pip resolves that pin over the fork. Notice it here too; the CoCalc path was
+# the one install route that still did it silently.
+FORK_BEFORE=0
+if bash vendor/install-pdfminer-fork.sh --check >/dev/null 2>&1; then FORK_BEFORE=1; fi
+
 if pip install -e '.[imageserver]'; then
   echo "  installed via  pip install -e '.[imageserver]'"
 else
   echo "  (the editable extra failed — installing the packages directly)"
   pip install 'pyvips[binary]>=2.2' 'pillow>=10.0'
+fi
+
+if [ "$FORK_BEFORE" = "1" ] \
+   && ! bash vendor/install-pdfminer-fork.sh --check >/dev/null 2>&1; then
+  echo "  note: that pip step replaced the patched pdfminer fork — restoring."
+  bash vendor/install-pdfminer-fork.sh --user --rebuild >/dev/null 2>&1 \
+    && echo "  restored." \
+    || echo "  RESTORE FAILED — run: bash vendor/install-pdfminer-fork.sh --user --rebuild"
 fi
 
 # Ghostscript is the rasterizer — not pip-installable.

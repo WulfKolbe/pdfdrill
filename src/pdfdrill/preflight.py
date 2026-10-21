@@ -81,12 +81,12 @@ def render_token_block(text: str) -> str:
     stripped = _strip_token_region(text).rstrip() + "\n"
     token = compute_token(text)
     block = (f"\n{TOKEN_BEGIN}\n"
-             f"Attestation token — the line directly below, which is the last "
-             f"CONTENT line of this SKILL (one HTML end-marker follows it, so "
-             f"`tail -1` gives the marker and `tail -2 | head -1` gives the "
-             f"token). If you can read this, you read the whole file. Run "
-             f"`pdfdrill preflight --ack {token}` before any build/extract "
-             f"command.\n"
+             f"Attestation token — the line directly below, and the last line "
+             f"of this SKILL that is not an HTML comment (one closing comment "
+             f"follows it, so `tail -1` gives that comment and "
+             f"`tail -2 | head -1` gives the token). If you can read this, you "
+             f"read the whole file. Run `pdfdrill preflight --ack {token}` "
+             f"before any build/extract command.\n"
              f"{token}\n"
              f"{TOKEN_END}\n")
     return stripped + block

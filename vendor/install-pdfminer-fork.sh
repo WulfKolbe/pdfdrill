@@ -89,12 +89,33 @@ PY
 }
 
 if [ "$CHECK" = "1" ]; then
-    PY="python3"
-    [ -x "$VENV/bin/python" ] && PY="$VENV/bin/python"
-    echo "checking $PY"
-    verify "$PY" && { echo "the patched build is in place"; exit 0; }
-    echo "this python does NOT have the patched pdfminer" >&2
-    exit 3
+    # BOTH interpreters, always. Checking only the venv (it used to win when it
+    # existed) masks exactly the failure P1 produces: a clobbered USER-site
+    # install on a machine that also has a working venv. They serve different
+    # callers — pdfdrill imports pdfminer from plain `python3`; the venv is for
+    # pdf2mmd — so "is it installed" has two answers and the check must give
+    # both.
+    rc=3
+    sys_ok=0
+    for PY in "python3" "$VENV/bin/python"; do
+        case "$PY" in */bin/python) [ -x "$PY" ] || continue ;; esac
+        echo "checking $PY"
+        if (cd / && verify "$PY"); then
+            rc=0
+            [ "$PY" = "python3" ] && sys_ok=1
+        else
+            echo "  -> this python does NOT have the patched pdfminer" >&2
+        fi
+    done
+    if [ "$rc" = "0" ] && [ "$sys_ok" = "0" ]; then
+        echo
+        echo "NOTE: the venv has it, plain \`python3\` does NOT. pdfdrill itself"
+        echo "imports pdfminer from \`python3\`, so pdfdrill's glyph-identity"
+        echo "features are NOT available. Restore with:"
+        echo "  bash vendor/install-pdfminer-fork.sh --user --rebuild"
+    fi
+    [ "$rc" = "0" ] && echo "the patched build is in place"
+    exit "$rc"
 fi
 
 # A working venv is expensive to rebuild (a clone plus several pip installs)
@@ -110,6 +131,38 @@ if [ "$REBUILD" != "1" ] && [ -x "$VENV/bin/python" ] && \
     echo "Nothing to do. Use --rebuild to build it again from scratch."
     exit 0
 fi
+
+# ---- the version has to satisfy the pin that would otherwise replace it ----
+# P1 (found by an auditing session, 2026-10-20): `pip install -r
+# requirements.txt` and `pip install -e .` both REMOVE this build, and so does
+# CoCalc's imageserver install. Nothing in pdfdrill asks for that — pdfdrill's
+# own pin is `pdfminer.six>=20221105`. pdfPLUMBER pins `pdfminer.six==<release>`
+# EXACTLY, so pip resolves that pin, sees setuptools-scm's git-describe version
+# (`20260108.dev6+ga18de2a9c`, which is NOT equal to 20260107), and installs
+# stock pdfminer over the patch. The install then looks clean and
+# `LTChar.glyphname` is gone.
+#
+# A LOCAL VERSION SEGMENT is exactly the PEP 440 tool for this: `20260107+…`
+# satisfies `==20260107` (checked: packaging.SpecifierSet('==20260107')
+# .contains('20260107+ga18de2a9c') is True), while still naming itself as a
+# local build. So the build is versioned as the release pdfplumber asks for,
+# plus the upstream sha — and pip leaves it alone instead of replacing it.
+#
+# The release is READ from the installed pdfplumber rather than hardcoded, so a
+# future pdfplumber that pins a different one keeps working.
+pin_release() {
+    python3 - <<'PYV' 2>/dev/null
+import re
+try:
+    import importlib.metadata as md
+    for r in md.requires("pdfplumber") or []:
+        m = re.match(r"\s*pdfminer\.six\s*==\s*([^\s,;]+)", r)
+        if m:
+            print(m.group(1)); break
+except Exception:
+    pass
+PYV
+}
 
 command -v git >/dev/null    || { echo "missing dependency: git" >&2; exit 2; }
 command -v python3 >/dev/null || { echo "missing dependency: python3" >&2; exit 2; }
@@ -145,6 +198,19 @@ fi
 git apply "$PATCH"
 echo "   applied ($(grep -c '^diff --git' "$PATCH") files)"
 
+WANT="$(pin_release || true)"
+if [ -n "${WANT:-}" ]; then
+    SHA="$(git rev-parse --short=10 HEAD)"
+    export SETUPTOOLS_SCM_PRETEND_VERSION="${WANT}+glyphid.g${SHA}"
+    echo "== versioning this build $SETUPTOOLS_SCM_PRETEND_VERSION"
+    echo "   (pdfplumber pins pdfminer.six==$WANT; a local segment satisfies it,"
+    echo "    so a later pip run resolves the pin to THIS build instead of"
+    echo "    replacing it with stock pdfminer — see P1 in the header)"
+else
+    echo "== no pdfplumber pin found; leaving the version to setuptools-scm" >&2
+    echo "   A later \`pip install\` may replace this build. Re-run --check after." >&2
+fi
+
 if [ "$MODE" = "venv" ]; then
     echo "== creating venv at $VENV"
     python3 -m venv "$VENV" 2>/dev/null || {
@@ -172,6 +238,37 @@ echo "== verifying"
 # installation still be broken once the temporary build tree is removed.
 cd /
 verify "$PY" || { echo "verification FAILED — not usable" >&2; exit 3; }
+
+# Verifying the FEATURE is not enough to know the build will still be here
+# tomorrow: P1 is about a later `pip install` replacing it. So report the one
+# fact that predicts that — whether the installed version satisfies the pin pip
+# will resolve.
+WANT="${WANT:-$(pin_release || true)}" \
+PDFMM_PY="$PY" "$PY" - <<'PYS' || true
+import os
+want = os.environ.get("WANT") or ""
+try:
+    import importlib.metadata as md
+    v = md.version("pdfminer.six")
+except Exception as exc:                                      # noqa: BLE001
+    print(f"  ! cannot read the installed pdfminer version ({exc})"); raise SystemExit(0)
+if not want:
+    print(f"  ! pdfplumber pin unknown; version {v} may be replaced by a later pip run")
+    raise SystemExit(0)
+try:
+    from packaging.specifiers import SpecifierSet
+    from packaging.version import Version
+    ok = SpecifierSet(f"=={want}").contains(Version(v))
+except Exception:                                              # noqa: BLE001
+    ok = v.split("+")[0] == want
+if ok:
+    print(f"  survives a later pip run: {v} satisfies pdfplumber's pdfminer.six=={want}")
+else:
+    print(f"  ! WILL BE REPLACED: {v} does not satisfy pdfplumber's "
+          f"pdfminer.six=={want}. The next `pip install` of anything that pulls "
+          f"pdfplumber removes this build (P1). Re-run this script after it, or "
+          f"use the venv mode (the default), which pip never touches.")
+PYS
 
 echo
 if [ "$MODE" = "venv" ]; then

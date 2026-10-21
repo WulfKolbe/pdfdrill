@@ -2268,8 +2268,7 @@ def _do_drill(args):
         if sc.json_path.exists():
             sc.json_path.unlink()
         if sc.blob_dir.exists():
-            import shutil
-            shutil.rmtree(sc.blob_dir)
+            _wipe_derived(sc.blob_dir, pdf)
 
     sc = Sidecar(pdf)
     facts = sc.facts
@@ -2353,6 +2352,53 @@ def _do_drill(args):
     lines.append(_timed("status", lambda: cmd_status(pdf)))
     lines.append(_format_timings(timings, pdf))
     return "\n".join(lines)
+
+
+# `--full` wipes the SIDECAR. In the LEGACY layout that is a folder of its own
+# (`<name>.pdf.drill/`) and `rmtree` was right. In the SELF-CONTAINED layout —
+# `<stem>/<stem>.pdf`, which is EVERY document in the library and every document
+# the autofolder has touched — `blob_dir` IS the folder holding the document, so
+# `rmtree(blob_dir)` deleted the document itself. Measured: `drill --full
+# victim/victim.pdf` left one file, `victim.drill.json`, exit 0, the only sign a
+# mid-output "Model-lane read failed: File not found". A command whose job is to
+# forget DERIVED state must never be able to destroy the input that cannot be
+# re-derived — a licensed or personalised copy has no second download.
+#
+# Keeping is the safe error, so the keep-list errs that way: the document, and
+# the author-source extensions a user may have PLACED in the folder (in the
+# legacy layout these live beside the `.drill/` dir and `--full` never touched
+# them; keeping them here is what makes the two layouts behave the same).
+_FULL_KEEP_SUFFIXES = frozenset({
+    ".tex", ".tgz", ".gz", ".bib", ".zip", ".sty", ".cls", ".bbl",
+})
+
+
+def _wipe_derived(blob_dir, pdf) -> None:
+    """Remove pdfdrill's derived state from `blob_dir`, never the document."""
+    import shutil
+    from pathlib import Path as _P
+    blob_dir = _P(blob_dir).resolve()
+    doc = _P(pdf).resolve()
+    # LEGACY: a dir of its own, the document is not inside it — wipe it whole.
+    if doc.parent != blob_dir:
+        shutil.rmtree(blob_dir)
+        return
+    # SELF-CONTAINED: the document lives here. Remove the derived entries only.
+    for entry in list(blob_dir.iterdir()):
+        if entry.resolve() == doc:
+            continue
+        if entry.is_file() and entry.suffix.lower() in _FULL_KEEP_SUFFIXES:
+            continue
+        try:
+            shutil.rmtree(entry) if entry.is_dir() else entry.unlink()
+        except OSError:
+            pass                      # a wipe never fails the drill
+    # The invariant, checked rather than assumed: the input survived.
+    if not doc.is_file():
+        raise RuntimeError(
+            f"--full was about to lose the document ({doc}). Nothing further "
+            f"was run. This is a bug — report it; the document is what cannot "
+            f"be rebuilt.")
 
 
 def _format_timings(timings, pdf) -> str:

@@ -17,10 +17,35 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
 # ---- Python deps --------------------------------------------------------
+# P1 (auditing session, 2026-10-20): THIS pip step silently removes the patched
+# pdfminer fork (`vendor/install-pdfminer-fork.sh`), which gives
+# `LTChar.glyphname` and is what pdfdrill's glyph-identity features read.
+# Nothing here asks for that — our own pin is `pdfminer.six>=20221105`.
+# pdfPLUMBER pins `pdfminer.six==<release>` exactly, pip resolves that pin, and
+# the fork's git-describe version does not match it. The install looks clean and
+# the feature is gone. So: notice, and restore.
+FORK_BEFORE=0
+if bash vendor/install-pdfminer-fork.sh --check >/dev/null 2>&1; then FORK_BEFORE=1; fi
+
 pip install --quiet --break-system-packages -r requirements.txt 2>/dev/null \
   || pip install --quiet --break-system-packages \
        "pdfminer.six>=20221105" "pdfplumber>=0.11" "pydantic>=2.0" "pypdf>=4.0" \
   || true
+
+if [ "$FORK_BEFORE" = "1" ] \
+   && ! bash vendor/install-pdfminer-fork.sh --check >/dev/null 2>&1; then
+  echo "note: the pip step above replaced the patched pdfminer fork (pdfplumber"
+  echo "      pins pdfminer.six exactly). Restoring it — this is P1, not your"
+  echo "      doing."
+  if bash vendor/install-pdfminer-fork.sh --user --rebuild >/dev/null 2>&1 \
+     && bash vendor/install-pdfminer-fork.sh --check >/dev/null 2>&1; then
+    echo "      restored."
+  else
+    echo "      RESTORE FAILED. Glyph-identity features (LTChar.glyphname) are"
+    echo "      unavailable until you run:"
+    echo "        bash vendor/install-pdfminer-fork.sh --user --rebuild"
+  fi
+fi
 
 # ---- System deps (apt-get, best-effort) ---------------------------------
 SUDO=""

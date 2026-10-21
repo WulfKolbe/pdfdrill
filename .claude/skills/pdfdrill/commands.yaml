@@ -20,16 +20,16 @@ commands:
   section: Introspection (fast, no extraction)
   summary: 'MANDATORY first step. Prints the critical usage rules + an env check; build/extract commands
     are hard-blocked until you attest you read the SKILL via `preflight --ack <TOKEN>` (the token is the
-    `DRILL-…` line at the END of the SKILL, just before the PREFLIGHT-TOKEN:END marker — tail -1 returns
-    that marker, so the token is the line above it). Read-only commands stay open. Automation may set
-    PDFDRILL_NO_PREFLIGHT=1.'
+    `DRILL-…` line at the very END of the SKILL — the LAST line that is not an HTML comment. `tail -1`
+    returns the closing comment marker, so the token is the line above it, and `tail -2 | head -1` is it.
+    Read-only commands stay open. Automation may set PDFDRILL_NO_PREFLIGHT=1.'
   offline_ok: true
   positionals:
   - name: token
     type: str
     required: false
-    help: 'the DRILL-… attestation token from the END of the SKILL, the line just before the
-      PREFLIGHT-TOKEN:END marker (or use --ack)'
+    help: 'the DRILL-… attestation token from the very END of the SKILL — the last line that is not
+      an HTML comment (or use --ack)'
   flags:
   - name: ack
     flag: --ack

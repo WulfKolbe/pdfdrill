@@ -283,6 +283,46 @@ Each of these cost real time or real data in this project.
     content comes from is part of the key — write it in both docstrings, or
     give them one function to call.
 
+25. **A command that forgets DERIVED state must not be able to reach the
+    INPUT.** `drill --full` wiped the sidecar with `rmtree(sc.blob_dir)`,
+    correct in the legacy layout (`<name>.pdf.drill/` is a folder of its own)
+    and fatal in the self-contained one (`<stem>/<stem>.pdf` — every document
+    in the library), where `blob_dir` IS the folder holding the document. It
+    deleted the document, exited 0, and the only sign was a mid-output
+    "Model-lane read failed: File not found". Found by an auditing session, not
+    by the suite, because every test used the legacy layout. Two rules fall out:
+    a destructive helper takes the thing it must PRESERVE as an argument and
+    checks afterwards that it is still there (`_wipe_derived(blob_dir, pdf)`
+    raises rather than carrying on), and when a layout can place a derived
+    directory and an irreplaceable input at the same path, no test that
+    exercises one layout covers the other. A licensed or personalised copy has
+    no second download.
+
+26. **A transitive pin can uninstall a patch, and the install still looks
+    clean.** `bootstrap.sh`, `pip install -e .` and the CoCalc imageserver
+    install each removed the patched pdfminer fork. Nothing in pdfdrill asked
+    for that — our own pin is `pdfminer.six>=20221105`. pdfPLUMBER pins
+    `pdfminer.six==<release>` EXACTLY; pip resolves that pin, the fork's
+    setuptools-scm version (`20260108.dev6+ga18de2a9c`) is not equal to the
+    release, and stock pdfminer is installed over the patch. `import pdfminer`
+    then still works and `LTChar.glyphname` is simply gone, which is why it
+    survived three sessions and cost a session once already. Measured in two
+    throwaway venvs: the scm-versioned wheel is REPLACED by `pip install
+    pdfplumber`; a wheel versioned `20260107+glyphid.g<sha>` is KEPT, because a
+    PEP 440 local segment satisfies `==20260107`. So version a patched build as
+    the release its consumers pin plus a local segment, read that release from
+    the consumer's metadata rather than hardcoding it, and have the installer
+    report whether the build will survive the next pip run — verifying the
+    FEATURE is not enough to know it will still be there tomorrow.
+
+27. **Do not explain a marker by quoting it.** The SKILL's attestation token is
+    found by the `PREFLIGHT-TOKEN:END` marker above it. Documenting that in a
+    SKILL table row put the literal marker in the file twice, so
+    `grep -B1 <marker>` returned the table row — the doc broke the thing it
+    documented. Describe the marker ("the last line that is not an HTML
+    comment"), and assert the count: `test_preflight_token_is_findable.py`
+    fails if either marker appears more than once.
+
 ---
 
 ## 2. Environment facts that are not obvious
