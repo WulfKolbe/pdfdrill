@@ -1,0 +1,163 @@
+# T-0045 step 1 — inventory: every pdf2mmd2 module and entry point
+
+Source: pdf2mmd2 at **5190249** (github.com/PDFDRILL/pdf2mmd2, private).
+Target: pdfdrill at **28b64cef**, branch `t-0045-pdf2mmd2-into-pdfdrill`.
+Written before any code moved. No code has moved.
+
+## The finding that changes the shape of this task
+
+**pdf2mmd v1 is already inside pdfdrill.** `src/pdfreader/__init__.py`: _"The
+glyph reader: pdf2mmd, absorbed 2026-09-30 (spec 833)"_ — 25 modules, 17,348
+loc, reachable from `cid_glyphs`, `eqlist`, `pagelines` and `commands` and
+documented in the SKILL as the `glyphs` reader.
+
+And the code has already round-tripped. pdf2mmd2's `ported/inkboxes.py` opens:
+
+> `# Ported from pdfdrill (github.com/WulfKolbe/pdfdrill), src/pdfreader/inkboxes.py`
+> `# at 9502bfee (itself psred's tools/inkboxes.py, moved there as the single version).`
+
+So the lineage is **psred → pdfdrill/src/pdfreader → pdf2mmd2**, and T-0045
+sends it back. Moving pdf2mmd2 into a NEW package (`src/pdfdrill/stream/`, as
+the deliverable suggests) therefore does not create a second copy of this
+reader. It creates a **third**, and the two older ones are both live: the
+pdfreader copy that `pdfdrill glyphs` uses, and psred's original that
+`CR-pdfminer-single-version R4` already consolidated once, for the reason it
+wrote down — _"a second copy is the copy that does not get fixed when the first
+one is."_
+
+This is not an argument against the move. pdf2mmd2's generation is better where
+they overlap (its inkboxes drops the recorder device and caches outline bounds
+per font). It is an argument that the move is a **replacement of
+`src/pdfreader/`**, module by module, not a parallel package beside it.
+
+**One decision for the owner before step 2** (I have not taken it):
+
+- **(A) Replace** — pdf2mmd2's reader lands IN `src/pdfreader/`, superseding the
+  2026-09-30 absorption file by file; `src/pdfdrill/stream/` is not created.
+  One reader in the repo. Costs: every supersession needs the byte-identity
+  gate run against the OLD module's output too, not only pdf2mmd2's bench,
+  because `pdfdrill glyphs`, `eqlist` and `pagelines` read it today.
+- **(B) New package, pdfreader retired after** — land in `src/pdfdrill/stream/`
+  as the deliverable says, then cut the three pdfdrill callers over and delete
+  `src/pdfreader/`'s superseded modules in the same task. Costs: a window with
+  three generations in the tree, and the task is not done until the window
+  closes.
+- **(C) New package, pdfreader kept** — what the deliverable says literally.
+  I do not recommend it: it is the third copy, permanently.
+
+My recommendation is **(A)**. It is the only option that ends with one reader,
+and `CR-pdfminer-single-version R4` already made this call once for this exact
+code.
+
+## Totals
+
+| | modules | loc |
+|---|---|---|
+| pdf2mmd2 `src/` total | 214 | 12,870 |
+| of which generated font tables (`ported/fontmetrics/f_*.py`, T-0038) | 155 | 775 |
+| everything else | 59 | 12,095 |
+| `ported/` excluding the font tables | 32 | — |
+| tests | 52 | 6,542 |
+| pdfdrill `src/pdfreader/` (the 2026-09-30 absorption) | 25 | 17,348 |
+
+## Entry points — 7, each decided by name
+
+| pdf2mmd2 entry point | decision | becomes |
+|---|---|---|
+| `pdf2mmd2 = cli:main` | **merge** | no new verb. The born_digital lane reaches it through `pdfdrill model` / `drill`, per the deliverable. `cli.py` itself (73 loc) is argument plumbing — drop. |
+| `pdf2mmd2-bench = bench:main` | **move** | `pdfdrill streambench` (new layer in `commands.yaml`, `offline_ok: true`). It is the gate's instrument, so it has to survive the move or the gate cannot be re-run. |
+| `pdf2mmd2-drillcheck = drillcheck:main` | **drop** | it asks "does pdfdrill accept what pdf2mmd2 writes?" — a question that stops existing once the reader is pdfdrill's. Its assertions move into the test suite. |
+| `pdf2mmd2-mathpix-pages = mpsplit:main` | **merge** | into `src/pdfdrill/pagelines.py` (314 loc), which already splits a MathPix `lines.json` into page files. This is the module the owner named: _"the code of ~pdf2mmd2 contains a script/module to distribute a Mathpix result into page files and there are already page file examples."_ Keep pdfdrill's, take any behaviour `mpsplit` has that it lacks. |
+| `pdf2mmd2-twin = twinbench:main` | **move** | `pdfdrill twinbench`. The colour-twin oracle is the only ground truth for inline-vs-display decisions and has no pdfdrill counterpart. |
+| `pdf2mmd2-eqlist = eqlist:main` | **merge** | pdfdrill already has `src/pdfdrill/eqlist.py` (878 loc, and it imports `pdfreader.build_identity`). Two eqlists; reconcile into pdfdrill's. |
+| `pdf2mmd2-appg-check = ported.appg.check:main` | **move** | `pdfdrill appgcheck`. It is the Appendix G Rule 18 baseline check and the gate names its numbers. |
+
+## The named items
+
+**T-0038 — the font tables (155 modules, 775 loc) + generator.** `ported/fontmetrics/f_*.py`,
+generated by `ported/fontmetrics/gen.py` (42 loc) from TFM files via
+`ported/appg/tfm.py` (147 loc, _"read a TFM file exactly as TeX does, tex.web
+§539–576"_). **Move, all 155 plus the generator.** The owner's constraint from
+T-0038 holds: _no TeX Live at run time for the fonts covered_. The generator and
+its bit-identity check move with them; a generated table without its generator
+is a table nobody can re-derive.
+
+**The symbol table (8c11db1).** `ported/latexsyms_table.py` (382 loc), generated
+by `ported/latexsyms.py` (104 loc) _"derived from LaTeX itself"_. Commit
+8c11db1's own message states the measured reason: _"LaTeX's symbol table as
+code: no TeX Live at run time, corpus 50 s → 30 s"_. **Move** — and this is the
+sharpest duplicate: pdfdrill's `src/pdfreader/texmap.py` is 1,780 loc of
+_"project a (font family, glyph name) onto a LaTeX token"_, the same mapping
+reached a different way. One of the two must win on measurement, not on age.
+`ported/mathsym.py` (155 loc) is the single-glyph front door to it — move with it.
+
+**T-0037 — the Rule 18 veto and its switch.** `ported/mathparse.py:155-186`
+(`_rule18_fits`, `_rule18_box`), with the forward rules in
+`ported/appg/forward.py` (`rule18`, `rule18_x`) and the baselines in
+`ported/appg/check.py`. The switch's evidence file is named in the code:
+`bench/results/rule18-dvips-2026-10-18.json`. **Move**, and the veto keeps its
+switch — a veto that cannot be turned off cannot be measured against the
+reading it vetoes.
+
+**texroles / appg (L0–L3).** `ported/appg/`: `params.py` (L0, _"TeX facts, read
+from TeX, never typed in by hand"_), `rulebook.py` (L1, _"generated
+mechanically from texbook.tex"_), `forward.py` (L2), `inverse.py` (L3),
+plus `tfm.py`, `pfbenc.py`, `fontdata.py` (813 loc), `check.py`,
+`gen_tables.py`, `setup_article10.py`. `ported/texroles.py` (144 loc) is
+_"relation truth from TeX's noad tree, independent of encoding.py"_ — the
+independent oracle. **Move whole, as a layered package.** This is the part with
+no pdfdrill counterpart at all and the part ENGINEERING 2a already fits: four
+layers of pure functions and generated tables, no chains.
+
+**`ported/` as a whole (32 non-table modules).** Ported from psred and its
+featjudge playground. Move, EXCEPT `inkboxes.py` (see duplicates) and subject
+to the standing constraint that **psred/playground fixtures are under test —
+the owner's "do not fix the spacing problem yet"** applies to `ported/space.py`
+(130 loc, _"explicit spacing from stream moves minus TeX's automatic glue"_).
+Move it unchanged; change nothing in it in this task.
+
+## pdfdrill's own code that duplicates them
+
+| pdf2mmd2 | pdfdrill counterpart | decision |
+|---|---|---|
+| `ported/inkboxes.py` (194) | `src/pdfreader/inkboxes.py` (256) — **and pdf2mmd2's header says it came FROM there** | **supersede.** 5 shared function names, 346 diff lines. pdf2mmd2's is newer and drops the recorder device. One file survives. |
+| `linetypes.py` (141) | `src/docmodel/line_types.py` (249) | **merge into pdfdrill's.** `line_types.py` is the declared single source of truth (five families, 16 line types) with FIVE readers enforcing it (CLAUDE.md). pdf2mmd2's version must not become a sixth opinion. |
+| `mathpix.py` (172, _"the only module that names its keys"_) | `src/docmodel/mathpix.py` (198) | **merge.** Both claim to be the one place the MathPix vocabulary is named. Exactly one can be. |
+| `mpsplit.py` (60) | `src/pdfdrill/pagelines.py` (314) | **merge** (see entry points). |
+| `compare.py` (389) | `src/pdfdrill/linescmp.py` (183) **and** `src/pdfreader/linescompare.py` (149) | **merge three into one.** pdfdrill already carries two comparators of the same thing. |
+| `pageimage.py` (32, Ghostscript at MathPix's 250 dpi) | `pdf_reading.rasterize` / `render_page` | **drop the rasterizer, keep the pixel space.** CLAUDE.md: _Ghostscript at ≥400 dpi is the ONLY rasterizer_. pdf2mmd2 rasterising at 250 dpi violates that invariant; what it actually needs is MathPix's 250-dpi COORDINATE space, which is a transform, not a second rasterizer. |
+| `glyphs.py` (396, patched-pdfminer flat arrays) | `src/pdfreader/psstream.py` (581), `docmodel_six.py` (5,016), `src/pdfdrill/cid_glyphs.py` (212) | **merge, carefully.** This is the reader's floor. It is also the module that makes the patched pdfminer non-optional — see the gate note below. |
+| `warmup.py` (186) + `bboxlayout.py` (289), `pdftotext -bbox-layout` | `src/pdfdrill/word_boxes.py` (194), `pdftotext -tsv`; `ocr_lines.py` (915) | **merge.** Both read the PDF's own text layer through poppler with different flags. `word_boxes` is three days old (905k) and is now the single place a word box comes from; `-bbox-layout` gives blocks/lines that `-tsv` also gives at levels 2–4. Decide on measurement, one reader. |
+| `glyphlayout.py` (378) | `src/pdfdrill/geometry.py` (213), `inkbox.py` (395) | **move**, no clean counterpart (it is layout from glyphs with no pdftotext at all). |
+| `modules/tables.py` (800) | `src/pdfdrill/ink_tables.py` (271) + pdfdrill's `tables` command | **merge.** Both find a grid of thin strokes. Note HANDOVER-RULES §3 T2: table-rule measurements use 800 dpi. |
+| `texenc.py` (114) | `src/pdfreader/texmap.py`, `src/pdfdrill/glyphcensus.py` (568) | **merge** into whichever of the symbol-table pair wins. |
+| `modules/formulas.py` (1,449), `mathtex.py` (619), `ported/mathparse.py` (568), `ported/mathrows.py` (198) | `src/pdfreader/structure.py` (1,247), `project_mmd.py` (3,120) | **supersede, module by module.** The largest overlap and the whole point of the task; each pair needs its own before/after number, not one verdict for the group. |
+| `runner.py` (184), `refine.py` (80), `assign.py` (142), `continuation.py` (144), `rules.py` (47), `modules/*` (fontsize, unread) | — | **move**, no counterpart. |
+| `ported/oracle_colour.py`, `twin.py`, `rendercheck.py`, `relcompare.py`, `rt_run.py`, `trace.py`, `adapter.py`, `regions.py`, `encoding.py` | — | **move**; these are the oracles and the psred adapter the gate's numbers come from. |
+
+## What step 2 must capture BEFORE it moves anything
+
+The gate says the numbers must be the same before and after, so the before-numbers
+are evidence that has to exist first, taken on pdf2mmd2 at 5190249:
+
+- `pdf2mmd2-bench --check` output, verbatim
+- `pytest -m slow` (the round-trip gates), verbatim
+- the appg roundtrip `vol01:0`, `vol01:7` → the task's expected **2912/2916**
+- the corpus output, hashed per file, for the byte-identity comparison
+- `bench/results/rule18-dvips-2026-10-18.json` (the T-0037 switch's evidence)
+
+**A gate risk worth naming now:** the reader needs `LTChar.glyphname`, which only
+the patched pdfminer provides, and `905o` has just established that a plain
+`pip install` of anything pulling pdfplumber removes that patch unless the build
+carries a local version (`20260107+glyphid.g<sha>`). A before/after comparison
+run across an install step would differ for that reason and look like a
+regression in the move. Pin the interpreter for both halves of the gate and
+record `pdfminer.__version__` beside every number.
+
+## Out of scope, per the task
+
+Tesseract (T-0046); new reading features; the Rust version and the Craftpdf
+integration, which stay in pdf2mmd2. Also excluded by standing constraint:
+`pdf2mmd2/out/` (115 directories of corpus results — not code, and it holds
+licensed material), and no change to `ported/space.py`'s behaviour while the
+psred/playground fixtures are under test.
