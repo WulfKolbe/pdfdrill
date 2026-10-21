@@ -1,0 +1,15 @@
+%!PS
+% One justified paragraph and a second one: lines that end at one margin.
+/Times-Roman findfont 10 scalefont setfont
+/L { % string y -> show the string from x=72, stretched to end at x=540
+  72 exch moveto dup stringwidth pop 468 exch sub
+  1 index length 1 sub div 0 3 -1 roll ashow } def
+/S { 72 exch moveto show } def
+(A paragraph of four lines that all end at the same right margin, as set by a type-) 700 L
+(setter that justifies the lines; the first three are full and the last one is short,) 688 L
+(so that a reader can tell where the paragraph ends without knowing what it says) 676 L
+(about anything.) 664 S
+(The second paragraph starts under a short line and is again a few lines long so) 646 L
+(that the page has enough lines which end at the margin on the right hand side.) 634 L
+(It ends here.) 622 S
+showpage

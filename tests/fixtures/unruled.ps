@@ -1,0 +1,15 @@
+%!PS
+% A table without rules: its rows are cut into cells by wide moves that
+% line up. Two lines with a gap each that do not line up, and two
+% columns of prose set one column after the other, are no table.
+/Times-Roman findfont 10 scalefont setfont
+72 720 moveto (A sentence before the table.) show
+/C { moveto show } def
+(alpha) 100 690 C (one) 200 690 C (first) 300 690 C
+(beta) 100 678 C (two) 200 678 C (second) 300 678 C
+(gamma) 100 666 C (three) 200 666 C (third) 300 666 C
+(A line with a gap) 72 630 C (here.) 160 630 C
+(Another longer line of words) 72 618 C (there.) 230 618 C
+(Left column line one) 72 580 C (Left column line two) 72 568 C
+(Right column line one) 320 580 C (Right column line two) 320 568 C
+showpage

@@ -13,8 +13,14 @@ import io
 from pathlib import Path
 
 import numpy as np
-import pikepdf
 import pytest
+
+# pikepdf is the [scan] extra, not a base dependency. Imported at module level
+# it made the DOCUMENTED test command (`pytest tests/ -q`) exit 2 at COLLECTION
+# on a base install — four files, so the whole suite refused to run rather than
+# skipping what it cannot test. Found by an audit that installed pdfdrill the
+# way a stranger would. importorskip is the shape this repo already uses.
+pikepdf = pytest.importorskip("pikepdf")
 from PIL import Image
 
 from pdfdrill.scandrill import ingest as ing

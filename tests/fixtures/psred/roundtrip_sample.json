@@ -1,0 +1,405 @@
+{
+"source": "pdfdrill-library eqlists corpus-display.rows.csv (3be96d5), structural_ok, no lost operand, 5-400 chars, random.seed(7), 100 rows",
+"formulas": [
+{
+"document": "Discrete_geometric_mechanics_for_variational_time_",
+"latex": "\\mid\\mathbb{I} + t\\mathbb{K}(p"
+},
+{
+"document": "9812017",
+"latex": "P (\\Delta w) = \\frac{1}{\\sqrt{2\\pi\\Delta t}} \\exp \\Biggl(- \\frac{1}{2} \\frac{\\Delta w^{2}}{\\Delta t} \\Biggr) ,"
+},
+{
+"document": "Geometric algebra and applications in physics (Venzo de Sabbata, Bidyut Kumar Datta) (Z-Library)",
+"latex": "E - = (\\sigma_{l} \\tilde{\\psi}^{l} ) = \\tilde{\\psi} ."
+},
+{
+"document": "The Standard Model of Quantum Physics in Clifford Algebra (Claude Daviau, Jacques Bertrand) (Z-Library)",
+"latex": "\\left( \\right) \\left( \\right) \\psi_{1} \\varphi_{1} \\psi_{2} \\varphi_{2} \\psi_{3} \\varphi_{3} \\psi_{4} \\varphi_{4}"
+},
+{
+"document": "1511.08771",
+"latex": "\\mathfrak{s}\\mathfrak{o} \\supset \\mathfrak{s}\\mathfrak{u} \\oplus \\mathfrak{s}\\mathfrak{u}"
+},
+{
+"document": "2002.06055",
+"latex": "\\diamond"
+},
+{
+"document": "Noncommutative geometry (Alain Connes) (Z-Library)",
+"latex": "0\\rightarrow\\mathrm{Im}B\\rightarrow\\mathrm{Ker}B\\rightarrow\\mathrm{Ker}B/\\mathrm{Im}B\\rightarrow0,"
+},
+{
+"document": "2094",
+"latex": "(K\\omega)_{x} (v_{1} , . . . , v_{k} X (x) \\wedge \\omega_{x} (v_{1} , . . . , v_{k} )."
+},
+{
+"document": "GEMMILL-MASTERSTHESIS-2021",
+"latex": "\\psi = a^{0} + a^{k} \\mathbf{I}\\sigma_{k}"
+},
+{
+"document": "Quaternion and Clifford Fourier Transforms (Eckhard Hitzer) (Z-Library)",
+"latex": "\\mathcal{F} \\{x^{m} f (x)\\}(\\omega) \\nabla_{\\omega}^{m} \\mathcal{F} \\{f \\}(\\omega) i_{n}^{m} , m \\in \\mathbb{N}."
+},
+{
+"document": "1804.0363v1",
+"latex": "\\cos \\eta \\cos \\lambda \\cos k (\\mu, t) \\sin \\eta \\sin \\lambda."
+},
+{
+"document": "MFO_Seminar_MAG",
+"latex": "-2c_{11} c_{13} c_{22} c_{24} - 2c_{11} c_{14} c_{21} c_{24} - 2c_{12} c_{13} c_{22} c_{23} - 2c_{12} c_{14} c_{21} c_{23} - 2c_{13} c_{14} c_{21} c_{22} ."
+},
+{
+"document": "Algebra, Topology, Differential Calculus, and Optimization Theory For Computer Science and Machine Learning (Jean Gallier and Jocelyn Quaintance) (z-lib.org)",
+"latex": "\\overline{y} - (X^{1} \\cdot \\cdot \\cdot X^{n} )w - b = \\frac{C}{m} b,"
+},
+{
+"document": "1511.00652",
+"latex": "d\\omega\\mid_{F_{v}} d\\omega\\mid_{F_{Q}}"
+},
+{
+"document": "2009_Article_",
+"latex": "G_{c} = \\frac{d - 2}{\\beta_{0}} + O((d - 2)^{2} )"
+},
+{
+"document": "Handbuch_Elektrotechnik__Wilfried_Plamann__Detlef_Schulz__Hrsg.____z-lib.org_",
+"latex": "Q_{1} Q_{2}"
+},
+{
+"document": "Handbook of Mathematics, 6th Edition [2015]",
+"latex": "\\mid q_{0} \\mid(-1) \\mid q_{0} \\mid \\cos \\pi q_{0} < 0,"
+},
+{
+"document": "19770-pdf",
+"latex": "B = B^{\\prime} + \\frac{S}{3r^{2}} \\mathrm{and} C = C^{\\prime} + \\frac{S}{3r^{2}} ;"
+},
+{
+"document": "An Introduction to Category Theory (Harold Simmons) (Z-Library)",
+"latex": "\\mathcal{K}I"
+},
+{
+"document": "2016_Book_AdvancesInDiscreteDifferential",
+"latex": "Q( A_{3} ) := \\{(n_{i} , n_{j} , n_{k} , n_{\\ell} ) : n_{i} + n_{j} + n_{k} + n_{\\ell} = \\mathrm{const}\\}."
+},
+{
+"document": "Numerical Linear Algebra and Matrix Factorizations (Tom Lyche) (Z-Library)",
+"latex": "\\sum\\limits_{j =1}^{n}\\mid x_{j} y_{j} \\mid \\leq \\|x\\|_{p} \\|y\\|_{q} , where \\frac{1}{p} + \\frac{1}{q} = 1."
+},
+{
+"document": "Handbook of Mathematics, 6th Edition [2015]",
+"latex": "\\rho(x, y \\varrho(T (x), T (y)) \\forall x, y \\in \\mathrm{X},"
+},
+{
+"document": "1806.02392",
+"latex": "\\mathbf{D}(\\mathbf{n}_{r} , \\mathbf{n}_{d} , -n_{7} ) \\xi(\\mathbf{n}_{r} ) \\xi(\\mathbf{n}_{d} ) \\epsilon_{+} - n_{7} \\epsilon_{+} ,"
+},
+{
+"document": "Principles_of_Model_Checking__Christel_Baier__Joost-Pieter_Katoen_etc._",
+"latex": "s_{2} \\mid\\!= \\exists(\\Phi_{B} \\Phi_{C} )."
+},
+{
+"document": "659764",
+"latex": "\\varphi \\downharpoonright_{(N -1)A_{1}}"
+},
+{
+"document": "Algebraic and Differential Methods for Nonlinear Control Theory Elements of Commutative Algebra and Algebraic Geometry (Rafael Mart%EDnez-Guerra, Oscar Mart%EDnez-Fuentes etc.) (Z-Library)",
+"latex": "[T ]_{\\{\\alpha_{i} \\}}^{\\prime} = P^{-1} [T ]_{\\{\\alpha_{i} \\}} P"
+},
+{
+"document": "The Character Theory of Finite Groups of Lie Type A Guided Tour (Meinolf Geck, Gunter Malle) (Z-Library)",
+"latex": "c(S) =\\mid\\{(x, y) \\in X \\times Y \\mid x < y\\}\\mid + \\biggl( \\biggr) \\mid"
+},
+{
+"document": "The 1-2-3 of Modular Forms Lectures at a Summer School in Nordfjordeid, Norway (Jan Hendrik Bruinier, Gerard van der Geer etc.) (Z-Library)",
+"latex": "\\Lambda^{2} \\mathcal{M}_{1,0} = \\mathcal{M}_{0,1} \\oplus \\mathbb{Z} ."
+},
+{
+"document": "Quaternion and Clifford Fourier Transforms (Eckhard Hitzer) (Z-Library)",
+"latex": "\\int_{\\mathbb{R}^{n}} x^{2} \\|f (x)\\|^{2} d^{n} x \\frac{1}{(2\\pi)^{n}} \\int_{\\mathbb{R}^{n}} \\omega^{2} \\|\\mathcal{F} \\{f \\}(\\omega)\\|^{2} d^{n} \\omega \\geq n \\frac{1}{4} F^{2} . (5.2.107)"
+},
+{
+"document": "1811.06102",
+"latex": "\\Gamma_{g} = \\{ (z, gz) \\mid z \\in \\mathrm{Hilb}^{d} (S) \\} \\subset \\mathrm{Hilb}^{d} (S) \\times \\mathrm{Hilb}^{d} (S)."
+},
+{
+"document": "Quantum Transport Introduction to Nanoscience (Yuli V. Nazarov, Yaroslav M. Blanter) (Z-Library)",
+"latex": "\\delta \\check{G} {}^{\\mathrm{bw}} r^{\\prime} ) = - \\int \\mathrm{d}r_{1} \\mathrm{d}r_{2} \\check{G} {}^{\\mathrm{b}} r_{1} )\\delta\\check{ }_{\\mathrm{bw}} (r_{1} r_{2} ) \\check{G} {}^{\\mathrm{w}} (r_{1} r^{\\prime}"
+},
+{
+"document": "Reflections_in_conics_quadrics_and_hyper",
+"latex": "\\mathfrak{A} \\cdot \\mathfrak{B} [\\mathfrak{A}\\mathfrak{B}]_{\\mid k-l\\mid} ,"
+},
+{
+"document": "Geometric, Algebraic and Topological Methods for Quantum Field Theory (Alexander Cardona (ed.) etc.) (Z-Library)",
+"latex": "\\mathcal{D}_{f v} = \\mathcal{D} + ic(f v),"
+},
+{
+"document": "1511.08771",
+"latex": "-10) \\oplus (\\overline{440})(-21)"
+},
+{
+"document": "Algebraic Geometry A Problem Solving Approach (With solutions) (Thomas Garrity, Richard Belshoff, Lynette Boos etc.) (Z-Library)",
+"latex": "[r_{1} , s_{1} ]_{S} \\cdot [r_{2} , s_{2} [r_{1} r_{2} , s_{1} s_{2} ]."
+},
+{
+"document": "1511.08771",
+"latex": "-572 -1392"
+},
+{
+"document": "Penrose90SINGH",
+"latex": "Det(X \\xi_{1} \\xi_{2} \\xi_{3} 2Re(x_{1} x_{2} x_{3} ) - \\sum\\limits_{1}^{3} \\xi_{i} x_{i} \\tilde{x}_{i}"
+},
+{
+"document": "733631485-Taschenbuch-der-Mathematik",
+"latex": "\\overline{x^{2} + y^{2}}"
+},
+{
+"document": "Clifford Algebras Geometric Modelling and Chain Geometries with Application in Kinematics (Daniel Klawitter (auth.)) (Z-Library)",
+"latex": "{}_{= \\mathfrak{A}\\mathfrak{B}\\mathfrak{A} + \\mathfrak{A}y_{n} e_{1n} \\mathfrak{A} + x_{n} e_{1n} \\mathfrak{B}\\mathfrak{A} + x_{n} y_{n} e_{1n} e_{1n} \\mathfrak{A} + \\mathfrak{A}\\mathfrak{B}x_{n} e} (_{1}2_{n}.10) \\mathfrak{a}\\mathfrak{b}\\mathfrak{a} (\\mathfrak{A} + x_{n} e_{1n} )(\\mathfrak{B} + y_{n} e_{1n} )(\\mathfrak{A} + x_{n} e_{1n}"
+},
+{
+"document": "Handbook of Mathematics, 6th Edition [2015]",
+"latex": "aU \\{a \\ast u\\mid u \\in U \\} U a \\{u \\ast a\\mid u \\in U \\}"
+},
+{
+"document": "9712019",
+"latex": "S_{\\mu^{\\prime} \\nu^{\\prime}}"
+},
+{
+"document": "Noncommutative geometry (Alain Connes) (Z-Library)",
+"latex": "T \\ell^{2} (\\mathcal{P} )\\rightarrow\\ell^{2} (\\mathcal{P} T \\epsilon_{p} = p\\epsilon_{p} \\forall p \\in \\mathcal{P}"
+},
+{
+"document": "3D Rotations Parameter Computation and Lie Algebra based Optimization (Kenichi Kanatani) (Z-Library)",
+"latex": "\\left( \\right) . N_{31} - N_{13} N_{21} + N_{12} -N_{11} + N_{22} - N_{33} N_{32} + N_{23} -N_{21} + N_{12} N_{31} + N_{13} N_{32} + N_{23} -N_{11} - N_{22} + N_{33}"
+},
+{
+"document": "Probability theory the logic of science (E. T. Jaynes, G. Larry Bretthorst) (Z-Library)",
+"latex": "F_{k} = \\exp\\{-\\lambda_{0} \\} \\sum\\limits_{i} f_{k} (x_{i} ) \\exp\\biggl\\{- \\sum\\limits_{j}^{m} \\lambda_{j} f_{j} (x_{i} )\\biggr\\},"
+},
+{
+"document": "Concrete Mathematics 2e",
+"latex": "\\mathrm{g}_{\\mathrm{m},\\mathrm{n}} (\\mathrm{z}) = \\mathrm{P}_{\\mathrm{N}} (\\mathrm{m}, \\mathrm{n})\\mathrm{z}^{\\mathrm{N}}"
+},
+{
+"document": "Pourfath Mahdi - 2007 - Numerical study of quantum transport in carbon..",
+"latex": "\\right\\}\\{ \\right\\} F"
+},
+{
+"document": "Variational Approach to Gravity Field Theories From Newton to Einstein and Beyond (Alberto Vecchiato (auth.)) (Z-Library)",
+"latex": "{}^{\\alpha} {}^{\\beta} - \\biggl(g_{\\alpha\\gamma} {}^{\\alpha} \\biggr)\\biggr] \\delta x^{\\gamma} + \\biggl[g_{\\alpha\\beta} {}^{\\alpha}"
+},
+{
+"document": "Adex Theory How the Ade Coxeter Graphs Unify Mathematics and Physics (Saul-Paul Sirag) (Z-Library)",
+"latex": ". . . . . . -2324 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ."
+},
+{
+"document": "2112.12675",
+"latex": "\\mathrm{v}_{\\mathrm{ESC}} (\\{0\\}, \\mathrm{v}_{\\mathrm{ESC}} (\\{0\\}, \\{4\\}."
+},
+{
+"document": "Quaternion and Clifford Fourier Transforms (Eckhard Hitzer) (Z-Library)",
+"latex": "\\mathcal{F} \\{f \\}(\\omega \\mathcal{F} \\{f_{-} + f_{+} \\}(\\omega \\mathcal{F} \\{f_{-} \\}(\\omega \\mathcal{F} \\{f_{+} \\}(\\omega)."
+},
+{
+"document": "Probability theory the logic of science (E. T. Jaynes, G. Larry Bretthorst) (Z-Library)",
+"latex": "\\theta ) = \\biggl( \\biggr)\\theta^{r} (1 - \\theta )^{n-r} ,"
+},
+{
+"document": "The Grassmannian Variety Geometric and RepresentationTheoretic Aspects",
+"latex": "\\mathcal{O}_{Y_{1}} H^{0} .Y_{1}"
+},
+{
+"document": "Algebra, Topology, Differential Calculus, and Optimization Theory For Computer Science and Machine Learning (Jean Gallier and Jocelyn Quaintance) (z-lib.org)",
+"latex": "\\lim\\limits_{k\\mapsto\\infty} \\biggl[ \\sup\\limits_{\\|u_{0} -\\widetilde{u}\\|=1} \\|u_{k} - \\widetilde{u}\\|^{1/k} \\biggr] = \\rho(B)."
+},
+{
+"document": "GPR-221107",
+"latex": ". u u,"
+},
+{
+"document": "2103.01507",
+"latex": "T X_{f \\circ g} \\times V_{g}^{\\perp} \\times T \\kappa_{g f}"
+},
+{
+"document": "NumPhys_handout1",
+"latex": "{}^{.}"
+},
+{
+"document": "clifford (2)",
+"latex": "(v_{1} \\otimes . . . \\otimes v_{j} ) \\otimes (w_{1} \\otimes . . . \\otimes w_{k} v_{1} \\otimes . . . \\otimes v_{j} \\otimes w_{1} \\otimes . . . \\otimes w_{k} ."
+},
+{
+"document": "1825_clifford_neural_layers_for_pde",
+"latex": "ab (a_{0} b_{0} + a_{1} b_{1} + a_{2} b_{2} - a_{12} b_{12} (a_{0} b_{1} + a_{1} b_{0} - a_{2} b_{12} + a_{12} b_{2} )e_{1} (a_{0} b_{2} + a_{1} b_{12} + a_{2} b_{0} - a_{12} b_{1} )e_{2} (a_{0} b_{12} + a_{1} b_{2} - a_{2} b_{1} + a_{12} b_{0} )e_{1} e_{2} ,"
+},
+{
+"document": "Principles_of_Model_Checking__Christel_Baier__Joost-Pieter_Katoen_etc._",
+"latex": "ITE(f_{1} , 1, f_{2}"
+},
+{
+"document": "1807.01540",
+"latex": "\\sigma_{i} \\Delta^{n} \\rightarrow \\Delta^{n+1} (x_{0} , . . . , x_{n} ) \\mapsto (x_{0} , . . . , x_{i-1} , 0, x_{i} , . . . , x_{n} ) ."
+},
+{
+"document": "TUDthesisFromMath",
+"latex": "n_{\\mathrm{s}} \\vec{E}_{\\mathrm{s}}"
+},
+{
+"document": "Algebra, Topology, Differential Calculus, and Optimization Theory For Computer Science and Machine Learning (Jean Gallier and Jocelyn Quaintance) (z-lib.org)",
+"latex": "f = \\widehat{f} \\circ \\varphi,"
+},
+{
+"document": "L-groups and the Langlands program for covering groups (Wee Teck Gan (???), Fan Gao (??) etc.) (Z-Library)",
+"latex": "\\dot{w})^{\\vee} \\tilde{\\mathcal{T}}^{\\vee} \\rightarrow \\tilde{\\mathcal{T}}^{\\vee} ."
+},
+{
+"document": "Variational Approach to Gravity Field Theories From Newton to Einstein and Beyond (Alberto Vecchiato (auth.)) (Z-Library)",
+"latex": "\\nabla \\cdot \\biggl( \\frac{\\partial\\mathcal{L}}{\\partial (\\nabla\\Phi)} \\biggr) = k\\nabla^{2} \\Phi = 0 \\Rightarrow \\nabla^{2} \\Phi = 0"
+},
+{
+"document": "Natural Language Processing and Information Systems 25th International Conference on Applications of Natural Language to... (Elisabeth Métais, Farid Meziane, Helmut Horacek etc.) (Z-Library)",
+"latex": "\\mathrm{S}-\\mathrm{CLOP}(G) = 1 - \\frac{1}{2K} \\sum\\limits_{g\\in G} \\mid g\\mid \\bigl(\\mid\\mid g_{\\mid1} \\mid - 1\\mid + \\mid\\mid g_{\\mid2} \\mid - 1\\mid\\bigr) \\in [0, 1]."
+},
+{
+"document": "Handbook of Mathematics, 6th Edition [2015]",
+"latex": "\\dot{x} = f (x, \\epsilon) \\dot{x}_{i} = f_{i} (x_{1} , . . . , x_{n} , \\epsilon_{1} , . . . , \\epsilon_{l} ) (i 1, 2, . . . , n)"
+},
+{
+"document": "qmbook",
+"latex": "\\mathbf{e}_{1} \\times \\mathbf{e}_{2} = \\mathbf{e}_{3} , \\mathbf{e}_{2} \\times \\mathbf{e}_{3} = \\mathbf{e}_{1} , \\mathbf{e}_{3} \\times \\mathbf{e}_{1} = \\mathbf{e}_{2}"
+},
+{
+"document": "DUNE ― The Distributed and Unified Numerics Environment (Oliver Sander) (Z-Library)",
+"latex": "\\mathrm{e}_{i} \\otimes f (0, . . . , 0, f , 0, . . . , 0) \\in \\prod\\limits_{j=0}^{m-1} \\Bigl(R_{j}^{\\Omega} \\Bigr) = \\Bigl( \\prod\\limits_{j=0}^{m-1} R_{j} \\Bigr)_{\\Omega} , {}^{i-\\mathrm{t}} \\left\\{^{\\mathrm{h}}\\right\\}^{\\mathrm{e}}\\{_{\\mathrm{n}}\\right\\}^{\\mathrm{try}}"
+},
+{
+"document": "Hodge Theory and Complex Algebraic Geometry (Claire Voisin, Leila Schneps) (Z-Library)",
+"latex": "i^{\\ast} \\mathrm{cl}(Z ) = {}^{\\ast} \\in H^{2k} (Y, \\mathbb{Z})."
+},
+{
+"document": "Reflections_in_conics_quadrics_and_hyper",
+"latex": "\\mathds{N}\\mathds{O}(\\mathfrak{A}) \\Bigl\\{\\mathfrak{v} \\in \\bigwedge_{1} V \\mathfrak{v} \\wedge \\mathfrak{A} 0\\Bigr\\} ."
+},
+{
+"document": "High-Order_Inverse_Dynamics_of_Serial_Robots_Based",
+"latex": "M_{1}^{0} = 1 + 0.1665 e_{03} , M_{2}^{0} = 0.7071 - 0.7071 e_{23} - 0.1177 e_{02} + 0.1177 e_{03} , M_{3}^{0} = 1 + 0.3245 e_{03} , M_{4}^{0} = 0.7071 + 0.7071 e_{23} + 0.0292 e_{01} + 0.2295 e_{02} + 0.2295 e_{03} + 0.0292 I , M_{5}^{0} = 1 + 0.5165 e_{03} , M_{6}^{0} = 0.7071 + 0.7071 e_{23} + 0.3652 e_{02} + 0.3652 e_{03} , M_{7}^{0} = e_{23} + 0.5165 e_{02} + 0.044 I ."
+},
+{
+"document": "FoundationsDeepLearning",
+"latex": "F_{L} - \\widetilde{F}_{L} = \\sum\\limits_{\\ell=1}^{L} \\Phi_{L} \\circ \\cdot \\cdot \\cdot \\circ \\Phi_{\\ell+1} \\circ (\\Phi_{\\ell} - \\widetilde{\\Phi}_{\\ell} ) \\circ \\widetilde{F}_{\\ell-1} ."
+},
+{
+"document": "Combinatorics of Permutations (Discrete Mathematics and Its Applications), 3rd Edition (Miklos Bona) (Z-Library)",
+"latex": "M_{k} + k\\biggl( \\biggr) \\geq M_{i} + i\\biggl( \\biggr). n - k"
+},
+{
+"document": "Analytic Number Theory, Modular Forms and q-Hypergeometric Series In Honor of Krishna Alladis 60th Birthday, University of... (George E. Andrews,Frank Garvan (eds.)) (Z-Library)",
+"latex": "\\frac{x u_{1}}{1 - d x u_{1}} (x q) ."
+},
+{
+"document": "sigma26-079",
+"latex": "\\mid B,\\varnothing, G_{Q} \\mid_{\\mathcal{C}} = \\bigoplus\\limits_{a,c,d\\in\\mathcal{O}(\\mathcal{C})} \\frac{\\dim(\\mathcal{C}) \\dim(\\mathcal{C})^{-2}}{\\dim(a) \\dim(c) \\dim(d)} \\sum\\limits_{b,e,f \\in\\mathcal{O}(\\mathcal{C})} \\dim(a) \\cdot \\cdot \\cdot \\dim(f ) \\mid a, . . . , f \\mid"
+},
+{
+"document": "A_distributed_approach_for_accelerating",
+"latex": "P F \\alpha \\alpha 0.89055"
+},
+{
+"document": "book (2)",
+"latex": "\\biggl[11 \\biggr]"
+},
+{
+"document": "qmbook",
+"latex": "\\pi_{2} (g)U = U \\pi_{1} (g) \\forall g \\in G"
+},
+{
+"document": "Analysis 2 Friedl",
+"latex": "\\mathrm{die} \\mathrm{Kurve} \\varphi(t) = \\cos \\bigl( \\frac{1}{2} t\\bigr), \\sin \\bigl( \\frac{1}{2} t\\bigr)\\bigr)"
+},
+{
+"document": "2004.05631v1",
+"latex": "f_{2\\beta,1\\alpha} f_{2\\beta,1\\beta} f_{2\\beta,1\\gamma} f_{2\\beta,2\\alpha} f_{2\\beta,2\\beta} f_{2\\beta,2\\gamma}"
+},
+{
+"document": "PythonPrimeronScientificbook",
+"latex": "a_{n} = \\frac{7 + 1/(n + 1)}{3 - 1/(n + 1)^{2}} , n = 0, 2, . . . , N ."
+},
+{
+"document": "Combinatorics of Permutations (Discrete Mathematics and Its Applications), 3rd Edition (Miklos Bona) (Z-Library)",
+"latex": "\\mathrm{Var}(X_{n} ) \\frac{6dn + 10d^{3} - 3d^{2} - d}{72} , (6.39)"
+},
+{
+"document": "Modern Nuclear Physics - From Fundamentals to Frontiers (Alexandre Obertelli, Hiroyuki Sagawa etc.) (Z-Library)",
+"latex": "k_{F} = \\biggl( \\frac{3\\pi^{2} \\rho}{2} \\biggr) ."
+},
+{
+"document": "KP Solitons and the Grassmannians Combinatorics and Geometry of Two-Dimensional Wave Patterns (Yuji Kodama (auth.)) (Z-Library)",
+"latex": "i_{r} <"
+},
+{
+"document": "Electronic Design Automation for IC Implementation, Circuit Design, and Process Technology (Luciano Lavagno and Igor L. Markov) (Z-Library)",
+"latex": "V_{\\mathrm{DB}}  (\\mathrm{V})"
+},
+{
+"document": "gabookII.color.V0.1.5",
+"latex": "(\\nabla_{t} \\pm \\mathrm{z})\\mathrm{E}(x, I\\mathrm{B}(x, (\\nabla_{t} \\pm \\mathrm{z})\\mathrm{B}(x, -\\mu\\varepsilon I\\mathrm{E}(x,"
+},
+{
+"document": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)",
+"latex": "G_{4}^{(5)} (\\tau q 33q^{2} 244q^{3} 1057q^{4} + q^{5} + \\cdot \\cdot \\cdot"
+},
+{
+"document": "Classical_Electrodynamics_with_Geometric",
+"latex": "S - i ."
+},
+{
+"document": "Statistics with Julia Fundamentals for Data Science, Machine Learning and Artificial Intelligence (Springer Series in the Data... (Yoni Nazarathy, Hayden Klok) (Z-Library)",
+"latex": "\\Gamma(z) (z - 1) \\cdot \\Gamma(z - 1)."
+},
+{
+"document": "2002.06055",
+"latex": ") {}^{\\prime} f^{\\prime} ) \\beta\\ast GF\\alpha {}^{\\prime} GF(\\beta\\ast\\alpha)"
+},
+{
+"document": "3D Rotations Parameter Computation and Lie Algebra based Optimization (Kenichi Kanatani) (Z-Library)",
+"latex": "W_{\\alpha} = V_{\\alpha}^{-1} ."
+},
+{
+"document": "Mathematics, Physics Chemistry With The Wolfram Language (S. M. Blinder) (Z-Library)",
+"latex": "\\mid\\langle a \\mid A\\rangle\\mid^{2} \\mid\\langle b \\mid B\\rangle\\mid^{2} + \\mid\\langle a \\mid B\\rangle\\mid^{2} \\mid\\langle b \\mid A\\rangle\\mid^{2} \\pm \\langle a \\mid A\\rangle^{\\ast} \\langle b \\mid B\\rangle^{\\ast} \\langle a \\mid B\\rangle\\langle b \\mid A\\rangle \\pm \\langle a \\mid B\\rangle^{\\ast} \\langle b \\mid A\\rangle^{\\ast} \\langle a \\mid A\\rangle\\langle b \\mid B\\rangle"
+},
+{
+"document": "Handbook of Mathematics, 6th Edition [2015]",
+"latex": "T_{k}^{\\cdot l} g_{lm} = T_{km} ."
+},
+{
+"document": "A Matrix Algebra Approach to Artificial Intelligence (Xian-Da Zhang) (Z-Library)",
+"latex": "\\mathrm{h}_{k} = F \\bigl(\\mathrm{W}^{(1)} \\mathrm{x}_{k} + \\mathrm{b}^{(1)} \\bigr),"
+},
+{
+"document": "kgeom",
+"latex": "\\sigma_{4} [t_{1}^{4} ], \\sigma_{1} \\sigma_{3} [t_{1} t_{2}^{3} ], \\sigma_{2} \\sigma_{3}^{2} [t_{1}^{2} t_{2}^{3} t_{3}^{3} ], \\sigma_{1} \\sigma_{4}^{2} \\sigma_{6} [t_{1} t_{2}^{4} t_{3}^{4} t_{4}^{6} ]."
+},
+{
+"document": "Electromagnetism",
+"latex": "v dQ = \\frac{d\\ell}{dt} dQ = \\frac{dQ}{dt} d\\ell = Id\\ell, (8.8)"
+},
+{
+"document": "9912231",
+"latex": "\\Psi \\rightarrow \\exp(\\theta_{a} T_{a}^{\\prime} )\\Psi"
+},
+{
+"document": "Introduction to algebraic geometry (Brendan Hassett) (Z-Library)",
+"latex": "\\det = \\prod\\limits_{0\\leq} {}_{j \\leq n} (u {}_{j} - u_{i} ). \\left( \\right) ( ) \\left( \\right) u_{0} u_{0}^{2} . . . u_{0}^{n} u_{1} u_{1}^{2} . . . u_{1}^{n}"
+},
+{
+"document": "Handbook of Mathematics, 6th Edition [2015]",
+"latex": "{}_{(C}\\int_{)} f (x, y, z) dy = \\int^{T} f [x(t), y(t), z(t)]y^{\\prime} (t) dt. t_{0}"
+},
+{
+"document": "1511.08771",
+"latex": "\\mathfrak{s}\\mathfrak{o}"
+}
+]
+}

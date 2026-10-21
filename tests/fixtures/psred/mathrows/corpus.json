@@ -1,0 +1,68 @@
+[
+ {
+  "tex": "\\begin{aligned}a&=b+c\\\\x&=y+z\\end{aligned}",
+  "env": "aligned",
+  "rows": 2,
+  "cols": 2
+ },
+ {
+  "tex": "\\begin{align*}f(x)&=x^{2}+1\\\\g(x)&=\\frac{1}{x}\\\\h&=0\\\\k&=\\sqrt{2}\\end{align*}",
+  "env": "align*",
+  "rows": 4,
+  "cols": 2
+ },
+ {
+  "tex": "\\begin{align}a&=b\\\\c&=d\\end{align}",
+  "env": "align",
+  "rows": 2,
+  "cols": 2
+ },
+ {
+  "tex": "\\begin{pmatrix}a&b\\\\c&d\\end{pmatrix}",
+  "env": "pmatrix",
+  "rows": 2,
+  "cols": 2
+ },
+ {
+  "tex": "\\begin{pmatrix}1&2&3\\\\4&&6\\\\7&8&9\\end{pmatrix}",
+  "env": "pmatrix",
+  "rows": 3,
+  "cols": 3
+ },
+ {
+  "tex": "\\begin{pmatrix}1&100\\\\10&2\\end{pmatrix}",
+  "env": "pmatrix",
+  "rows": 2,
+  "cols": 2
+ },
+ {
+  "tex": "\\begin{bmatrix}\\frac{a}{b}&0\\\\0&x^{2}\\end{bmatrix}",
+  "env": "bmatrix",
+  "rows": 2,
+  "cols": 2
+ },
+ {
+  "tex": "\\begin{vmatrix}a&b\\\\c&d\\end{vmatrix}",
+  "env": "vmatrix",
+  "rows": 2,
+  "cols": 2
+ },
+ {
+  "tex": "f(x)=\\begin{cases}x^{2}&x<0\\\\2x&x\\geq0\\end{cases}",
+  "env": "cases",
+  "rows": 2,
+  "cols": 2
+ },
+ {
+  "tex": "\\begin{gathered}a+b=c\\\\x=y\\end{gathered}",
+  "env": "gathered",
+  "rows": 2,
+  "cols": 1
+ },
+ {
+  "tex": "J:=\\begin{pmatrix}\\frac{\\partial u}{\\partial u'}&\\frac{\\partial u}{\\partial v'}\\\\\\frac{\\partial v}{\\partial u'}&\\frac{\\partial v}{\\partial v'}\\end{pmatrix}",
+  "env": "pmatrix",
+  "rows": 2,
+  "cols": 2
+ }
+]
