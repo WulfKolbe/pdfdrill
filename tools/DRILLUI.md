@@ -3,7 +3,26 @@
 **There is exactly ONE canonical copy of each file, and it lives in `tools/`.**
 If you find a `drillui_bridge.ts` / `drillui_term.html` anywhere else (e.g. an
 old `~/Downloads/` drop), it is a stale duplicate — delete it and use the repo
-copy. (Prerequisite: the Python deps must be installed once — `pip install -e .`
+copy.
+
+**The bridge now enforces that instead of only asking for it** (2026-10-22: "I
+see the full UI, but I can not enter anything" — no connection chip, the REPL's
+banner and history both present). The protocol was fine end to end; the page was
+a pre-`#cmdline` copy that drove xterm's own stdin, so there was no element to
+type into. Two checks, because the two stale cases reach you differently:
+
+| stale how | what you see now |
+|---|---|
+| the bridge's **sibling** `drillui_term.html` is old | a red notice at the top of the page naming the missing markers, and `!! THIS UI DOES NOT MATCH THIS BRIDGE` in the launch banner. The notice is plain HTML — no script, no xterm, no WebSocket needed to see it. |
+| the **tab** was left open from an earlier drillui | the current UI announces itself on connect; a tab that stays silent gets `THIS TAB IS RUNNING AN OLD drillui` written into its terminal, with `Ctrl-Shift-R`. Terminal output is the one channel every drillui vintage renders. |
+
+The launch banner also names the UI file it is serving, with size and mtime, so
+"which UI am I looking at" is answerable without guessing. The old stale-tab
+guard (a content hash stamped into the page, compared in `hello`) still runs,
+but it could never catch the worst case on its own: a page too old to carry the
+stamp compared `undefined` and said nothing — a check blind exactly where it was
+needed most. `tests/test_drillui_serves_a_ui_it_can_talk_to.py` holds both
+directions, including that a compliant UI is served without a word. (Prerequisite: the Python deps must be installed once — `pip install -e .`
 in the repo; otherwise the bridge's `python -m pdfdrill` subprocess fails with
 e.g. `No module named 'pydantic'`.)
 

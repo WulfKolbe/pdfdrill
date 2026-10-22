@@ -124,6 +124,15 @@ def test_concurrent_build_lock_and_clear_page_error():
     the first (each build's cleanup was wiping the other's temp render). And a
     page gs renders nothing for raises a CLEAR error naming the page, not a
     bare 'list index out of range'."""
+    # `build_pyramid` refuses for a MISSING TOOL before it looks at the lock —
+    # documented ("Raises RuntimeError if gs/pyvips absent") — so on an install
+    # without libvips the concurrency contract cannot be reached, and asserting
+    # it there failed instead of skipping. The feature is the `[imageserver]`
+    # extra; so is its test.
+    ok, why = pyramid.tools_available()
+    if not ok:
+        import pytest
+        pytest.skip(f"the pyramid lane needs gs + pyvips: {why}")
     import json, tempfile, time
     from pdfdrill import pyramid as P
     with tempfile.TemporaryDirectory() as d:

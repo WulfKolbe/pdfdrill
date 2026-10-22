@@ -314,6 +314,18 @@ def unpack(pdf: Path, data: dict, member: dict, out_dir: Path,
     proceedings volume are named "Document Analysis and Recognition – ICDAR
     2026" — one name for 148 documents, in a tool whose titles become bibkeys.
     """
+    # THE REQUEST IS CHECKED BEFORE THE TOOLCHAIN. These two refusals were in
+    # the other order, so on an install without pikepdf a member with no
+    # established page range was refused for the wrong reason: the caller asked
+    # about a member that cannot be cut and was told to `pip install pikepdf`,
+    # which would not have helped and sends them to fix the wrong thing. The
+    # range check needs nothing and is about what they asked; the dependency
+    # check is about this machine. Cheapest, most specific refusal first.
+    first, last = member.get("pdf_first_page"), member.get("pdf_last_page")
+    if not first or not last:
+        raise VolumeError(
+            f"member {member.get('member')} has no established page range — "
+            f"no source gave its length, so it is absent, not guessed")
     try:
         import pikepdf
     except ImportError as e:                # pragma: no cover
@@ -321,11 +333,6 @@ def unpack(pdf: Path, data: dict, member: dict, out_dir: Path,
             "unpacking a member needs pikepdf (a qpdf binding): "
             "`pip install pikepdf`. Listing the members needs nothing extra."
         ) from e
-    first, last = member.get("pdf_first_page"), member.get("pdf_last_page")
-    if not first or not last:
-        raise VolumeError(
-            f"member {member.get('member')} has no established page range — "
-            f"no source gave its length, so it is absent, not guessed")
     key = bibkey_for(data, member, prefix)
     folder = out_dir / key
     folder.mkdir(parents=True, exist_ok=True)

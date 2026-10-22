@@ -379,3 +379,86 @@ def test_the_unplaced_group_is_labelled_not_disguised_as_a_page():
     tree = html[html.index("function buildTree"):][:2600]
     assert "no page" in tree.lower(), \
         "an element with no page must not be shown as belonging to one"
+
+
+# --------------------------------------------------------------------------- #
+#  The headline count must be a count OF THE FILE it is printed beside.
+#
+#  Found by an auditing session (finding J). `build_from_paths` counted two
+#  different populations in its two branches: the unfiltered one took the
+#  MODEL's objects minus the Pages (so the Document counted as an element),
+#  while the page's own `DATA.elements` is `collect_elements` — Document and
+#  Citation dropped, the Page containers kept. Measured on hilbert1902:
+#  "133 elements" printed over a payload of 142 records, and 132 things
+#  actually in the tree.
+# --------------------------------------------------------------------------- #
+
+def _model_with_a_document():
+    m = _model()
+    m["objects"].insert(0, {"id": "doc", "type": "Document",
+                            "props": {"title": "Demo Doc"}, "realizations": []})
+    m["objects"].append({"id": "c1", "type": "Citation",
+                         "props": {"page": 1}, "realizations": []})
+    return m
+
+
+def _payload(html: str) -> dict:
+    """The DATA the page actually ships."""
+    i = html.index("const DATA")
+    j = html.index("{", i)
+    depth = 0
+    for k in range(j, len(html)):
+        if html[k] == "{":
+            depth += 1
+        elif html[k] == "}":
+            depth -= 1
+            if depth == 0:
+                return json.loads(html[j:k + 1])
+    raise AssertionError("no DATA object in the inspector html")
+
+
+def test_the_reported_count_matches_the_payload_the_page_ships():
+    with tempfile.TemporaryDirectory() as d:
+        mp = Path(d) / "model.docmodel.json"
+        mp.write_text(json.dumps(_model_with_a_document()))
+        html, n_pages, n_el, _m = docinspect.build_from_paths(str(mp), embed=True)
+        data = _payload(html)
+        in_tree = [e for e in data["elements"] if e.get("type") != "Page"]
+        assert n_el == len(in_tree), (
+            f"the headline says {n_el} elements and the page holds "
+            f"{len(in_tree)}: " + repr(sorted(
+                {e.get('type') for e in data['elements']})))
+        assert n_el == 2, "Paragraph + Formula — not the Document, not the Pages"
+
+
+def test_the_document_object_is_not_an_element():
+    """It is the model's root. It has no page, no box and no row, so counting
+    it inflated every number this command printed by one."""
+    with tempfile.TemporaryDirectory() as d:
+        mp = Path(d) / "model.docmodel.json"
+        mp.write_text(json.dumps(_model_with_a_document()))
+        html, _p, n_el, _m = docinspect.build_from_paths(str(mp), embed=True)
+        types = {e.get("type") for e in _payload(html)["elements"]}
+        assert "Document" not in types
+        assert n_el == 2
+
+
+def test_a_page_filtered_count_matches_its_payload_too():
+    """The branch that was already right must stay tied to the same list."""
+    m = _model_with_a_document()
+    m["meta"]["num_pages"] = 2
+    m["meta"]["pages"].append({"page": 2, "page_width": 1000, "page_height": 1400})
+    m["objects"].append({"id": "pg2", "type": "Page", "props": {"page": 2},
+                         "realizations": []})
+    m["objects"].append({"id": "p2", "type": "Paragraph",
+                         "props": {"text": "Second page.", "page": 2,
+                                   "flow_index": 3},
+                         "realizations": []})
+    with tempfile.TemporaryDirectory() as d:
+        mp = Path(d) / "model.docmodel.json"
+        mp.write_text(json.dumps(m))
+        html, _p, n_el, _mode = docinspect.build_from_paths(
+            str(mp), embed=True, page_filter={1})
+        in_tree = [e for e in _payload(html)["elements"]
+                   if e.get("type") != "Page"]
+        assert n_el == len(in_tree) == 2, (n_el, len(in_tree))

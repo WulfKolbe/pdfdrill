@@ -28,6 +28,7 @@ the answer never depends on who asked.
 | 3 | `gemma` | a scan, and `MAKORA_API_KEY` / `NOVITA_API_KEY` | **metered** | `pdfdrill gemmaocr` |
 | 4 | `mathpix` | a scan, no Makora key, `MATHPIX_APP_ID/KEY` | **paid** | `pdfdrill mathpix` |
 | 5 | `geometry` | a scan, **no reading key at all** — the sandbox's default | free | `pdfdrill gemmaocr --geometry-only` |
+| — | `geometry`, `cost="none"` | …and no NumPy, so the lane's ink half cannot run: **this install has no lane for this document** | — | `pip install numpy` (a base dep), or a key |
 
 1. **`born_digital`** wins at any page count: a text layer beats a page count.
    The glyphs are the author's, with their coordinates. On an arXiv document the
@@ -178,11 +179,44 @@ loses is the type: every line comes out `text`, and a figure arrives as its ink
 rows rather than as one object, so `geometry --layout` can no longer box a
 Formula or a Table by class.
 
-`route` says which half you have, and `cost="none"` is now reserved for the
-install where even the ink cannot be had (no detector AND no NumPy). The first
+`route` says which half you have, and `cost="none"` is reserved for the install
+where the INK cannot be had — no NumPy — whatever the detector can do. The first
 version of this branch announced "there is no free lane on this install" and
-`drill` then produced those 355 lines anyway — a decision function that is
-wrong about its own install is worse than one that is coarse.
+`drill` then produced those 355 lines anyway — a decision function that is wrong
+about its own install is worse than one that is coarse.
+
+**And the check was in the wrong place, which is the same error mirrored.** It
+asked about NumPy only inside the no-detector branch, so an install WITH the
+detector and WITHOUT NumPy was told `[free]` and promised "a box and a type on
+every line". The detector is a SEPARATE interpreter (`PDFDRILL_YOLO_PYTHON`), so
+that combination is ordinary, not exotic. Measured on hilbert1902 in a
+numpy-free venv: `route` said `[free]`, `drill` rendered ten page images
+(8.58 MB) and then died in the ink, exit 0, no `lines.json`. The halves are not
+symmetric — **no detector is a weaker lane; no ink is no lane** — so the ink is
+asked first, for both branches.
+
+### `drill`'s exit status
+
+| status | meaning |
+|---|---|
+| `0` | a reading was made (or was already on disk) |
+| `3` | a lane was **reported and not run** — `EXIT_LANE_NOT_RUN` |
+
+Both halves of `3` are the same fact: `drill` promises "ends with an inspect.html
+you can open", and there is none. Either the install cannot run the lane (no
+NumPy, so no free lane for a scan) or the lane costs money and `drill` never
+spends. The owner's decision, 2026-10-21, after the alternative — 0 for the paid
+case, 3 for the broken one — was considered and rejected: a caller then has to
+parse prose to learn whether it got a reading. Everything before the lane still
+ran, and the message is unchanged; only the status is new.
+
+`cost="none"` on the geometry lane therefore means *this is the lane that would
+read the document, and this install cannot run it.* `drill` NAMES it and runs
+nothing, exactly as it does for a paid lane, and `gemmaocr --geometry-only`
+refuses before the rasterizer rather than after
+(`tests/test_no_lane_means_no_work.py`). `doctor` says the same thing in the
+same words, and its closing summary no longer claims "every route is available"
+off the apt-package list.
 
 ### 2. `gemmaocr --geometry-only` — the keyless install's scan lane
 

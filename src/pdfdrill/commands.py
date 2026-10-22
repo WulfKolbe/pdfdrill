@@ -221,6 +221,21 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
         return (f"gemmaocr NOT run for {pdf.name}: reached from an "
                 f"auto-inserted prerequisite, where paid steps never run. "
                 f"Run it explicitly:\n  pdfdrill gemmaocr {pdf.name}")
+    # REFUSE BEFORE RENDERING, not after. `--geometry-only` ends in the ink, and
+    # the ink is NumPy; without it the whole lane cannot produce a line. The
+    # check used to live past the rasterizer, so the failure arrived having
+    # already written one page render per page — 8.58 MB on a 10-page scan —
+    # for a reading that was never possible. Refusing costs nothing and says
+    # what to install.
+    from . import ocr_router as _or
+    if geometry_only and _or.ink_available() is False:
+        return (f"gemmaocr --geometry-only NOT run for {pdf.name}: the lane's "
+                f"ink half needs NumPy, which FINDS the lines (the layout "
+                f"detector only types the lines the ink found), and it is "
+                f"absent. Nothing was rendered and nothing was read.\n"
+                f"  NumPy is a BASE dependency of pdfdrill — `pip install "
+                f"numpy`, or re-run `pip install -e .` / `bash bootstrap.sh`.\n"
+                f"  (`pdfdrill doctor` reports both halves of this lane.)")
     from . import gemma_reader as _gr, pdf_reading
     from .net import NetworkBlocked
 
@@ -252,8 +267,29 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
         return (f"Model-lane read refused before spending: {e}\n"
                 f"(`pdfdrill doctor` lists which providers have keys.)")
     except Exception as e:
-        return (f"Model-lane read failed: {e}\nThe pages already read are "
-                f"kept under .drill/gemmaocr/ and a rerun resumes from them.")
+        # THE RESUME NOTE WAS AN ASSERTION ABOUT DISK, MADE WITHOUT LOOKING.
+        # It was printed for every failure, including `--geometry-only`, which
+        # reads no pages at all and can therefore never have any to resume
+        # from. Measured on hilbert10 in a numpy-free venv: the ink raised, and
+        # `drill` reported "The pages already read are kept … and a rerun
+        # resumes from them" over a directory holding ten page renders and zero
+        # readings. A reader who believes it re-runs and waits for a resume
+        # that cannot happen. So: count them, and say only what is there.
+        read_dir = Path(sc.blob_dir) / "gemmaocr" / "printed"
+        done = len(list(read_dir.glob("page-*.md"))) if read_dir.is_dir() else 0
+        if geometry_only:
+            tail = ("\nNothing was read and nothing was spent — "
+                    "`--geometry-only` reads no words, it only measures the "
+                    "page. Nothing to resume from; fix the cause above and "
+                    "run it again.")
+        elif done:
+            tail = (f"\nThe {done} printed page(s) already read are kept under "
+                    f"{read_dir} and a rerun resumes from them (nothing is "
+                    f"re-spent).")
+        else:
+            tail = ("\nNo page had been read yet, so there is nothing to "
+                    "resume from and nothing was spent.")
+        return f"Model-lane read failed: {e}{tail}"
 
     lines_path = Path(result["files"]["lines.json"])
     n_lines = 0
@@ -2118,7 +2154,37 @@ def cmd_doctor() -> str:
         lines.append("To install the missing system tools (Debian/Ubuntu):")
         lines.append("  sudo apt-get install -y " + " ".join(seen))
     else:
-        lines.append("All system tools present — every route is available.")
+        # "— every route is available" WAS A CLAIM THIS LIST CANNOT SUPPORT.
+        # `missing_pkgs` holds APT PACKAGES. The lanes turn on three other
+        # things: NumPy (the geometry lane's ink half), the detector, and the
+        # reading keys — none of them a system tool. So on an install with no
+        # NumPy `doctor` printed `[n/a] the FREE geometry lane … NO free
+        # reading for a scan at all` and then, four lines later, "every route
+        # is available". The reader believes the summary; it is the last line.
+        # A summary may only summarise what was measured.
+        lines.append("All system tools present.")
+        free_lanes = ["the PDF's own text layer", "the author's LaTeX (arXiv)"]
+        if ink_ok is False:
+            lines.append("  Reading lanes: the free geometry lane is NOT "
+                         "available on this install (see above), so a scan "
+                         "with no text layer and no reading key has NO lane. "
+                         "The other free lanes are unaffected: "
+                         + ", ".join(free_lanes) + ".")
+        else:
+            free_lanes.append("the geometry lane"
+                              + ("" if det_ok else " (boxes, no types)"))
+            lines.append("  Reading lanes: free and available — "
+                         + ", ".join(free_lanes) + ".")
+        have = ocr_router.keys_present()
+        metered = [n for n, k in (("gemmaocr", ocr_router.GEMMA_KEY),
+                                  ("mathpix", ocr_router.MATHPIX_KEY))
+                   if k in have]
+        lines.append("  Metered/paid lanes: "
+                     + (", ".join(metered) + " (key present; no command buys a "
+                                             "reading unasked)"
+                        if metered else
+                        "none — no reading key is set, which is the keyless "
+                        "install the free lanes are for"))
     lines.append("")
     lines.extend(_doctor_storage_and_gate())
     return "\n".join(lines)
@@ -2199,8 +2265,16 @@ def _doctor_storage_and_gate() -> list[str]:
                 out.append(f"  [GATE] NOT attested — every build/extract command "
                            f"refuses until it is.")
                 out.append(f"         marker would be written to {marker}")
-                out.append(f"         fix: `pdfdrill preflight`, read SKILL.md to "
-                           f"its last line, `pdfdrill preflight --ack <TOKEN>`")
+                # A SEVENTH PLACE WITH THE WRONG INSTRUCTION. 905n fixed six;
+                # this one was in `doctor`, which is the command a stuck user
+                # runs first. The SKILL's literal last line is the
+                # `PREFLIGHT-TOKEN:END` comment, so "to its last line" (like
+                # `tail -1`) hands over the marker and the ack is refused.
+                out.append(f"         fix: `pdfdrill preflight`, then read the "
+                           f"`DRILL-…` line just above the "
+                           f"`PREFLIGHT-TOKEN:END` marker at the end of "
+                           f"SKILL.md (`tail -3` shows it; `tail -1` is the "
+                           f"marker), then `pdfdrill preflight --ack <TOKEN>`")
                 out.append(f"         or export PDFDRILL_NO_PREFLIGHT=1 (drillui: "
                            f"set it before `bun run tools/drillui_bridge.ts`)")
         except Exception as e:                           # noqa: BLE001
@@ -15378,6 +15452,13 @@ def _execute_lane(pdf: Path, d) -> str:
         m = cmd_mathpix(pdf, force=True)            # graceful when no creds
         return head + m + "\n" + cmd_model(pdf)
     if d.lane == "geometry":
+        if d.cost == "none":
+            # The same distinction `drill` makes: the lane is NAMED because it
+            # would read this document, not because this install can run it.
+            # `cmd_gemmaocr` refuses before the rasterizer either way, but the
+            # head must not say "running…" for something that will not run.
+            return (f"Route → {label} [none] — NOT RUN: this install cannot "
+                    f"run the lane.\n{d.reason}.\nFix: {d.command}")
         # FREE and offline. No words are read, so this stops at the lines.json:
         # `model` keeps only what has prose, and a 273-line page map would come
         # out as ten empty Paragraphs. What the map IS for is said in the

@@ -15,6 +15,12 @@
 #   ./install-pdfminer-fork.sh --venv ~/.pdfmm  # a venv somewhere else
 #   ./install-pdfminer-fork.sh --check          # only verify what is installed
 #   ./install-pdfminer-fork.sh --rebuild        # rebuild even if one works
+#   ./install-pdfminer-fork.sh --here --with-pdf2mmd-extras
+#                                               # …and pdf2mmd's own deps
+#                                               #   (pillow scipy pytest). The
+#                                               #   venv mode installs them
+#                                               #   anyway; --here/--user do
+#                                               #   NOT without this flag.
 #
 # The venv is the default BECAUSE it leaves your existing pdfminer.six alone.
 # Other tools that pin `pdfminer.six==<release>` keep working; only pdf2mmd
@@ -34,6 +40,17 @@ PIN="a18de2a"
 VENV="$HERE/.pdfmm-venv"
 MODE="venv"
 REBUILD=0
+# EXTRAS — pdf2mmd's own runtime/test deps, NOT the fork's.
+#
+# They used to be installed in all three modes. An auditing session (finding G)
+# named what that does outside the venv: `bootstrap.sh` calls this script in
+# `--here` mode to get ONE thing, `LTChar.glyphname`, and got scipy, pillow and
+# pytest put into the user's active environment as well — unasked, unannounced,
+# and scipy is tens of megabytes. A script that installs a patch may not also
+# install a toolchain. In the venv mode they stay, because that venv exists for
+# pdf2mmd and nothing else imports from it; in the other two they are opt-in.
+EXTRAS="pillow scipy pytest"
+WITH_EXTRAS=0
 CHECK=0        # a separate flag, so --check and --venv can be combined in
                # either order; as modes they silently overrode each other
 
@@ -44,7 +61,8 @@ while [ $# -gt 0 ]; do
         --venv)   VENV="$2"; shift 2 ;;
         --check)  CHECK=1; shift ;;
         --rebuild) REBUILD=1; shift ;;
-        -h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --with-pdf2mmd-extras) WITH_EXTRAS=1; shift ;;
+        -h|--help) sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "unknown option: $1" >&2; exit 1 ;;
     esac
 done
@@ -93,30 +111,41 @@ PY
 }
 
 if [ "$CHECK" = "1" ]; then
-    # BOTH interpreters, always. Checking only the venv (it used to win when it
-    # existed) masks exactly the failure P1 produces: a clobbered USER-site
-    # install on a machine that also has a working venv. They serve different
-    # callers — pdfdrill imports pdfminer from plain `python3`; the venv is for
-    # pdf2mmd — so "is it installed" has two answers and the check must give
-    # both.
-    rc=3
-    sys_ok=0
-    for PY in "python3" "$VENV/bin/python"; do
-        case "$PY" in */bin/python) [ -x "$PY" ] || continue ;; esac
-        echo "checking $PY"
-        if (cd / && verify "$PY"); then
-            rc=0
-            [ "$PY" = "python3" ] && sys_ok=1
+    # BOTH interpreters are REPORTED; only ONE of them decides the exit code.
+    #
+    # 905o made this check both, because checking only the venv masked a
+    # clobbered user-site install. But it then set rc=0 if EITHER answered yes,
+    # and an auditing session (finding F) found what that means: `bootstrap.sh`
+    # gates the build on `--check >/dev/null 2>&1`, so on a machine with a good
+    # pdf2mmd venv and stock pdfminer in the active interpreter the check
+    # succeeded, the build was skipped, the NOTE went to a discarded stdout,
+    # and the install ended with no `LTChar.glyphname` — silently, which is the
+    # whole failure class P1 belongs to.
+    #
+    # A check answers for the interpreter THAT WILL IMPORT IT. pdfdrill imports
+    # pdfminer from the active `python3`, so that is the answer; the venv is
+    # pdf2mmd's and is information, never the verdict.
+    echo "checking python3 (the active interpreter — the one pdfdrill imports from)"
+    if (cd / && verify "python3"); then
+        rc=0
+    else
+        rc=3
+        echo "  -> the ACTIVE interpreter does NOT have the patched pdfminer" >&2
+    fi
+    if [ -x "$VENV/bin/python" ]; then
+        echo "also checking $VENV/bin/python (pdf2mmd's venv — reported, not the verdict)"
+        if (cd / && verify "$VENV/bin/python"); then
+            if [ "$rc" != "0" ]; then
+                echo
+                echo "NOTE: the venv has it, the active \`python3\` does NOT, and"
+                echo "pdfdrill's glyph-identity features follow the active one, so"
+                echo "they are NOT available. This check therefore FAILS. Restore:"
+                echo "  bash vendor/install-pdfminer-fork.sh --here --rebuild   # in a venv"
+                echo "  bash vendor/install-pdfminer-fork.sh --user --rebuild   # outside one"
+            fi
         else
-            echo "  -> this python does NOT have the patched pdfminer" >&2
+            echo "  -> the venv does NOT have it either" >&2
         fi
-    done
-    if [ "$rc" = "0" ] && [ "$sys_ok" = "0" ]; then
-        echo
-        echo "NOTE: the venv has it, plain \`python3\` does NOT. pdfdrill itself"
-        echo "imports pdfminer from \`python3\`, so pdfdrill's glyph-identity"
-        echo "features are NOT available. Restore with:"
-        echo "  bash vendor/install-pdfminer-fork.sh --user --rebuild"
     fi
     [ "$rc" = "0" ] && echo "the patched build is in place"
     exit "$rc"
@@ -227,8 +256,11 @@ if [ "$MODE" = "venv" ]; then
     echo "== installing into the venv"
     "$PY" -m pip install -q "$BUILD/src"
     # pdf2mmd itself needs these; the venv must be self-sufficient, including
-    # pytest, because the README tells you to run the tests from it
-    "$PY" -m pip install -q pillow scipy pytest
+    # pytest, because the README tells you to run the tests from it. This is
+    # the ONE mode where they belong: the venv is built for pdf2mmd and nothing
+    # else uses it. See EXTRAS below for why the other two modes dropped them.
+    echo "== installing pdf2mmd's own deps into the venv (pillow scipy pytest)"
+    "$PY" -m pip install -q $EXTRAS
 elif [ "$MODE" = "here" ]; then
     # INTO THE ACTIVE INTERPRETER. `pip install --user` REFUSES inside a venv
     # ("User site-packages are not visible in this virtualenv"), so on the
@@ -239,12 +271,18 @@ elif [ "$MODE" = "here" ]; then
     PY="python3"
     echo "== installing into the active interpreter ($("$PY" -c 'import sys;print(sys.prefix)'))"
     "$PY" -m pip install -q "$BUILD/src"
-    "$PY" -m pip install -q pillow scipy pytest
+    if [ "$WITH_EXTRAS" = "1" ]; then
+        echo "== installing pdf2mmd's own deps as asked ($EXTRAS)"
+        "$PY" -m pip install -q $EXTRAS
+    fi
 else
     PY="python3"
     echo "== installing with pip --user"
     "$PY" -m pip install -q --user "$BUILD/src"
-    "$PY" -m pip install -q --user pillow scipy pytest
+    if [ "$WITH_EXTRAS" = "1" ]; then
+        echo "== installing pdf2mmd's own deps as asked ($EXTRAS)"
+        "$PY" -m pip install -q --user $EXTRAS
+    fi
 fi
 
 echo "== verifying"

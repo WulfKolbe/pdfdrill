@@ -38,6 +38,14 @@ scan = [
     "Pillow>=10",       # page dimensions + blank-mean measurement
 ]
 nlp = ["stanza>=1.10"]
+# RUNNING THE SUITE. CLAUDE.md documents `python3 -m pytest tests/`, and until
+# 2026-10-21 nothing installed pytest: not requirements.txt, not this file, not
+# bootstrap.sh. It arrived only as a side effect of
+# `vendor/install-pdfminer-fork.sh`, which installed pillow+scipy+pytest into
+# whatever interpreter was active — and once that stopped (HANDOVER-RULES 33,
+# an installer installs what it names) the documented test command could not be
+# run from the documented install at all. So name it.
+dev = ["pytest>=7.0"]
 # la2speech (vendored): LaTeX -> MathML -> speech. The npm
 # speech-rule-engine itself is installed by
 # src/pdfdrill/la2speech/setup.sh (needs node), not by pip.

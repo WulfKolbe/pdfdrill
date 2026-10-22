@@ -323,6 +323,88 @@ Each of these cost real time or real data in this project.
     comment"), and assert the count: `test_preflight_token_is_findable.py`
     fails if either marker appears more than once.
 
+28. **A lane the install cannot run must be NAMED, not run.** The lane contract
+    names the lane that WOULD read a document; whether this install can run it
+    is a second question, carried in `cost`. `drill` dispatched on
+    `dec.lane == "geometry"` and never read `dec.cost`, so a `cost="none"`
+    decision — "this is the lane and it cannot run here" — ran anyway: measured
+    on hilbert1902 in a numpy-free venv, ten page renders (8.58 MB) written,
+    death inside the ink, exit 0. Rendering for a reading that cannot happen is
+    the same defect class as buying one that was not asked for. Name it exactly
+    as a paid lane is named, and refuse BEFORE the rasterizer, not after
+    (`tests/test_no_lane_means_no_work.py`).
+
+29. **A summary may only summarise what was measured.** `doctor` printed
+    `[n/a] the FREE geometry lane … NO free reading for a scan at all` and then,
+    four lines later, "All system tools present — every route is available". The
+    list behind that sentence holds APT PACKAGES; the lanes turn on NumPy, the
+    detector and the keys, none of them a system tool. The reader believes the
+    last line. A closing claim that reaches wider than the thing it was computed
+    from is a false report however true each line above it is.
+
+30. **A count printed beside a file must be a count OF that file.** The
+    inspector's headline said "133 elements" over a payload holding 142 records,
+    for a tree with 132 rows — three populations, because the count was
+    recomputed from the model instead of taken from the list the page ships
+    (Document in one, Pages in the other). Count the thing you serialised, once.
+
+31. **A check answers for the thing that will do the work.** `--check` on the
+    pdfminer fork verified two interpreters and exited 0 if EITHER had it. A
+    machine with a good pdf2mmd venv and stock pdfminer in the active
+    interpreter therefore passed, `bootstrap.sh` skipped the build on that exit
+    code, and the install ended with no `LTChar.glyphname` — silently. Report
+    every candidate; take the verdict from the one that will actually import it.
+
+32. **A provenance field may not claim a step that did not run.** Every line of
+    a geometry-only lines.json carried `geometry: "ink-yolo"`, including on the
+    untyped half of the lane where no detector runs at all. `geometry` is read
+    to decide whether a box can be trusted as an object's extent or is only the
+    ink under a row, so `ink-yolo` where nothing looked makes the weaker half of
+    a lane indistinguishable from the stronger one. `text` because the detector
+    said so and `text` because nothing asked are different claims.
+
+33. **An installer installs what it names, and nothing else.** The fork script
+    added pillow, scipy and pytest in all three modes. `bootstrap.sh` calls it
+    for ONE thing — `LTChar.glyphname` — and the user's active environment got
+    tens of megabytes of unrelated toolchain, unasked and unannounced. The venv
+    mode keeps them (that venv exists for pdf2mmd and nothing else imports from
+    it); the modes that write into somebody else's environment need a flag.
+
+34. **Never key a cache on `id()`.** CPython hands a freed object's address to
+    the next one, so a module-level dict keyed by `id(x)` answers a NEW object
+    with an OLD object's value. `column_of` memoised a page's column bounds that
+    way: 400 freshly built PageNodes occupied **14 addresses**, and alternating
+    two page geometries, the SAME geometry got `mark_display_continuations` = 1
+    or 0 by turns — **258 flips in 400 calls**, decided by the allocator. It
+    reached us as ONE "order-dependent" test failure in a base-install run,
+    which is the cheapest symptom it has; in a long-lived process (drillui, a
+    corpus pass) it silently mis-columns pages instead, and the column decides
+    whether an equation is a display or inline prose. A per-object memo belongs
+    ON the object, where it dies with it. A dict keyed by `id()` built and
+    dropped inside one call is fine — the objects are alive for its whole life;
+    the swept repo has several of those and `_COLS_CACHE` was the only
+    module-level one (`tests/test_column_cache_is_not_keyed_on_an_address.py`).
+
+35. **Check the request before the toolchain.** `volume.unpack` probed for
+    pikepdf before validating its arguments, so a member with no established
+    page range was refused on a base install with *"unpacking a member needs
+    pikepdf"* — advice that would not have helped and sends the caller to fix
+    the wrong thing. The range check needs nothing and is about what they asked;
+    the dependency check is about this machine. Cheapest, most specific refusal
+    first.
+
+36. **A guard that cannot fail for the worst case is not a guard.** drillui's
+    stale-tab check stamped a content hash into the page and compared it on
+    connect: `msg.uiVersion && window.__DRILLUI_UI_VERSION && …`. A page too OLD
+    to carry the stamp made the second term `undefined`, so the check passed in
+    silence — blind precisely for the stalest UI there is. Reported as "I see
+    the full UI, but I can not enter anything": a pre-`#cmdline` copy, no
+    element to type into, while the REPL's banner and the user's own history
+    rendered perfectly. *Ask whether the absent case is distinguishable from the
+    healthy one;* here silence had to become the signal (the UI announces
+    itself, and the bridge warns when nothing arrives) and the warning had to go
+    out on the one channel every vintage renders.
+
 ---
 
 ## 2. Environment facts that are not obvious

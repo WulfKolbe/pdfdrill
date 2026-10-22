@@ -541,7 +541,21 @@ const app = {
     catch(e){ this.showOverlay(); return; }
     this.ws = ws;
 
-    ws.onopen = ()=>{ this.hideOverlay(); };
+    ws.onopen = ()=>{
+      this.hideOverlay();
+      // IDENTIFY THIS TAB. The stale-tab guard below compares the bridge's
+      // stamp against ours — but it is BLIND when this page is too old to carry
+      // a stamp at all, which is precisely the stalest case (reported
+      // 2026-10-22: "I see the full UI, but I can not enter anything"). A page
+      // that cannot be told it is stale cannot speak up either, so the bridge
+      // now watches for THIS message and warns into the terminal when it never
+      // comes. Terminal output is the one channel every drillui vintage renders.
+      try{
+        ws.send(JSON.stringify({ type:"client",
+          uiVersion: window.__DRILLUI_UI_VERSION || null,
+          build: window.__DRILLUI_BUILD_REV || null }));
+      }catch(e){}
+    };
     ws.onclose = ()=>{
       this.setConn("down","offline");
       this.term.writeln(C.red("\r\n[bridge disconnected]"));

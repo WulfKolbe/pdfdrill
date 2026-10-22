@@ -708,15 +708,41 @@ def columns(page: PageNode) -> list:
 
 
 _CENTRED_OK = os.environ.get("PDF2MMD_CENTRED", "1") != "0"
+
+# THE CACHE WAS KEYED ON `id(page)`, AND CPython REUSES ADDRESSES.
+#
+# `columns(page)` is pure and worth caching, but a freed PageNode's address is
+# handed to the next one, so the cache answered a NEW page with an OLD page's
+# column bounds. Measured: 400 freshly built PageNodes occupied 14 distinct
+# addresses, so 386 of them were answered from another page's entry; alternating
+# two geometries whose displays sit 300pt apart, the SAME geometry got
+# `mark_display_continuations` = 1 or 0 depending on the allocator — 258 flips
+# in 400 calls. It surfaced as one "order-dependent" test failure in a full
+# base-install run (`test_mmd.py::TestDisplayContinuation`), which is the
+# cheapest possible symptom of it: in a long-lived process (drillui, a corpus
+# pass) the same defect silently mis-columns pages, and a wrong column makes
+# `is_display` wrong, which decides whether an equation is a display or inline
+# prose.
+#
+# The cache belongs to the page, so it lives ON the page: one entry, no key, no
+# reuse, and it dies with the object. `_COLS_ATTR` is a dunder-free private
+# attribute rather than a field, because the dataclass is serialised field by
+# field and a cache is not part of the document.
+_COLS_ATTR = "_cols_cache"
+#: Kept so an external caller that cleared the cache between documents still
+#: finds something to clear. Nothing reads it any more.
 _COLS_CACHE: dict = {}
 
 
 def column_of(page: PageNode, ln: LineNode) -> tuple:
     """The (left, right) bounds of the column this line sits in."""
-    ck = id(page)
-    cols = _COLS_CACHE.get(ck)
+    cols = getattr(page, _COLS_ATTR, None)
     if cols is None:
-        cols = _COLS_CACHE[ck] = columns(page)
+        cols = columns(page)
+        try:
+            setattr(page, _COLS_ATTR, cols)
+        except (AttributeError, TypeError):      # a slotted/frozen page
+            pass
     if len(cols) == 1:
         return cols[0]
     cx = 0.5 * (ln.rect[0] + ln.rect[2])

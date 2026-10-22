@@ -104,6 +104,27 @@ def skill_text() -> str:
     return ""
 
 
+def skill_path() -> Path | None:
+    """WHERE pdfdrill's own copy of SKILL.md is — the same search `skill_text`
+    uses, so the path printed is the file whose token will be checked.
+
+    `preflight` said "read SKILL.md to the END" and never said which SKILL.md
+    or where (found by an auditing session, finding H; QUICKSTART meanwhile
+    promised the command "prints the rules and where the SKILL is"). In the
+    sandbox the caller's cwd is not the repo, there are two candidate copies —
+    bundled and repo — and the one that counts is whichever this returns,
+    because `expected_token` hashes exactly that file.
+    """
+    for d in (_BUNDLED, _REPO_SKILL):
+        cand = d / "SKILL.md"
+        try:
+            if cand.is_file():
+                return cand
+        except OSError:
+            continue
+    return None
+
+
 def expected_token() -> str:
     """The token pdfdrill currently expects (from its own SKILL.md)."""
     return compute_token(skill_text())

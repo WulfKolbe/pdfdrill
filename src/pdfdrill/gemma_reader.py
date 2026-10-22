@@ -1138,16 +1138,29 @@ def geometry_page(png: Optional[Path], page_no: int, *,
     rows = inkbox.prune_row_outliers(rows, lh)
 
     typed = yololayout.typed_boxes(dets)
-    parts: list[tuple[str, Box]] = list(wholes)
+    # EVERY LINE USED TO CLAIM `ink-yolo`, DETECTOR OR NOT (an auditing session,
+    # finding I). On the untyped half of this lane no detector runs at all —
+    # `dets` is empty, every row's type falls back to `text` — and the
+    # lines.json still said its geometry came from the ink AND the detector.
+    # The `geometry` field is PROVENANCE: it is read to decide whether a box can
+    # be trusted as a Formula's extent or is just the ink under a row. Saying
+    # `ink-yolo` where no detector looked makes the weaker half of the lane
+    # indistinguishable from the stronger one, which is the one thing a
+    # provenance field exists to prevent.
+    #
+    #   yolo      the detector's own box, kept whole (a figure, a table)
+    #   ink-yolo  an ink row the detector TYPED (its centre fell in a box)
+    #   ink       an ink row and nothing else — type is `text` by default
+    parts: list[tuple[str, Box, str]] = [(k, b, "yolo") for k, b in wholes]
     for row in rows:
         box = inkbox.union_box(row)
         if box is None:
             continue
-        parts.append((_type_for_row(box, typed), box))
+        kind, from_detector = _type_for_row(box, typed)
+        parts.append((kind, box, "ink-yolo" if from_detector else "ink"))
     parts.sort(key=lambda kb: (kb[1][1], kb[1][0]))
 
-    placed = [Placed(Item(type=k, text=""), b, "ink-yolo")
-              for k, b in parts]
+    placed = [Placed(Item(type=k, text=""), b, g) for k, b, g in parts]
     lines = page_lines(placed, page_no)
     for ln in lines:
         # Said once per line, because a line is what a consumer reads: this
@@ -1160,11 +1173,18 @@ def geometry_page(png: Optional[Path], page_no: int, *,
             "languages_detected": []}
 
 
-def _type_for_row(box: Box, typed: Sequence[tuple[str, Box]]) -> str:
-    """The type of the SMALLEST detector box that contains this ink row's
-    centre, or `text`. Smallest, because an equation number sits inside the
-    formula block as often as beside it, and the inner box is the one that
-    names what the row actually is."""
+def _type_for_row(box: Box, typed: Sequence[tuple[str, Box]]) -> tuple[str, bool]:
+    """`(type, came_from_the_detector)` for one ink row.
+
+    The type of the SMALLEST detector box that contains this row's centre, or
+    `text`. Smallest, because an equation number sits inside the formula block
+    as often as beside it, and the inner box is the one that names what the row
+    actually is.
+
+    The second half of the answer is what the caller writes into the line's
+    `geometry` provenance: `text` because the detector said so and `text`
+    because nothing looked are not the same claim.
+    """
     cx = (box[0] + box[2]) / 2.0
     cy = (box[1] + box[3]) / 2.0
     best: Optional[tuple[float, str]] = None
@@ -1173,7 +1193,7 @@ def _type_for_row(box: Box, typed: Sequence[tuple[str, Box]]) -> str:
             area = max(1.0, (b[2] - b[0]) * (b[3] - b[1]))
             if best is None or area < best[0]:
                 best = (area, kind)
-    return best[1] if best else "text"
+    return (best[1], True) if best else ("text", False)
 
 
 def assemble_geometry(pages: Iterable[tuple[int, Optional[Path], Sequence]], *,
@@ -1184,13 +1204,25 @@ def assemble_geometry(pages: Iterable[tuple[int, Optional[Path], Sequence]], *,
         "source": "yolo-geometry",
         "geometry_only": True,
         "ocr": {"lane": "geometry", "detector": detector,
-                "words": "NOT READ — this document's lines carry a box and a "
-                         "type and no text. `pdfdrill gemmaocr <pdf>` reads "
-                         "the words (METERED); this lane never spends."},
+                "words": "NOT READ — this document's lines carry a box and no "
+                         "text. `pdfdrill gemmaocr <pdf>` reads the words "
+                         "(METERED); this lane never spends."},
         "pages": [],
     }
     for page_no, png, dets in pages:
         out["pages"].append(geometry_page(png, page_no, dets=dets))
+    # WHICH HALF RAN, said once for the document, from the lines themselves
+    # rather than from `detector` — the detector can be installed and still
+    # have produced nothing for these pages, and the head may not promise types
+    # the pages do not carry (finding I).
+    kinds = {ln.get("geometry") for pg in out["pages"]
+             for ln in (pg.get("lines") or [])}
+    out["ocr"]["types"] = (
+        "from the layout detector" if kinds & {"yolo", "ink-yolo"} else
+        "NONE — no detector box reached these pages, so every line's type is "
+        "the `text` default, not a measurement. Set PDFDRILL_YOLO_PYTHON for "
+        "the typed half of this lane.")
+    out["ocr"]["geometry_kinds"] = sorted(k for k in kinds if k)
     return out
 
 

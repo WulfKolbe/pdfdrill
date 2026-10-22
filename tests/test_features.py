@@ -8,6 +8,8 @@ never crash) since their optional deps may be absent.
 """
 import json
 import sys
+
+import pytest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -79,6 +81,7 @@ def test_extract_all_runs_available_and_is_graceful():
 # ---------------- graph builder (networkx) ----------------
 
 def test_build_graph():
+    pytest.importorskip("networkx", reason="the relation graph IS networkx")
     rels = [Relation("a", "b", "SAME_AS", 0.9), Relation("b", "c", "SAME_AS", 0.8)]
     g = build_graph(rels)
     assert g.number_of_nodes() == 3 and g.number_of_edges() == 2
@@ -91,6 +94,10 @@ def test_build_graph():
 # ---------------- fuzzy matcher (rapidfuzz) ----------------
 
 def test_match_entities_links_ocr_typo_invoice_numbers():
+    # Without rapidfuzz `match_entities` degrades to exact matching, which is
+    # the documented behaviour and cannot link an OCR typo — so this test is
+    # about rapidfuzz, and says so instead of failing.
+    pytest.importorskip("rapidfuzz", reason="the fuzzy matcher IS rapidfuzz")
     feats = [
         Feature.create("p", "INVOICE", "RE-2024-001", 0.9),
         Feature.create("p", "INVOICE", "RE-2024-OO1", 0.9),   # OCR O/0 typos
