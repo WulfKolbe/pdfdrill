@@ -155,6 +155,24 @@ def main():
 
     try:
         result = HANDLERS[cmd](rest)
+        # A MOVE THE USER DID NOT ASK FOR, REPORTED WHERE THEY WILL SEE IT.
+        # Adoption happens inside argument resolution, several frames below any
+        # handler, so it had no voice: a document passed by name came back from
+        # a different path in silence, and the next command typed with the old
+        # path found nothing. Printed BEFORE the result, because it changed the
+        # meaning of the argument the result is about.
+        try:
+            from . import sources as _src
+            moved = _src.last_adoption()
+            if moved:
+                frm, to = moved
+                _emit(f"note: filed {frm.name} into its own folder — "
+                      f"{to.parent}{os.sep} (the one-folder-per-document layout "
+                      f"of the declared library root). Use that path from now "
+                      f"on; PDFDRILL_NO_AUTOFOLDER=1 or unset `library_root` "
+                      f"to keep documents where you put them.")
+        except Exception:                   # noqa: BLE001
+            pass
         if result:
             _emit(result)
         # A handler that has something to say about the exit status says it with

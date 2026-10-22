@@ -672,7 +672,19 @@ def adopt_into_doc_folder(pdf: Path, root: Path) -> Path:
     yet: then the move is a rename of a single file and there is no reference
     to break. Anywhere else — someone's Downloads folder, a working
     directory — nothing is ever moved.
+
+    THAT LAST SENTENCE WAS FALSE ON A FRESH MACHINE, and an audit on a
+    stranger's install caught it (2026-10-22). `library_root()` falls back to
+    `download_dir()`, which falls back to `Path.cwd()`, so with no `~/Downloads`
+    and no config the user's WORKING DIRECTORY was the library root: a PDF
+    passed by name to `pdfdrill size` — the cheapest, read-only probe — was
+    filed into `<stem>/` without a word. An INFERRED root is not permission to
+    reorganise it, so adoption now requires a DECLARED one, and when it does
+    move something it says so (`last_adoption`, which the CLI prints).
     """
+    from . import config as cfg
+    if not cfg.library_root_is_declared():
+        return pdf                                  # inferred root: hands off
     if pdf.parent.resolve() != Path(root).resolve():
         return pdf                                  # not ours to reorganise
     if pdf.parent.name == pdf.stem:
@@ -699,7 +711,26 @@ def adopt_into_doc_folder(pdf: Path, root: Path) -> Path:
         pdf.replace(target)
     except OSError:
         return pdf
+    # A MOVE THE USER DID NOT ASK FOR MUST BE REPORTED. It was silent, so a
+    # document passed by name came back from a different path with no mention of
+    # it — and the next command the user typed, with the old path, found nothing.
+    global _LAST_ADOPTION
+    _LAST_ADOPTION = (pdf, target)
     return target
+
+
+#: The last adoption this process performed, for the CLI to report. A module
+#: global because the move happens deep in argument resolution, several frames
+#: below anything that prints.
+_LAST_ADOPTION: "tuple[Path, Path] | None" = None
+
+
+def last_adoption() -> "tuple[Path, Path] | None":
+    """`(from, to)` of the move this process made, or None. Read once."""
+    global _LAST_ADOPTION
+    out = _LAST_ADOPTION
+    _LAST_ADOPTION = None
+    return out
 
 
 def pdf_in_folder(folder: Path) -> "Path | None":

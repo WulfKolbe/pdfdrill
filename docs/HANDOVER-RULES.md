@@ -419,6 +419,22 @@ Each of these cost real time or real data in this project.
     (`$XDG_STATE_HOME/pdfdrill`), the old path is still READ so nobody is
     re-blocked, and the docs say what it is: once per machine, 24 h.
 
+38. **An INFERRED location is not permission to reorganise it — and a move the
+    user did not ask for must be reported.** Rule 37's fallback again, one step
+    worse: `sources.adopt_into_doc_folder` files a loose PDF in the LIBRARY ROOT
+    into `<stem>/`, and its own docstring drew the boundary — "anywhere else —
+    someone's Downloads folder, a working directory — nothing is ever moved".
+    False on a fresh machine, because the root it compares against is
+    `library_root()` → `download_dir()` → `Path.cwd()`: with no `~/Downloads`
+    and no config the user's working directory WAS the library root, so
+    `pdfdrill size paper.pdf` — the cheapest read-only probe — filed their input
+    into a new folder without a word. Adoption now requires a DECLARED root, and
+    when it moves something the CLI says what went where, before the result,
+    because the move changed the meaning of the argument the result is about.
+    *A guard whose subject comes from a fallback chain is only as specific as
+    the weakest link in that chain* — and whatever a tool silently relocates,
+    the user's next command still carries the old path.
+
 ---
 
 ## 2. Environment facts that are not obvious
