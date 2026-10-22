@@ -105,7 +105,7 @@ def test_a_row_whose_centre_is_outside_every_box_is_text():
 
 def test_the_document_says_it_was_not_read():
     doc = G.assemble_geometry([(1, None, [])])
-    assert doc["source"] == "yolo-geometry"
+    assert doc["source"].endswith("-geometry")
     assert doc["geometry_only"] is True
     assert "NOT READ" in doc["ocr"]["words"]
     assert "gemmaocr" in doc["ocr"]["words"]
@@ -299,3 +299,17 @@ def test_a_row_the_detector_typed_says_ink_yolo(tmp_path):
     assert "ink" in kinds, (
         f"the row OUTSIDE the detector box must still say plain ink: {kinds}")
     assert "from the layout detector" in doc["ocr"]["types"]
+
+
+def test_the_source_names_the_half_that_actually_ran(tmp_path):
+    """Finding I, second half: `source` said `yolo-geometry` on a run whose own
+    lane line reported no layout detector. The field names the READER."""
+    png = _inked_page(tmp_path, BARS)
+    untyped = G.assemble_geometry([(1, png, [])])
+    assert untyped["source"] == "ink-geometry", (
+        f"no detector ran and source says {untyped['source']!r}")
+    typed = G.assemble_geometry(
+        [(1, png, [_det("isolate_formula", (50, 170, 350, 210))])],
+        detector="a test detector")
+    assert typed["source"] == "yolo-geometry", (
+        f"the detector typed a row and source says {typed['source']!r}")

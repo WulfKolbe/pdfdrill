@@ -13,8 +13,14 @@ import shutil
 import subprocess
 from pathlib import Path
 
-import img2pdf
 import pytest
+
+# img2pdf is the [scan] extra, not a base dependency. Imported at module level
+# it made the DOCUMENTED test command (`pytest tests/ -q`) exit 2 at COLLECTION
+# on a base install — four files, so the whole suite refused to run rather than
+# skipping what it cannot test. Found by an audit that installed pdfdrill the
+# way a stranger would. importorskip is the shape this repo already uses.
+img2pdf = pytest.importorskip("img2pdf")
 from PIL import Image, ImageDraw
 
 from pdfdrill.scandrill import handoff as ho

@@ -17,12 +17,15 @@ pdfdrill doctor            # confirm: present/missing tools + Python deps + keys
 Not on Debian/Ubuntu? `bootstrap.sh` prints the exact packages; install the
 equivalents, then `pip install -e .`.
 
-## Unlock the build commands (once per working directory)
+## Unlock the build commands (once per machine, for 24 hours)
 
 `size`, `route` and `doctor` answer immediately. **Every build/extract command —
 `model`, `report`, `inspect`, `md`, `drill`, … — is BLOCKED until you attest that
 you read the SKILL**, because pdfdrill output looks authoritative and is silently
-wrong when it is used without the usage rules. The gate is per working directory:
+wrong when it is used without the usage rules. One ack covers every directory
+on this machine for 24 hours — the marker is per-user state, not per-folder
+(before 2026-10-22 it was written into the download folder, or, when there was
+none, into whatever directory you happened to run from):
 
 ```bash
 pdfdrill preflight                            # prints the rules and where the SKILL is

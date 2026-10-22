@@ -133,8 +133,41 @@ def expected_token() -> str:
 # ── marker (attestation state) ───────────────────────────────────────────────
 
 def marker_dir() -> Path:
-    from . import config as cfg
+    """Where the attestation marker lives: STABLE PER-USER STATE.
+
+    It used to be `cfg.download_dir()`, which falls back to `~/Downloads` and
+    then to `Path.cwd()`. On a machine with no `~/Downloads` and no configured
+    download_dir — a fresh container, which is exactly where a stranger meets
+    pdfdrill — that means the marker is written into WHATEVER DIRECTORY the
+    command ran from. Found on a stranger's install (finding K, 2026-10-22): the
+    marker landed in an unrelated git repo's tree, and the attestation then did
+    not hold one directory later, so the gate re-blocked for no visible reason.
+
+    Two defects in one fallback: a tool writing state into a directory it was
+    merely invoked from, and an attestation whose scope depends on where you
+    stood. The gate asks "has something read the SKILL recently" — that is a
+    property of the user and the clock (it already carries a 24 h TTL), not of a
+    download folder and not of the cwd. So it goes where per-user state goes.
+    """
+    import os as _os
+    base = _os.environ.get("XDG_STATE_HOME")
+    for cand in ([Path(base)] if base else []) + [
+            Path.home() / ".local" / "state", Path.home() / ".cache"]:
+        try:
+            d = cand / "pdfdrill"
+            d.mkdir(parents=True, exist_ok=True)
+            return d
+        except OSError:
+            continue
+    from . import config as cfg               # last resort, as before
     return cfg.download_dir()
+
+
+def _legacy_marker_path() -> Path:
+    """Where the marker used to be. Still READ, never written: a machine that
+    attested before this moved must not be silently re-blocked."""
+    from . import config as cfg
+    return cfg.download_dir() / _MARKER_NAME
 
 
 def _marker_path() -> Path:
@@ -161,20 +194,25 @@ def is_attested() -> bool:
     env_tok = os.environ.get("PDFDRILL_PREFLIGHT_TOKEN")
     if env_tok and env_tok.strip() == expected_token():
         return True
-    try:
-        data = json.loads(_marker_path().read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return False
-    if data.get("token") != expected_token():
-        return False
-    return (time.time() - float(data.get("ts", 0))) < _TTL_SECONDS
+    for path in (_marker_path(), _legacy_marker_path()):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if data.get("token") != expected_token():
+            continue
+        if (time.time() - float(data.get("ts", 0))) < _TTL_SECONDS:
+            return True
+    return False
 
 
 def clear() -> None:
-    try:
-        _marker_path().unlink()
-    except OSError:
-        pass
+    """Both places, or `clear` would leave the legacy marker still attesting."""
+    for path in (_marker_path(), _legacy_marker_path()):
+        try:
+            path.unlink()
+        except OSError:
+            pass
 
 
 # ── gate ─────────────────────────────────────────────────────────────────────

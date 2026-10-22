@@ -405,12 +405,30 @@ Each of these cost real time or real data in this project.
     itself, and the bridge warns when nothing arrives) and the warning had to go
     out on the one channel every vintage renders.
 
+37. **A tool does not write state into a directory it was merely invoked from.**
+    The preflight marker lived in `cfg.download_dir()`, which falls back to
+    `~/Downloads` and then to `Path.cwd()`. On a box with no `~/Downloads` — a
+    fresh container, which is where a stranger meets pdfdrill — the attestation
+    was written into whatever directory the command ran from; an audit found it
+    deposited in an unrelated git repo's tree, and the gate then re-blocked one
+    directory later for no visible reason. Two defects in one fallback: the
+    stray write, and a scope that depended on where you stood. Four docs said
+    "per working directory" and the real behaviour was "per download folder",
+    which is normally one shared place — so the docs were accidentally right
+    only on the broken machine. The marker is per-USER state now
+    (`$XDG_STATE_HOME/pdfdrill`), the old path is still READ so nobody is
+    re-blocked, and the docs say what it is: once per machine, 24 h.
+
 ---
 
 ## 2. Environment facts that are not obvious
 
 **Preflight.** Build/extract commands are blocked until `pdfdrill preflight
---ack <TOKEN>`, per working directory. Automation sets `PDFDRILL_NO_PREFLIGHT=1`.
+--ack <TOKEN>`, once per machine for 24 h — the marker is per-user state
+(`$XDG_STATE_HOME/pdfdrill`, else `~/.local/state/pdfdrill`). It used to live in
+`download_dir()`, which falls back to the CWD, so on a box with no `~/Downloads`
+it was written into whatever directory the command ran from and the attestation
+did not hold one directory later. Automation sets `PDFDRILL_NO_PREFLIGHT=1`.
 
 **LgEval — invoked, never vendored.**
 
