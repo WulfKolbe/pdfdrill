@@ -38,7 +38,7 @@ cd pdfdrill
 PYTHONPATH=src python3 -m pdfdrill <command> <pdf> [args]
 # e.g.
 PYTHONPATH=src python3 -m pdfdrill size  paper.pdf
-# ONCE per working directory: build/extract commands are GATED until you ack
+# ONCE per machine (24 h): build/extract commands are GATED until you ack
 # the SKILL token. size/route/links/doctor stay open so you can always get here.
 PYTHONPATH=src python3 -m pdfdrill preflight             # the rules
 tail -3 src/pdfdrill/skill/SKILL.md                      # the DRILL-… token is the

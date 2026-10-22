@@ -57,7 +57,7 @@ pip install -e .                   # installs the `pdfdrill` console script
 pip install -r requirements.txt
 ```
 
-## First, unlock the build commands (once per working directory)
+## First, unlock the build commands (once per machine, 24 h)
 
 `size`, `route`, `links`, `doctor` and the other read-only commands answer
 immediately. **Everything that BUILDS — `model`, `report`, `inspect`, `md`,

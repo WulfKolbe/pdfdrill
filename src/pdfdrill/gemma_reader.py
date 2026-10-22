@@ -1201,6 +1201,11 @@ def assemble_geometry(pages: Iterable[tuple[int, Optional[Path], Sequence]], *,
     """The whole document's shape — the geometry-only counterpart of
     `assemble`."""
     out = {
+        # `source` NAMES THE READER, so it may not name a half that did not run.
+        # It was `yolo-geometry` unconditionally — on the untyped lane, over a
+        # document whose own lane line said no detector was available (finding I,
+        # second half). Set below, once the pages are in and the provenance of
+        # the lines says which halves actually contributed.
         "source": "yolo-geometry",
         "geometry_only": True,
         "ocr": {"lane": "geometry", "detector": detector,
@@ -1223,6 +1228,9 @@ def assemble_geometry(pages: Iterable[tuple[int, Optional[Path], Sequence]], *,
         "the `text` default, not a measurement. Set PDFDRILL_YOLO_PYTHON for "
         "the typed half of this lane.")
     out["ocr"]["geometry_kinds"] = sorted(k for k in kinds if k)
+    # The ink always runs (it is the lane's floor); the detector may not have.
+    if not (kinds & {"yolo", "ink-yolo"}):
+        out["source"] = "ink-geometry"
     return out
 
 
