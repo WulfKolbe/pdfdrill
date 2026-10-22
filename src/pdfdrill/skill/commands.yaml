@@ -497,7 +497,9 @@ commands:
     NOT RUN — the install cannot run it (no NumPy, so no free lane) or it costs money and `drill`
     never spends. In both cases there is no inspect.html, which is what `drill` promises, so a
     script can tell without parsing prose. Everything before the lane still ran, and the message
-    is the same as it ever was.'
+    is the same as it ever was. Also 3 when the inspect.html was written WITHOUT page images (no
+    Ghostscript): the file opens, the element tree works, and every box sits on a blank page —
+    the same promise unkept, so it reports the same way.'
   offline_ok: true
   positionals:
   - name: pdf
@@ -2375,7 +2377,10 @@ commands:
   summary: 'DevTools-style docmodel inspector HTML (<bibkey>.inspect.html): every DocObject as a
     hover/click box on the rendered page AND a DOM-like ELEMENTS tree + INSPECTOR pane (region/LaTeX/
     props/realizations/alignments) + reading-order REFLOW. Self-contained (embeds downscaled pages);
-    --no-images = boxes-only; --dpi N inlined-page DPI (default 120)'
+    --no-images = boxes-only; --dpi N inlined-page DPI (default 120). Page renders already in
+    <drill>/inspect/pages are REUSED (same document, same DPI, newer than the PDF), so a second run
+    costs no Ghostscript. Reports how many pages carry an image and EXITS 3 when none do — a box on a
+    blank page is a failed inspector, not a quieter one; --no-images asks for that and exits 0'
   offline_ok: true
   positionals:
   - name: pdf

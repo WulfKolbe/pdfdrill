@@ -2067,9 +2067,10 @@ def build_from_paths(
     page_filter: Optional[set] = None,
     ink_tree: Optional[dict] = None,
     ink_tables: Optional[dict] = None,
-) -> tuple[str, int, int, str]:
+) -> tuple[str, int, int, str, int]:
     """Reusable core behind the CLI and `pdfdrill inspect`: load the model,
-    resolve the image source, and return (html, n_pages, n_elements, mode).
+    resolve the image source, and return (html, n_pages, n_elements, mode,
+    n_pages_carrying_an_image).
     When `out` is given the html is also written there. No image source and no
     sibling viewer/pages → falls back to `embed` with missing PNGs (boxes-only,
     the tree/inspector still work), so it never hard-fails on a headless model."""
@@ -2129,7 +2130,13 @@ def build_from_paths(
                            if e.get("page") in page_filter)
     else:
         n_el = _n_elements(all_elements)
-    return html_doc, len(pages), n_el, mode
+    # HOW MANY PAGES ACTUALLY CARRY AN IMAGE. `prepare_pages` substitutes an
+    # empty src for every page whose PNG it cannot open, so a build with 40 of
+    # 319 pages rendered is indistinguishable from a complete one unless
+    # someone counts — and until 2026-10-22 nobody did: the caller's note fired
+    # only when the pages folder was missing altogether.
+    n_img = sum(1 for v in pages.values() if v.get("src"))
+    return html_doc, len(pages), n_el, mode, n_img
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -2158,12 +2165,12 @@ def main(argv: Optional[list[str]] = None) -> int:
             return 2
 
     out = args.out or (os.path.splitext(args.model)[0] + ".inspect.html")
-    doc, n_pages, n_el, mode = build_from_paths(
+    doc, n_pages, n_el, mode, n_img = build_from_paths(
         args.model, out=out, tiddlers=args.tiddlers, pages_dir=args.pages_dir,
         image_base=args.image_base, embed=args.embed, embed_dpi=args.embed_dpi,
         src_dpi=args.src_dpi, title=args.title, katex_dir=args.vendor_katex)
     print(f"Wrote {out} ({len(doc)//1024} KB) — {n_el} elements, "
-          f"{n_pages} pages, image mode: {mode}.")
+          f"{n_img} of {n_pages} pages with an image, image mode: {mode}.")
     return 0
 
 

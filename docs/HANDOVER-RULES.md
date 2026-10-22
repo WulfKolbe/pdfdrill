@@ -461,6 +461,28 @@ Each of these cost real time or real data in this project.
     check that cannot fail for a whole category is not a check for that
     category — rule 36 again, for exclusions instead of guards.
 
+41. **A docstring that describes behaviour nobody implemented is worse than no
+    docstring: it retires the question.** `_inspect_pages_dir` said "reusing any
+    already present" and "Never raises". It reused nothing and it raised.
+    `rasterize` calls `_require_gs()` as its first act, so the function asked
+    Ghostscript for permission BEFORE it looked at the directory it maintains: on
+    a machine without gs the RuntimeError fired first, `except RuntimeError`
+    returned None, and every render on disk was discarded. A ser7 clone produced
+    a 7,272,092-byte `BH1org.inspect.html` instead of 56,137,806 — the complete
+    element tree over 319 BLANK pages — while 319 correct `p{N}.png` sat in the
+    folder it had just given up on. The same blindness ran the other way with gs
+    present: every call re-rendered all 319 pages, 481 MB of PNG and 32 s of gs,
+    over byte-identical renders. It survived a month and an auditing session
+    because the sentence had already answered the question anyone would have
+    asked. *Write down what the code does, or write nothing; a claim in a
+    docstring is tested by nothing and believed by everyone.*
+    And its other half, rule 36 once more: an inspector whose every page is
+    blank is a FAILED build, not a quieter one. `prepare_pages` substitutes an
+    empty `src` per page it cannot find and counted nothing, so 40 rendered
+    pages of 319 read exactly like 319 of 319; `inspect` now counts the images
+    it shipped and exits 3 when there are none, because *a caller should not
+    have to parse prose to learn it got nothing.*
+
 ---
 
 ## 2. Environment facts that are not obvious

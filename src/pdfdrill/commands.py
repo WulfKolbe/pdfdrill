@@ -11061,21 +11061,103 @@ def cmd_report(pdf: Path, force: bool = False, embed: bool = False,
     return "\n".join(out)
 
 
+def _pages_on_disk(out: Path, pdf: Path, want: "list[int] | None",
+                   src_dpi: int) -> dict:
+    """{page: p{N}.png} of the renders in `out` that can be REUSED at `src_dpi`.
+
+    `{}` unless `out/manifest.json` names THIS document AND records exactly
+    `src_dpi`, on three grounds:
+
+      * `docinspect.prepare_pages` scales every render by embed_dpi/src_dpi, so
+        a page reused at the wrong DPI is embedded at the wrong size and its
+        boxes land beside the ink — worse than no image at all;
+      * the requested DPI is an input, not a preference, and the alias must
+        track the rasterizer rather than freeze at the DPI first used (the
+        2409.18839 defect: canonical 5100x6600, alias still 3400x4400);
+      * 819e — the manifest names the document its pages came from, because one
+        folder's crops once answered under another book's caption.
+
+    The manifest is the only record of what the folder holds and both renderers
+    write it (`inspect` here, `pdf2mmd.sh` there), so "no manifest" means
+    "re-render", never "assume the default".
+
+    A render OLDER than the PDF is stale and is not reused; the 1e-6 slack is
+    `model_io._fresh`'s, against filesystem timestamp granularity.
+    """
+    if not want:
+        return {}
+    try:
+        man = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(man, dict) or man.get("document") != pdf.stem:
+        return {}                                  # 819e: another document's pages
+    if int(man.get("dpi") or 0) != int(src_dpi):
+        return {}
+    try:
+        pdf_mtime = pdf.stat().st_mtime
+    except OSError:
+        return {}
+    found: dict = {}
+    for n in want:
+        q = out / f"p{n}.png"
+        try:
+            st = q.stat()
+        except OSError:
+            continue
+        if st.st_size > 0 and st.st_mtime >= pdf_mtime - 1e-6:
+            found[n] = q
+    return found
+
+
 def _inspect_pages_dir(pdf: Path, sc: "Sidecar", pages: str | None,
-                       src_dpi: int) -> tuple[Path | None, int]:
+                       src_dpi: int) -> tuple[Path | None, int, str]:
     """Rasterize page(s) into <drill>/inspect/pages as p{N}.png (the naming
-    docinspect reads), reusing any already present. Returns (dir, src_dpi) or
-    (None, src_dpi) when Ghostscript is unavailable — the inspector then renders
-    boxes-only (still a working tree/inspector). Never raises."""
+    docinspect reads), REUSING the renders already there. Returns (dir, the DPI
+    those images are at, reason); (None, src_dpi, reason) only when there is
+    nothing to show at all.
+
+    THE FOLDER IS READ BEFORE GHOSTSCRIPT IS ASKED, and it used to be the other
+    way round. `rasterize` calls `_require_gs()` as its first act, so on a
+    machine without gs the RuntimeError fired before this function ever looked
+    at the directory it maintains, `except RuntimeError` returned None, and
+    every render on disk was discarded: a ser7 clone produced a 7,272,092-byte
+    boxes-only BH1org.inspect.html at exit 0 over 319 page images that were
+    sitting right there (2026-10-22). The docstring said "reusing any already
+    present" the whole time, which is why nobody checked — it had retired the
+    question. The blindness ran the other way too: with gs present, every call
+    re-rendered all 319 pages (481 MB of PNG, 32 s of gs) over byte-identical
+    renders.
+
+    `reason` names what stopped a render, for the caller to report. A document
+    with no page images is a FAILED inspector, not a quieter one.
+    """
     import os
     from . import pdf_reading
     out = sc.blob_dir / "inspect" / "pages"
     out.mkdir(parents=True, exist_ok=True)
     page_list = pdf_reading.parse_pages(pages, getattr(sc, "page_count", None) or None)
+    # The CONCRETE list of pages wanted: `parse_pages` says None for "all", and
+    # a presence check needs names. The probe's count is free, pdfinfo (poppler,
+    # not gs) answers when it is absent, and 0 means we cannot enumerate — then
+    # render the lot, as before.
+    want = page_list
+    if want is None:
+        total = int(getattr(sc, "page_count", 0) or 0) or pdf_reading._page_count(pdf)
+        want = list(range(1, total + 1)) if total else None
+
+    have = _pages_on_disk(out, pdf, want, src_dpi)
+    if want is not None and len(have) == len(want):
+        _write_pages_manifest(out, pdf, src_dpi)   # refresh image_ids/coord
+        return out, src_dpi, ""                    # nothing left to render
+    missing = [n for n in want if n not in have] if want is not None else None
     try:
-        imgs = pdf_reading.rasterize(pdf, out, pages=page_list, dpi=src_dpi)
-    except RuntimeError:
-        return None, src_dpi                       # gs missing → boxes-only
+        imgs = pdf_reading.rasterize(pdf, out, pages=missing, dpi=src_dpi)
+    except RuntimeError as e:                      # gs missing
+        if have:
+            _write_pages_manifest(out, pdf, src_dpi)
+            return out, src_dpi, str(e)            # show the pages we do have
+        return None, src_dpi, str(e)
     # rasterize writes page-<NNNN>.png; docinspect wants p{N}.png — hardlink
     # (no extra bytes; copy fallback across filesystems).
     import re as _re
@@ -11099,7 +11181,7 @@ def _inspect_pages_dir(pdf: Path, sc: "Sidecar", pages: str | None,
             import shutil as _sh
             _sh.copyfile(img, target)
     _write_pages_manifest(out, pdf, src_dpi)
-    return out, src_dpi
+    return out, src_dpi, ""
 
 
 def _write_pages_manifest(out: Path, pdf: Path, dpi: int) -> None:
@@ -11206,9 +11288,10 @@ def cmd_inspect(pdf: Path, pages: str | None = None, embed: bool = True,
     if not model_path.exists():
         return f"No model for {pdf.name} (run `pdfdrill model` first)."
 
-    pages_dir = None
+    pages_dir, render_reason = None, ""
     if images and embed:
-        pages_dir, src_dpi = _inspect_pages_dir(pdf, sc, pages, src_dpi)
+        pages_dir, src_dpi, render_reason = _inspect_pages_dir(
+            pdf, sc, pages, src_dpi)
     # --pages restricts the whole inspector (elements + embedded page images), not
     # just which pages get rasterized — else a big doc always emits the full (14 MB)
     # HTML that chokes a reverse-proxy/drillui load.
@@ -11224,7 +11307,7 @@ def cmd_inspect(pdf: Path, pages: str | None = None, embed: bool = True,
     sc.blob_dir.mkdir(parents=True, exist_ok=True)
     out_path = sc.blob_dir / f"{bibkey}.inspect.html"
     try:
-        html_doc, n_pages, n_el, mode = docinspect.build_from_paths(
+        html_doc, n_pages, n_el, mode, n_img = docinspect.build_from_paths(
             str(model_path), out=str(out_path),
             tiddlers=str(tiddlers) if tiddlers.exists() else None,
             pages_dir=str(pages_dir) if pages_dir else None,
@@ -11256,7 +11339,41 @@ def cmd_inspect(pdf: Path, pages: str | None = None, embed: bool = True,
                 f"geometry), so the page-box view is empty — the element tree is "
                 f"in {rel}. For boxes, rebuild with geometry: `pdfdrill model "
                 f"{pdf.name} --force`.")
-    note = "" if mode != "embed" or pages_dir else " (boxes-only — no page images)"
+    # AN INSPECTOR WHOSE PAGES ARE ALL BLANK IS A FAILED BUILD.
+    #
+    # The point of this artifact is a DocObject box drawn ON the page it was
+    # read from. With no page images the tree still works and every box sits on
+    # nothing — and that was reported as success with the fact in a parenthesis
+    # inside a success sentence. Measured on ser7 (2026-10-22):
+    # BH1org.inspect.html at 7,272,092 bytes instead of 56,137,806, 319 of 319
+    # pages blank, exit 0. It is the same statement `drill` already makes with
+    # EXIT_LANE_NOT_RUN — the command promises a thing, there is none of it, and
+    # a caller should not have to parse prose to find that out.
+    #
+    # Only when images were ASKED for: `--no-images` requests boxes-only, and a
+    # request that is honoured is not a failure.
+    if images and embed and n_pages and n_img == 0:
+        from .cli import EXIT_LANE_NOT_RUN, Report
+        why = f"\n{render_reason}" if render_reason else (
+            "\nGhostscript renders every page image pdfdrill makes: install it "
+            "with `sudo apt-get install ghostscript`, or run `bash bootstrap.sh`.")
+        return Report(
+            f"{pdf.name}: the inspector has 0 of {n_pages} page images, so every "
+            f"box sits on a blank page.{why}\nThe element tree ({n_el} elements) "
+            f"was still written to {rel} \u2014 then run `pdfdrill inspect "
+            f"{pdf.name}` again for the pages.",
+            EXIT_LANE_NOT_RUN)
+    # A COUNT PRINTED NEXT TO A FILE MUST BE A COUNT OF THAT FILE (finding J,
+    # again). `prepare_pages` substitutes an empty src per page it cannot find,
+    # so 40 rendered pages of 319 read exactly like 319 of 319: the old note
+    # fired only when `pages_dir` was None, and nothing ever counted the images.
+    if images and embed and n_img < n_pages:
+        note = (f" — {n_img} of {n_pages} pages carry an image, "
+                f"{n_pages - n_img} missing")
+        if render_reason:
+            note += f" ({render_reason})"
+    else:
+        note = "" if mode != "embed" or pages_dir else " (boxes-only — no page images)"
     return (f"Docmodel inspector: {n_el} elements over {n_pages} page(s){note}. "
             f"Open {rel} in a browser (hover the tree to highlight boxes; click "
             f"an element for its full record).")

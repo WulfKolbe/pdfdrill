@@ -150,7 +150,7 @@ def test_build_from_paths_still_works_on_a_translated_model():
     with tempfile.TemporaryDirectory() as d:
         mp = Path(d) / "model.docmodel.json"
         mp.write_text(json.dumps(m), encoding="utf-8")
-        doc, _pages, n_el, _mode = docinspect.build_from_paths(str(mp), embed=True)
+        doc, _pages, n_el, _mode, _n_img = docinspect.build_from_paths(str(mp), embed=True)
         assert n_el == 1 and 'id="langSel"' in doc
 
 

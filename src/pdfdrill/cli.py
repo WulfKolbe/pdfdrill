@@ -2449,6 +2449,20 @@ def _do_drill(args):
                      f"run, so this document has no reading and no "
                      f"inspect.html. Everything above it did run.)")
         return Report("\n".join(lines), EXIT_LANE_NOT_RUN)
+    # THE SAME PROMISE UNKEPT ONE LEVEL DOWN (rule 41). `drill` ends with an
+    # inspect.html; `inspect` carries EXIT_LANE_NOT_RUN when that file has no
+    # page images, which makes every box sit on a blank page. A caller should
+    # not have to read the inspect section to find that out, any more than it
+    # should have to read the lane note.
+    insp = 0
+    for _n, _o in tail:
+        if _n == "inspect":
+            insp = getattr(_o, "exit_code", 0)
+    if insp:
+        lines.append(f"\n(exit {insp}: the inspect.html was written without page "
+                     f"images \u2014 see the inspect section above for the one fix. "
+                     f"Everything else did run.)")
+        return Report("\n".join(lines), insp)
     return "\n".join(lines)
 
 
