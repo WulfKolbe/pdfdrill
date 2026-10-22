@@ -75,6 +75,26 @@ def download_dir() -> Path:
     return dl if dl.is_dir() else Path.cwd()
 
 
+def library_root_is_declared() -> bool:
+    """Is the library root CONFIGURED, or merely inferred?
+
+    It matters because `sources.adopt_into_doc_folder` MOVES a loose PDF that
+    sits in the library root, and `library_root()` falls back to
+    `download_dir()`, which falls back to `Path.cwd()`. On a machine with no
+    `~/Downloads` and no config — a fresh container — the user's WORKING
+    DIRECTORY silently became the library root, so a PDF they passed by name was
+    filed into `<stem>/` as if they had asked for it. The adoption docstring
+    promises the opposite in as many words: "Anywhere else — someone's Downloads
+    folder, a working directory — nothing is ever moved."
+
+    An inferred root is not a statement that pdfdrill may reorganise it.
+    """
+    try:
+        return bool(get("library_root") or get("download_dir"))
+    except Exception:                                        # noqa: BLE001
+        return False
+
+
 def library_root() -> Path:
     """The git repo that holds one self-contained folder per drilled doc (the
     LIBRARY). `add`/downloads place a doc at `<library_root>/<stem>/<stem>.pdf`.

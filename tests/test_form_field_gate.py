@@ -45,11 +45,29 @@ pytestmark = pytest.mark.skipif(shutil.which("pdflatex") is None,
 
 
 def _build(tmp_path: Path, body: str, name: str) -> Path:
+    """Compile `body`, and SAY SO IF PDFLATEX FAILED.
+
+    It used to return the path without looking, so a build that produced
+    nothing surfaced one frame later as `could not read form: [Errno 2] No such
+    file or directory: good.pdf` — which names neither pdflatex nor a reason.
+    Seen once in a full suite run while another session was saturating the
+    machine (load 19, and this file's own 300 s timeout is generous enough that
+    contention is the likely story). Twenty minutes went into finding out that
+    the compiler had simply not run; the log was on disk the whole time.
+    """
     tex = tmp_path / f"{name}.tex"
     tex.write_text(DOC % body, encoding="utf-8")
-    subprocess.run(["pdflatex", "-interaction=nonstopmode", tex.name],
-                   cwd=tmp_path, capture_output=True, timeout=300)
-    return tmp_path / f"{name}.pdf"
+    r = subprocess.run(["pdflatex", "-interaction=nonstopmode", tex.name],
+                       cwd=tmp_path, capture_output=True, timeout=300)
+    pdf = tmp_path / f"{name}.pdf"
+    if not pdf.is_file():
+        log = tmp_path / f"{name}.log"
+        tail = log.read_text(errors="replace")[-1500:] if log.is_file() \
+            else (r.stdout or b"").decode(errors="replace")[-1500:]
+        raise AssertionError(
+            f"pdflatex produced no {name}.pdf (exit {r.returncode}). This is "
+            f"the BUILD failing, not the thing under test:\n{tail}")
+    return pdf
 
 
 def test_gate_passes_when_the_form_environment_is_present(tmp_path):
