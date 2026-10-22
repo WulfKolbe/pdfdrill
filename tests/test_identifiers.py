@@ -7,6 +7,8 @@ them over DocGraph + the features extractors.
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from pdfdrill import identifiers as idn
@@ -71,6 +73,10 @@ def test_resolve_authors_against_reference():
 
 
 def test_resolve_authors_tolerates_ocr_typo():
+    # `resolve_authors` degrades to exact, case-insensitive matching without
+    # rapidfuzz — documented, and it cannot tolerate a typo. The test is about
+    # the fuzzy path.
+    pytest.importorskip("rapidfuzz", reason="tolerating a typo IS rapidfuzz")
     res = idn.resolve_authors(["Qintong Zhng", "Bin Wnag"],   # OCR typos
                               ["Qintong Zhang", "Bin Wang"])
     assert res["confirmed"] == 2                              # both still resolved

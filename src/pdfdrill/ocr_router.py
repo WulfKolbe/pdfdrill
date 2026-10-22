@@ -122,7 +122,8 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
                  scanned_images: Optional[bool] = None,
                  arxiv_source: Optional[bool] = None,
                  keys: Optional[frozenset] = None,
-                 detector: Optional[bool] = None) -> RouteDecision:
+                 detector: Optional[bool] = None,
+                 ink: Optional[bool] = None) -> RouteDecision:
     """Pick the lane. PURE — see the module docstring for the contract.
 
     `scanned_images` (from `is_scanned_page_images`) overrides a text layer that
@@ -133,7 +134,10 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
     `arxiv_source` — the document is an arXiv e-print, so the author's LaTeX is
     free (downloaded once, cached). `keys` — the reading keys present
     (`keys_present()`). `detector` — whether the layout detector is installed,
-    which is what makes lane 5 worth offering.
+    which is what TYPES lane 5's lines. `ink` — whether the ink half can run at
+    all (`ink_available()`, i.e. NumPy), which is what FINDS them; `None` asks
+    the install. The two are not interchangeable: no detector is a weaker lane,
+    no ink is no lane.
 
     Every optional argument defaults to the ANSWER THAT ASSUMES LEAST: no
     source, no keys, no detector. A caller that knows nothing is told to use
@@ -208,6 +212,32 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
                        f"reading that is left, and it is the richest one",
                 command="pdfdrill mathpix <pdf>   (PAID)",
                 cost="paid")
+        # THE INK IS THE LANE'S FLOOR, AND THE CHECK WAS IN THE WRONG PLACE.
+        # 905p put it inside `if detector is False`, so it only ran on the
+        # install that had neither half. With the detector present and NumPy
+        # absent — which is exactly a `pip install -e .` that predates numpy
+        # becoming a base dep, on a machine whose detector is a separate
+        # interpreter — the route fell through to the branch below and promised
+        # "a box and a type" on every line. Measured on hilbert10 in a
+        # numpy-free venv: route said `[free]`, `drill` rendered 10 PNGs
+        # (8.58 MB) and then died in the ink with exit 0 and no lines.json.
+        #
+        # The halves are not symmetric: the ink FINDS the lines, the detector
+        # TYPES them. No detector is a weaker lane; no ink is NO LANE, whatever
+        # the detector can do. So the ink is asked first, for both branches.
+        if (ink_available() if ink is None else ink) is False:
+            return RouteDecision(
+                lane="geometry",
+                reason=f"a scan with no text layer, no author's source and no "
+                       f"reading key, {pc or '?'} pages — and no NumPy, which "
+                       f"is the geometry lane's ink half (it FINDS the lines; "
+                       f"the detector only types them), so there is no free "
+                       f"lane on this install",
+                command="`pip install numpy` (it is a BASE dependency — re-run "
+                        "`pip install -e .` or `bash bootstrap.sh`), or set "
+                        "MAKORA_API_KEY (metered, cheapest) or "
+                        "MATHPIX_APP_ID/KEY (`pdfdrill doctor`)",
+                cost="none")
         if detector is False:
             # MEASURED, after the first version of this branch said "there is no
             # free lane on this install" and `drill` then produced 355 boxed
@@ -216,20 +246,7 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
             # What it loses is the TYPES — every line comes out `text`, so a
             # figure is ink rows rather than one object. That is a weaker lane,
             # not an absent one, and the honest answer is to say which half is
-            # missing. `cost="none"` is kept for the install where even the ink
-            # cannot be had.
-            if ink_available() is False:
-                return RouteDecision(
-                    lane="geometry",
-                    reason=f"a scan with no text layer, no author's source and "
-                           f"no reading key, {pc or '?'} pages — and neither "
-                           f"the layout detector nor NumPy, so there is no free "
-                           f"lane on this install",
-                    command="set MAKORA_API_KEY (metered, cheapest) or "
-                            "MATHPIX_APP_ID/KEY, or `pip install numpy` for the "
-                            "ink-only geometry lane and PDFDRILL_YOLO_PYTHON "
-                            "for its types (`pdfdrill doctor`)",
-                    cost="none")
+            # missing.
             return RouteDecision(
                 lane="geometry",
                 reason=f"a scan with no text layer, no author's source and no "
@@ -393,7 +410,8 @@ def route_for_sidecar(sc) -> RouteDecision:
         scanned_images=scanned,
         arxiv_source=arxiv_source_for(sc.pdf_path, sc),
         keys=keys_present(),
-        detector=detector_available())
+        detector=detector_available(),
+        ink=ink_available())
 
 
 # ---------------------------------------------------------------------------

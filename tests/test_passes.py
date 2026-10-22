@@ -153,6 +153,12 @@ def test_citation_pass_builds_bibliography_from_source():
 
 
 def test_real_math_pass_through_pipeline():
+    # `mathlayer` imports SymPy to say whether it is available at all, so the
+    # graceful-degradation branch below cannot be reached without it: the test
+    # raised ModuleNotFoundError on the documented install instead of skipping.
+    import pytest
+    pytest.importorskip("sympy", reason="the math pass IS the SymPy tree "
+                                        "(`pip install 'pdfdrill[math]'`)")
     from passes import PassContext, run_pipeline
     from mathlayer import parse as mlparse
     fo = _o("f1", "Formula", latex=r"\frac{x^2+1}{2}")

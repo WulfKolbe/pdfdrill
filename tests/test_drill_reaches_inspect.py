@@ -13,7 +13,14 @@ built the model itself (79 equations, 50 paragraphs) and wrote a 1.6 MB
 inspect.html with 133 elements. So the gate was not merely wrong, it was
 unnecessary: the condition is "a READING exists", not "a model exists".
 """
+import sys
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from pdfdrill import cli, commands, ocr_router as R      # noqa: E402
+from pdfdrill.sidecar import Sidecar                     # noqa: E402
 
 
 def test_the_gate_asks_whether_a_reading_exists_not_whether_a_model_does():
@@ -42,3 +49,93 @@ def test_drills_promise_still_says_it_ends_with_an_inspect_html():
     assert "Ends with an inspect.html" in y, (
         "drill no longer promises an inspect.html; if that is deliberate, the "
         "geometry-lane fix and this test need revisiting together")
+
+
+# --------------------------------------------------------------------------- #
+#  …and the same three tests again, as BEHAVIOUR.
+#
+#  An auditing session (finding E) pointed out that everything above greps
+#  `cli.py` for a variable name. That holds the shape of the fix in place and
+#  proves nothing about what `drill` does: rename `_has_reading` and the tests
+#  fail while the behaviour is fine; break the dispatch around it and they
+#  pass while `drill` produces no inspect.html again — which is the exact
+#  defect they were written for.
+#
+#  The real thing costs 53 s (measured: hilbert1902, 10 pages, the geometry
+#  lane). What the GATE needs is not the lane: it is a lines.json on disk and
+#  no model. So the lane is stubbed and the question asked directly.
+# --------------------------------------------------------------------------- #
+
+def _seed_scan(tmp_path) -> Path:
+    pdf = tmp_path / "scan.pdf"
+    pdf.write_bytes(b"%PDF-1.7 not-a-real-pdf\n%%EOF\n")
+    sc = Sidecar(pdf)
+    sc.set_evidence("pages", 10)
+    sc.set_evidence("text_layer", False)
+    sc.set_evidence("needs_ocr", True)
+    for fact in (commands.SIZE_KNOWN, commands.FONTS_KNOWN,
+                 commands.ABSTRACT_ABSENT, commands.TOC_ABSENT):
+        sc.add_fact(fact)
+    sc.save()
+    return pdf
+
+
+def _stub_tail(monkeypatch, reached):
+    for name in ("cmd_geometry", "cmd_inspect"):
+        monkeypatch.setattr(commands, name,
+                            (lambda n: lambda *a, **k: reached.append(n) or "")(name))
+
+
+def test_the_geometry_lane_actually_reaches_inspect(tmp_path, monkeypatch):
+    """The defect, as behaviour: a lines.json and no model must still reach it."""
+    pdf = _seed_scan(tmp_path)
+    reached: list[str] = []
+    lines_json = commands._lines_json_path(pdf)
+
+    def fake_lane(*a, **k):
+        lines_json.parent.mkdir(parents=True, exist_ok=True)
+        lines_json.write_text('{"pages": [{"lines": []}]}', encoding="utf-8")
+        return "stub geometry reading"
+
+    monkeypatch.setattr(commands, "cmd_gemmaocr", fake_lane)
+    monkeypatch.setattr(R, "ink_available", lambda: True)
+    monkeypatch.setenv("PDFDRILL_SANDBOX", "1")
+    monkeypatch.setenv("PDFDRILL_NO_PREFLIGHT", "1")
+    _stub_tail(monkeypatch, reached)
+    out = cli._do_drill([str(pdf)])
+    assert reached == ["cmd_geometry", "cmd_inspect"], (
+        f"drill did not reach the inspector on the geometry lane: {reached!r}")
+    assert "inspect" in out
+
+
+def test_a_named_but_unrun_paid_lane_reaches_nothing(tmp_path, monkeypatch):
+    """The other side of the same gate: nothing on disk, so no inspector of
+    nothing. Driven by giving the install a MathPix key and no free lane."""
+    pdf = _seed_scan(tmp_path)
+    reached: list[str] = []
+    monkeypatch.setattr(R, "keys_present", lambda: frozenset({R.MATHPIX_KEY}))
+    monkeypatch.setenv("PDFDRILL_NO_PREFLIGHT", "1")
+    _stub_tail(monkeypatch, reached)
+    out = cli._do_drill([str(pdf)])
+    assert reached == [], f"drill inspected a document it never read: {reached!r}"
+    assert "NOT RUN by `drill`" in out and "costs money" in out
+
+
+def test_no_inspect_still_stops_at_geometry(tmp_path, monkeypatch):
+    """`--no-inspect` is the one documented way to get the tail without it."""
+    pdf = _seed_scan(tmp_path)
+    reached: list[str] = []
+    lines_json = commands._lines_json_path(pdf)
+
+    def fake_lane(*a, **k):
+        lines_json.parent.mkdir(parents=True, exist_ok=True)
+        lines_json.write_text('{"pages": [{"lines": []}]}', encoding="utf-8")
+        return ""
+
+    monkeypatch.setattr(commands, "cmd_gemmaocr", fake_lane)
+    monkeypatch.setattr(R, "ink_available", lambda: True)
+    monkeypatch.setenv("PDFDRILL_SANDBOX", "1")
+    monkeypatch.setenv("PDFDRILL_NO_PREFLIGHT", "1")
+    _stub_tail(monkeypatch, reached)
+    cli._do_drill([str(pdf), "--no-inspect"])
+    assert reached == ["cmd_geometry"], f"--no-inspect was not honoured: {reached!r}"

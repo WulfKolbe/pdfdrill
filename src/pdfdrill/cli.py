@@ -45,6 +45,32 @@ def _reassemble_spaced_path(rest: list) -> list:
     return rest
 
 
+#: `drill` reported a lane and did not run it. The owner's decision (2026-10-21):
+#: non-zero for BOTH cases — no free lane on this install, and a paid lane named
+#: and deliberately not run. The reasoning is the same for both: the command
+#: promises "ends with an inspect.html you can open", and in neither case is
+#: there one. A planner that reports an unrunnable route and exits 0 cannot be
+#: tested by a script, and every caller has to parse prose to find out whether
+#: it got a reading. The MESSAGE is unchanged; only the status is new.
+EXIT_LANE_NOT_RUN = 3
+
+
+class Report(str):
+    """A handler's output that also carries the process exit code.
+
+    A `str` subclass on purpose: every handler returns prose, `main` prints it
+    and returns 0, and nothing in that path should have to change for one
+    command to carry a status. `_emit(result)` prints this exactly as before;
+    only `main`'s return value reads the extra attribute.
+    """
+    exit_code = 0
+
+    def __new__(cls, text: str, exit_code: int = 0):
+        obj = super().__new__(cls, text)
+        obj.exit_code = int(exit_code)
+        return obj
+
+
 def main():
     args = sys.argv[1:]
 
@@ -131,7 +157,9 @@ def main():
         result = HANDLERS[cmd](rest)
         if result:
             _emit(result)
-        return 0
+        # A handler that has something to say about the exit status says it with
+        # a `Report`; everything else is a plain str and still exits 0.
+        return getattr(result, "exit_code", 0)
     except Exception as e:
         # Name the exception TYPE (a bare "No such file …" hides that it's a
         # FileNotFoundError from deep in a handler); PDFDRILL_DEBUG=1 prints the
@@ -532,11 +560,23 @@ def _do_preflight(args):
     lines.append("env: " + ("all core Python deps present"
                             if not miss else f"MISSING core deps: {', '.join(miss)} "
                             f"— run `pdfdrill doctor` / `bash bootstrap.sh`"))
+    # WHERE the SKILL is, not just that there is one. The old text said "read
+    # SKILL.md to the END" and left the reader to find it, while QUICKSTART
+    # said this command "prints the rules and where the SKILL is" — it did not
+    # (an auditing session, finding H). It matters more than it looks: the
+    # token is a hash of ONE file, pdfdrill prefers its BUNDLED copy over the
+    # repo's, and a reader who attests from the other copy gets "wrong token"
+    # with nothing to go on.
+    _sk = pf.skill_path()
     lines += [
         "",
-        "TO PROCEED: read SKILL.md to the END. The token is the `DRILL-…` line just",
-        "before the `PREFLIGHT-TOKEN:END` marker — `tail -1` returns the marker,",
-        "so the token is the line above it. Then:",
+        "TO PROCEED: read the SKILL to its END —",
+        f"  {_sk}" if _sk else "  (no SKILL.md found beside this install — "
+                               "`pdfdrill skill --check`)",
+        "The token is the `DRILL-…` line just before the `PREFLIGHT-TOKEN:END`",
+        "marker — `tail -1` returns the marker, so the token is the line above",
+        f"it (`tail -3 {_sk}` shows both)." if _sk else "it.",
+        "",
         "then run:  pdfdrill preflight --ack <TOKEN>",
         "Build/extract commands (model, mathpix, latex, tiddlers, …) are BLOCKED",
         "until you do. Read-only commands (size, pdfinfo, doctor, status) are open.",
@@ -2313,7 +2353,22 @@ def _do_drill(args):
 
     # Phase 3 — the reading, and only a FREE one. `model` takes the
     # born-digital and source lanes itself; the paid lanes it names.
-    if dec.lane == "geometry":
+    lane_not_run = False
+    if dec.lane == "geometry" and dec.cost == "none":
+        # `cost="none"` ON THE GEOMETRY LANE MEANS THERE IS NO LANE. The lane
+        # is named because it is the one that WOULD read this document, not
+        # because this install can run it (the ink half, NumPy, is missing).
+        # Dispatching on the lane alone ran it anyway: measured on hilbert10 in
+        # a numpy-free venv, `drill` rendered 10 PNGs (8.58 MB) into
+        # gemmaocr/pages/, died in the ink, and still exited 0. Rendering for a
+        # reading that cannot happen is the same defect as buying one that was
+        # not asked for — work the user did not get anything for. So it is
+        # NAMED, exactly as a paid lane is, and not run.
+        lane_note += ("\n  NOT RUN by `drill`: this install cannot run the "
+                      "lane. Nothing was rendered and nothing was read — do "
+                      "what the line above says, then `pdfdrill drill` again.")
+        lane_not_run = True
+    elif dec.lane == "geometry":
         # The keyless scan lane. It reads no words, so `model` is not its
         # consumer — a model keeps what has prose, and a 273-line page map
         # comes out as ten empty Paragraphs. The report says what the
@@ -2328,6 +2383,7 @@ def _do_drill(args):
         lane_note += (f"\n  NOT RUN by `drill`: this lane costs money. Run the "
                       f"command above when you want it, then `pdfdrill drill` "
                       f"again — everything after it is free.")
+        lane_not_run = True
 
     # Phase 4 — the geometry the reading could not give, and the inspector.
     # `--layout` is offline; without the detector it is a one-line note.
@@ -2370,6 +2426,11 @@ def _do_drill(args):
     lines.append("")
     lines.append(_timed("status", lambda: cmd_status(pdf)))
     lines.append(_format_timings(timings, pdf))
+    if lane_not_run:
+        lines.append(f"\n(exit {EXIT_LANE_NOT_RUN}: a lane was reported and not "
+                     f"run, so this document has no reading and no "
+                     f"inspect.html. Everything above it did run.)")
+        return Report("\n".join(lines), EXIT_LANE_NOT_RUN)
     return "\n".join(lines)
 
 

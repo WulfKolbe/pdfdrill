@@ -166,6 +166,56 @@ async function uiVersion(): Promise<string> {
 }
 await uiVersion();          // before any WS can connect
 
+// ---- IS THE SIBLING UI THE ONE THIS BRIDGE SPEAKS TO? ----------------------
+//
+// The stale-tab guard above is BLIND EXACTLY WHEN IT MATTERS MOST. It works by
+// stamping `__DRILLUI_UI_VERSION__` into the page and comparing it in `hello` —
+// so a page too old to CONTAIN that placeholder gets no stamp, the client's
+// `msg.uiVersion && window.__DRILLUI_UI_VERSION && …` is false, and the stale
+// UI runs in silence. Reported from a real session (2026-10-22): "I see the
+// full UI, but I can not enter anything", no connection chip, the REPL banner
+// and history present. The protocol was fine end to end; the page was a
+// pre-`#cmdline` copy (June, 26-31 KB) that drove xterm's own stdin, so there
+// was literally no element to type into — and three such copies sit on this
+// machine next to their own bridges (DRILLUI.md: "there is exactly ONE
+// canonical copy", enforced by nothing).
+//
+// So the bridge CHECKS the page it is about to serve against the markers this
+// protocol needs, says so in the banner, and — because a UI this old may never
+// run our JS at all — injects a plain-HTML notice into the served page. No
+// script, no xterm, no WebSocket required to see it.
+// `test` is a REGEX, not a substring. The first version matched `id="conn"`
+// literally and reported it missing from a page that carried `id='conn'` —
+// a check that fails on the QUOTING STYLE would send someone hunting for an
+// element that is right there.
+const UI_CONTRACT: Array<{ marker: string; test: RegExp; why: string }> = [
+  { marker: "__DRILLUI_UI_VERSION__", test: /__DRILLUI_UI_VERSION__/,
+    why: "the stale-tab stamp — without it this page can never be TOLD it is out of date" },
+  { marker: 'id="cmdline"', test: /id\s*=\s*["']cmdline["']/,
+    why: "the native command line the current editor reads; a UI without it has nothing to type into" },
+  { marker: 'id="conn"', test: /id\s*=\s*["']conn["']/,
+    why: "the connection chip that shows whose turn it is" },
+];
+let UI_MISSING: Array<{ marker: string; test: RegExp; why: string }> = [];
+try {
+  const uiText = await Bun.file(HTML_PATH).text();
+  UI_MISSING = UI_CONTRACT.filter((c) => !c.test.test(uiText));
+} catch { /* the 404 branch already covers an absent file */ }
+
+/** The plain-HTML notice injected when the sibling UI fails the contract. */
+function uiMismatchBanner(): string {
+  const items = UI_MISSING.map(
+    (c) => `<li><code>${c.marker.replace(/</g, "&lt;")}</code> — ${c.why}</li>`).join("");
+  return `<div style="all:initial;display:block;position:fixed;inset:0 0 auto 0;z-index:2147483647;`
+    + `background:#cc241d;color:#fff;font:14px/1.5 ui-monospace,Menlo,Consolas,monospace;padding:14px 18px">`
+    + `<strong>drillui: this page is NOT the UI this bridge speaks to.</strong><br>`
+    + `The bridge is serving <code>${HTML_PATH}</code>, which is missing:`
+    + `<ul style="margin:6px 0 6px 18px">${items}</ul>`
+    + `Nothing you type will reach the REPL. Launch the canonical copy instead:<br>`
+    + `<code>cd &lt;the pdfdrill repo&gt; &amp;&amp; bun tools/drillui_bridge.ts</code>`
+    + `</div>`;
+}
+
 // BUILD REVISION — which CODE is running, as opposed to which page is served.
 //
 // `uiVersion` hashes drillui_term.html, so it answers "is this tab's JS
@@ -803,7 +853,31 @@ type Session = {
   closed: boolean;
   lastInput: string;      // last line forwarded to the REPL (to detect `pyramid`)
   viewerAnnounced: boolean; // sent the client a `viewer` message yet?
+  identified: boolean;    // the tab sent its `client` message (see below)
 };
+
+//: How long to wait for a tab to identify itself before assuming it cannot.
+const CLIENT_HELLO_MS = 2500;
+
+/** The warning pushed INTO THE TERMINAL for a tab that never identified itself.
+ *
+ * `no-store` stops HTTP caching but does nothing to a tab that was ALREADY
+ * OPEN — it keeps running its old JS and reconnects happily. The version guard
+ * cannot catch the worst version of that, because a page old enough to lack the
+ * stamp compares `undefined` and stays quiet. So the bridge watches for the
+ * `client` message instead: silence is itself the signal, and the warning goes
+ * out as terminal OUTPUT, which every drillui vintage renders (the reporting
+ * session could see the REPL banner and its own history perfectly well — it
+ * simply had nothing to type into).
+ */
+const STALE_TAB_WARNING =
+  "\r\n\x1b[48;2;204;36;29m\x1b[1m  THIS TAB IS RUNNING AN OLD drillui  \x1b[0m\r\n"
+  + "\x1b[38;2;251;73;52mIt never identified itself to the bridge, so its JavaScript predates\r\n"
+  + "the current UI. If the command line does nothing, that is why: older\r\n"
+  + "builds had no `#cmdline` element at all.\r\n"
+  + "  Reload with Ctrl-Shift-R (a plain reload may reuse the open page).\r\n"
+  + "  Still inert? You are serving a stale drillui_term.html — launch the\r\n"
+  + "  canonical one:  cd <the pdfdrill repo> && bun tools/drillui_bridge.ts\x1b[0m\r\n";
 
 const PROMPT_TAIL = "\n? ";   // exactly what drillui_chat's input("\n? ") emits
 
@@ -820,7 +894,15 @@ function spawnSession(ws: any): Session {
     stderr: "pipe",
     env: { ...process.env, PYTHONUNBUFFERED: "1", TERM: "dumb" },
   });
-  const sess: Session = { proc, out: "", closed: false, lastInput: "", viewerAnnounced: false };
+  const sess: Session = { proc, out: "", closed: false, lastInput: "",
+                          viewerAnnounced: false, identified: false };
+  setTimeout(() => {
+    if (!sess.closed && !sess.identified) {
+      send(ws, { type: "output", data: STALE_TAB_WARNING });
+      console.error("  !! a tab connected without identifying itself — it is "
+        + "running an OLD drillui (warned in its terminal)");
+    }
+  }, CLIENT_HELLO_MS);
 
   // stdout: accumulate until drillui's "\n? " prompt, then flush the turn body
   // (prompt stripped) and signal "ready". A short debounce guards the rare case
@@ -1170,9 +1252,18 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
       // "the old view with wrong behaviour" (commands silently mis-routed).
       // The client compares this stamp against the one in `hello` and reloads
       // itself once on mismatch.
-      const html = (await file.text())
+      let html = (await file.text())
         .replaceAll("__DRILLUI_UI_VERSION__", await uiVersion())
         .replaceAll("__DRILLUI_BUILD_REV__", BUILD_REV);
+      if (UI_MISSING.length) {
+        // Right after <body> so it paints before any script runs — and if this
+        // page has no <body> tag at all, in front of everything.
+        const banner = uiMismatchBanner();
+        const i = html.search(/<body[^>]*>/i);
+        html = i < 0 ? banner + html
+                     : html.slice(0, i) + html.match(/<body[^>]*>/i)![0] + banner
+                       + html.slice(i + html.match(/<body[^>]*>/i)![0].length);
+      }
       return new Response(html, { headers: {
         "content-type": "text/html; charset=utf-8",
         "cache-control": "no-store, must-revalidate",
@@ -1212,6 +1303,17 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
       if (!sess || sess.closed) return;
       let msg: any;
       try { msg = JSON.parse(String(raw)); } catch { return; }
+      if (msg.type === "client") {
+        // The tab identified itself. A stamp that disagrees with ours is
+        // handled by the client's own reload latch; what matters here is that
+        // it SPOKE, so the silence timer must not fire.
+        sess.identified = true;
+        if (msg.uiVersion && _uiVer && msg.uiVersion !== _uiVer) {
+          console.error(`  note: a tab reported ui ${msg.uiVersion}, we serve `
+            + `${_uiVer} — it reloads itself once`);
+        }
+        return;
+      }
       if (msg.type === "input" && typeof msg.data === "string") {
         // `add <doc>` from an arbitrary dir → register that dir so its PDF +
         // .drill artifacts are servable (mirrors the ~ expansion drillui_chat does).
@@ -1304,6 +1406,20 @@ if (host === "0.0.0.0" || host === "::") {
 }
 if (staticServer) console.error(`  static artifacts → http://localhost:${staticServer.port}/ (CoCalc route)`);
 console.error(`  build: ${BUILD_REV}   ui: ${_uiVer}`);
+// WHICH page, not just which hash. "Which UI am I looking at" was unanswerable
+// from the banner, and it is the first question when the browser looks wrong.
+try {
+  const st = statSync(HTML_PATH);
+  console.error(`  ui file: ${HTML_PATH}  (${st.size} bytes, ${
+    new Date(st.mtimeMs).toISOString().slice(0, 16).replace("T", " ")})`);
+} catch { console.error(`  ui file: ${HTML_PATH}  (MISSING)`); }
+if (UI_MISSING.length) {
+  console.error(`  !! THIS UI DOES NOT MATCH THIS BRIDGE — missing ${
+    UI_MISSING.map((c) => c.marker).join(", ")}`);
+  for (const c of UI_MISSING) console.error(`     ${c.marker}: ${c.why}`);
+  console.error(`     The browser will show a red notice instead of failing silently.`);
+  console.error(`     Launch the canonical copy: cd <the pdfdrill repo> && bun tools/drillui_bridge.ts`);
+}
 console.error(`  chat: ${pythonBin} ${CHAT_SCRIPT}`);
 console.error(`  doc=${doc}  model=${model ?? "default"}  k=${k}  store=${store}`);
 console.error(`  cwd / artifacts root: ${ART_ROOT}`);

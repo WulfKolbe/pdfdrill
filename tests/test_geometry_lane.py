@@ -16,6 +16,7 @@ Two things that both come from the detector and cost nothing:
     them body text.
 """
 import sys
+import pytest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -78,7 +79,10 @@ def test_the_mfd_display_box_comes_in_only_where_the_layout_model_found_none():
 # --------------------------------------------------------------------------- #
 
 def test_a_row_in_no_box_is_text():
-    assert G._type_for_row((0, 0, 10, 10), []) == "text"
+    """…and SAYS the type was not measured. The second half of the answer is
+    the line's provenance: `text` because the detector said so and `text`
+    because nothing looked are different claims (finding I)."""
+    assert G._type_for_row((0, 0, 10, 10), []) == ("text", False)
 
 
 def test_a_row_takes_the_type_of_the_SMALLEST_box_containing_it():
@@ -86,13 +90,13 @@ def test_a_row_takes_the_type_of_the_SMALLEST_box_containing_it():
     and the inner box is the one that names what the row actually is."""
     typed = [("math", (0, 0, 1000, 400)),
              ("equation_number", (900, 180, 990, 220))]
-    assert G._type_for_row((910, 190, 980, 210), typed) == "equation_number"
-    assert G._type_for_row((100, 100, 300, 140), typed) == "math"
+    assert G._type_for_row((910, 190, 980, 210), typed) == ("equation_number", True)
+    assert G._type_for_row((100, 100, 300, 140), typed) == ("math", True)
 
 
 def test_a_row_whose_centre_is_outside_every_box_is_text():
     typed = [("math", (0, 0, 100, 100))]
-    assert G._type_for_row((500, 500, 600, 520), typed) == "text"
+    assert G._type_for_row((500, 500, 600, 520), typed) == ("text", False)
 
 
 # --------------------------------------------------------------------------- #
@@ -236,3 +240,62 @@ def test_the_typed_lane_is_still_the_one_with_a_detector(monkeypatch):
                        detector=True)
     assert d.lane == "geometry" and d.cost == "free"
     assert "a box and a type" in d.reason
+
+
+# --------------------------------------------------------------------------- #
+#  PROVENANCE — `geometry` says HOW the box was arrived at, and it lied.
+#
+#  Found by an auditing session (finding I): every line of a geometry-only
+#  lines.json carried `"geometry": "ink-yolo"`, including on the untyped half
+#  of the lane where no detector runs at all. The field is read to decide
+#  whether a box can be trusted as a Formula's extent or is only the ink under
+#  a row — so claiming the detector where none looked makes the weaker half of
+#  the lane indistinguishable from the stronger one.
+# --------------------------------------------------------------------------- #
+
+def _inked_page(tmp_path, bars):
+    """A white page with black bars, as a PNG the ink half can read."""
+    pytest.importorskip("PIL")
+    from PIL import Image, ImageDraw
+    img = Image.new("L", (400, 300), 255)
+    d = ImageDraw.Draw(img)
+    for x0, y0, x1, y1 in bars:
+        d.rectangle((x0, y0, x1, y1), fill=0)
+    out = tmp_path / "page-0001.png"
+    img.save(out)
+    return out
+
+
+BARS = [(60, 80, 340, 100), (60, 180, 340, 200)]
+
+
+def test_with_no_detector_every_line_says_ink_and_only_ink(tmp_path):
+    png = _inked_page(tmp_path, BARS)
+    doc = G.assemble_geometry([(1, png, [])])
+    kinds = {ln["geometry"] for ln in doc["pages"][0]["lines"]}
+    assert kinds, "the ink found no rows at all — the fixture is wrong"
+    assert kinds == {"ink"}, (
+        f"a line claims the detector on a page no detector saw: {kinds}")
+    assert all(ln["type"] == "text" for ln in doc["pages"][0]["lines"])
+
+
+def test_the_document_head_says_the_types_are_not_measured(tmp_path):
+    png = _inked_page(tmp_path, BARS)
+    doc = G.assemble_geometry([(1, png, [])])
+    assert "NONE" in doc["ocr"]["types"], doc["ocr"]["types"]
+    assert doc["ocr"]["geometry_kinds"] == ["ink"]
+    assert "a box and a type" not in doc["ocr"]["words"], (
+        "the head still promises a type on every line")
+
+
+def test_a_row_the_detector_typed_says_ink_yolo(tmp_path):
+    png = _inked_page(tmp_path, BARS)
+    dets = [_det("isolate_formula", (50, 170, 350, 210))]
+    doc = G.assemble_geometry([(1, png, dets)], detector="a test detector")
+    lines = doc["pages"][0]["lines"]
+    kinds = {ln["geometry"] for ln in lines}
+    assert "ink-yolo" in kinds, (
+        f"the detector typed a row and the provenance does not say so: {kinds}")
+    assert "ink" in kinds, (
+        f"the row OUTSIDE the detector box must still say plain ink: {kinds}")
+    assert "from the layout detector" in doc["ocr"]["types"]

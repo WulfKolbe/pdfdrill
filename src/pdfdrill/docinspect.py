@@ -2108,11 +2108,27 @@ def build_from_paths(
     if out:
         with open(out, "w", encoding="utf-8") as fh:
             fh.write(html_doc)
+    # ONE POPULATION, COUNTED ONCE.
+    #
+    # The two branches counted two different things, and an auditing session
+    # (finding J) caught the gap: the unfiltered branch counted the MODEL's
+    # objects minus the Pages, which still includes the Document; the page's own
+    # `DATA.elements` is `collect_elements`, which drops Document and Citation
+    # and KEEPS the Page containers. Measured on hilbert1902: the headline said
+    # "133 elements" (143 objects − 10 Pages) over a payload holding 142
+    # records — neither of them the 132 things a reader finds in the tree.
+    #
+    # A count printed next to a file must be a count OF that file. So both
+    # branches now count the same list the payload is built from, minus the Page
+    # containers, which are the tree's furniture and not elements in it.
+    def _n_elements(els) -> int:
+        return sum(1 for e in els if e.get("type") != "Page")
+
     if page_filter is not None:
-        n_el = sum(1 for e in all_elements
-                   if e.get("page") in page_filter and e.get("type") != "Page")
+        n_el = _n_elements(e for e in all_elements
+                           if e.get("page") in page_filter)
     else:
-        n_el = sum(1 for o in model["objects"] if o["type"] != "Page")
+        n_el = _n_elements(all_elements)
     return html_doc, len(pages), n_el, mode
 
 

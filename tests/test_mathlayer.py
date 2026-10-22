@@ -13,7 +13,20 @@ import sys
 import types
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+
+# THE WHOLE FILE IS THE SYMPY TREE, so without SymPy there is nothing here to
+# test and every test in it FAILED on the documented install rather than
+# skipping (13 of them, found by an auditing session via finding C). `[math]`
+# is an optional extra and the module it tests degrades gracefully when it is
+# absent — the suite has to degrade the same way, or a base install cannot tell
+# a missing extra from a broken build.
+sympy = pytest.importorskip(
+    "sympy", reason="the canonical math layer is SymPy (`pip install "
+                    "'pdfdrill[math]'`); the code degrades without it and so "
+                    "does this file")
 
 
 def _have_parser():

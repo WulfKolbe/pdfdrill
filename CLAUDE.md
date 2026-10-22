@@ -12,7 +12,7 @@ by default.
 each with the population it came from, open items, and the failure classes that
 cost time here.
 
-**`docs/HANDOVER-RULES.md`** — the 18 working rules each learned by a defect,
+**`docs/HANDOVER-RULES.md`** — the 36 working rules each learned by a defect,
 the non-obvious environment facts (LgEval pin, dictionaries, `resume.sh`), and
 the unverified assumptions.
 
@@ -146,7 +146,26 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m pytest tests/ -q -p no:cacheprovider
 ```
 
 `PYTHONDONTWRITEBYTECODE=1` is not optional — stale `.pyc` files have produced
-tests failing against correct source (HANDOVER-RULES rule 4).
+tests failing against correct source (HANDOVER-RULES rule 4). **pytest itself is
+the `[dev]` extra** — nothing in the documented install used to provide it (it
+came in as a side effect of the pdfminer-fork script), so `pip install -e
+'.[dev]'`.
+
+**A suite number is meaningless without the install it came from.** Every count
+quoted in this repo until 2026-10-21 came from a machine with every extra, and
+had never been run on the install the README documents — where the suite did not
+even collect (an auditing session, finding C). So say which:
+
+| install | command | what it proves |
+|---|---|---|
+| **base** | `bash bootstrap.sh && pip install -e '.[dev]'` | the documented install, which is also the sandbox: base deps only (numpy, PyYAML, pdfplumber, pydantic, pypdf, the patched pdfminer). Everything extras-gated must SKIP here, never fail. |
+| **full** | `pip install -e '.[dev,math,layout,scan,fontid,imageserver,speech,…]'` | the development machine. Nothing may skip for a missing module. |
+
+`tests/test_suite_runs_on_the_documented_install.py` is the gate: a test that
+imports a module the base install does not ship must declare it
+(`pytest.importorskip`), or it stops collection (at module level) or fails as if
+the code were broken (in a test body). Quote the two numbers together, each with
+its install, or neither.
 
 ## Command surface — single source of truth
 

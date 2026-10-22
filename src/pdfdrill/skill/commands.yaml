@@ -493,7 +493,11 @@ commands:
     again afterwards finishes the rest. --no-inspect stops before the inspector; --full wipes the
     sidecar and re-runs from cold. EVERY PART IS TIMED: the report ends with one line per part,
     the total, and the per-page rate, which is the only figure that transfers to a document of a
-    different length.'
+    different length. EXIT STATUS: 0 when a reading was made, and 3 when a lane was REPORTED AND
+    NOT RUN — the install cannot run it (no NumPy, so no free lane) or it costs money and `drill`
+    never spends. In both cases there is no inspect.html, which is what `drill` promises, so a
+    script can tell without parsing prose. Everything before the lane still ran, and the message
+    is the same as it ever was.'
   offline_ok: true
   positionals:
   - name: pdf

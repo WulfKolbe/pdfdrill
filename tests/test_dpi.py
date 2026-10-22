@@ -30,6 +30,17 @@ HAVE_GS = shutil.which("gs") is not None
 class TestTopologyPrimitive:
     """`dpitopo.topology` must count what inkdrill counts."""
 
+    # SciPy's labelling is what counts the components and the holes. It is not a
+    # base dependency, and these five tests FAILED instead of skipping on the
+    # documented install — hidden until now because the pdfminer-fork installer
+    # used to pull scipy in as a side effect (HANDOVER-RULES 33). Fixing that
+    # exposed them, which is the point of fixing it.
+    @pytest.fixture(autouse=True)
+    def _needs_scipy(self):
+        pytest.importorskip(
+            "scipy", reason="topology counting is scipy.ndimage.label "
+                            "(`pip install 'pdfdrill[layout]'`)")
+
     def test_solid_block(self):
         from pdfreader.dpitopo import topology
         m = np.zeros((20, 20), bool)

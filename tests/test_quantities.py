@@ -131,11 +131,13 @@ def test_registered_in_fn_registry():
 def test_sympy_tree_path_wins_over_lexer():
     """S1.4: when an object carries props['math'] (the mathir srepr), the SymPy
     tree extraction is preferred; a missing/failed tree falls back to the lexer.
-    Skips silently when the [math] extra (sympy) is absent."""
-    try:
-        import sympy  # noqa: F401
-    except Exception:
-        print("  (skip: sympy not installed)"); return
+    Skips when the [math] extra (sympy) is absent."""
+    # It used to print "(skip: ...)" and RETURN, which pytest reports as a PASS:
+    # a test that did not run, counted as one that did. A real skip is both
+    # honest and the thing `-rs` can list.
+    import pytest
+    pytest.importorskip("sympy", reason="the SymPy tree path needs the [math] "
+                                        "extra")
 
     class Obj:
         def __init__(self, id, type, props):
