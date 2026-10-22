@@ -435,6 +435,32 @@ Each of these cost real time or real data in this project.
     the weakest link in that chain* — and whatever a tool silently relocates,
     the user's next command still carries the old path.
 
+39. **A projection inherits its source document's licence.** Everything this
+    repo writes — `*.md`, `*.tiddlers.json`, `*.lines.json`, `*.docmodel.json` —
+    is the document re-encoded, so a rule that admits an extension admits the
+    rights of every document that extension exists for. `!**/*.md` in the
+    library's `.gitignore` committed the personalised ISO 32000-2 sponsored
+    copy's full text: counted and never quoted, the owner's surname 1,020 times
+    and "single user" 1,023 times, once per page of a 1,020-page standard. The
+    PDF had been excluded for months and was never in doubt. What let the
+    markdown through was the justification "34,260 files and only 0.24 GB, the
+    cheapest thing in this tree" — a statement about SIZE, used to settle a
+    question about RIGHTS. *Cheap to store says nothing about free to hold.*
+    Ask what an extension is a projection OF, per document, before admitting it.
+
+40. **Verify an exclusion with `git check-ignore --no-index`; the plain form
+    answers for files it has already excused.** Plain `git check-ignore <path>`
+    reports a TRACKED file as not-ignored whatever the rules say. In the library
+    1,197 PDFs had been committed before a deny-all `/**` root was written, and
+    gitignore never evicts a tracked file — so those kept working while every
+    PDF added since was refused in silence: 2,655 source documents, 23.44 GB,
+    including the Heim books the owner then drove to another machine to work on
+    and could not find. Three batteries of check-ignore probes ran that day and
+    all three were right and blind, because *a battery only tests paths someone
+    thought of, and this one also excluded the paths that would have failed.* A
+    check that cannot fail for a whole category is not a check for that
+    category — rule 36 again, for exclusions instead of guards.
+
 ---
 
 ## 2. Environment facts that are not obvious
