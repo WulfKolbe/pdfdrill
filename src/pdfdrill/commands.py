@@ -18120,12 +18120,100 @@ def _write_md(pdf: Path, sc: "Sidecar", md_text: str, *, source: str) -> str:
     `render`) reads via `_read_md`."""
     name = _md_filename(pdf, sc)
     sc.write_blob(name, md_text or "")
-    sc.set_layer("md", {"blob": name, "words": len((md_text or "").split()),
+    # 787 — AND A DIGEST OF WHAT WE WROTE, because the file no longer says who
+    # wrote it. `MarkdownProjector` used to open with a YAML `generator:` line
+    # and that was the signature `_md_is_ours` read; MathPix writes no front
+    # matter, so matching its format meant dropping ours. A hash settles the
+    # question exactly and costs one pass over a string we already hold: the
+    # file at `<stem>.md` is ours if, and only if, it is still what we put
+    # there.
+    import hashlib as _hashlib
+    body = md_text or ""
+    sc.set_layer("md", {"blob": name, "words": len(body.split()),
                         "source": source,
+                        "bytes": len(body.encode("utf-8")),
+                        "sha256": _hashlib.sha256(
+                            body.encode("utf-8")).hexdigest(),
                         "built_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
     sc.add_fact(MD_BUILT)
     sc.save()
     return _md_note(pdf, sc)
+
+
+#: What pdfdrill's OWN markdown writers leave at the top of a `<stem>.md`:
+#: `MarkdownProjector` and `LLMCompactProjector` both open with a YAML front
+#: matter naming the generator, and the bi-layer adds its toggle and its
+#: `seg source` divs. MathPix signs nothing, so the ABSENCE of our signature is
+#: the only honest test of who wrote the file — and in the self-contained
+#: layout it is the only one available, because the download's path and the
+#: projector's target are the same file.
+_OUR_MD_SIGNATURES = ("generator: pdfdrill", 'class="seg source"',
+                      "source</button>")
+
+
+def _md_is_ours(path: Path, sc: "Sidecar | None" = None) -> bool:
+    """Did a pdfdrill writer produce this markdown? Unreadable counts as ours,
+    so a file we cannot inspect is never served as a purchase.
+
+    Two answers, in order of certainty. `_write_md` records the sha256 of every
+    markdown pdfdrill writes, so a file that still hashes to it IS ours, header
+    or no header — that is the only test that survived this projector being
+    taught MathPix's format, which has no front matter to sign. Older sidecars
+    carry no digest, and for those the content signature still decides: every
+    projection written before 787 opens with a YAML `generator:` line, and the
+    bi-layer with its toggle.
+
+    A file that matches neither is somebody else's: a MathPix download, or a
+    restoration by hand. Both must be served, not replaced.
+    """
+    try:
+        raw = path.open("rb").read()
+    except OSError:
+        return True
+    if sc is not None:
+        layer = (sc.get_layer("md") or {}) if hasattr(sc, "get_layer") else {}
+        want = str(layer.get("sha256") or "")
+        if want and layer.get("blob") == path.name:
+            import hashlib as _hashlib
+            return _hashlib.sha256(raw).hexdigest() == want
+    head = raw[:4096].decode("utf-8", "replace")
+    return any(sig in head for sig in _OUR_MD_SIGNATURES)
+
+
+def _bought_mathpix_md(pdf: Path, sc: "Sidecar") -> "Path | None":
+    """The MathPix markdown that was PAID FOR, if it is still on disk — else None.
+
+    Two conditions, and neither alone is enough. The sidecar's
+    `mathpix_files` evidence is the only record that a `md` was ever bought,
+    written by the download itself; and the file at that path must still be
+    MathPix's, because `<stem>.md` is also where every pdfdrill markdown writer
+    puts its output.
+
+    THE RECORDED BYTE COUNT IS NOT PART OF THE TEST. `fetch_mathpix` reports
+    "cached" when the md merely exists — only `.lines.json` gets a content
+    check — so a later run can re-stamp `mathpix_files[md].bytes` with whatever
+    is at the path. 93 library documents hold a MathPix md whose size differs
+    from the record, and 4 hold a pdfdrill projection whose size matches it
+    exactly. Size decides nothing here; content decides everything.
+    """
+    try:
+        files = sc.get_evidence("mathpix_files") or []
+    except Exception:
+        return None
+    rec = next((f for f in files if isinstance(f, dict)
+                and str(f.get("format") or "") == "md"), None)
+    if not isinstance(rec, dict):
+        return None
+    name = Path(str(rec.get("path") or "")).name
+    if not name:
+        return None
+    p = pdf.parent / name
+    try:
+        if p.stat().st_size <= 0:
+            return None
+    except OSError:
+        return None
+    return None if _md_is_ours(p, sc) else p
 
 
 def _serve_mathpix_md(pdf: Path, sc: "Sidecar", *, scanned: bool = True) -> str | None:
@@ -18144,9 +18232,13 @@ def _serve_mathpix_md(pdf: Path, sc: "Sidecar", *, scanned: bool = True) -> str 
     # "Markdown from MathPix" — including, on BH1org_OCR, the LLM-compact
     # bi-layer `translate` had written there. The `md` layer already records who
     # wrote it, so ask.
-    layer = (sc.get_layer("md") or {}) if hasattr(sc, "get_layer") else {}
-    if (layer.get("blob") == mathpix_md.name
-            and str(layer.get("source") or "") not in ("", "mathpix")):
+    # ...and the `md` layer was the wrong thing to ask. It is pdfdrill's own
+    # bookkeeping: the MathPix download stamps `evidence.mathpix_files` and
+    # never touches it, so on a document whose markdown had since been
+    # projected the layer read `model` or `latex` and this refused to serve a
+    # MathPix file that was sitting right there — which is how 28 bought
+    # downloads were replaced by a projection. Ask the file.
+    if _md_is_ours(mathpix_md, sc):
         return None
     md_text = mathpix_md.read_text(encoding="utf-8")
     why = ("scanned (no text layer)" if scanned
@@ -18331,6 +18423,20 @@ def cmd_md(pdf: Path, pages: str | None = None,
 
     # RULE: if the LaTeX source is available, use it (not the lossy text-layer).
     if pages is None:
+        # 787 — BUT A DOWNLOAD THAT WAS PAID FOR OUTRANKS EVERY PROJECTION, and
+        # this command's own summary has always said so: "Prefers a genuine
+        # MathPix .md, then the model, then the text layer." The code called
+        # the latex route first, the model second and the MathPix branch third,
+        # and each of the first two WRITES `<stem>.md` — the same path the
+        # download owns. 41 bought md files in the library are gone that way.
+        # The guard that existed asked the `md` layer, which the download does
+        # not write; of 1,285 intact downloads it protected 54.
+        if _bought_mathpix_md(pdf, sc) is not None:
+            served = _serve_mathpix_md(
+                pdf, sc, scanned=bool(sc.get_evidence("needs_ocr")))
+            if served is not None:
+                return served
+            sc = Sidecar(pdf)
         latex_md = _md_from_latex_source(pdf, sc)
         if latex_md is not None:
             return latex_md

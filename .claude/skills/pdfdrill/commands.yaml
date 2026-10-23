@@ -365,8 +365,13 @@ commands:
 - name: md
   section: Extraction
   summary: 'Markdown from the unified model — headings, prose, IMAGES as links and TABLES as pipe
-    tables, no transclusions (R3). Prefers a genuine MathPix .md, then the model, then the text
-    layer. --image-base points MathPix-shaped crop URLs at a local crop server
+    tables, no transclusions (R3). THE OUTPUT IS THE MATHPIX DIALECT, because the corpus is
+    written in it: `$…$` inline and a `$$` fence on its own line (the delimiters pdfdrill asks
+    MathPix for on the wire), `#`/`##` headings, pipe tables, `![](…)` with no alt text, a caption
+    as plain text, and NO YAML front matter. A genuine MathPix .md still on disk WINS over every
+    projection and is served untouched — it was paid for, and `<bibkey>.md` is the one filename
+    both it and this command own; 41 bought downloads in the library were lost to a projection
+    before that was enforced. Then the model, then the text layer. --image-base points MathPix-shaped crop URLs at a local crop server
     (pdfreader/inspectserver.py or tools/imageserver/mathpix_server.py) so a figure with no fetched
     crop still resolves in a Markdown reader.'
   offline_ok: true

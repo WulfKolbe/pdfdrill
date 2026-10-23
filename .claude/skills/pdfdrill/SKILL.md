@@ -594,7 +594,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 
 | Command | Returns |
 |---|---|
-| `pdfdrill md <pdf> [--pages PAGES] [--image-base IMAGE_BASE]` | Markdown from the unified model — headings, prose, IMAGES as links and TABLES as pipe tables, no transclusions (R3). Prefers a genuine MathPix .md, then the model, then the text layer. --image-base points MathPix-shaped crop URLs at a local crop server (pdfreader/inspectserver.py or tools/imageserver/mathpix_server.py) so a figure with no fetched crop still resolves in a Markdown reader. |
+| `pdfdrill md <pdf> [--pages PAGES] [--image-base IMAGE_BASE]` | Markdown from the unified model — headings, prose, IMAGES as links and TABLES as pipe tables, no transclusions (R3). THE OUTPUT IS THE MATHPIX DIALECT, because the corpus is written in it: `$…$` inline and a `$$` fence on its own line (the delimiters pdfdrill asks MathPix for on the wire), `#`/`##` headings, pipe tables, `![](…)` with no alt text, a caption as plain text, and NO YAML front matter. A genuine MathPix .md still on disk WINS over every projection and is served untouched — it was paid for, and `<bibkey>.md` is the one filename both it and this command own; 41 bought downloads in the library were lost to a projection before that was enforced. Then the model, then the text layer. --image-base points MathPix-shaped crop URLs at a local crop server (pdfreader/inspectserver.py or tools/imageserver/mathpix_server.py) so a figure with no fetched crop still resolves in a Markdown reader. |
 | `pdfdrill structmd <pdf>` | Markdown from the PDF's OWN logical structure tree (/StructTreeRoot): real pipe tables from /TR//TH//TD, headings from /H1../H6 through /RoleMap, lists from /L//LI, and artifacts (running heads, folios, watermarks) excluded for free because they are not in the tree. For a TAGGED PDF this is the authoritative reading order — the geometric `md` route guesses it, which on ISO 32000-2 cost 11,036 tagged cells for 1 markdown table. Refuses rather than falling back when the file has no usable tree. Writes <stem>.struct.md. |
 | `pdfdrill page <pdf> <n>` | Single page text extraction |
 | `pdfdrill distill <pdf> [--embed]` | A distill-structured single-file reading view (<bibkey>.distill.html): the Anthropic/Distill v2 article skeleton (named-column grid, runtime TOC, LATE-BOUND ?? figure/eq refs, hover cite/footnote popovers) rebuilt from the docmodel — self-contained, no template JS, KaTeX from data-latex. Auto-chains model; --embed inlines CDN crops. Citation popovers need bibliography/bibsource first (else graceful). |
@@ -691,6 +691,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the line directly below, and the last line of this SKILL that is not an HTML comment (one closing comment follows it, so `tail -1` gives that comment and `tail -2 | head -1` gives the token). If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-45227974` before any build/extract command.
-DRILL-45227974
+Attestation token — the line directly below, and the last line of this SKILL that is not an HTML comment (one closing comment follows it, so `tail -1` gives that comment and `tail -2 | head -1` gives the token). If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-0f55f463` before any build/extract command.
+DRILL-0f55f463
 <!-- PREFLIGHT-TOKEN:END -->

@@ -43,8 +43,12 @@ def test_a_figure_links_to_its_crop(tmp_path):
     (tmp_path / "doc_PIC_0001.jpg").write_bytes(b"\xff\xd8\xff")
     doc = _doc(DocObject(type="Picture", props={"caption": "A photo"}))
     out = _md(doc, crops_dir=str(tmp_path), crops_base="report-crops")
-    assert "![A photo](report-crops/doc_PIC_0001.jpg)" in out
-    assert "*A photo*" in out
+    # 787 — MathPix carries NO alt text (0 of 600 reference downloads) and no
+    # italics on a caption (0 of 600). The property this test was written for
+    # is unchanged: the link is named by the tiddler title, and the caption
+    # survives as content.
+    assert "![](report-crops/doc_PIC_0001.jpg)" in out
+    assert "A photo" in out and "*A photo*" not in out
 
 
 def test_crops_base_may_be_a_URL_so_the_same_markdown_reads_from_a_server(tmp_path):
@@ -151,13 +155,13 @@ def test_a_latex_widget_becomes_latex_not_a_widget():
         "text": 'x is <$latex text="a^{2}" displayMode="false"/> here'}))
     out = _md(doc)
     assert "<$latex" not in out
-    assert r"\(a^{2}\)" in out
+    assert "$a^{2}$" in out          # 787 — MathPix's dialect, not the UI's
 
 
 def test_a_display_widget_becomes_display_math():
     doc = _doc(DocObject(type="Paragraph", props={
         "text": '<$latex text="E=mc^{2}" displayMode="true"/>'}))
-    assert r"\[E=mc^{2}\]" in _md(doc)
+    assert "$$E=mc^{2}$$" in _md(doc)      # 787
 
 
 def test_there_is_no_formula_appendix():
@@ -225,7 +229,7 @@ def test_an_equation_with_latex_is_display_math_not_an_image(tmp_path):
     (tmp_path / "doc_EQ0001.jpg").write_bytes(b"x")
     doc = _doc(DocObject(type="Equation", props={"latex": "a+b=c"}))
     out = _md(doc, crops_dir=str(tmp_path))
-    assert r"\[a+b=c\]" in out
+    assert "$$\na+b=c\n$$" in out    # 787 — the fence on its own line, 84%
     assert "![" not in out
 
 
@@ -236,16 +240,20 @@ def test_an_equation_without_latex_falls_back_to_its_crop(tmp_path):
 
 
 def test_an_equation_with_neither_emits_nothing_not_an_empty_bracket():
-    r"""`\[\]` renders as a stray bracket in every renderer."""
+    r"""`$$$$` renders as a stray fence in every renderer (`\[\]` did before
+    787 moved the projector to MathPix's delimiters)."""
     out = _md(_doc(DocObject(type="Equation", props={})))
-    assert "\\[" not in out
+    assert "$$" not in out and "\\[" not in out
 
 
 def test_front_matter_title_is_one_line():
     doc = _doc(DocObject(type="Paragraph", props={"text": "x"}),
                meta={"title": "A Title\nand authors\nand more"})
+    # 787 — MathPix writes no front matter, so the projector no longer
+    # defaults to one. The property under test is the title's single line.
     out = MarkdownProjector(OperatorConfig(
-        op="projector", classname="MarkdownProjector")).project(doc)
+        op="projector", classname="MarkdownProjector",
+        params={"front_matter": True})).project(doc)
     assert 'title: "A Title"' in out
 
 
