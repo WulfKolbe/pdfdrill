@@ -57,6 +57,24 @@ pip install -e .                   # installs the `pdfdrill` console script
 pip install -r requirements.txt
 ```
 
+**One step pip cannot do: the patched pdfminer.** The glyph-identity features
+read `LTChar.glyphname` and `LTChar.invisible`, which stock pdfminer does not
+have — it parses the PostScript glyph name and discards it. The patch lives in
+this repository (`vendor/pdfminer-glyph-identity.patch`) and is applied by its
+own installer, so it is **not** a line in `pyproject.toml`: it is not a package
+on PyPI, and naming it as a requirement would break `pip install` for
+everyone.
+
+```bash
+bash vendor/install-pdfminer-fork.sh --user --rebuild   # or --venv in a venv
+bash vendor/install-pdfminer-fork.sh --check            # is it in place?
+```
+
+`bash bootstrap.sh` ends with this step, so a bootstrap install already has it.
+A plain `pip install -e .` does not: everything still imports, the glyph-name
+features are silently off, and seven tests skip saying so. `pdfdrill doctor`
+reports which pdfminer is loaded.
+
 ## First, unlock the build commands (once per machine, 24 h)
 
 `size`, `route`, `links`, `doctor` and the other read-only commands answer

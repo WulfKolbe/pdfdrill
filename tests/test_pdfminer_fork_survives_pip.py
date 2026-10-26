@@ -16,6 +16,7 @@ This test does not build anything. It asserts the INSTALLED state has the
 property that makes the fork survive — the property whose absence was P1.
 """
 import re
+from pathlib import Path
 
 import pytest
 
@@ -42,14 +43,43 @@ def _pdfplumber_pin():
     return None
 
 
-def _has_glyph_identity():
-    try:
-        import inspect
+#: WHERE THE INSTALLER IS NAMED. Every skip below says this, because "3 failed"
+#: and "the fork was never built" are the same summary line otherwise.
+INSTALLER = "bash vendor/install-pdfminer-fork.sh --user --rebuild"
 
-        from pdfminer.layout import LTChar
-        return "glyphname" in inspect.getsource(LTChar.__init__)
-    except Exception:                                          # noqa: BLE001
-        return False
+
+def fork_missing(*features) -> list:
+    """Which of `features` the loaded pdfminer lacks — asked of the module.
+
+    Thin wrapper over `pdfreader.build_identity.missing`, which is the ONE
+    place that answers this; a second copy of the rule here is how the two
+    drift apart (the repo already carries
+    `test_the_package_helper_does_not_duplicate_the_rule` for the same
+    reason). Default `glyph_identity`: `LTChar.glyphname`, the feature whose
+    absence P1 was about.
+    """
+    from pdfreader import build_identity
+    return build_identity.missing(*(features or ("glyph_identity",)))
+
+
+def requires_fork(*features):
+    """A skipif for a test that reads an attribute only the fork adds.
+
+    Used by `test_r2_glyphname_reliable.py` (`LTChar.glyphname`),
+    `test_docmodel_six.py` and `test_runin_heading.py` (`LTChar.invisible`,
+    read by `docmodel_six.py:2936`). On a base install those seven tests
+    raised `AttributeError` and read exactly like broken code; the fix is not
+    to install the fork everywhere, it is to say which tool is missing.
+    """
+    absent = fork_missing(*features)
+    return pytest.mark.skipif(
+        bool(absent),
+        reason="this pdfminer has no %s — %s" % (", ".join(absent) or "?",
+                                                 INSTALLER))
+
+
+def _has_glyph_identity():
+    return not fork_missing("glyph_identity")
 
 
 def test_the_patched_build_is_the_one_installed():
@@ -125,3 +155,34 @@ def test_the_documented_install_ENDS_with_the_fork_present():
         assert "FORK_BEFORE" not in logic, (
             f"{name}: still gates the build on the fork having been present "
             f"before the pip step — a fresh clone in a fresh venv gets nothing")
+
+
+def test_the_installer_is_named_where_the_install_is_documented():
+    """A reader who follows README's install gets stock pdfminer and no
+    glyph identity — seven tests skip and the glyph-name features are quietly
+    off. `bootstrap.sh` has ensured the fork since P1, but the README install
+    block offered `pip install -e .` alone and never said the fork exists, and
+    the fork CANNOT be a requirement: it is a local patch, not a PyPI package,
+    so naming it in `pyproject.toml` would break `pip install` everywhere."""
+    root = Path(__file__).resolve().parents[1]
+    script = "vendor/install-pdfminer-fork.sh"
+    assert (root / script).is_file(), f"{script} is gone; this test is stale"
+    for name in ("bootstrap.sh", "README.md"):
+        text = (root / name).read_text(encoding="utf-8")
+        assert script in text, (
+            f"{name} does not name {script}, so the documented install ends "
+            "with stock pdfminer and says nothing about it")
+
+
+def test_every_test_that_reads_a_forked_attribute_is_guarded():
+    """The three files measured failing on the base install ask `requires_fork`
+    first. Static, because the whole point is what happens on a machine this
+    suite is not currently running on."""
+    here = Path(__file__).resolve().parent
+    for name in ("test_r2_glyphname_reliable.py", "test_docmodel_six.py",
+                 "test_runin_heading.py"):
+        text = (here / name).read_text(encoding="utf-8")
+        assert "requires_fork" in text or "fork_missing" in text, (
+            f"{name} reads an attribute only the patched pdfminer has and "
+            "does not say so: on a base install it fails as if the code were "
+            "broken")
