@@ -138,14 +138,27 @@ def test_no_module_under_src_exits_because_an_import_failed():
         "`except Exception` can catch: " + ", ".join(offenders))
 
 
+#: NAMED, NOT SEARCHED FOR. The first version of the test below found "the
+#: tool" by scanning this folder for the one that mentions `whats_that_code`.
+#: TWO files do -- `lstlang.py` prints the install hint for it -- and
+#: `Path.glob` order is the directory's, not alphabetical: in this checkout it
+#: returned the tool first and the test passed, and in a fresh clone it
+#: returned `lstlang.py` first, so the test RAN THE SCORING HARNESS over 291
+#: gold listings and then failed on its output. Measured, 2026-10-26. A test
+#: that works out which program to run can run the wrong one; a rename has to
+#: come here and say so.
+TOOL = SRC / "pdfreader" / "out" / "guess_code_language.py"
+
+
 def test_the_code_language_tool_still_speaks_json_over_the_pipe():
     """The rename and the move into `main()` must not change the protocol:
     `lstlang.guess` reads one JSON object from stdout and treats an
     `__error__` key as "no answer", so the tool must still print one."""
-    tool = next((p for p in (SRC / "pdfreader" / "out").glob("*.py")
-                 if "whats_that_code" in p.read_text(encoding="utf-8",
-                                                     errors="replace")), None)
-    assert tool is not None, "the code-language tool is gone"
+    tool = TOOL
+    assert tool.is_file(), f"{tool.name} is gone (renamed again?)"
+    assert not (tool.parent / "langdetect.py").exists(), (
+        "langdetect.py is back in a folder that reaches sys.path; that name "
+        "belongs to the package declared in the `lang` extra")
     text = tool.read_text(encoding="utf-8")
     assert "__error__" in text, "the tool no longer reports its own absence"
     assert re.search(r'if __name__ == ["\']__main__["\']', text), (
