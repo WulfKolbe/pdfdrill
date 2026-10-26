@@ -30,7 +30,15 @@ from .loader import load_config, load_modules
 from .modules.page import ingest_lines_json
 
 
-DEFAULT_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "config.json")
+# THE MODULE MANIFEST, and it is PACKAGE DATA. This read used to be
+# `<docmodel>/../config.json` — `src/config.json` in a checkout, and
+# `site-packages/config.json` in a wheel. `src/config.json` sat at the `src/`
+# ROOT, outside every package directory, and `[tool.setuptools.package-data]` is
+# keyed per package, so no key could ever ship it: a wheel-installed
+# `pdfdrill model` died on a FileNotFoundError naming a path with `/../` in it
+# (measured, T-0078). The 24 entries here are what loads the 19 modules, so the
+# file is not optional — it is the pipeline.
+DEFAULT_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
 
 
 def declared_source(lines_json: dict) -> str:
