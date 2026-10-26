@@ -60,8 +60,25 @@ from urllib.parse import parse_qs, urlparse
 
 try:
     from PIL import Image
-except ImportError:  # pragma: no cover - environment dependent
-    sys.exit("inspectserver needs Pillow: pip install pillow")
+except ImportError as _no_pillow:                   # noqa: N816
+    # NOT `sys.exit()`. This line used to end the PROCESS at import time, and
+    # `SystemExit` is a `BaseException`: an importer's `except Exception` --
+    # the guard every optional dependency in this tree is read through -- walks
+    # straight past it, and the caller dies with nobody's error message.
+    # Measured on the sibling defect (`out/langdetect.py`, 2026-10-26): the
+    # process exited 0 and simply stopped answering. The refusal is kept, with
+    # its wording, but it is raised where it can be caught and said where it
+    # can be read: in `main()` for a command line, as an `ImportError` for a
+    # caller that reaches the part that needs pixels.
+    Image = None
+    _NEEDS_PILLOW = "inspectserver needs Pillow: pip install pillow"
+else:
+    _NEEDS_PILLOW = ""
+
+
+def _require_pillow():
+    if Image is None:
+        raise ImportError(_NEEDS_PILLOW)
 
 import subprocess
 
@@ -195,6 +212,7 @@ class Pages:
                  coord: tuple[int, int] | None = None,
                  pdf: str | None = None, gs: str = "gs",
                  assume_pixels: bool = False):
+        _require_pillow()      # check_consistency, crop and render all read pixels
         self.root = pages_dir
         self.dir = pages_dir
         self.coord = coord
@@ -706,6 +724,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main(argv=None):
+    if Image is None:
+        sys.exit(_NEEDS_PILLOW)            # the command line's own refusal
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pages",

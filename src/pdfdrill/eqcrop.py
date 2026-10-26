@@ -49,8 +49,25 @@ from functools import lru_cache
 
 try:
     from PIL import Image
-except ImportError:
-    sys.exit("Pillow is required:  pip install pillow")
+except ImportError as _no_pillow:                   # noqa: N816
+    # NOT `sys.exit()`. This line used to end the PROCESS at import time, and
+    # `SystemExit` is a `BaseException`: an importer's `except Exception` --
+    # the guard every optional dependency in this tree is read through -- walks
+    # straight past it, and the caller dies with nobody's error message.
+    # Measured on the sibling defect (`out/langdetect.py`, 2026-10-26): the
+    # process exited 0 and simply stopped answering. The refusal is kept, with
+    # its wording, but it is raised where it can be caught and said where it
+    # can be read: in `main()` for a command line, as an `ImportError` for a
+    # caller that reaches the part that needs pixels.
+    Image = None
+    _NEEDS_PILLOW = "Pillow is required:  pip install pillow"
+else:
+    _NEEDS_PILLOW = ""
+
+
+def _require_pillow():
+    if Image is None:
+        raise ImportError(_NEEDS_PILLOW)
 
 # --------------------------------------------------------------------------- #
 # Table loading
@@ -140,6 +157,7 @@ def detect_columns(row, args):
 class Pyramid:
     """A single page's DZI pyramid: reads .dzi, finds the full-res level."""
     def __init__(self, dzi_path):
+        _require_pillow()                  # every crop below needs the pixels
         self.dzi = dzi_path
         self.files_dir = re.sub(r"\.dzi$", "_files", dzi_path)
         ns = {"d": "http://schemas.microsoft.com/deepzoom/2008"}
@@ -220,6 +238,8 @@ def sanitize(s):
     return re.sub(r"[^A-Za-z0-9._-]+", "_", str(s)).strip("_") or "x"
 
 def main(argv=None):
+    if Image is None:
+        sys.exit(_NEEDS_PILLOW)            # the command line's own refusal
     ap = argparse.ArgumentParser(
         description="Extract rectangle crops from a DZI pyramid for each table row.",
         formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__)

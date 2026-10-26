@@ -148,7 +148,7 @@ def from_keywords(stem: str, table: dict) -> str:
 def guess(corpus: dict) -> dict:
     if not LANG_PY.is_file():
         return {}
-    r = subprocess.run([str(LANG_PY), str(CODE / "out" / "langdetect.py")],
+    r = subprocess.run([str(LANG_PY), str(CODE / "out" / "guess_code_language.py")],
                        input=json.dumps(corpus), capture_output=True,
                        text=True, timeout=900)
     try:
