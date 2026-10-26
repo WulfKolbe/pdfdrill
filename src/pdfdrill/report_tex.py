@@ -4240,6 +4240,43 @@ def _fault_lines(log_text: str) -> set:
                 break                      # this error named no line
     return out
 
+
+def _display_cell(line: str):
+    r"""The span of the first `$\displaystyle …$` cell in `line`, or None.
+
+    Counts braces instead of matching a pattern, because an inner `$` is a
+    math toggle inside a `\text{}` group and the cell's own closer is the
+    first `$` that is not inside one. A `\` consumes the character after it,
+    so an escaped `\$` and the `\\` that separates alignment rows both pass
+    through. `depth <= 0` and not `== 0` because `display_safe` accepts an
+    over-closed cell (`a}` renders), though none of this corpus's 231,047
+    rendered cells is brace-unbalanced.
+
+    None when the scan runs off the end — a cell whose braces never close.
+    Refusing to demote leaves the errors in the document, which is loud and
+    which 284 already describes; guessing where the cell ended is what cost
+    four volume tables their structure.
+    """
+    head = "$\\displaystyle "
+    i = line.find(head)
+    if i < 0:
+        return None
+    depth, k = 0, i + len(head)
+    while k < len(line):
+        c = line[k]
+        if c == "\\":
+            k += 2                      # an escape consumes its character
+            continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+        elif c == "$" and depth <= 0:
+            return i, k + 1
+        k += 1
+    return None
+
+
 def _demote_line(line: str) -> str:
     r"""Replace whatever this row RENDERS with `(not rendered)`, leaving its
     other cells alone. Returns the line unchanged when there is nothing to
@@ -4264,12 +4301,33 @@ def _demote_line(line: str) -> str:
     # loses three cells, which is what it cost before on the first pass. Every
     # other row now loses exactly the cell that failed.
     #
-    # `(?:[^$\\]|\\.)*` so an escaped `\$` inside the cell and the `\\` that
-    # separates alignment rows do not end the match early.
-    out, n = re.subn(r"\$\\displaystyle (?:[^$\\]|\\.)*\$",
-                     r"\\emph{(not rendered)}", line, count=1)
-    if n:
-        return out
+    # NOT A REGEX, for the same reason the picture branch below is not one.
+    # The pattern was `\$\\displaystyle (?:[^$\\]|\\.)*\$`, whose class stops at
+    # the first UNESCAPED `$` — and `renderable()` deliberately PERMITS one
+    # inside `\text{}` (668). On such a cell the substitution replaced only
+    # the PREFIX and left the rest of the LaTeX plus an orphan closing `$` in
+    # the row. The comment here accounted for an escaped `\$` and for the
+    # `\\` between alignment rows, and not for the legal one.
+    #
+    # Measured: `M15_Lecture_notes` EQ3293 is ONE such cell, and it cost vol35
+    # all 13,603 of its errors. The leftover carried an `\end{aligned}` whose
+    # `\begin` had been swallowed, so xelatex sat in an alignment it never
+    # opened and read every later `&` as a misplaced alignment tab. 19 such
+    # cells across 6 of 54 volumes produced 73,847 spurious errors and cost
+    # four tables their structure from the failing longtable chunk onward —
+    # vol35's broke at EQ0566, `I_{\text{DS}} (\mu\text{A}\,\mu\text{m}^{-1})`,
+    # the first row of that chunk, and the volume came out 26 pages short —
+    # while the PDFs still ran 321–361 pages, so nothing announced it.
+    #
+    # The 2,359 ROWS vol35 demoted are NOT this defect, and the first reading
+    # of this measurement said they were. Fixing only this one leaves all
+    # 2,359 demoted with 0 errors; `_fault_lines` is what takes them to 37.
+    # Do not read the two as one fault. Third defect in this pattern's history
+    # (284, 738, this), which is why the cell is now scanned, not matched.
+    span = _display_cell(line)
+    if span:
+        i, k = span
+        return line[:i] + "\\emph{(not rendered)}" + line[k:]
     i = line.find("\\resizebox{")
     if i < 0:
         return line
