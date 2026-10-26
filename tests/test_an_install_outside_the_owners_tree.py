@@ -109,10 +109,73 @@ MAY_NAME_THE_OWNERS_CHECKOUT = frozenset({
 
 _OWNERS_TREE = re.compile(r"MX/PDFDRILL|Path\.home\(\)\s*/\s*['\"]MX")
 
+# ---------------------------------------------------------------------------
+# AND THE SAME RULE, ONE STEP WIDER: no absolute home directory at all.
+#
+# The pattern above names pdfdrill's own checkout, and that is what T-0078 was
+# about. It let three files through, found while auditing the fix: an absolute
+# `/home/<user>/...` is the same defect with a different spelling — it names
+# one machine's account, so on any other machine it points at nothing and the
+# code that reads it fails or measures the wrong thing. Two of them did worse
+# than that: they globbed the LICENCE-BOUND corpora (`lstgold`, and the
+# TEES/Texas A&M `wzlxjtu` documents, which are not ours to redistribute) by
+# absolute path, in a PUBLIC repository, where the path is also a statement
+# about what is on the owner's disk.
+#
+#     src/pdfreader/out/gridguard.py:44,94,95
+#     src/pdfreader/out/lstroundtrip.py:12,13,14
+#     src/pdfreader/pdf_list.csv  (33 rows, read by nothing)
+#
+# `Path.home() / "pdfdrill-library"` is NOT this defect and stays: the library
+# genuinely lives in whoever's home directory is running, it is not code under
+# test, and eight files already resolve it that way through $PDF2MMD_LIBRARY.
+# The forbidden thing is the LITERAL account name.
+_ABSOLUTE_HOME = re.compile(r"/home/[A-Za-z0-9_][A-Za-z0-9_.-]*/")
+
+#: Relative path -> the matches that file may keep. Every entry is PROSE naming
+#: a placeholder account that exists nowhere: the two files that explain this
+#: rule have to be able to quote the shape they forbid. As above, the list may
+#: only shrink, and it shrinks by being edited.
+MAY_NAME_A_HOME_DIRECTORY = {
+    "pdfreader/testpaths.py": {"/home/someone/"},
+    "pdfdrill/cli.py": {"/home/me/"},
+}
+
+
+def test_no_file_under_src_names_an_absolute_home_directory():
+    found = {}
+    for path in _src_files():
+        hits = set(_ABSOLUTE_HOME.findall(
+            path.read_text(encoding="utf-8", errors="replace")))
+        if hits:
+            found[str(path.relative_to(SRC))] = hits
+    offenders = sorted(
+        f"{rel} ({', '.join(sorted(hits - MAY_NAME_A_HOME_DIRECTORY.get(rel, set())))})"
+        for rel, hits in found.items()
+        if hits - MAY_NAME_A_HOME_DIRECTORY.get(rel, set()))
+    assert not offenders, (
+        "these name one machine's home directory, which is nothing on any "
+        "other machine: " + "; ".join(offenders)
+        + " — use $PDF2MMD_LIBRARY / $PDF2MMD_LSTGOLD with a `Path.home()` "
+          "default for corpus data, and __file__ for our own code")
+    stale = sorted(rel for rel in MAY_NAME_A_HOME_DIRECTORY
+                   if not (MAY_NAME_A_HOME_DIRECTORY[rel] & found.get(rel, set())))
+    assert not stale, (
+        "no longer names a home directory, so drop it from "
+        "MAY_NAME_A_HOME_DIRECTORY: " + ", ".join(stale))
+
+
+#: Suffixes the two baseline tests read. The DATA ones are not decoration: the
+#: widened rule found `src/pdfreader/pdf_list.csv`, 33 rows of absolute paths
+#: into the owner's library, read by nothing and carried in with a subtree
+#: import. A path in a data file leaks exactly as much as one in code.
+_TEXT_SUFFIXES = (".py", ".md", ".toml", ".sh", ".json",
+                  ".csv", ".tsv", ".txt", ".cfg", ".yaml", ".yml")
+
 
 def _src_files():
     for p in sorted(SRC.rglob("*")):
-        if not p.is_file() or p.suffix not in (".py", ".md", ".toml", ".sh", ".json"):
+        if not p.is_file() or p.suffix not in _TEXT_SUFFIXES:
             continue
         if "egg-info" in p.parts or "__pycache__" in p.parts:
             continue
