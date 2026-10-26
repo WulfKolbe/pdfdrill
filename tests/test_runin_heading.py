@@ -5,9 +5,15 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from pdfreader import texmap                                              # noqa: E402
+from pdfreader import testpaths, texmap                                   # noqa: E402
 
 from tests.test_pdfminer_fork_survives_pip import requires_fork           # noqa: E402
+
+#: The document 814 was found in, and the only one that shows it: the run-in
+#: headings are this paper's own typesetting. Resolved through
+#: `$PDF2MMD_LIBRARY` rather than written as an absolute path under one
+#: account, which skipped everywhere else (owner, 2026-10-27).
+_DOC = testpaths.library_pdf("2510.04618")
 
 
 # ── the bold face nobody recognised ──────────────────────────────────────────
@@ -140,12 +146,11 @@ def test_a_line_with_no_bold_prefix_is_untouched():
 # ── it reaches the lines.json as two lines ───────────────────────────────────
 
 @requires_fork("render_mode")          # docmodel_six reads LTChar.invisible
-@pytest.mark.skipif(not Path("/home/wkolbe/pdfdrill-library/2510.04618/"
-                             "2510.04618.pdf").is_file(),
-                    reason="corpus document not present")
+@pytest.mark.skipif(not Path(_DOC).is_file(),
+                    reason="corpus document not present: set $PDF2MMD_LIBRARY")
 def test_the_split_reaches_the_lines_json_with_its_own_rectangle():
     from pdfreader import docmodel_six as dm
-    pages = dm.build("/home/wkolbe/pdfdrill-library/2510.04618/2510.04618.pdf")
+    pages = dm.build(_DOC)
     d = dm.to_lines_json(pages, doc_id="t")
     lvl4 = [(p["page"], i, l) for p in d["pages"]
             for i, l in enumerate(p["lines"])

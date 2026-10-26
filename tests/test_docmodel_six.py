@@ -24,6 +24,13 @@ from pdfreader.texmap import TexToken, project
 # PDF2MMD_TEST_PDF / PDF2MMD_TEST_LINES at your own copies to run them.
 MIELKE = testpaths.CORPUS_PDF
 
+# The three end-to-end tests below each open ONE NAMED DOCUMENT of the drill
+# library and no other: a defect found in 2002.06055's flipped text matrix
+# cannot be demonstrated against a substitute. They used to name it by an
+# absolute path under one account, so on any other machine they skipped —
+# indistinguishable from a missing optional tool. `$PDF2MMD_LIBRARY` points at
+# your copy; the default follows `$HOME` (owner, 2026-10-27).
+
 # The gate is PER CLASS, not on the module.
 #
 # It used to be `pytestmark`, which skipped all 142 tests in this file when
@@ -2304,9 +2311,9 @@ class TestAFlippedMatrixIsNotARotation:
     def test_the_flipped_glyph_reaches_the_reading(self):
         """End to end on the page it was found on."""
         from pdfreader import docmodel_six as D
-        pdf = "/home/wkolbe/pdfdrill-library/2002.06055/2002.06055.pdf"
+        pdf = testpaths.library_pdf("2002.06055")
         if not os.path.exists(pdf):
-            pytest.skip("library PDF not present")
+            pytest.skip(f"not in the library: {pdf} — set $PDF2MMD_LIBRARY")
         doc = D.build(pdf, range(30, 31))
         line = next(ln for pg in doc for ln in pg.lines
                     if "Hilb" in D._run_text(ln.glyphs))
@@ -2320,9 +2327,9 @@ class TestAFlippedMatrixIsNotARotation:
         contradiction is inside the glyph; the page supplies the replacement
         and the matrix supplies the baseline."""
         from pdfreader import docmodel_six as D
-        pdf = "/home/wkolbe/pdfdrill-library/2002.06055/2002.06055.pdf"
+        pdf = testpaths.library_pdf("2002.06055")
         if not os.path.exists(pdf):
-            pytest.skip("library PDF not present")
+            pytest.skip(f"not in the library: {pdf} — set $PDF2MMD_LIBRARY")
         doc = D.build(pdf, range(30, 31))
         odd = [g for pg in doc for ln in pg.lines for g in ln.glyphs
                if g.fontname == "unknown"]
@@ -2386,9 +2393,9 @@ class TestACodeListingIsNotABandOfScripts:
     @needs_fork
     def test_the_listing_survives_end_to_end(self):
         from pdfreader import docmodel_six as D
-        pdf = "/home/wkolbe/pdfdrill-library/2604.22294/2604.22294.pdf"
+        pdf = testpaths.library_pdf("2604.22294")
         if not os.path.exists(pdf):
-            pytest.skip("library PDF not present")
+            pytest.skip(f"not in the library: {pdf} — set $PDF2MMD_LIBRARY")
         doc = D.build(pdf, range(18, 19))
         verbatim = [ln for pg in doc for ln in pg.lines if ln.verbatim]
         assert len(verbatim) >= 25, len(verbatim)

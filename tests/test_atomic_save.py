@@ -65,7 +65,9 @@ def test_save_model_writes_a_document_whose_path_is_not_utf8(tmp_path):
     """
     import os
     from docmodel.core import Document
-    raw = b"/home/wkolbe/pdfdrill-library/Alg\xe8bre 1 [Lecture notes]/x.lines.json"
+    # The account is a placeholder: nothing opens this path, and the `\xe8` is
+    # the whole fixture — a Latin-1 filename byte that is not valid UTF-8.
+    raw = b"/home/me/pdfdrill-library/Alg\xe8bre 1 [Lecture notes]/x.lines.json"
     doc = Document()
     doc.meta["bibkey"] = "x"
     doc.meta["source_path"] = os.fsdecode(raw)

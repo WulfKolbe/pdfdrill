@@ -92,7 +92,8 @@ def test_the_manifest_still_loads_all_nineteen_modules():
 
 
 # ---------------------------------------------------------------------------
-# The shrinking baseline: nothing under src/ may default to ~/MX/PDFDRILL.
+# The shrinking baseline: nothing under src/ or tests/ may default to
+# ~/MX/PDFDRILL.
 # ---------------------------------------------------------------------------
 
 #: Every file under `src/` still permitted to name the owner's checkout.
@@ -103,14 +104,19 @@ def test_the_manifest_still_loads_all_nineteen_modules():
 #: 2026 (466: a prompt lives in a file and is never edited to suit later code —
 #: its sha256 is recorded beside every call that used it). It is data about a
 #: past run, not a path this code resolves.
+#: The second entry is THIS FILE: widening the rule to `tests/` put the file
+#: that states the rule inside its own scope, and it has to be able to write
+#: the path it forbids. It is prose about three defaults that no longer exist.
 MAY_NAME_THE_OWNERS_CHECKOUT = frozenset({
     "pdfdrill/prompts_data/2026-07-15-ocr-integration-prompt.md",
+    "tests/test_an_install_outside_the_owners_tree.py",
 })
 
 _OWNERS_TREE = re.compile(r"MX/PDFDRILL|Path\.home\(\)\s*/\s*['\"]MX")
 
 # ---------------------------------------------------------------------------
-# AND THE SAME RULE, ONE STEP WIDER: no absolute home directory at all.
+# AND THE SAME RULE, ONE STEP WIDER: no real account's home directory at all,
+# under `src/` OR under `tests/`.
 #
 # The pattern above names pdfdrill's own checkout, and that is what T-0078 was
 # about. It let three files through, found while auditing the fix: an absolute
@@ -126,29 +132,61 @@ _OWNERS_TREE = re.compile(r"MX/PDFDRILL|Path\.home\(\)\s*/\s*['\"]MX")
 #     src/pdfreader/out/lstroundtrip.py:12,13,14
 #     src/pdfreader/pdf_list.csv  (33 rows, read by nothing)
 #
+# That first pass covered `src/` only, and said so. `tests/` kept twelve
+# (owner, 2026-10-27: "Remove /home paths in tests"), and the suite is where
+# the defect bites hardest, because a test that names one account does not
+# fail elsewhere — it SKIPS, and a skip reads like a missing optional tool
+# rather than like a test only one person can run:
+#
+#     tests/test_docmodel_six.py:2307,2323,2389     three corpus documents
+#     tests/test_runin_heading.py:143,148           a fourth
+#     tests/test_atomic_save.py:68                  a non-UTF8 filename fixture
+#     tests/test_taskout_inspect.py:108             a quoted log line
+#     tests/test_mathpix_merge.py:98                a path on ANOTHER machine
+#     tests/scandrill/test_upload.py:107,109,114    URI fixtures, initials
+#
 # `Path.home() / "pdfdrill-library"` is NOT this defect and stays: the library
 # genuinely lives in whoever's home directory is running, it is not code under
-# test, and eight files already resolve it that way through $PDF2MMD_LIBRARY.
+# test, and nine files already resolve it that way through $PDF2MMD_LIBRARY.
 # The forbidden thing is the LITERAL account name.
-_ABSOLUTE_HOME = re.compile(r"/home/[A-Za-z0-9_][A-Za-z0-9_.-]*/")
+_ABSOLUTE_HOME = re.compile(r"/home/([A-Za-z0-9_][A-Za-z0-9_.-]*)/")
 
-#: Relative path -> the matches that file may keep. Every entry is PROSE naming
-#: a placeholder account that exists nowhere: the two files that explain this
-#: rule have to be able to quote the shape they forbid. As above, the list may
-#: only shrink, and it shrinks by being edited.
-MAY_NAME_A_HOME_DIRECTORY = {
-    "pdfreader/testpaths.py": {"/home/someone/"},
-    "pdfdrill/cli.py": {"/home/me/"},
-}
+#: Account names that name NOBODY, and so are not the defect. A test that
+#: parses paths has to write an absolute one, and the files that explain this
+#: rule have to be able to quote the shape they forbid.
+#:
+#: This is a CATEGORY, not a per-file allowlist, which is the whole improvement
+#: over the first pass: a new file may write `/home/me/x.pdf` freely and can
+#: never write the owner's own account, with nothing to keep in step. An
+#: initials-shaped account is deliberately absent — two letters that are also
+#: a real person's initials name them as surely as the full spelling does.
+#:
+#: This file does not spell any real account either, which is why the comment
+#: above lists its offenders by file and line and not by what they said. The
+#: rule covers the file that states it, and that is the point: the one
+#: exception left anywhere is `MAY_NAME_THE_OWNERS_CHECKOUT`, for prose about
+#: three `~/MX/PDFDRILL` defaults that no longer exist.
+PLACEHOLDER_ACCOUNTS = frozenset({"me", "someone", "user", "you", "u", "w", "x"})
+
+#: Relative path (under `src/` or `tests/`) -> the matches that file may keep,
+#: for a real account name that has to stay. It is EMPTY, and that is the
+#: point: the mechanism is kept for the next exception, and until there is one
+#: the rule has no holes. As above, the list may only shrink.
+MAY_NAME_A_HOME_DIRECTORY: dict = {}
 
 
-def test_no_file_under_src_names_an_absolute_home_directory():
+def _real_accounts(text: str) -> set:
+    """Every `/home/<account>/` in `text` whose account names a real person."""
+    return {m.group(0) for m in _ABSOLUTE_HOME.finditer(text)
+            if m.group(1) not in PLACEHOLDER_ACCOUNTS}
+
+
+def test_no_file_under_src_or_tests_names_a_real_home_directory():
     found = {}
-    for path in _src_files():
-        hits = set(_ABSOLUTE_HOME.findall(
-            path.read_text(encoding="utf-8", errors="replace")))
+    for path in _baseline_files():
+        hits = _real_accounts(path.read_text(encoding="utf-8", errors="replace"))
         if hits:
-            found[str(path.relative_to(SRC))] = hits
+            found[_rel(path)] = hits
     offenders = sorted(
         f"{rel} ({', '.join(sorted(hits - MAY_NAME_A_HOME_DIRECTORY.get(rel, set())))})"
         for rel, hits in found.items()
@@ -157,7 +195,10 @@ def test_no_file_under_src_names_an_absolute_home_directory():
         "these name one machine's home directory, which is nothing on any "
         "other machine: " + "; ".join(offenders)
         + " — use $PDF2MMD_LIBRARY / $PDF2MMD_LSTGOLD with a `Path.home()` "
-          "default for corpus data, and __file__ for our own code")
+          "default for corpus data (`pdfreader.testpaths` resolves both), "
+          "__file__ for our own code, and one of "
+        + "/".join(sorted(PLACEHOLDER_ACCOUNTS)) + " for a path that is only "
+          "a string being parsed")
     stale = sorted(rel for rel in MAY_NAME_A_HOME_DIRECTORY
                    if not (MAY_NAME_A_HOME_DIRECTORY[rel] & found.get(rel, set())))
     assert not stale, (
@@ -165,7 +206,7 @@ def test_no_file_under_src_names_an_absolute_home_directory():
         "MAY_NAME_A_HOME_DIRECTORY: " + ", ".join(stale))
 
 
-#: Suffixes the two baseline tests read. The DATA ones are not decoration: the
+#: Suffixes the baseline tests read. The DATA ones are not decoration: the
 #: widened rule found `src/pdfreader/pdf_list.csv`, 33 rows of absolute paths
 #: into the owner's library, read by nothing and carried in with a subtree
 #: import. A path in a data file leaks exactly as much as one in code.
@@ -173,8 +214,14 @@ _TEXT_SUFFIXES = (".py", ".md", ".toml", ".sh", ".json",
                   ".csv", ".tsv", ".txt", ".cfg", ".yaml", ".yml")
 
 
-def _src_files():
-    for p in sorted(SRC.rglob("*")):
+def _rel(p: Path) -> str:
+    """`pdfdrill/cli.py` for a source file, `tests/test_x.py` for a test — the
+    spelling an allowlist entry uses, unambiguous across the two trees."""
+    return str(p.relative_to(SRC)) if SRC in p.parents else str(p.relative_to(ROOT))
+
+
+def _files_under(root: Path):
+    for p in sorted(root.rglob("*")):
         if not p.is_file() or p.suffix not in _TEXT_SUFFIXES:
             continue
         if "egg-info" in p.parts or "__pycache__" in p.parts:
@@ -182,8 +229,17 @@ def _src_files():
         yield p
 
 
-def test_no_file_under_src_names_the_owners_checkout():
-    named = {str(p.relative_to(SRC)) for p in _src_files()
+def _src_files():
+    return _files_under(SRC)
+
+
+def _baseline_files():
+    yield from _files_under(SRC)
+    yield from _files_under(ROOT / "tests")
+
+
+def test_no_file_under_src_or_tests_names_the_owners_checkout():
+    named = {_rel(p) for p in _baseline_files()
              if _OWNERS_TREE.search(p.read_text(encoding="utf-8", errors="replace"))}
     new = named - MAY_NAME_THE_OWNERS_CHECKOUT
     assert not new, (
