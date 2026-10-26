@@ -442,3 +442,58 @@ def test_confidence_cannot_see_a_dropped_operand(tmp_path):
     assert "lost operand" in tex, (
         "a reading that typesets as a tidy falsehood must say so where it is "
         "read, not only in the JSON")
+
+
+# --------------------------------------------------------------------------
+# A document name is BYTES. Six of this library's documents are named in
+# Latin-1 and the report could not be written for any of them.
+# --------------------------------------------------------------------------
+
+def test_a_latin1_document_name_does_not_stop_the_report(tmp_path):
+    r"""The report must be WRITTEN for a document whose name is not UTF-8.
+
+    `pdfdrill eqreport --volume-rows 5000` over a 238,377-row corpus list
+    died on volume 13 of 54 with
+
+        UnicodeEncodeError: 'utf-8' codec can't encode character '\udcd6'
+        in position 8302: surrogates not allowed
+
+    on `Advanced LaTeX In Academia ... (Marco \xd6chsner, Andreas \xd6chsner)`.
+    Six of the 1,572 documents (3,886 rows) are named in Latin-1, each landing
+    in its own volume — 13, 15, 16, 22, 24 and 46 — so six volumes did not
+    exist and the run stopped at the first of them rather than skipping it.
+
+    A FILENAME IS BYTES, NOT TEXT: Python carries the undecodable ones as
+    surrogates, and `str.encode("utf-8")` refuses them. `eqlist.utf8_safe`
+    already decided this for the corpus CSV — percent-encode, which is valid
+    UTF-8, lossless and reversible with
+    `os.fsdecode(unquote_to_bytes(value))`. The table and the marks request
+    are exchange formats for exactly the same reason the CSV is, and neither
+    had it.
+
+    Not a rendering problem: xelatex compiles a raw `\xd6` byte to 0 errors
+    and a PDF, so writing the byte would have "worked" and handed inkdrill a
+    JSON file that is not valid UTF-8. The refusal is the whole defect.
+    """
+    import os
+    from urllib.parse import unquote_to_bytes
+
+    raw = b"Marco \xd6chsner"                    # exactly what the disk holds
+    key = os.fsdecode(raw)
+    eqs = [_eq(f"EQ{i:04d}", 1, 10, 20 + 30 * i) for i in range(4)]
+    root = _library(tmp_path, {key: (eqs, "pdfTeX-1.40.25")})
+    data = EL.build(root, name="t")
+
+    out = tmp_path / "o"
+    stats = ET.write(data, out, crops=False)     # raised UnicodeEncodeError
+
+    tex = (out / stats["tex"].name).read_bytes()
+    req = (out / stats["marks_request"].name).read_bytes()
+    # VALID UTF-8, both of them: a strict reader must fail on neither.
+    tex.decode("utf-8")
+    parsed = json.loads(req.decode("utf-8"))
+
+    # ...and LOSSLESS: the original bytes come back.
+    named = parsed["documents"][0]["document"]
+    assert os.fsdecode(unquote_to_bytes(named)) == key, named
+    assert b"%D6" in tex, "the name must still appear in the document column"

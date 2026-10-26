@@ -1515,3 +1515,83 @@ def test_an_unbalanced_text_group_is_left_to_the_gate():
     rest of the line; the delimiter checks below refuse it anyway."""
     from pdfdrill.report_tex import _escape_text_underscore
     assert _escape_text_underscore(r"\text{a_b") == r"\text{a_b"
+
+
+# --- the fixpoint demotes a row for ITS OWN fault, not for collateral -------
+
+def _log(*blocks):
+    """A TeX log: each block is (message, source_line, context_lines)."""
+    out = ["This is XeTeX, Version 3.141592653"]
+    for msg, ln, ctx in blocks:
+        out.append(msg)
+        out.extend(ctx)
+        out.append("l.%d \\emph{x} & $\\displaystyle y$" % ln)
+        out.append("                 ")
+        out.append("")
+    out.append("Output written on t.pdf (3 pages, 1234 bytes).")
+    return "\n".join(out)
+
+
+def test_only_a_genuine_fault_demotes_its_row():
+    r"""MEASURED ON vol35, one xelatex pass over a clean table: 14,936
+    errors, of which 14,828 are `Misplaced alignment tab character &` and
+    `Misplaced \noalign` — TeX complaining about every later `&` and
+    `\hline` because ONE row already broke the alignment. Only 108 errors,
+    on 31 distinct lines, are faults of the row they name.
+
+    The loop harvested every `^l\.(\d+)` in the log regardless of which
+    error printed it, so it demoted 2,814 lines to repair 31: vol35 lost
+    2,359 rows, about 2,328 of them correct equations. The collateral says
+    nothing about the row it is reported on.
+    """
+    from pdfdrill.report_tex import _fault_lines
+    text = _log(
+        ("! Package amsmath Error: \\tag not allowed here.", 315, []),
+        ("! Misplaced alignment tab character &.", 316, ["<recently read> &"]),
+        ("! Misplaced \\noalign.", 317, ["<recently read> \\noalign"]),
+        ("! Misplaced alignment tab character &.", 318, []),
+        ("! You can't use `\\eqno' in math mode.", 1811, []),
+    )
+    assert _fault_lines(text) == {315, 1811}
+
+
+def test_a_log_of_pure_collateral_demotes_nothing():
+    """So the loop stops instead of demoting the whole table — the collateral
+    is a consequence of a row already demoted, and demoting more cannot
+    remove it."""
+    from pdfdrill.report_tex import _fault_lines
+    text = _log(("! Misplaced alignment tab character &.", 500, []),
+                ("! Misplaced \\noalign.", 501, []))
+    assert _fault_lines(text) == set()
+
+
+def test_an_extra_alignment_tab_is_the_rows_own_fault():
+    r"""It LOOKS like alignment collateral and is not. Demoting vol35's 31
+    genuine faults removed all 12,342 `Misplaced alignment tab` and all
+    2,471 `Misplaced \noalign` in one pass, and left all 15 `Extra alignment
+    tab has been changed to \cr` exactly where they were: a row with one `&`
+    too many for the table's columns. Treating it as collateral left 15
+    errors in the document that no further pass could ever clear."""
+    from pdfdrill.report_tex import _fault_lines
+    text = _log(("! Extra alignment tab has been changed to \\cr.", 777, []))
+    assert _fault_lines(text) == {777}
+
+
+def test_a_wrapped_source_line_is_not_an_error():
+    r"""884's other half. TeX wraps its log at 79 columns, so a row carrying
+    a factorial can put the `!` of `(n+1)!` at the start of the next log
+    line. Eight volumes were reported with 1-2 errors that way and have
+    none; here it would also demote an innocent row."""
+    from pdfdrill.report_tex import _fault_lines
+    wrapped = "x" * 79                       # exactly the wrap width
+    text = "\n".join([
+        "This is XeTeX",
+        wrapped,
+        "! = \\sqrt{2\\pi x} \\left(\\frac{x}{e}\\right)^{",
+        "l.4242 a & b",
+        "",
+        "! Missing $ inserted.",
+        "l.99 c & d",
+        "",
+    ])
+    assert _fault_lines(text) == {99}

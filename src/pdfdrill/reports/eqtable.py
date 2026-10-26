@@ -48,6 +48,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from .. import eqlist as _el
 from .. import report_tex as rt
 from . import tex as T
 
@@ -551,7 +552,16 @@ def render(data: dict, out_dir: Path, *, crops: bool = True,
         # (document, page, region) printed in the rect column beside it, which
         # is why that column is not decoration.
         parts.append(" & ".join([
-            "{\\scriptsize %s}" % rt.esc_text(r.get("document") or ""),
+            # A DOCUMENT NAME IS BYTES. Six of this library's documents are
+            # named in Latin-1, and `_atomic_write` encodes strict UTF-8, so
+            # the volume holding one of them was not written at all —
+            # `--volume-rows 5000` over the corpus list died on volume 13 of
+            # 54 with `'utf-8' codec can't encode '\udcd6'`. `utf8_safe`
+            # percent-encodes only the undecodable bytes and returns every
+            # other name unchanged, so 1,566 of 1,572 names are byte-identical
+            # and the six are readable and reversible (`eqlist.utf8_safe`).
+            "{\\scriptsize %s}" % rt.esc_text(
+                _el.utf8_safe(r.get("document") or "")),
             # The AUTHOR'S number first when the document set one — that is
             # what "equation no" means to someone reading the paper — with
             # this pipeline's own ordinal label beneath it, small, because the
@@ -641,9 +651,17 @@ def marks_request(data: dict) -> dict:
         key = d.get("document")
         rows = by_doc.get(key) or []
         docs.append({
-            "document": key,
-            "folder": d.get("folder"),
-            "inputs": d.get("inputs"),
+            # The same bytes reach inkdrill through the key, the folder and
+            # every input path; `utf8_safe` is applied to all of them so the
+            # file a strict JSON reader gets is valid UTF-8 throughout, not
+            # valid in its keys and raw in its paths.
+            "document": _el.utf8_safe(key or ""),
+            "folder": _el.utf8_safe(d.get("folder") or "") or None,
+            "inputs": {k: ({**ref, "path": _el.utf8_safe(ref.get("path")
+                                                           or "")}
+                            if isinstance(ref, dict) and ref.get("path")
+                            else ref)
+                       for k, ref in (d.get("inputs") or {}).items()} or None,
             "calibrate_on": {
                 # THE KIND MATTERS, and this is the correction inkdrill
                 # measured after the first subset. "The document's full row
@@ -667,7 +685,13 @@ def marks_request(data: dict) -> dict:
                 "label": r.get("label"),
                 "latex_sha16": r.get("latex_sha16"),
                 "kind": r.get("kind"),
-                "crop": r.get("crop"),
+                # The crop id is `<document>-<label>`, so it carries the
+                # document's bytes too.
+                "crop": ({**r["crop"],
+                          "id": _el.utf8_safe(r["crop"].get("id") or "")}
+                         if isinstance(r.get("crop"), dict)
+                            and r["crop"].get("id")
+                         else r.get("crop")),
             } for r in rows],
         })
     return {
