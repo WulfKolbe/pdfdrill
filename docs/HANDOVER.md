@@ -1485,3 +1485,45 @@ keyless, on this machine:
 
 So on both lanes the cost IS the layout detector, and everything else is noise.
 That is the number to watch when the test documents arrive.
+
+## The documented suite grew by 23, and a bare `pytest` is no longer a second suite (T-0078 follow-up, 2026-10-26)
+
+**Any suite number quoted before this date is not comparable with one quoted
+after it.** Two things changed, both deliberate:
+
+  * `pyproject.toml` now pins `testpaths = ["tests"]`. It used to set nothing,
+    so `python3 -m pytest` from the root walked the whole tree and collected
+    5955 where `python3 -m pytest tests/` collected 5932 — the difference being
+    `src/pdfreader/out/test_table.py`, which had no package beside it and so put
+    `src/pdfreader/out` first on `sys.path` for everything collected after it.
+    From that point `import langdetect` found a subprocess tool, not the
+    package. A peer session measured 33 failures from that one insertion, and no
+    two runs agreed, because the poisoning depends on collection order.
+  * that file is now `tests/test_table.py` (owner's call: "Move under tests/"),
+    so the documented command covers its 23 table-pipeline tests. They were
+    never run by anything routine before.
+
+The two commands now collect the same number, which is the property worth
+keeping: measured in a fresh clone on the documented base install, **5884 and
+5884**. In-tree with every extra it is higher, as always — quote the install
+with the number, per CLAUDE.md.
+
+`pytest tests/…` (the console script) also works now. It never did: it does not
+put the current directory on `sys.path`, so the six files here that import each
+other (`from tests.test_publish_ready import …`) were a collection ERROR, not a
+failure, under any invocation but `python3 -m`. `tests/conftest.py` puts the
+repository root on `sys.path` once.
+
+### A missing optional tool is a skip that names the tool
+
+Seven tests FAILED on the documented base install, reading `LTChar.glyphname`
+(3) and `LTChar.invisible` (4, through `src/pdfreader/docmodel_six.py:2936`).
+Both come from `vendor/pdfminer-glyph-identity.patch`; neither exists on PyPI's
+pdfminer.six. The suite was reporting seven defects in the reader on a machine
+where only a tool was missing. They now ask
+`pdfreader.build_identity.missing(...)` — the one function that asks the LOADED
+module — through `requires_fork(...)` in
+`tests/test_pdfminer_fork_survives_pip.py`, and every skip names
+`bash vendor/install-pdfminer-fork.sh --user --rebuild`. README's install block
+names that step too: `pip install -e .` alone cannot do it, and the fork cannot
+be a requirement because it is a local patch, not a package on PyPI.
