@@ -63,7 +63,11 @@ INTERPRETER_ENV = "PDFDRILL_YOLO_PYTHON"
 INTERPRETER_CANDIDATES = (
     "~/Gemma4/.venv-yolo/bin/python",
     "~/.venv-yolo/bin/python",
-    "~/MX/PDFDRILL/.venv-yolo/bin/python",
+    # Beside THIS checkout, derived from __file__ — the entry used to be
+    # a literal path into the owner's checkout, which found the owner's venv
+    # from inside any
+    # clone and nothing at all on any other machine (T-0078).
+    str(Path(__file__).resolve().parents[2] / ".venv-yolo" / "bin" / "python"),
 )
 
 #: Classes that mark ink belonging to no printed line. Whitened before the

@@ -5,7 +5,7 @@ in this folder contains corpus material, and nothing in it writes into this
 repository.
 
     $PDF2MMD_LIBRARY   where the corpus is       default ~/pdfdrill-library
-    $PDFDRILL_SRC      PDFDRILL's src/           default ~/MX/PDFDRILL/src
+    $PDFDRILL_SRC      PDFDRILL's src/           default the src/ of this checkout
     $PDF2MMD_CODE      the reader                default the parent of this folder
 
 The corpus (`wzlxjtu-*`, each with its `golden/`) is licensed to TEES, Texas

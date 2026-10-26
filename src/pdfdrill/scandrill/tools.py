@@ -10,7 +10,7 @@ shells out ad hoc.
 Discovery is env-var driven with repo defaults, so nothing here hard-codes a
 machine layout:
 
-    PDFDRILL_HOME     (default ~/MX/PDFDRILL)      run via <home>/pdfdrill
+    PDFDRILL_HOME     (default: THIS checkout)      run via <home>/pdfdrill
     PYLEPTO_HOME      (default ~/pylepto)
     BLOBTRACKER_HOME  (default ~/BlobTracker)
 """
@@ -26,8 +26,19 @@ from pathlib import Path
 from .config import Config, DEFAULT as DEFAULT_CONFIG
 
 
-def _home(env: str, default: str) -> Path:
-    return Path(os.environ.get(env, os.path.expanduser(default)))
+#: This checkout: `src/pdfdrill/scandrill/tools.py` -> three parents up. The
+#: default used to be a path into the owner's home tree, which is not a default
+#: but one machine's
+#: layout: on another machine it names nothing, and on the owner's it names the
+#: owner's tree even when the code running is a different clone — so `available()`
+#: reported a tree nobody was testing, and the test passed (T-0078). Installed as
+#: a wheel there is no checkout, three parents up holds no `pdfdrill` script, and
+#: `available()` says so instead of guessing.
+_CHECKOUT = Path(__file__).resolve().parents[3]
+
+
+def _home(env: str, default) -> Path:
+    return Path(os.environ.get(env) or os.path.expanduser(str(default)))
 
 
 _MISSING = object()
@@ -105,7 +116,7 @@ class Tools:
     blobtracker_home: Path = None  # type: ignore[assignment]
 
     def __post_init__(self):
-        self.pdfdrill_home = self.pdfdrill_home or _home("PDFDRILL_HOME", "~/MX/PDFDRILL")
+        self.pdfdrill_home = self.pdfdrill_home or _home("PDFDRILL_HOME", _CHECKOUT)
         self.pylepto_home = self.pylepto_home or _home("PYLEPTO_HOME", "~/pylepto")
         self.blobtracker_home = self.blobtracker_home or _home("BLOBTRACKER_HOME", "~/BlobTracker")
 
