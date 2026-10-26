@@ -4182,6 +4182,64 @@ def _surviving_renders(tex_path: Path) -> int:
 
 
 
+# Exactly the two messages a BROKEN ALIGNMENT emits about rows that are
+# themselves fine. Established by experiment, not by reading TeX: demoting
+# vol35's 31 genuine faults removed all 12,342 `Misplaced alignment tab`
+# and all 2,471 `Misplaced \\noalign` in one pass, while every one of the 15
+# `Extra alignment tab has been changed to \\cr` survived untouched — so
+# that third message is a fault of the row it names (a row carrying one `&`
+# too many for the table's columns) and must stay demotable. Listing it
+# here left 15 errors in the document permanently.
+_COLLATERAL = (
+    "! Misplaced alignment tab character &.",
+    "! Misplaced \\noalign.",
+)
+
+
+def _fault_lines(log_text: str) -> set:
+    r"""The source lines a TeX log blames for a fault OF THEIR OWN.
+
+    The demote loop used to harvest every `^l\.(\d+)` in the log, whoever
+    printed it. Inside a longtable that is catastrophically wrong: ONE row
+    that breaks the alignment makes TeX report every later `&` as a
+    misplaced alignment tab and every later `\hline` as a misplaced
+    `\noalign`, and each of those complaints prints the line it was reading.
+    Measured on vol35, one pass over a clean table: 14,936 errors, of which
+    14,813 are exactly those two messages and 123 are faults of the row they
+    name — 2,814 distinct lines blamed where 31 are at fault. The loop
+    demoted 2,359 rows to repair 31, so roughly 2,328 correct equations were
+    replaced by "(not rendered)" and the volume still looked finished.
+
+    Demoting a collateral line cannot help: the complaint is a consequence
+    of the alignment already being broken, and it goes away when the row
+    that broke it is demoted. So the collateral is skipped and the loop
+    comes round again — convergence is unaffected, because every genuine
+    fault in the pass is still demoted in that pass.
+
+    The 79-column guard is 884's other half: TeX wraps its own log at
+    `max_print_line`, so a row carrying `(n+1)!` can put that `!` at the
+    start of the next log line. Eight volume tables were reported with 1-2
+    errors that way and have none; here such a line would demote an
+    innocent row.
+    """
+    lines = log_text.split("\n")
+    out = set()
+    for i, ln in enumerate(lines):
+        if not ln.startswith("! "):
+            continue
+        if i and len(lines[i - 1]) == 79:
+            continue                       # a wrapped source line
+        if ln.startswith(_COLLATERAL):
+            continue
+        for j in range(i + 1, min(i + 40, len(lines))):
+            m = re.match(r"l\.(\d+)", lines[j])
+            if m:
+                out.add(int(m.group(1)))
+                break
+            if lines[j].startswith("! "):
+                break                      # this error named no line
+    return out
+
 def _demote_line(line: str) -> str:
     r"""Replace whatever this row RENDERS with `(not rendered)`, leaving its
     other cells alone. Returns the line unchanged when there is nothing to
@@ -4304,8 +4362,9 @@ def compile_fixpoint(tex_path: Path, max_iter: int = 40):
                 break
             src = src_tex.read_text().split("\n")
             changed = False
-            for n in sorted({int(x) for x in
-                             _re.findall(r"^l\.(\d+)", text, _re.M)}):
+            # ONLY the rows at fault — see `_fault_lines`. Harvesting
+            # every `l.NNN` demoted 2,359 of vol35's rows to repair 31.
+            for n in sorted(_fault_lines(text)):
                 i = n - 1
                 if i < len(src):
                     new = _demote_line(src[i])
