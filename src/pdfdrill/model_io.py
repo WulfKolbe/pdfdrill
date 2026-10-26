@@ -27,7 +27,7 @@ import json
 import os
 from pathlib import Path
 
-from . import docpack
+from . import docpack, jsonio
 
 
 def packed_path(model_path) -> Path:
@@ -103,11 +103,34 @@ def save_model(model_path, doc, *, packed: bool = True) -> None:
     _led = _ledger.for_save(doc)
     if _led is not None:                       # None = no stream, or a failure:
         data["meta"]["ledger"] = _led          # keep what was there, never drop it
-    _atomic_write(plain, json.dumps(data, indent=2, ensure_ascii=False))
+    # `jsonio.dumps`, NOT `json.dumps(ensure_ascii=False)`. A FILENAME IS
+    # BYTES: 18 of this library's PDFs have a path that is not valid UTF-8, it
+    # reaches the model through `meta.source_path`, the bibkey, stream names
+    # and props as a lone surrogate, and `ensure_ascii=False` passes that
+    # surrogate through RAW — measured, not assumed — so `_atomic_write`'s
+    # strict UTF-8 encode raised and the model was not written at all.
+    #
+    # `jsonio` already exists for exactly this and says so in its first line;
+    # `docmodel.main` has used it since 18 such folders each failed their whole
+    # rebuild. `save_model` was the remaining writer that did not. It falls
+    # back to `ensure_ascii=True` only when the strict encode fails, so every
+    # ordinary model stays byte-for-byte what it was, umlauts unescaped.
+    #
+    # `default=None` IS LOAD-BEARING, and looks like a no-op. `jsonio.dumps`
+    # does `kw.setdefault("default", str)`, which silently turns a value it
+    # cannot serialise into its repr — the `refnum_anchor` defect, where an
+    # Anchor object in props reached the file as `"Anchor(a_abfd…)"` and
+    # matched nothing on reload. This writer was deliberately made to RAISE
+    # instead, and `test_a_prop_holding_a_live_object_is_REFUSED_not_silently_
+    # stringified` is the guard; passing None explicitly keeps the refusal
+    # while still taking jsonio's UTF-8 fallback. Measured: without it that
+    # test fails, which is how this line came to exist.
+    _atomic_write(plain, jsonio.dumps(data, indent=2, default=None))
     sidecar = packed_path(plain)
     if packed:
         try:
-            _atomic_write(sidecar, json.dumps(docpack.pack(data), ensure_ascii=False))
+            _atomic_write(sidecar, jsonio.dumps(docpack.pack(data),
+                                                default=None))
         except Exception:
             if sidecar.exists():                   # never leave a stale sidecar
                 sidecar.unlink()
