@@ -50,10 +50,19 @@ from pathlib import Path
 #: Override either with an environment variable.
 LIB = Path(os.environ.get("PDF2MMD_LIBRARY",
                           Path.home() / "pdfdrill-library"))
-#: `report_tex` supplies the preamble and the demote-to-fixpoint compile.
-#: It belongs to PDFDRILL, a separate repository.
-sys.path.insert(0, os.environ.get("PDFDRILL_SRC",
-                                  str(Path.home() / "MX/PDFDRILL/src")))
+#: WHERE PDFDRILL'S CODE IS. `report_tex` supplies the preamble and the
+#: demote-to-fixpoint compile; it belongs to PDFDRILL, a separate repository,
+#: and this file is a copy that travels. The default is THIS checkout — the
+#: `src/` two levels up from this file — because a default that named one
+#: machine's tree — the owner's checkout — made a clone measure the owner's
+#: code and pass for the wrong reason (T-0078). Where this copy lives
+#: elsewhere, $PDFDRILL_SRC says so and the refusal below names it.
+_SRC = Path(os.environ.get("PDFDRILL_SRC") or Path(__file__).resolve().parents[2])
+if not (_SRC / "pdfdrill" / "report_tex.py").is_file():
+    raise SystemExit(
+        "no pdfdrill source at %s — set $PDFDRILL_SRC to PDFDRILL's src/ "
+        "directory (this file reads pdfdrill.report_tex)" % _SRC)
+sys.path.insert(0, str(_SRC))
 from pdfdrill import report_tex as rt          # noqa: E402
 
 #: 759 -- `alignat` TAKES AN ARGUMENT, and was not in this list at all.

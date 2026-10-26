@@ -15,8 +15,19 @@ import re, sys, importlib.util
 from collections import Counter
 from pathlib import Path
 import os
-sys.path.insert(0, os.environ.get('PDFDRILL_SRC',
-                                  str(Path.home() / 'MX/PDFDRILL/src')))
+#: WHERE PDFDRILL'S CODE IS. `report_tex` supplies the preamble and the
+#: demote-to-fixpoint compile; it belongs to PDFDRILL, a separate repository,
+#: and this file is a copy that travels. The default is THIS checkout — the
+#: `src/` two levels up from this file — because a default that named one
+#: machine's tree — the owner's checkout — made a clone measure the owner's
+#: code and pass for the wrong reason (T-0078). Where this copy lives
+#: elsewhere, $PDFDRILL_SRC says so and the refusal below names it.
+_SRC = Path(os.environ.get("PDFDRILL_SRC") or Path(__file__).resolve().parents[2])
+if not (_SRC / "pdfdrill" / "report_tex.py").is_file():
+    raise SystemExit(
+        "no pdfdrill source at %s — set $PDFDRILL_SRC to PDFDRILL's src/ "
+        "directory (this file reads pdfdrill.report_tex)" % _SRC)
+sys.path.insert(0, str(_SRC))
 _here = Path(__file__).resolve().parent
 s=importlib.util.spec_from_file_location("eq", _here / "eqtable_716.py")
 m=importlib.util.module_from_spec(s); s.loader.exec_module(m)
