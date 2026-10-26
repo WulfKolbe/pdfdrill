@@ -99,6 +99,29 @@ def features() -> dict:
     return out
 
 
+def missing(*names: str) -> list:
+    """Which of `names` the LOADED pdfminer does not provide, in order.
+
+    The one place anything asks "can this interpreter do X". A test that reads
+    `LTChar.glyphname` or `LTChar.invisible` on a stock pdfminer does not fail
+    because the code is broken -- it fails because the fork was never built,
+    and the two look identical in a suite summary. Measured on the documented
+    base install: 7 tests, 3 on `glyphname` and 4 on `invisible`, all reported
+    as defects (2026-10-26). They ask here instead and skip, naming the
+    installer.
+
+    An unknown name RAISES rather than reporting "present": a typo in a guard
+    would otherwise never skip, and the test would go on failing for the
+    reason the guard was added to explain.
+    """
+    feats = features()
+    unknown = sorted(n for n in names if n not in feats)
+    if unknown:
+        raise KeyError("no such pdfminer feature: %s (have %s)"
+                       % (", ".join(unknown), ", ".join(sorted(feats))))
+    return [n for n in names if not feats[n]]
+
+
 #: A feature -> the text that proves the patch on disk provides it. Used only
 #: to tell a STALE BUILD from an old patch, never to claim a feature exists.
 _PATCH_MARKERS = {

@@ -126,7 +126,7 @@ def inspect_list(target, task, entries) -> dict:
     describes another document is a broken promise in the same way.
 
     NAMES, NOT CONTAINS. The wrong capture's real first line was
-    `Uploading /home/wkolbe/pdfdrill-library/penev_A/evidence-equation.pdf...`
+    `Uploading /home/<user>/pdfdrill-library/penev_A/evidence-equation.pdf...`
     — which CONTAINS "penev_A", inside the folder path. A substring test
     passes it, so the first version of this check would not have caught the
     defect it was written for. The rule is therefore: the first line names X

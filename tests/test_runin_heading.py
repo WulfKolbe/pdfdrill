@@ -7,6 +7,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pdfreader import texmap                                              # noqa: E402
 
+from tests.test_pdfminer_fork_survives_pip import requires_fork           # noqa: E402
+
 
 # ── the bold face nobody recognised ──────────────────────────────────────────
 
@@ -137,6 +139,7 @@ def test_a_line_with_no_bold_prefix_is_untouched():
 
 # ── it reaches the lines.json as two lines ───────────────────────────────────
 
+@requires_fork("render_mode")          # docmodel_six reads LTChar.invisible
 @pytest.mark.skipif(not Path("/home/wkolbe/pdfdrill-library/2510.04618/"
                              "2510.04618.pdf").is_file(),
                     reason="corpus document not present")

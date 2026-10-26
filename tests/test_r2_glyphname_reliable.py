@@ -28,6 +28,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from pdfreader.texmap import glyphname_reliable                # noqa: E402
 
+from tests.test_pdfminer_fork_survives_pip import (                # noqa: E402
+    INSTALLER, fork_missing)
+
 PSRED = Path.home() / "psred"
 ALL_PSEUDO = PSRED / "fixtures" / "lang" / "text_t1.pdf"
 ALL_REAL = PSRED / "fixtures" / "t1.pdf"
@@ -61,6 +64,13 @@ def _require(pdf: Path):
     if not pdf.exists():
         pytest.skip(f"psred fixture not checked out: {pdf}")
     pytest.importorskip("pdfminer.high_level")
+    # `ch.glyphname` below exists only on the patched build. Without this the
+    # three readers raised `AttributeError: 'LTChar' object has no attribute
+    # 'glyphname'` on the documented base install — three "failures" that were
+    # a missing tool, not broken code (measured 2026-10-26).
+    absent = fork_missing("glyph_identity")
+    if absent:
+        pytest.skip("this pdfminer has no %s — %s" % (", ".join(absent), INSTALLER))
 
 
 def test_the_pseudo_name_fixture_has_no_reliable_name():

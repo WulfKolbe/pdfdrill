@@ -128,6 +128,17 @@ fontid = [
 [project.scripts]
 pdfdrill = "pdfdrill.cli:main"
 
+# WHICH FILES ARE "THE SUITE". Without `testpaths`, a bare `python3 -m pytest`
+# from the root walks the whole tree and collected ONE file `pytest tests/`
+# never saw — `src/pdfreader/out/test_table.py`, 23 tests: 5955 against 5932,
+# measured. Worse than the discrepancy: that file has no package beside it, so
+# pytest's prepend import mode put `src/pdfreader/out` first on `sys.path` for
+# the rest of the session, and `import langdetect` then found a subprocess tool
+# instead of the PyPI package. A peer session measured 33 failures from it.
+# Pinned here so the command a newcomer types IS the documented command.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["pdfdrill*", "docmodel*", "docops*", "features*", "semantic*", "vocabnet*"]
