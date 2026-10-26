@@ -72,8 +72,14 @@ bash vendor/install-pdfminer-fork.sh --check            # is it in place?
 
 `bash bootstrap.sh` ends with this step, so a bootstrap install already has it.
 A plain `pip install -e .` does not: everything still imports, the glyph-name
-features are silently off, and seven tests skip saying so. `pdfdrill doctor`
-reports which pdfminer is loaded.
+features are silently off, and seven tests skip saying so.
+
+`--check` is the way to ask. **`pdfdrill doctor` does not answer this** — it
+prints `[OK ] pdfminer — core: born-digital text layer (model)` whether the
+patch is there or not (measured on a base install, 2026-10-26), which is the
+same "looks clean, feature gone" shape the patch's own history is made of.
+`python3 -c "from pdfreader import build_identity as b; print(b.summary())"`
+names the loaded build, its five features and whether it is behind the patch.
 
 ## First, unlock the build commands (once per machine, 24 h)
 
