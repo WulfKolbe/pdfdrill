@@ -1697,3 +1697,64 @@ so that it runs the real code and not a copy. Extending that line into a block
 comment's opener deleted the boundary and failed 11 tests with
 `ValueError: substring not found` — nothing about KaTeX. The line is now marked
 as a boundary in `docinspect.py` itself.
+
+---
+
+## Every TikZ row in an evidence report said "(not rendered)" (2026-10-27)
+
+Found by **gemma4-ba**, whose user asked why. Owner's yes relayed the same day:
+"yes, ask pdfdrill to make the change", scoped to TikZ.
+
+**Two defects, one gate.** `reports/tex.py::_rendered` has exactly one route to
+a separate compile, `report_tex.needs_own_document`, and that predicate was
+XY-pic only. A `tikzpicture` body is not legal display maths, so `display_safe`
+returned "" for it and the row fell to `\emph{(not rendered)}`. The HTML half
+refused for its own reason: it renders every row's LaTeX through KaTeX, which
+has no TikZ at all. Meanwhile `props['svg']` — the drawing `pdfdrill svg` had
+already compiled, with the document's own preamble — was read by
+`docops.projectors.formula_report` and by nothing the evidence row could see.
+
+Measured by gemma4-ba over the 54 `svg_ok` rows of their crop corpus:
+`display_safe` true for **2**, `needs_own_document` true for **0**. The 2 are
+`tikzcd` bodies, and those are the worse case, not the better one — a
+commutative diagram handed to the maths parser inside a longtable cell is the
+239-error shape `_ampersand_safe` exists to work around.
+
+**The route already existed.** `region_standalone` was written for exactly this
+content (its docstring counts tikzpicture 762 · tikzcd 658 corpus-wide) and
+says why standalone beats the in-cell workaround: alone in its own document,
+`&` means what its own environment says it means, and a failure costs one PNG
+instead of the report. gemma4-ba verified it by calling it directly on three of
+their rows — 3 of 3 PNGs, one checked by eye.
+
+**What changed.** `_TIKZ_CONSTRUCT`, built from the module's existing
+`_PICTURE_ENVS` rather than a second list, plus `\usetikzlibrary` (the spelling
+the two accepted rows open with). `standalone_math` split into `standalone_png`
+(the compile, cached) + `standalone_cell` (the `\includegraphics`), so both
+halves of a report share one compile and the PDF cell can carry the reason;
+`standalone_math` keeps its old contract for the align-only equation route.
+`ImageRow` now carries `svg` and `svg_error`. The HTML Rendered cell shows the
+SVG where there is one (vector, and already compiled), the same standalone PNG
+otherwise, and `(not rendered)` plus both reasons when neither exists. The PDF
+half can never show the SVG — xelatex does not `\includegraphics` one.
+
+**A refusal is remembered.** A failing xelatex costs up to the 90 s timeout and
+`region_standalone._clean` deletes its log, so the second half of a report used
+to repeat every failure of the first with nothing to show. `standalone_png`
+writes a `.err` memo beside where the PNG would be, keyed to a hash of the body
+AND the preamble — `packages_extra` is an open item on the diagram props, and a
+memo that outlived its input would make the retry a no-op reporting a stale
+error.
+
+**Not done, deliberately** — both recorded, neither chosen:
+
+- the gate was NOT widened to everything `region_standalone.needs_math_wrapper`
+  admits (tabular, minipage, axis, lstlisting, …). A test pins that boundary.
+- `report_tex.region_render` — the in-cell TikZ route, with the corpus
+  vocabulary measured in its comment and the `ampersand replacement=\&` remedy
+  — is **called from nowhere in `src/`** and was NOT deleted. A test pins that
+  it is still here, so removing it is a deliberate edit.
+- a `Table` object's `svg` still has no row to show it: `TableRow` carries no
+  `svg` field, and the crop corpus has 0 Table objects to measure it on.
+- `commands.yaml` was NOT touched: no command and no flag changed, only what a
+  cell shows.

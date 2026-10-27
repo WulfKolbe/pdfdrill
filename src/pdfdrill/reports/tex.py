@@ -59,11 +59,18 @@ def _rendered(r: EvidenceRow, widths, out_dir, author_preamble: str = "") -> str
     # arXiv 1102.1889 compiled standalone and 14 did not, and letting those 14
     # through cost the whole report — the first of them ends the longtable and
     # every row after it is gone. One unrenderable row must cost one row.
+    # 2026-10-27 — the same gate, now answering for TikZ too, and the cell
+    # carries the REASON when nothing was produced (the owner asked for it in
+    # both halves). `standalone_png` + `standalone_cell` instead of
+    # `standalone_math` for exactly that: the error is the part
+    # `standalone_math`'s "" contract throws away, and the HTML half needs the
+    # same PNG, so the compile is shared and cached rather than done twice.
     if r.latex and rt.needs_own_document(r.latex):
-        return rt.standalone_math(r.latex, r.identifier, Path(out_dir),
-                                  col_mm=widths[4],
-                                  author_preamble=author_preamble) \
-            or "\\emph{(not rendered)}"
+        png, err = rt.standalone_png(r.latex, r.identifier, Path(out_dir),
+                                     author_preamble=author_preamble)
+        if png is not None:
+            return rt.standalone_cell(png, widths[4])
+        return rt.refusal_cell(err)
     safe = rt.display_safe(r.latex) if r.latex else ""
     # 836 — AN ENVIRONMENT THE CELL CANNOT CLOSE MUST NOT BE EMITTED. 822 wrote
     # this rule for the LaTeX projector's table cells and it is imported, not

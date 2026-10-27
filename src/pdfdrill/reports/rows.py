@@ -109,6 +109,19 @@ class ImageRow(EvidenceRow):
     #: compile silently when confused).
     listing: str = ""
     language: str = ""
+    #: THE SVG `pdfdrill svg` ALREADY BUILT, and its failure. Both are
+    #: `props['svg']`/`props['svg_error']` on the Diagram or Table, written by
+    #: `cmd_svg` and — until 2026-10-27 — read by `docops.projectors.
+    #: formula_report` alone. The evidence row could not see them, so the one
+    #: report a user can actually run for a PDF said "(not rendered)" over a
+    #: drawing that was sitting on the model.
+    #:
+    #: Markup, not a path: `cmd_svg` stores the dvisvgm document itself, and
+    #: `svg_ids.inline_body` reduces it to its root element with the ids
+    #: namespaced. The HTML half shows it; the PDF half cannot (xelatex does
+    #: not \includegraphics an SVG) and uses the standalone PNG instead.
+    svg: str = ""
+    svg_error: str = ""
 
 
 _KIND_OF = {EquationRow: "equation", FormulaRow: "formula",

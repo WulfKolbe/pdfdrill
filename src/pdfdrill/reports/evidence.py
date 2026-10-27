@@ -54,6 +54,13 @@ def build(rows_by_kind: dict, kind: str, fmt: str, *, doc_dir, pdf, bibkey,
     # which never carry `refined_info` (refine.MATH_TYPES is Equation and
     # Formula only).
     refined = _refined_rows_map({kind: rows}) if kind in ("equation", "formula") else {}
+    # 836/2026-10-27 — the author's own preamble, raw (it brings its own
+    # \documentclass), for the rows `needs_own_document` sends to a separate
+    # compile. Hoisted above the HTML branch: that half compiles the same
+    # graphic rows now, and a report whose two halves used different preambles
+    # would disagree about which rows render (286: the author's preamble took a
+    # 10-document sample from 52% to 67%).
+    author_pre = ((meta or {}).get("latex_preamble") or {}).get("standalone") or ""
     if fmt == "html":
         out = doc_dir / (OUTPUT % (kind, "html"))
         meta = ["%d rows" % len(rows)]
@@ -64,13 +71,11 @@ def build(rows_by_kind: dict, kind: str, fmt: str, *, doc_dir, pdf, bibkey,
         # .tex write below for why this is not merely tidiness.
         _atomic_write(out, H.render_page(rows, kind, title=title,
                                          doc_dir=doc_dir,
-                                         meta_lines=tuple(meta)))
+                                         meta_lines=tuple(meta),
+                                         author_preamble=author_pre))
         return {"out": out, "rows": len(rows), "pages": None, "errors": 0,
                 "demoted": 0}
     widths = T.widths_for(paper, landscape, with_image=True)
-    # 836 — the author's own preamble, raw (it brings its own \documentclass),
-    # for the rows `needs_own_document` sends to a separate compile.
-    author_pre = ((meta or {}).get("latex_preamble") or {}).get("standalone") or ""
     body = T.render_table(rows, kind, widths=widths, out_dir=doc_dir,
                           px2mm=px2mm, bibkey=bibkey, history=history,
                           author_preamble=author_pre)
