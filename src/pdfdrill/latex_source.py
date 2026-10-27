@@ -961,6 +961,59 @@ def extract_display_equations(body: str) -> list[dict]:
     return items   # keep `pos` so build_source_model can interleave prose by position
 
 
+#: What hides inline maths from the harvest below: display maths, which
+#: `extract_display_equations` already reads, and the verbatim-like blocks,
+#: which are not mathematics at all (`for $i in x` is a shell variable).
+#:
+#: Deliberately NOT `_STRUCT_RE`, which is `build_source_model`'s PROSE
+#: splitter and also blanks `algorithm`, `algorithmic`, `figure`, `table`,
+#: `itemize`, `cases`, `array` … Those are not paragraphs, which is why prose
+#: skips them — but the `$...$` inside them is the author's mathematics, and
+#: MathPix reads every line of a pseudocode block as a Formula. Measured on
+#: 1702.06385, against the 160 Formula objects of its MathPix model:
+#:
+#:     blanking          key                  Formula objects given a reading
+#:     _STRUCT_RE        normalize_latex                  109
+#:     this rule         normalize_latex                  123
+#:     _STRUCT_RE        scoring.author_match_key         113
+#:     this rule         scoring.author_match_key         132
+#:
+#: The difference is that document's algorithm block and its captions. The two
+#: choices are independent and both are needed: the widest key over the prose
+#: splitter still reads 19 fewer formulas than the narrow blanking does.
+_HIDES_INLINE_MATH = re.compile(
+    r"\\\[.*?\\\]"
+    r"|(?<!\\)\$\$.*?\$\$"
+    r"|\\begin\{(" + "|".join(_DISPLAY_ENVS) + r"|verbatim|Verbatim|lstlisting"
+    r"|minted|alltt)\*?\}.*?\\end\{\1\*?\}",
+    re.S)
+
+
+def extract_inline_math(body: str) -> list[dict]:
+    r"""Every inline `$ … $` / `\( … \)` in `body`, in document order.
+
+    Each: {latex (the author's own source, unexpanded), delim, pos}. The
+    counterpart of `extract_display_equations` for the mathematics that lives
+    INSIDE a sentence — which was the half of the author's maths nothing read.
+
+    `build_source_model` harvests the same formulas with the same regex, but it
+    does it paragraph by paragraph while it rewrites each one into a
+    transclusion, so there was no function to call from a model that already
+    has its objects (T-0080's follow-up: the author's reading on every route).
+    Blanking, not stripping: each hidden block becomes the same number of
+    spaces, so `pos` stays an offset into the caller's own `body`.
+    """
+    blanked = _HIDES_INLINE_MATH.sub(lambda m: " " * len(m.group(0)), body)
+    items: list[dict] = []
+    for m in _INLINE_MATH.finditer(blanked):
+        latex = (m.group("p") or m.group("d") or "").strip()
+        if not latex:
+            continue
+        items.append({"latex": latex, "pos": m.start(),
+                      "delim": "\\(" if m.group("p") is not None else "$"})
+    return items
+
+
 # Multi-line math envs whose body uses & / \\ and so needs an `aligned`
 # wrapper to render standalone in KaTeX.
 _ALIGNED_ENVS = {"align", "gather", "multline", "eqnarray", "alignat", "flalign"}

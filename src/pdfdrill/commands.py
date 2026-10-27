@@ -6288,8 +6288,21 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
     # math (LaTeX) — not one or the other. Runs AFTER MODEL_BUILT is set so the
     # nested cmd_latex won't recurse into cmd_model. Downloads the e-print once
     # (cached); graceful when the source is blocked/absent; non-arXiv is a no-op.
-    if (lines_source in ("pdfminer-chars", "pdfplumber-chars")
-            and _arxiv_id_for(pdf, sc) and not sc.has(LATEX_INGESTED)):
+    # EVERY ROUTE, not only the born-digital one (owner, 2026-10-27: "Author
+    # LaTeX on every route"). The gate used to be `lines_source in
+    # ("pdfminer-chars", "pdfplumber-chars")`, so a document with a MathPix
+    # lines.json on disk — the richest input pdfdrill has — got geometry and
+    # MathPix's reading and NO author LaTeX at all: 18 of its 178 maths objects
+    # on 1702.06385, against 170 of 170 on the free route. The overlay is free
+    # and additive (a competing `tex` provenance beside MathPix's reading, never
+    # instead of it), so there is no route it does not belong on.
+    #
+    # `--no-source` SUPPRESSES IT, like every other author-source lane: the flag
+    # exists so a reader can be measured with the author's source out of the
+    # way, and an overlay that ran anyway would put the author's equations and
+    # TikZ back into the model the flag asked to see without it.
+    if (not no_source and _arxiv_id_for(pdf, sc)
+            and not sc.has(LATEX_INGESTED)):
         try:
             cmd_injectlatex(pdf)                    # overlay gold equations + graphics
             # AND merge the gold LaTeX PROSE onto the born-digital paragraphs — the
@@ -6297,10 +6310,17 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
             # margin watermark; the gold text replaces it (LaTeX-wins, original
             # saved as text_source), so the model's prose is clean by default. This
             # is "extract AND merge several sources" automatically. Best-effort.
-            try:
-                cmd_merge(pdf)
-            except (Exception, SystemExit):
-                pass
+            # …but the PROSE merge stays born-digital-only. It replaces the
+            # model's prose with the author's because the char layer is garbled
+            # by two-column interleaving and the arXiv margin stamp. MathPix's
+            # prose is not garbled, and replacing it would throw away the
+            # reading the owner paid for. The author's MATHS was what was
+            # missing on that route, not their prose.
+            if lines_source in ("pdfminer-chars", "pdfplumber-chars"):
+                try:
+                    cmd_merge(pdf)
+                except (Exception, SystemExit):
+                    pass
             sc = Sidecar(pdf)
             with open(model_path, "r", encoding="utf-8") as _f:
                 out = json.load(_f)                 # reload the MERGED model
@@ -12338,7 +12358,7 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
 
     if force:
         for o in list(doc.objects.values()):
-            if o.type == "Equation":
+            if o.type in ("Equation", "Formula"):
                 o.realizations = [r for r in o.realizations
                                   if not (r.role == "latex_candidate" and r.provenance == "tex")]
         # also drop equations we previously CREATED from source (re-created below)
@@ -12424,6 +12444,11 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
             }))
             created += 1
 
+    # The INLINE half of the author's mathematics (T-0080 follow-up, owner
+    # 2026-10-27 "Author LaTeX on every route"). The loop above reads display
+    # equations only, which on a MathPix model is 18 of 178 maths objects.
+    inline = attach_author_inline(doc, body, macros, force)
+
     # Ingest the source's TikZ/tables (tikzcd commutative diagrams, tabular, …)
     # as Diagram/Table objects with latex_code — so `pdfdrill svg` can render
     # them. The base OCR/MathPix model rarely has these as graphic objects.
@@ -12442,6 +12467,9 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
     sc.set_evidence("latex_attached", attached)
     sc.set_evidence("latex_created", created)
     sc.set_evidence("latex_graphics", n_graphics)
+    sc.set_evidence("latex_inline_attached", inline["attached"])
+    sc.set_evidence("latex_inline_formulas", inline["formulas"])
+    sc.set_evidence("latex_inline_unmatched", inline["unmatched"])
     prev = ",".join(sorted(sc.facts - {LATEX_INGESTED})) or "INIT"
     # Proof: the gold LaTeX source this enrichment was ingested from (Phase B).
     sc.mark(LATEX_INGESTED, produced_by="latex", inputs=[src],
@@ -12452,19 +12480,23 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
     sc.save()
     gfx = (f" Added {n_graphics} TikZ/table graphic object(s) — run "
            f"`pdfdrill svg {pdf.name}` to render them to SVG." if n_graphics else "")
+    inl = (f" Inline: {inline['attached']} of {inline['formulas']} Formula "
+           f"object(s) matched one of {inline['source_forms']} inline source "
+           f"forms exactly ({inline['unmatched']} unmatched)."
+           if inline["formulas"] else "")
     if created:
         # the keyless case: gold equations became first-class objects
         return (f"Ingested LaTeX source {src.name} "
                 f"[{src_kind or 'unknown'}]: {len(src_eqs)} display equations, "
                 f"{len(macros)} preamble macros. The base model had no equation "
                 f"slots (keyless OCR), so CREATED {created} Equation object(s) from "
-                f"the author's gold LaTeX.{gfx} Run `pdfdrill report {pdf.name}` — "
+                f"the author's gold LaTeX.{inl}{gfx} Run `pdfdrill report {pdf.name}` — "
                 f"the equations now render.")
     return (f"Ingested LaTeX source {src.name} "
             f"[{src_kind or 'unknown'}]: {len(src_eqs)} display equations, "
             f"{len(macros)} preamble macros. Attached {attached} as `tex` "
             f"provenance to MathPix equations ({unmatched} source eqs unmatched). "
-            f"Kept original+expanded LaTeX; preamble stored for the SVG step.{gfx} "
+            f"Kept original+expanded LaTeX; preamble stored for the SVG step.{inl}{gfx} "
             f"Run `pdfdrill compare {pdf.name}` to see the tex column.")
 
 
@@ -12839,6 +12871,74 @@ def cmd_fontspans(pdf: Path, pages: str | None = None) -> str:
         + (f"; fused emphasis onto {fused_paras} Paragraph(s)" if fused_paras else "")
         + ".")
     return "\n".join(lines)
+
+
+def attach_author_inline(doc, body: str, macros: dict,
+                         force: bool = False) -> dict:
+    r"""Give each `Formula` object the author's own reading of that formula.
+
+    THE OTHER HALF OF THE AUTHOR'S MATHS. `cmd_injectlatex` reads
+    `extract_display_equations`, so until now only an Equation could carry a
+    `provenance="tex"` reading. On 1702.06385 that is 18 objects; the document's
+    other 160 maths objects are INLINE formulas, and on the MathPix route they
+    got nothing at all (the born-digital route reads 170 of 170 only because
+    there are no MathPix objects there and the author's display equations ARE
+    the document's equations — a different measurement of a different model).
+
+    Content-keyed, by `scoring.author_match_key`, and exact:
+
+      * MathPix emits one Formula per OCCURRENCE, so the symbol used twenty
+        times is twenty objects that all want the same reading. A one-to-one
+        assignment — the display loop's shape, which is right for equations —
+        would read the first and leave nineteen blank.
+      * EXACT, because an inline formula is short. At that length the display
+        loop's 0.55 similarity threshold picks the author's `\min` for the
+        model's `\mid` (0.75) and `Y_2` for `X_{2}` (0.67). What is attached is
+        shown to a reader AS THE AUTHOR'S LATEX, so a wrong match is not a
+        partial result, it is a false one. Unmatched is a number this can
+        report; a wrong reading is not.
+
+    Returns {"formulas", "source_forms", "attached", "already", "unmatched"}.
+    Idempotent: a Formula that already carries a `tex` reading is counted
+    `already` and left alone. `force` drops the inline readings first.
+    """
+    from docmodel.core import Realization
+    from . import latex_source as ls
+    from .scoring import author_match_key
+
+    forms = [o for o in doc.objects.values() if o.type == "Formula"]
+    if force:
+        for o in forms:
+            o.realizations = [r for r in o.realizations
+                              if not (r.role == "latex_candidate"
+                                      and r.provenance == "tex")]
+    # The author's side: key -> (verbatim source, expanded+resolved). First
+    # occurrence wins, so the reading shown is the one the author typed first.
+    author: dict[str, tuple[str, str]] = {}
+    for it in ls.extract_inline_math(body):
+        expanded = ls.expand_math(it["latex"], macros)
+        k = author_match_key(expanded)
+        if k and k not in author:
+            author[k] = (it["latex"], expanded)
+
+    attached = already = unmatched = 0
+    for o in forms:
+        if any(r.role == "latex_candidate" and r.provenance == "tex"
+               for r in o.realizations):
+            already += 1
+            continue
+        hit = author.get(author_match_key(o.props.get("latex", "")))
+        if hit is None:
+            unmatched += 1
+            continue
+        original, expanded = hit
+        o.add_realization(Realization(
+            stream="tex", role="latex_candidate", provenance="tex", score=1.0,
+            props={"latex": expanded, "latex_original": original,
+                   "inline": True, "match": "key"}))
+        attached += 1
+    return {"formulas": len(forms), "source_forms": len(author),
+            "attached": attached, "already": already, "unmatched": unmatched}
 
 
 def ingest_source_graphics(doc, body: str, macros: dict, bibkey: str,

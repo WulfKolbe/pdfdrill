@@ -2519,8 +2519,9 @@ commands:
   done_when: fact:LATEX_INGESTED
   section: Introspection (fast, no extraction)
   summary: 'INJECT the author''s LaTeX source (.tex/.tgz, arXiv e-print auto-downloaded) as a competing
-    `tex` provenance on each matched equation (original+expanded LaTeX). INPUT direction (was `latex`);
-    for LaTeX OUTPUT use `latex`. --tex <path>'
+    `tex` provenance on each matched equation AND each matched inline formula (original+expanded LaTeX;
+    an equation matches on similarity, an inline formula on an exact key — it is too short for a
+    threshold). INPUT direction (was `latex`); for LaTeX OUTPUT use `latex`. --tex <path>'
   offline_ok: true
   positionals:
   - name: pdf
