@@ -685,6 +685,26 @@ _DEF_START = re.compile(
     r"|\\newcolumntype|\\newlength|\\newsavebox")
 
 
+def expand_math(fragment: str, macros: dict, max_iter: int = 8) -> str:
+    r"""`expand_macros`, then `latex_only.resolve` — the form a MATH RENDERER
+    gets, and the only call a new maths site should make.
+
+    The two steps are separate because both are right. `expand_macros`
+    substitutes the macro body verbatim, which is what a macro IS; and a body
+    like `\ensuremath{\mathbb{D}}` is correct LaTeX that no browser renderer
+    has a definition for. Measured over the drill library: 7,438 of 23,608
+    expanded display equations were refused by KaTeX 0.16.9, and 1,065 of those
+    refusals were six commands that mean nothing inside a formula.
+
+    NOT for a Diagram's or Table's `latex_code`. That body goes to a real
+    `xelatex` run (`pdfdrill svg`), where `\vspace` means what it says, so the
+    two graphics sites call `expand_macros` directly and
+    `tests/test_a_formula_carries_no_latex_only_command.py` holds them to it.
+    """
+    from . import latex_only
+    return latex_only.resolve(expand_macros(fragment, macros, max_iter))
+
+
 def _collect_macro_defs(preamble: str) -> list[str]:
     """Full `\\newcommand`/`\\renewcommand`/`\\providecommand`/`\\DeclareMathOperator`
     and `\\def` definitions, with their (possibly multi-line, brace-balanced)
@@ -2079,7 +2099,7 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
         elif kind == "equation":
             original = it["latex"]
             doc.add(DocObject(type="Equation", props={
-                "latex": expand_macros(original, macros),
+                "latex": expand_math(original, macros),
                 "latex_original": original,
                 "numbered": it.get("numbered"), "label": it.get("label"),
                 "env": it.get("env"), "flow_index": fi, "bibkey": bibkey}))
@@ -2140,7 +2160,7 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                 original = (mm.group("p") or mm.group("d") or "").strip()
                 if not original:
                     continue
-                expanded = expand_macros(original, macros)     # KaTeX renders this
+                expanded = expand_math(original, macros)       # KaTeX renders this
                 # CONTENT DE-DUPLICATION (LATW FormulaScanner / MathPix
                 # FormulaProcessor parity): identical inline math = ONE Formula
                 # tiddler, transcluded everywhere — so the symbol `f` used 20×
