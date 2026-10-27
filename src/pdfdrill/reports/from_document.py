@@ -192,7 +192,8 @@ def build_rows(doc, bibkey: str, *, ink: "dict | None" = None,
                 cdn_url=p.get("cdn_url") or p.get("url") or "",
                 region=reg, dims=_dims(reg),
                 listing=(p.get("code") or "") if p.get("subtype") == "code" else "",
-                language=p.get("language") or ""))
+                language=p.get("language") or "",
+                svg=p.get("svg") or "", svg_error=p.get("svg_error") or ""))
     out["image"].extend(_listing_rows(doc, names, out["image"]))
     return out
 
