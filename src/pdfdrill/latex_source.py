@@ -685,6 +685,26 @@ _DEF_START = re.compile(
     r"|\\newcolumntype|\\newlength|\\newsavebox")
 
 
+def expand_math(fragment: str, macros: dict, max_iter: int = 8) -> str:
+    r"""`expand_macros`, then `latex_only.resolve` — the form a MATH RENDERER
+    gets, and the only call a new maths site should make.
+
+    The two steps are separate because both are right. `expand_macros`
+    substitutes the macro body verbatim, which is what a macro IS; and a body
+    like `\ensuremath{\mathbb{D}}` is correct LaTeX that no browser renderer
+    has a definition for. Measured over the drill library: 7,438 of 23,608
+    expanded display equations were refused by KaTeX 0.16.9, and 1,065 of those
+    refusals were six commands that mean nothing inside a formula.
+
+    NOT for a Diagram's or Table's `latex_code`. That body goes to a real
+    `xelatex` run (`pdfdrill svg`), where `\vspace` means what it says, so the
+    two graphics sites call `expand_macros` directly and
+    `tests/test_a_formula_carries_no_latex_only_command.py` holds them to it.
+    """
+    from . import latex_only
+    return latex_only.resolve(expand_macros(fragment, macros, max_iter))
+
+
 def _collect_macro_defs(preamble: str) -> list[str]:
     """Full `\\newcommand`/`\\renewcommand`/`\\providecommand`/`\\DeclareMathOperator`
     and `\\def` definitions, with their (possibly multi-line, brace-balanced)
@@ -939,6 +959,59 @@ def extract_display_equations(body: str) -> list[dict]:
                       "numbered": False, "label": None, "pos": m.start()})
     items.sort(key=lambda it: it["pos"])
     return items   # keep `pos` so build_source_model can interleave prose by position
+
+
+#: What hides inline maths from the harvest below: display maths, which
+#: `extract_display_equations` already reads, and the verbatim-like blocks,
+#: which are not mathematics at all (`for $i in x` is a shell variable).
+#:
+#: Deliberately NOT `_STRUCT_RE`, which is `build_source_model`'s PROSE
+#: splitter and also blanks `algorithm`, `algorithmic`, `figure`, `table`,
+#: `itemize`, `cases`, `array` … Those are not paragraphs, which is why prose
+#: skips them — but the `$...$` inside them is the author's mathematics, and
+#: MathPix reads every line of a pseudocode block as a Formula. Measured on
+#: 1702.06385, against the 160 Formula objects of its MathPix model:
+#:
+#:     blanking          key                  Formula objects given a reading
+#:     _STRUCT_RE        normalize_latex                  109
+#:     this rule         normalize_latex                  123
+#:     _STRUCT_RE        scoring.author_match_key         113
+#:     this rule         scoring.author_match_key         132
+#:
+#: The difference is that document's algorithm block and its captions. The two
+#: choices are independent and both are needed: the widest key over the prose
+#: splitter still reads 19 fewer formulas than the narrow blanking does.
+_HIDES_INLINE_MATH = re.compile(
+    r"\\\[.*?\\\]"
+    r"|(?<!\\)\$\$.*?\$\$"
+    r"|\\begin\{(" + "|".join(_DISPLAY_ENVS) + r"|verbatim|Verbatim|lstlisting"
+    r"|minted|alltt)\*?\}.*?\\end\{\1\*?\}",
+    re.S)
+
+
+def extract_inline_math(body: str) -> list[dict]:
+    r"""Every inline `$ … $` / `\( … \)` in `body`, in document order.
+
+    Each: {latex (the author's own source, unexpanded), delim, pos}. The
+    counterpart of `extract_display_equations` for the mathematics that lives
+    INSIDE a sentence — which was the half of the author's maths nothing read.
+
+    `build_source_model` harvests the same formulas with the same regex, but it
+    does it paragraph by paragraph while it rewrites each one into a
+    transclusion, so there was no function to call from a model that already
+    has its objects (T-0080's follow-up: the author's reading on every route).
+    Blanking, not stripping: each hidden block becomes the same number of
+    spaces, so `pos` stays an offset into the caller's own `body`.
+    """
+    blanked = _HIDES_INLINE_MATH.sub(lambda m: " " * len(m.group(0)), body)
+    items: list[dict] = []
+    for m in _INLINE_MATH.finditer(blanked):
+        latex = (m.group("p") or m.group("d") or "").strip()
+        if not latex:
+            continue
+        items.append({"latex": latex, "pos": m.start(),
+                      "delim": "\\(" if m.group("p") is not None else "$"})
+    return items
 
 
 # Multi-line math envs whose body uses & / \\ and so needs an `aligned`
@@ -2079,7 +2152,7 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
         elif kind == "equation":
             original = it["latex"]
             doc.add(DocObject(type="Equation", props={
-                "latex": expand_macros(original, macros),
+                "latex": expand_math(original, macros),
                 "latex_original": original,
                 "numbered": it.get("numbered"), "label": it.get("label"),
                 "env": it.get("env"), "flow_index": fi, "bibkey": bibkey}))
@@ -2140,7 +2213,7 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                 original = (mm.group("p") or mm.group("d") or "").strip()
                 if not original:
                     continue
-                expanded = expand_macros(original, macros)     # KaTeX renders this
+                expanded = expand_math(original, macros)       # KaTeX renders this
                 # CONTENT DE-DUPLICATION (LATW FormulaScanner / MathPix
                 # FormulaProcessor parity): identical inline math = ONE Formula
                 # tiddler, transcluded everywhere — so the symbol `f` used 20×

@@ -5,7 +5,7 @@ in this folder contains corpus material, and nothing in it writes into this
 repository.
 
     $PDF2MMD_LIBRARY   where the corpus is       default ~/pdfdrill-library
-    $PDFDRILL_SRC      PDFDRILL's src/           default ~/MX/PDFDRILL/src
+    $PDFDRILL_SRC      PDFDRILL's src/           default the src/ of this checkout
     $PDF2MMD_CODE      the reader                default the parent of this folder
 
 The corpus (`wzlxjtu-*`, each with its `golden/`) is licensed to TEES, Texas
@@ -28,7 +28,7 @@ scripts produce.
 | `lstprobe.py` | the frame probe: one body, every frame style, with and without an image |
 | `gridguard.py` | can the monospace grid be seen from LINE geometry alone — measured for MathPix |
 | `profilerun.py` | the page profile over a folder — which pages carry what, and what a paid pass would bill |
-| `lstlang.py` / `langdetect.py` | language guessing, measured against the declared gold |
+| `lstlang.py` / `guess_code_language.py` | language guessing, measured against the declared gold |
 
 ## The loop
 

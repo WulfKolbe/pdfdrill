@@ -128,6 +128,17 @@ fontid = [
 [project.scripts]
 pdfdrill = "pdfdrill.cli:main"
 
+# WHICH FILES ARE "THE SUITE". Without `testpaths`, a bare `python3 -m pytest`
+# from the root walks the whole tree and collected ONE file `pytest tests/`
+# never saw — `src/pdfreader/out/test_table.py`, 23 tests: 5955 against 5932,
+# measured. Worse than the discrepancy: that file has no package beside it, so
+# pytest's prepend import mode put `src/pdfreader/out` first on `sys.path` for
+# the rest of the session, and `import langdetect` then found a subprocess tool
+# instead of the PyPI package. A peer session measured 33 failures from it.
+# Pinned here so the command a newcomer types IS the documented command.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["pdfdrill*", "docmodel*", "docops*", "features*", "semantic*", "vocabnet*"]
@@ -144,4 +155,30 @@ pdfdrill = ["font_categories.json", "_help_generated.txt", "skill/*",
             # the vendored acquisition rig's config — it documents the fixed rig
             # (ADF Duplex @300dpi, deskew on) and must travel WITH the package,
             # since there is no project root to search upward to once installed.
-            "scandrill/scandrill.toml"]
+            "scandrill/scandrill.toml",
+            # `repo_publish` reads these three through
+            # `Path(__file__).parent / "repo_templates"`, so they are read the
+            # same way `font_categories.json` is and were missing for the same
+            # reason (T-0078).
+            "repo_templates/*",
+            # the vendored la2speech engine's installer, named by `doctor` and
+            # by the speech hint — a path printed to the user that does not
+            # exist is a dead end, not a hint.
+            "la2speech/setup.sh"]
+# T-0078. EVERY package that reads a file beside its own modules needs a key
+# here, and only `pdfdrill` had one. `docmodel.main` read its module manifest
+# `config.json`, `type_contract`/`prop_contract` read the five corpus
+# inventories, `docops.main` reads `default_config.json` and `docops.conserve`
+# reads the `--gate` baseline — all by `Path(__file__)`, all absent from every
+# wheel ever built here. `tests/test_an_install_outside_the_owners_tree.py`
+# fails if a new such read appears with no pattern covering it.
+docmodel = [
+    "config.json",          # the 24-entry module manifest (19 modules)
+    "corpus_types.json", "corpus_fields.json", "corpus_values.json",
+    "corpus_props.json", "props_code.json",
+]
+docops = [
+    "default_config.json",      # the default projector pipeline
+    "conserve_baseline.json",   # the `conserve --gate` ratchet
+    "nlp_config.json",
+]

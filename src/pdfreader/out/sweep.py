@@ -17,7 +17,7 @@ missed while every span projected -- so both are reported, separately.
 
 WHERE THE DATA IS
     $PDF2MMD_LIBRARY   default ~/pdfdrill-library
-    $PDFDRILL_SRC      default ~/MX/PDFDRILL/src   (for report_tex)
+    $PDFDRILL_SRC      default: the src/ this file is in   (for report_tex)
 
 The corpus is NOT in this repository and must not be put in it.
 """

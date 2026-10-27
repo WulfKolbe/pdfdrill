@@ -5,13 +5,27 @@ compiled once (gen 1), read, projected, compiled again (gen 2) and read
 again: if the two readings differ, the .tex we wrote does not set the page we
 read, and the difference names which property was lost.
 """
-import difflib, json, re, shutil, subprocess, sys, tempfile
+import difflib, json, os, re, shutil, subprocess, sys, tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-GOLD = Path("/home/wkolbe/pdfdrill-library/lstgold")
-PY = "/home/wkolbe/pdf2mmd/.pdfmm-venv/bin/python"
-P2M = "/home/wkolbe/pdf2mmd/pdf2mmd.py"
+# THE GOLD, THE INTERPRETER AND THE READER. These were three absolute paths
+# into one account, which is three different ways for this script to measure
+# nothing: a `lstgold` that is not there, a venv that is not there, and a
+# `pdf2mmd.py` from a checkout that may not be the one under test — the exact
+# defect T-0078 was opened for. The reader is THIS checkout's (`pdf2mmd.py`
+# one level up), under THIS interpreter, unless you say otherwise.
+LIB = Path(os.environ.get("PDF2MMD_LIBRARY", Path.home() / "pdfdrill-library"))
+GOLD = Path(os.environ.get("PDF2MMD_LSTGOLD", LIB / "lstgold"))
+CODE = Path(os.environ.get("PDF2MMD_CODE", Path(__file__).resolve().parents[1]))
+PY = os.environ.get("PDF2MMD_PYTHON") or sys.executable
+P2M = str(CODE / "pdf2mmd.py")
+if not Path(P2M).is_file():
+    raise SystemExit("no reader at %s — set $PDF2MMD_CODE to the folder "
+                     "holding pdf2mmd.py" % P2M)
+if not GOLD.is_dir():
+    raise SystemExit("no gold listings at %s — set $PDF2MMD_LSTGOLD (or "
+                     "$PDF2MMD_LIBRARY) to your copy" % GOLD)
 
 
 def latex(src: Path, outdir: Path):

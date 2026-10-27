@@ -6288,8 +6288,21 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
     # math (LaTeX) — not one or the other. Runs AFTER MODEL_BUILT is set so the
     # nested cmd_latex won't recurse into cmd_model. Downloads the e-print once
     # (cached); graceful when the source is blocked/absent; non-arXiv is a no-op.
-    if (lines_source in ("pdfminer-chars", "pdfplumber-chars")
-            and _arxiv_id_for(pdf, sc) and not sc.has(LATEX_INGESTED)):
+    # EVERY ROUTE, not only the born-digital one (owner, 2026-10-27: "Author
+    # LaTeX on every route"). The gate used to be `lines_source in
+    # ("pdfminer-chars", "pdfplumber-chars")`, so a document with a MathPix
+    # lines.json on disk — the richest input pdfdrill has — got geometry and
+    # MathPix's reading and NO author LaTeX at all: 18 of its 178 maths objects
+    # on 1702.06385, against 170 of 170 on the free route. The overlay is free
+    # and additive (a competing `tex` provenance beside MathPix's reading, never
+    # instead of it), so there is no route it does not belong on.
+    #
+    # `--no-source` SUPPRESSES IT, like every other author-source lane: the flag
+    # exists so a reader can be measured with the author's source out of the
+    # way, and an overlay that ran anyway would put the author's equations and
+    # TikZ back into the model the flag asked to see without it.
+    if (not no_source and _arxiv_id_for(pdf, sc)
+            and not sc.has(LATEX_INGESTED)):
         try:
             cmd_injectlatex(pdf)                    # overlay gold equations + graphics
             # AND merge the gold LaTeX PROSE onto the born-digital paragraphs — the
@@ -6297,10 +6310,17 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
             # margin watermark; the gold text replaces it (LaTeX-wins, original
             # saved as text_source), so the model's prose is clean by default. This
             # is "extract AND merge several sources" automatically. Best-effort.
-            try:
-                cmd_merge(pdf)
-            except (Exception, SystemExit):
-                pass
+            # …but the PROSE merge stays born-digital-only. It replaces the
+            # model's prose with the author's because the char layer is garbled
+            # by two-column interleaving and the arXiv margin stamp. MathPix's
+            # prose is not garbled, and replacing it would throw away the
+            # reading the owner paid for. The author's MATHS was what was
+            # missing on that route, not their prose.
+            if lines_source in ("pdfminer-chars", "pdfplumber-chars"):
+                try:
+                    cmd_merge(pdf)
+                except (Exception, SystemExit):
+                    pass
             sc = Sidecar(pdf)
             with open(model_path, "r", encoding="utf-8") as _f:
                 out = json.load(_f)                 # reload the MERGED model
@@ -9179,7 +9199,7 @@ def cmd_expandmath(pdf: Path, force: bool = False) -> str:
         # NEVER lose the author's form: only fill it if the build didn't.
         o.props.setdefault("latex_original", latex)
         try:
-            full = ls.expand_macros(latex, macros)
+            full = ls.expand_math(latex, macros)
         except Exception:                         # noqa: BLE001
             continue
         left = sorted(set(_TEX_CMD_RE.findall(full)) & names)
@@ -9262,7 +9282,7 @@ def cmd_sre(pdf: Path, out: str | None = None, plain: bool = False,
         stored = bool(p.get("latex_expanded_by"))
         if macros and not stored:
             try:                                 # last-mile expansion for latex2mml
-                sre_tex = ls.expand_macros(latex, macros)
+                sre_tex = ls.expand_math(latex, macros)
             except Exception:                    # noqa: BLE001
                 sre_tex = latex
         present = set(_TEX_CMD_RE.findall(sre_tex))
@@ -11061,21 +11081,103 @@ def cmd_report(pdf: Path, force: bool = False, embed: bool = False,
     return "\n".join(out)
 
 
+def _pages_on_disk(out: Path, pdf: Path, want: "list[int] | None",
+                   src_dpi: int) -> dict:
+    """{page: p{N}.png} of the renders in `out` that can be REUSED at `src_dpi`.
+
+    `{}` unless `out/manifest.json` names THIS document AND records exactly
+    `src_dpi`, on three grounds:
+
+      * `docinspect.prepare_pages` scales every render by embed_dpi/src_dpi, so
+        a page reused at the wrong DPI is embedded at the wrong size and its
+        boxes land beside the ink — worse than no image at all;
+      * the requested DPI is an input, not a preference, and the alias must
+        track the rasterizer rather than freeze at the DPI first used (the
+        2409.18839 defect: canonical 5100x6600, alias still 3400x4400);
+      * 819e — the manifest names the document its pages came from, because one
+        folder's crops once answered under another book's caption.
+
+    The manifest is the only record of what the folder holds and both renderers
+    write it (`inspect` here, `pdf2mmd.sh` there), so "no manifest" means
+    "re-render", never "assume the default".
+
+    A render OLDER than the PDF is stale and is not reused; the 1e-6 slack is
+    `model_io._fresh`'s, against filesystem timestamp granularity.
+    """
+    if not want:
+        return {}
+    try:
+        man = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(man, dict) or man.get("document") != pdf.stem:
+        return {}                                  # 819e: another document's pages
+    if int(man.get("dpi") or 0) != int(src_dpi):
+        return {}
+    try:
+        pdf_mtime = pdf.stat().st_mtime
+    except OSError:
+        return {}
+    found: dict = {}
+    for n in want:
+        q = out / f"p{n}.png"
+        try:
+            st = q.stat()
+        except OSError:
+            continue
+        if st.st_size > 0 and st.st_mtime >= pdf_mtime - 1e-6:
+            found[n] = q
+    return found
+
+
 def _inspect_pages_dir(pdf: Path, sc: "Sidecar", pages: str | None,
-                       src_dpi: int) -> tuple[Path | None, int]:
+                       src_dpi: int) -> tuple[Path | None, int, str]:
     """Rasterize page(s) into <drill>/inspect/pages as p{N}.png (the naming
-    docinspect reads), reusing any already present. Returns (dir, src_dpi) or
-    (None, src_dpi) when Ghostscript is unavailable — the inspector then renders
-    boxes-only (still a working tree/inspector). Never raises."""
+    docinspect reads), REUSING the renders already there. Returns (dir, the DPI
+    those images are at, reason); (None, src_dpi, reason) only when there is
+    nothing to show at all.
+
+    THE FOLDER IS READ BEFORE GHOSTSCRIPT IS ASKED, and it used to be the other
+    way round. `rasterize` calls `_require_gs()` as its first act, so on a
+    machine without gs the RuntimeError fired before this function ever looked
+    at the directory it maintains, `except RuntimeError` returned None, and
+    every render on disk was discarded: a ser7 clone produced a 7,272,092-byte
+    boxes-only BH1org.inspect.html at exit 0 over 319 page images that were
+    sitting right there (2026-10-22). The docstring said "reusing any already
+    present" the whole time, which is why nobody checked — it had retired the
+    question. The blindness ran the other way too: with gs present, every call
+    re-rendered all 319 pages (481 MB of PNG, 32 s of gs) over byte-identical
+    renders.
+
+    `reason` names what stopped a render, for the caller to report. A document
+    with no page images is a FAILED inspector, not a quieter one.
+    """
     import os
     from . import pdf_reading
     out = sc.blob_dir / "inspect" / "pages"
     out.mkdir(parents=True, exist_ok=True)
     page_list = pdf_reading.parse_pages(pages, getattr(sc, "page_count", None) or None)
+    # The CONCRETE list of pages wanted: `parse_pages` says None for "all", and
+    # a presence check needs names. The probe's count is free, pdfinfo (poppler,
+    # not gs) answers when it is absent, and 0 means we cannot enumerate — then
+    # render the lot, as before.
+    want = page_list
+    if want is None:
+        total = int(getattr(sc, "page_count", 0) or 0) or pdf_reading._page_count(pdf)
+        want = list(range(1, total + 1)) if total else None
+
+    have = _pages_on_disk(out, pdf, want, src_dpi)
+    if want is not None and len(have) == len(want):
+        _write_pages_manifest(out, pdf, src_dpi)   # refresh image_ids/coord
+        return out, src_dpi, ""                    # nothing left to render
+    missing = [n for n in want if n not in have] if want is not None else None
     try:
-        imgs = pdf_reading.rasterize(pdf, out, pages=page_list, dpi=src_dpi)
-    except RuntimeError:
-        return None, src_dpi                       # gs missing → boxes-only
+        imgs = pdf_reading.rasterize(pdf, out, pages=missing, dpi=src_dpi)
+    except RuntimeError as e:                      # gs missing
+        if have:
+            _write_pages_manifest(out, pdf, src_dpi)
+            return out, src_dpi, str(e)            # show the pages we do have
+        return None, src_dpi, str(e)
     # rasterize writes page-<NNNN>.png; docinspect wants p{N}.png — hardlink
     # (no extra bytes; copy fallback across filesystems).
     import re as _re
@@ -11099,7 +11201,7 @@ def _inspect_pages_dir(pdf: Path, sc: "Sidecar", pages: str | None,
             import shutil as _sh
             _sh.copyfile(img, target)
     _write_pages_manifest(out, pdf, src_dpi)
-    return out, src_dpi
+    return out, src_dpi, ""
 
 
 def _write_pages_manifest(out: Path, pdf: Path, dpi: int) -> None:
@@ -11206,9 +11308,10 @@ def cmd_inspect(pdf: Path, pages: str | None = None, embed: bool = True,
     if not model_path.exists():
         return f"No model for {pdf.name} (run `pdfdrill model` first)."
 
-    pages_dir = None
+    pages_dir, render_reason = None, ""
     if images and embed:
-        pages_dir, src_dpi = _inspect_pages_dir(pdf, sc, pages, src_dpi)
+        pages_dir, src_dpi, render_reason = _inspect_pages_dir(
+            pdf, sc, pages, src_dpi)
     # --pages restricts the whole inspector (elements + embedded page images), not
     # just which pages get rasterized — else a big doc always emits the full (14 MB)
     # HTML that chokes a reverse-proxy/drillui load.
@@ -11224,7 +11327,7 @@ def cmd_inspect(pdf: Path, pages: str | None = None, embed: bool = True,
     sc.blob_dir.mkdir(parents=True, exist_ok=True)
     out_path = sc.blob_dir / f"{bibkey}.inspect.html"
     try:
-        html_doc, n_pages, n_el, mode = docinspect.build_from_paths(
+        html_doc, n_pages, n_el, mode, n_img = docinspect.build_from_paths(
             str(model_path), out=str(out_path),
             tiddlers=str(tiddlers) if tiddlers.exists() else None,
             pages_dir=str(pages_dir) if pages_dir else None,
@@ -11256,7 +11359,41 @@ def cmd_inspect(pdf: Path, pages: str | None = None, embed: bool = True,
                 f"geometry), so the page-box view is empty — the element tree is "
                 f"in {rel}. For boxes, rebuild with geometry: `pdfdrill model "
                 f"{pdf.name} --force`.")
-    note = "" if mode != "embed" or pages_dir else " (boxes-only — no page images)"
+    # AN INSPECTOR WHOSE PAGES ARE ALL BLANK IS A FAILED BUILD.
+    #
+    # The point of this artifact is a DocObject box drawn ON the page it was
+    # read from. With no page images the tree still works and every box sits on
+    # nothing — and that was reported as success with the fact in a parenthesis
+    # inside a success sentence. Measured on ser7 (2026-10-22):
+    # BH1org.inspect.html at 7,272,092 bytes instead of 56,137,806, 319 of 319
+    # pages blank, exit 0. It is the same statement `drill` already makes with
+    # EXIT_LANE_NOT_RUN — the command promises a thing, there is none of it, and
+    # a caller should not have to parse prose to find that out.
+    #
+    # Only when images were ASKED for: `--no-images` requests boxes-only, and a
+    # request that is honoured is not a failure.
+    if images and embed and n_pages and n_img == 0:
+        from .cli import EXIT_LANE_NOT_RUN, Report
+        why = f"\n{render_reason}" if render_reason else (
+            "\nGhostscript renders every page image pdfdrill makes: install it "
+            "with `sudo apt-get install ghostscript`, or run `bash bootstrap.sh`.")
+        return Report(
+            f"{pdf.name}: the inspector has 0 of {n_pages} page images, so every "
+            f"box sits on a blank page.{why}\nThe element tree ({n_el} elements) "
+            f"was still written to {rel} \u2014 then run `pdfdrill inspect "
+            f"{pdf.name}` again for the pages.",
+            EXIT_LANE_NOT_RUN)
+    # A COUNT PRINTED NEXT TO A FILE MUST BE A COUNT OF THAT FILE (finding J,
+    # again). `prepare_pages` substitutes an empty src per page it cannot find,
+    # so 40 rendered pages of 319 read exactly like 319 of 319: the old note
+    # fired only when `pages_dir` was None, and nothing ever counted the images.
+    if images and embed and n_img < n_pages:
+        note = (f" — {n_img} of {n_pages} pages carry an image, "
+                f"{n_pages - n_img} missing")
+        if render_reason:
+            note += f" ({render_reason})"
+    else:
+        note = "" if mode != "embed" or pages_dir else " (boxes-only — no page images)"
     return (f"Docmodel inspector: {n_el} elements over {n_pages} page(s){note}. "
             f"Open {rel} in a browser (hover the tree to highlight boxes; click "
             f"an element for its full record).")
@@ -12221,7 +12358,7 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
 
     if force:
         for o in list(doc.objects.values()):
-            if o.type == "Equation":
+            if o.type in ("Equation", "Formula"):
                 o.realizations = [r for r in o.realizations
                                   if not (r.role == "latex_candidate" and r.provenance == "tex")]
         # also drop equations we previously CREATED from source (re-created below)
@@ -12248,7 +12385,7 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
     attached = unmatched = 0
     for se in src_eqs:
         original = se["latex"]
-        expanded = ls.expand_macros(original, macros)
+        expanded = ls.expand_math(original, macros)
         target = normalize_latex(expanded)
         if not target:
             continue
@@ -12294,7 +12431,7 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
         bk = doc.meta.get("bibkey", "DOC")
         for i, se in enumerate(src_eqs, 1):
             original = se["latex"]
-            expanded = ls.expand_macros(original, macros)
+            expanded = ls.expand_math(original, macros)
             if not normalize_latex(expanded):
                 continue
             doc.add(DocObject(type="Equation", props={
@@ -12306,6 +12443,11 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
                 "cdn_url": "",
             }))
             created += 1
+
+    # The INLINE half of the author's mathematics (T-0080 follow-up, owner
+    # 2026-10-27 "Author LaTeX on every route"). The loop above reads display
+    # equations only, which on a MathPix model is 18 of 178 maths objects.
+    inline = attach_author_inline(doc, body, macros, force)
 
     # Ingest the source's TikZ/tables (tikzcd commutative diagrams, tabular, …)
     # as Diagram/Table objects with latex_code — so `pdfdrill svg` can render
@@ -12325,6 +12467,9 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
     sc.set_evidence("latex_attached", attached)
     sc.set_evidence("latex_created", created)
     sc.set_evidence("latex_graphics", n_graphics)
+    sc.set_evidence("latex_inline_attached", inline["attached"])
+    sc.set_evidence("latex_inline_formulas", inline["formulas"])
+    sc.set_evidence("latex_inline_unmatched", inline["unmatched"])
     prev = ",".join(sorted(sc.facts - {LATEX_INGESTED})) or "INIT"
     # Proof: the gold LaTeX source this enrichment was ingested from (Phase B).
     sc.mark(LATEX_INGESTED, produced_by="latex", inputs=[src],
@@ -12335,19 +12480,23 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
     sc.save()
     gfx = (f" Added {n_graphics} TikZ/table graphic object(s) — run "
            f"`pdfdrill svg {pdf.name}` to render them to SVG." if n_graphics else "")
+    inl = (f" Inline: {inline['attached']} of {inline['formulas']} Formula "
+           f"object(s) matched one of {inline['source_forms']} inline source "
+           f"forms exactly ({inline['unmatched']} unmatched)."
+           if inline["formulas"] else "")
     if created:
         # the keyless case: gold equations became first-class objects
         return (f"Ingested LaTeX source {src.name} "
                 f"[{src_kind or 'unknown'}]: {len(src_eqs)} display equations, "
                 f"{len(macros)} preamble macros. The base model had no equation "
                 f"slots (keyless OCR), so CREATED {created} Equation object(s) from "
-                f"the author's gold LaTeX.{gfx} Run `pdfdrill report {pdf.name}` — "
+                f"the author's gold LaTeX.{inl}{gfx} Run `pdfdrill report {pdf.name}` — "
                 f"the equations now render.")
     return (f"Ingested LaTeX source {src.name} "
             f"[{src_kind or 'unknown'}]: {len(src_eqs)} display equations, "
             f"{len(macros)} preamble macros. Attached {attached} as `tex` "
             f"provenance to MathPix equations ({unmatched} source eqs unmatched). "
-            f"Kept original+expanded LaTeX; preamble stored for the SVG step.{gfx} "
+            f"Kept original+expanded LaTeX; preamble stored for the SVG step.{inl}{gfx} "
             f"Run `pdfdrill compare {pdf.name}` to see the tex column.")
 
 
@@ -12722,6 +12871,74 @@ def cmd_fontspans(pdf: Path, pages: str | None = None) -> str:
         + (f"; fused emphasis onto {fused_paras} Paragraph(s)" if fused_paras else "")
         + ".")
     return "\n".join(lines)
+
+
+def attach_author_inline(doc, body: str, macros: dict,
+                         force: bool = False) -> dict:
+    r"""Give each `Formula` object the author's own reading of that formula.
+
+    THE OTHER HALF OF THE AUTHOR'S MATHS. `cmd_injectlatex` reads
+    `extract_display_equations`, so until now only an Equation could carry a
+    `provenance="tex"` reading. On 1702.06385 that is 18 objects; the document's
+    other 160 maths objects are INLINE formulas, and on the MathPix route they
+    got nothing at all (the born-digital route reads 170 of 170 only because
+    there are no MathPix objects there and the author's display equations ARE
+    the document's equations — a different measurement of a different model).
+
+    Content-keyed, by `scoring.author_match_key`, and exact:
+
+      * MathPix emits one Formula per OCCURRENCE, so the symbol used twenty
+        times is twenty objects that all want the same reading. A one-to-one
+        assignment — the display loop's shape, which is right for equations —
+        would read the first and leave nineteen blank.
+      * EXACT, because an inline formula is short. At that length the display
+        loop's 0.55 similarity threshold picks the author's `\min` for the
+        model's `\mid` (0.75) and `Y_2` for `X_{2}` (0.67). What is attached is
+        shown to a reader AS THE AUTHOR'S LATEX, so a wrong match is not a
+        partial result, it is a false one. Unmatched is a number this can
+        report; a wrong reading is not.
+
+    Returns {"formulas", "source_forms", "attached", "already", "unmatched"}.
+    Idempotent: a Formula that already carries a `tex` reading is counted
+    `already` and left alone. `force` drops the inline readings first.
+    """
+    from docmodel.core import Realization
+    from . import latex_source as ls
+    from .scoring import author_match_key
+
+    forms = [o for o in doc.objects.values() if o.type == "Formula"]
+    if force:
+        for o in forms:
+            o.realizations = [r for r in o.realizations
+                              if not (r.role == "latex_candidate"
+                                      and r.provenance == "tex")]
+    # The author's side: key -> (verbatim source, expanded+resolved). First
+    # occurrence wins, so the reading shown is the one the author typed first.
+    author: dict[str, tuple[str, str]] = {}
+    for it in ls.extract_inline_math(body):
+        expanded = ls.expand_math(it["latex"], macros)
+        k = author_match_key(expanded)
+        if k and k not in author:
+            author[k] = (it["latex"], expanded)
+
+    attached = already = unmatched = 0
+    for o in forms:
+        if any(r.role == "latex_candidate" and r.provenance == "tex"
+               for r in o.realizations):
+            already += 1
+            continue
+        hit = author.get(author_match_key(o.props.get("latex", "")))
+        if hit is None:
+            unmatched += 1
+            continue
+        original, expanded = hit
+        o.add_realization(Realization(
+            stream="tex", role="latex_candidate", provenance="tex", score=1.0,
+            props={"latex": expanded, "latex_original": original,
+                   "inline": True, "match": "key"}))
+        attached += 1
+    return {"formulas": len(forms), "source_forms": len(author),
+            "attached": attached, "already": already, "unmatched": unmatched}
 
 
 def ingest_source_graphics(doc, body: str, macros: dict, bibkey: str,
@@ -18003,12 +18220,100 @@ def _write_md(pdf: Path, sc: "Sidecar", md_text: str, *, source: str) -> str:
     `render`) reads via `_read_md`."""
     name = _md_filename(pdf, sc)
     sc.write_blob(name, md_text or "")
-    sc.set_layer("md", {"blob": name, "words": len((md_text or "").split()),
+    # 787 — AND A DIGEST OF WHAT WE WROTE, because the file no longer says who
+    # wrote it. `MarkdownProjector` used to open with a YAML `generator:` line
+    # and that was the signature `_md_is_ours` read; MathPix writes no front
+    # matter, so matching its format meant dropping ours. A hash settles the
+    # question exactly and costs one pass over a string we already hold: the
+    # file at `<stem>.md` is ours if, and only if, it is still what we put
+    # there.
+    import hashlib as _hashlib
+    body = md_text or ""
+    sc.set_layer("md", {"blob": name, "words": len(body.split()),
                         "source": source,
+                        "bytes": len(body.encode("utf-8")),
+                        "sha256": _hashlib.sha256(
+                            body.encode("utf-8")).hexdigest(),
                         "built_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
     sc.add_fact(MD_BUILT)
     sc.save()
     return _md_note(pdf, sc)
+
+
+#: What pdfdrill's OWN markdown writers leave at the top of a `<stem>.md`:
+#: `MarkdownProjector` and `LLMCompactProjector` both open with a YAML front
+#: matter naming the generator, and the bi-layer adds its toggle and its
+#: `seg source` divs. MathPix signs nothing, so the ABSENCE of our signature is
+#: the only honest test of who wrote the file — and in the self-contained
+#: layout it is the only one available, because the download's path and the
+#: projector's target are the same file.
+_OUR_MD_SIGNATURES = ("generator: pdfdrill", 'class="seg source"',
+                      "source</button>")
+
+
+def _md_is_ours(path: Path, sc: "Sidecar | None" = None) -> bool:
+    """Did a pdfdrill writer produce this markdown? Unreadable counts as ours,
+    so a file we cannot inspect is never served as a purchase.
+
+    Two answers, in order of certainty. `_write_md` records the sha256 of every
+    markdown pdfdrill writes, so a file that still hashes to it IS ours, header
+    or no header — that is the only test that survived this projector being
+    taught MathPix's format, which has no front matter to sign. Older sidecars
+    carry no digest, and for those the content signature still decides: every
+    projection written before 787 opens with a YAML `generator:` line, and the
+    bi-layer with its toggle.
+
+    A file that matches neither is somebody else's: a MathPix download, or a
+    restoration by hand. Both must be served, not replaced.
+    """
+    try:
+        raw = path.open("rb").read()
+    except OSError:
+        return True
+    if sc is not None:
+        layer = (sc.get_layer("md") or {}) if hasattr(sc, "get_layer") else {}
+        want = str(layer.get("sha256") or "")
+        if want and layer.get("blob") == path.name:
+            import hashlib as _hashlib
+            return _hashlib.sha256(raw).hexdigest() == want
+    head = raw[:4096].decode("utf-8", "replace")
+    return any(sig in head for sig in _OUR_MD_SIGNATURES)
+
+
+def _bought_mathpix_md(pdf: Path, sc: "Sidecar") -> "Path | None":
+    """The MathPix markdown that was PAID FOR, if it is still on disk — else None.
+
+    Two conditions, and neither alone is enough. The sidecar's
+    `mathpix_files` evidence is the only record that a `md` was ever bought,
+    written by the download itself; and the file at that path must still be
+    MathPix's, because `<stem>.md` is also where every pdfdrill markdown writer
+    puts its output.
+
+    THE RECORDED BYTE COUNT IS NOT PART OF THE TEST. `fetch_mathpix` reports
+    "cached" when the md merely exists — only `.lines.json` gets a content
+    check — so a later run can re-stamp `mathpix_files[md].bytes` with whatever
+    is at the path. 93 library documents hold a MathPix md whose size differs
+    from the record, and 4 hold a pdfdrill projection whose size matches it
+    exactly. Size decides nothing here; content decides everything.
+    """
+    try:
+        files = sc.get_evidence("mathpix_files") or []
+    except Exception:
+        return None
+    rec = next((f for f in files if isinstance(f, dict)
+                and str(f.get("format") or "") == "md"), None)
+    if not isinstance(rec, dict):
+        return None
+    name = Path(str(rec.get("path") or "")).name
+    if not name:
+        return None
+    p = pdf.parent / name
+    try:
+        if p.stat().st_size <= 0:
+            return None
+    except OSError:
+        return None
+    return None if _md_is_ours(p, sc) else p
 
 
 def _serve_mathpix_md(pdf: Path, sc: "Sidecar", *, scanned: bool = True) -> str | None:
@@ -18027,9 +18332,13 @@ def _serve_mathpix_md(pdf: Path, sc: "Sidecar", *, scanned: bool = True) -> str 
     # "Markdown from MathPix" — including, on BH1org_OCR, the LLM-compact
     # bi-layer `translate` had written there. The `md` layer already records who
     # wrote it, so ask.
-    layer = (sc.get_layer("md") or {}) if hasattr(sc, "get_layer") else {}
-    if (layer.get("blob") == mathpix_md.name
-            and str(layer.get("source") or "") not in ("", "mathpix")):
+    # ...and the `md` layer was the wrong thing to ask. It is pdfdrill's own
+    # bookkeeping: the MathPix download stamps `evidence.mathpix_files` and
+    # never touches it, so on a document whose markdown had since been
+    # projected the layer read `model` or `latex` and this refused to serve a
+    # MathPix file that was sitting right there — which is how 28 bought
+    # downloads were replaced by a projection. Ask the file.
+    if _md_is_ours(mathpix_md, sc):
         return None
     md_text = mathpix_md.read_text(encoding="utf-8")
     why = ("scanned (no text layer)" if scanned
@@ -18214,6 +18523,20 @@ def cmd_md(pdf: Path, pages: str | None = None,
 
     # RULE: if the LaTeX source is available, use it (not the lossy text-layer).
     if pages is None:
+        # 787 — BUT A DOWNLOAD THAT WAS PAID FOR OUTRANKS EVERY PROJECTION, and
+        # this command's own summary has always said so: "Prefers a genuine
+        # MathPix .md, then the model, then the text layer." The code called
+        # the latex route first, the model second and the MathPix branch third,
+        # and each of the first two WRITES `<stem>.md` — the same path the
+        # download owns. 41 bought md files in the library are gone that way.
+        # The guard that existed asked the `md` layer, which the download does
+        # not write; of 1,285 intact downloads it protected 54.
+        if _bought_mathpix_md(pdf, sc) is not None:
+            served = _serve_mathpix_md(
+                pdf, sc, scanned=bool(sc.get_evidence("needs_ocr")))
+            if served is not None:
+                return served
+            sc = Sidecar(pdf)
         latex_md = _md_from_latex_source(pdf, sc)
         if latex_md is not None:
             return latex_md

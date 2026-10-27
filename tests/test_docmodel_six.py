@@ -24,6 +24,13 @@ from pdfreader.texmap import TexToken, project
 # PDF2MMD_TEST_PDF / PDF2MMD_TEST_LINES at your own copies to run them.
 MIELKE = testpaths.CORPUS_PDF
 
+# The three end-to-end tests below each open ONE NAMED DOCUMENT of the drill
+# library and no other: a defect found in 2002.06055's flipped text matrix
+# cannot be demonstrated against a substitute. They used to name it by an
+# absolute path under one account, so on any other machine they skipped —
+# indistinguishable from a missing optional tool. `$PDF2MMD_LIBRARY` points at
+# your copy; the default follows `$HOME` (owner, 2026-10-27).
+
 # The gate is PER CLASS, not on the module.
 #
 # It used to be `pytestmark`, which skipped all 142 tests in this file when
@@ -35,6 +42,15 @@ MIELKE = testpaths.CORPUS_PDF
 needs_corpus = pytest.mark.skipif(
     not os.path.exists(MIELKE),
     reason="no corpus PDF; set PDF2MMD_TEST_PDF to run these")
+
+# The SAME shape for the other thing these tests need and cannot bring with
+# them. `docmodel_six.py:2936` reads `LTChar.invisible`, which only the patched
+# pdfminer has; on the documented base install the three end-to-end tests below
+# raised `AttributeError` and read as three defects in the reader. A missing
+# optional tool is a skip that names the tool, never a failure.
+from tests.test_pdfminer_fork_survives_pip import requires_fork    # noqa: E402
+
+needs_fork = requires_fork("render_mode")
 P209 = range(208, 209)
 
 
@@ -2291,12 +2307,13 @@ class TestAFlippedMatrixIsNotARotation:
         flip = (1.0, 0.0, 0.0, -1.0, 202.44, 618.12)
         assert abs(flip[1]) < 1e-6 and abs(flip[2]) < 1e-6
 
+    @needs_fork
     def test_the_flipped_glyph_reaches_the_reading(self):
         """End to end on the page it was found on."""
         from pdfreader import docmodel_six as D
-        pdf = "/home/wkolbe/pdfdrill-library/2002.06055/2002.06055.pdf"
+        pdf = testpaths.library_pdf("2002.06055")
         if not os.path.exists(pdf):
-            pytest.skip("library PDF not present")
+            pytest.skip(f"not in the library: {pdf} — set $PDF2MMD_LIBRARY")
         doc = D.build(pdf, range(30, 31))
         line = next(ln for pg in doc for ln in pg.lines
                     if "Hilb" in D._run_text(ln.glyphs))
@@ -2304,14 +2321,15 @@ class TestAFlippedMatrixIsNotARotation:
         assert any(g.fontname == "unknown" for g in line.glyphs), \
             D._run_text(line.glyphs)[:60]
 
+    @needs_fork
     def test_its_size_is_repaired_from_the_page(self):
         r"""Nothing advances sixty-eight times its own height. The
         contradiction is inside the glyph; the page supplies the replacement
         and the matrix supplies the baseline."""
         from pdfreader import docmodel_six as D
-        pdf = "/home/wkolbe/pdfdrill-library/2002.06055/2002.06055.pdf"
+        pdf = testpaths.library_pdf("2002.06055")
         if not os.path.exists(pdf):
-            pytest.skip("library PDF not present")
+            pytest.skip(f"not in the library: {pdf} — set $PDF2MMD_LIBRARY")
         doc = D.build(pdf, range(30, 31))
         odd = [g for pg in doc for ln in pg.lines for g in ln.glyphs
                if g.fontname == "unknown"]
@@ -2372,11 +2390,12 @@ class TestACodeListingIsNotABandOfScripts:
         row[3] = self._g("x", 109.0, 6.0, "AAAAAA+CMTT10")
         assert self._is_band(row) is False
 
+    @needs_fork
     def test_the_listing_survives_end_to_end(self):
         from pdfreader import docmodel_six as D
-        pdf = "/home/wkolbe/pdfdrill-library/2604.22294/2604.22294.pdf"
+        pdf = testpaths.library_pdf("2604.22294")
         if not os.path.exists(pdf):
-            pytest.skip("library PDF not present")
+            pytest.skip(f"not in the library: {pdf} — set $PDF2MMD_LIBRARY")
         doc = D.build(pdf, range(18, 19))
         verbatim = [ln for pg in doc for ln in pg.lines if ln.verbatim]
         assert len(verbatim) >= 25, len(verbatim)

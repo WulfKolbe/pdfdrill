@@ -75,6 +75,20 @@ def _heuristic(text: str) -> dict:
     return {"lang": best, "confidence": round(min(hit * 3.0, 0.95), 3), "engine": "heuristic"}
 
 
+#: WHAT "THE ENGINE IS NOT THERE" CAN RAISE. `Exception` is not enough:
+#: `SystemExit` is a `BaseException`, and a module that calls `sys.exit()` at
+#: import time -- `src/pdfreader/out/langdetect.py` was exactly that, a
+#: subprocess tool named after the package it shadowed -- walks straight
+#: through an `except Exception`. Measured: with that file's directory on
+#: `sys.path`, `detect_language` did not return at all; the process exited 0
+#: with the tool's error JSON as its last output, and nothing said the
+#: language had not been detected. That file is renamed and no longer exits
+#: at import, which is the real fix; this is the guard that makes the next
+#: one harmless, because `detect_language` is documented to ALWAYS answer.
+#: `KeyboardInterrupt` is deliberately NOT caught -- Ctrl-C must still stop.
+_ABSENT = (Exception, SystemExit)
+
+
 def _lingua_detect(text: str):
     global _lingua
     try:
@@ -93,7 +107,7 @@ def _lingua_detect(text: str):
         except Exception:
             conf = 0.9
         return {"lang": code, "confidence": round(conf, 3), "engine": "lingua"}
-    except Exception:
+    except _ABSENT:
         return None
 
 
@@ -101,7 +115,7 @@ def _langdetect_detect(text: str):
     try:
         from langdetect import detect_langs, DetectorFactory
         DetectorFactory.seed = 0                    # deterministic
-    except Exception:
+    except _ABSENT:
         return None
     try:
         res = detect_langs(text)
@@ -116,7 +130,7 @@ def _langdetect_detect(text: str):
 def _langid_detect(text: str):
     try:
         import langid
-    except Exception:
+    except _ABSENT:
         return None
     try:
         lang, score = langid.classify(text)

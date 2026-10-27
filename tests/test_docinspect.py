@@ -14,6 +14,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from pdfdrill import docinspect
@@ -58,7 +60,7 @@ def test_build_from_paths_produces_inspector_html():
     with tempfile.TemporaryDirectory() as d:
         mp = Path(d) / "model.docmodel.json"
         mp.write_text(json.dumps(_model()))
-        html, n_pages, n_el, mode = docinspect.build_from_paths(str(mp), embed=True)
+        html, n_pages, n_el, mode, _n_img = docinspect.build_from_paths(str(mp), embed=True)
         assert "<html" in html.lower() and "</html>" in html.lower()
         # the two non-Page elements are hooked into the payload by id
         assert '"p1"' in html and '"f1"' in html
@@ -88,6 +90,200 @@ def test_cmd_inspect_writes_html_and_returns_path(monkeypatch):
         html_path = drill / "demo.inspect.html"
         assert html_path.exists(), out
         assert "inspect.html" in out and "element" in out.lower()
+
+
+# ---------------------------------------------------------------------------
+#  THE INSPECTOR THAT SHIPPED WITHOUT ITS PAGES (ser7, 2026-10-22)
+#
+#  `BH1org.inspect.html` came out at 7,272,092 bytes instead of 56,137,806 —
+#  the complete element tree over 319 BLANK pages — and `pdfdrill inspect`
+#  called that a success at exit 0, with the only warning in a parenthesis
+#  inside a success sentence. Two defects, one cause: `_inspect_pages_dir`
+#  asked Ghostscript for permission BEFORE it looked at the folder it
+#  maintains. `rasterize` calls `_require_gs()` as its first act, so on a
+#  machine without gs the RuntimeError fired before the directory was ever
+#  read, and 319 correct p{N}.png on disk were all discarded. The same
+#  blindness runs the other way on a machine that HAS gs: every run
+#  re-rendered all 319 pages (481 MB of PNG, 32 s) over byte-identical
+#  renders. The docstring said "reusing any already present" the whole time,
+#  which is why nobody checked: it had retired the question.
+#
+#  And a count printed next to a file must be a count OF that file — 40
+#  rendered pages of 319 read exactly like 319 of 319, because the note fired
+#  only when `pages_dir` was None and nothing ever counted the images.
+# ---------------------------------------------------------------------------
+
+def _two_page_model():
+    m = _model()
+    m["meta"]["num_pages"] = 2
+    m["meta"]["pages"].append({"page": 2, "page_width": 1000, "page_height": 1400})
+    m["objects"].append({"id": "pg2", "type": "Page", "props": {"page": 2},
+                         "realizations": []})
+    return m
+
+
+def _doc_with_renders(d: Path, model: dict, rendered: "list[int]", *,
+                      n_pages: int = 1, dpi: int = 400,
+                      manifest: bool = True) -> Path:
+    """A drill dir holding `model` and a p{N}.png for each page in `rendered`.
+
+    The PNGs are written after the PDF so they are NEWER than it, which is what
+    `_pages_on_disk` requires — a render older than the document it came from
+    is a stale render.
+    """
+    from PIL import Image
+    from pdfdrill.sidecar import Sidecar
+    pdf = d / "demo.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+    drill = d / "demo.pdf.drill"
+    pages = drill / "inspect" / "pages"
+    pages.mkdir(parents=True)
+    (drill / "model.docmodel.json").write_text(json.dumps(model))
+    for n in rendered:
+        Image.new("RGB", (100, 140), (255, 255, 255)).save(pages / f"p{n}.png")
+    if manifest:
+        (pages / "manifest.json").write_text(json.dumps(
+            {"document": "demo", "dpi": dpi, "pages": len(rendered)}))
+    # the page count `_inspect_pages_dir` enumerates; pdfinfo cannot answer for
+    # an 8-byte stub, and a real document carries it from the probe.
+    sc = Sidecar(pdf)
+    sc.set_evidence("pages", n_pages)
+    sc.save()
+    return pdf
+
+
+def _no_gs(monkeypatch):
+    """Ghostscript absent: `rasterize` raises exactly as `_require_gs` does."""
+    from pdfdrill import pdf_reading
+    def boom(*a, **k):
+        raise RuntimeError("Ghostscript (gs) is required for rasterization")
+    monkeypatch.setattr(pdf_reading, "rasterize", boom)
+
+
+def _spy_rasterize(monkeypatch, made=()):
+    """Record every rasterize call; return `made` as the rendered files."""
+    from pdfdrill import pdf_reading
+    calls = []
+    def spy(pdf, out_dir, *, pages=None, dpi=400, **k):
+        calls.append(pages)
+        return list(made)
+    monkeypatch.setattr(pdf_reading, "rasterize", spy)
+    return calls
+
+
+def test_pages_already_rendered_are_not_rendered_again(monkeypatch):
+    """STEP 1. Every requested page is on disk, so gs is never asked at all —
+    and the images reach the HTML."""
+    pytest.importorskip("PIL")
+    from pdfdrill import commands as C
+    from pdfdrill.commands import cmd_inspect
+    with tempfile.TemporaryDirectory() as d:
+        pdf = _doc_with_renders(Path(d), _model(), [1], n_pages=1)
+        monkeypatch.setattr(C, "_stale_or_absent", lambda *a, **k: False)
+        calls = _spy_rasterize(monkeypatch)
+        out = cmd_inspect(pdf, embed=True, images=True)
+        assert calls == [], f"gs was asked for {calls} although page 1 was on disk"
+        html = (Path(d) / "demo.pdf.drill" / "demo.inspect.html").read_text(
+            encoding="utf-8")
+        assert "data:image/jpeg;base64" in html, out
+
+
+def test_renders_on_disk_survive_a_missing_ghostscript(monkeypatch):
+    """STEP 1, the ser7 case. gs is gone and one of the two pages is already
+    rendered: the render is USED (not discarded), and the shortfall is named."""
+    pytest.importorskip("PIL")
+    from pdfdrill import commands as C
+    from pdfdrill.commands import cmd_inspect
+    with tempfile.TemporaryDirectory() as d:
+        pdf = _doc_with_renders(Path(d), _two_page_model(), [1], n_pages=2)
+        monkeypatch.setattr(C, "_stale_or_absent", lambda *a, **k: False)
+        _no_gs(monkeypatch)
+        out = cmd_inspect(pdf, embed=True, images=True)
+        html = (Path(d) / "demo.pdf.drill" / "demo.inspect.html").read_text(
+            encoding="utf-8")
+        assert html.count("data:image/jpeg;base64") == 1, \
+            "the page render on disk was discarded because gs was absent"
+        assert "1 of 2" in out, out
+        assert getattr(out, "exit_code", 0) == 0, "a partial build is not a failure"
+
+
+def test_an_inspector_with_no_page_images_at_all_fails_loudly(monkeypatch):
+    """STEP 2. Zero images over a model that HAS page geometry is a failed
+    build: exit 3 (a thing reported and not run), the count, and the one fix."""
+    pytest.importorskip("PIL")
+    from pdfdrill import commands as C
+    from pdfdrill.commands import cmd_inspect
+    from pdfdrill.cli import EXIT_LANE_NOT_RUN
+    with tempfile.TemporaryDirectory() as d:
+        pdf = _doc_with_renders(Path(d), _model(), [], n_pages=1)
+        monkeypatch.setattr(C, "_stale_or_absent", lambda *a, **k: False)
+        _no_gs(monkeypatch)
+        out = cmd_inspect(pdf, embed=True, images=True)
+        assert getattr(out, "exit_code", 0) == EXIT_LANE_NOT_RUN, \
+            f"a boxes-only build reported success: {out!r}"
+        assert "0 of 1" in out and "hostscript" in out, out
+        # the artifact is still written — the tree is usable, it is just blind
+        assert (Path(d) / "demo.pdf.drill" / "demo.inspect.html").exists()
+
+
+def test_no_images_was_asked_for_and_is_not_a_failure(monkeypatch):
+    """STEP 2 must not fire on `--no-images`: boxes-only was the REQUEST."""
+    from pdfdrill import commands as C
+    from pdfdrill.commands import cmd_inspect
+    with tempfile.TemporaryDirectory() as d:
+        pdf = _doc_with_renders(Path(d), _model(), [], n_pages=1, manifest=False)
+        monkeypatch.setattr(C, "_stale_or_absent", lambda *a, **k: False)
+        out = cmd_inspect(pdf, embed=True, images=False)
+        assert getattr(out, "exit_code", 0) == 0, out
+        assert "boxes-only" in out, out
+
+
+def test_a_partial_render_names_its_count(monkeypatch):
+    """STEP 2. gs runs and comes back with fewer pages than were asked for —
+    the shortfall is in the prose, where before there was no note at all."""
+    pytest.importorskip("PIL")
+    from pdfdrill import commands as C
+    from pdfdrill.commands import cmd_inspect
+    with tempfile.TemporaryDirectory() as d:
+        pdf = _doc_with_renders(Path(d), _two_page_model(), [1], n_pages=2)
+        monkeypatch.setattr(C, "_stale_or_absent", lambda *a, **k: False)
+        _spy_rasterize(monkeypatch)            # page 2 renders to nothing
+        out = cmd_inspect(pdf, embed=True, images=True)
+        assert "1 of 2" in out, out
+
+
+def test_reuse_needs_the_manifest_to_name_the_dpi(monkeypatch):
+    """STEP 1's one refusal. `prepare_pages` scales a render by
+    embed_dpi/src_dpi, so a page reused at the WRONG DPI is embedded at the
+    wrong size and its boxes land beside the ink — worse than no image.
+    manifest.json is the only record of what the folder was rendered at, so
+    without it the pages are re-rendered rather than guessed at."""
+    pytest.importorskip("PIL")
+    from pdfdrill import commands as C
+    from pdfdrill.commands import cmd_inspect
+    with tempfile.TemporaryDirectory() as d:
+        pdf = _doc_with_renders(Path(d), _model(), [1], n_pages=1, manifest=False)
+        monkeypatch.setattr(C, "_stale_or_absent", lambda *a, **k: False)
+        calls = _spy_rasterize(monkeypatch)
+        cmd_inspect(pdf, embed=True, images=True)
+        assert calls, "a render of unrecorded DPI was reused instead of rebuilt"
+
+
+def test_a_render_from_another_document_is_not_reused(monkeypatch):
+    """819e, held: the manifest names the document its pages came from."""
+    pytest.importorskip("PIL")
+    from pdfdrill import commands as C
+    from pdfdrill.commands import cmd_inspect
+    with tempfile.TemporaryDirectory() as d:
+        pdf = _doc_with_renders(Path(d), _model(), [1], n_pages=1)
+        pages = Path(d) / "demo.pdf.drill" / "inspect" / "pages"
+        (pages / "manifest.json").write_text(json.dumps(
+            {"document": "someone-elses-book", "dpi": 400, "pages": 1}))
+        monkeypatch.setattr(C, "_stale_or_absent", lambda *a, **k: False)
+        calls = _spy_rasterize(monkeypatch)
+        cmd_inspect(pdf, embed=True, images=True)
+        assert calls, "another document's page images were served as this one's"
+
 
 
 if __name__ == "__main__":
@@ -124,7 +320,7 @@ def test_inspect_no_meta_pages_derives_from_objects():
     with _t.TemporaryDirectory() as d:
         mp = _P(d) / "model.docmodel.json"
         mp.write_text(_j.dumps(m))
-        html, n_pages, n_el, mode = docinspect.build_from_paths(str(mp), embed=True)
+        html, n_pages, n_el, mode, _n_img = docinspect.build_from_paths(str(mp), embed=True)
         assert "<html" in html.lower()              # no crash
         assert '"p1"' in html and '"f1"' in html    # elements still present
         assert n_pages == 1                          # derived page 1 from the objects
@@ -154,10 +350,10 @@ def test_page_filter_restricts_elements_and_pages():
         mp = _P(d) / "model.docmodel.json"
         mp.write_text(_j.dumps(m))
         # no filter → both pages, both elements
-        _h, n_pages_all, n_el_all, _m = docinspect.build_from_paths(str(mp), embed=True)
+        _h, n_pages_all, n_el_all, _m, _n_img = docinspect.build_from_paths(str(mp), embed=True)
         assert n_pages_all == 2 and '"p2only"' in _h
         # filter to page 1 → page 2 element dropped, only 1 page
-        html, n_pages, n_el, _m = docinspect.build_from_paths(
+        html, n_pages, n_el, _m, _n_img = docinspect.build_from_paths(
             str(mp), embed=True, page_filter={1})
         assert n_pages == 1 and n_el < n_el_all
         assert '"p1"' in html and '"p2only"' not in html
@@ -421,7 +617,7 @@ def test_the_reported_count_matches_the_payload_the_page_ships():
     with tempfile.TemporaryDirectory() as d:
         mp = Path(d) / "model.docmodel.json"
         mp.write_text(json.dumps(_model_with_a_document()))
-        html, n_pages, n_el, _m = docinspect.build_from_paths(str(mp), embed=True)
+        html, n_pages, n_el, _m, _n_img = docinspect.build_from_paths(str(mp), embed=True)
         data = _payload(html)
         in_tree = [e for e in data["elements"] if e.get("type") != "Page"]
         assert n_el == len(in_tree), (
@@ -437,7 +633,7 @@ def test_the_document_object_is_not_an_element():
     with tempfile.TemporaryDirectory() as d:
         mp = Path(d) / "model.docmodel.json"
         mp.write_text(json.dumps(_model_with_a_document()))
-        html, _p, n_el, _m = docinspect.build_from_paths(str(mp), embed=True)
+        html, _p, n_el, _m, _n_img = docinspect.build_from_paths(str(mp), embed=True)
         types = {e.get("type") for e in _payload(html)["elements"]}
         assert "Document" not in types
         assert n_el == 2
@@ -457,7 +653,7 @@ def test_a_page_filtered_count_matches_its_payload_too():
     with tempfile.TemporaryDirectory() as d:
         mp = Path(d) / "model.docmodel.json"
         mp.write_text(json.dumps(m))
-        html, _p, n_el, _mode = docinspect.build_from_paths(
+        html, _p, n_el, _mode, _n_img = docinspect.build_from_paths(
             str(mp), embed=True, page_filter={1})
         in_tree = [e for e in _payload(html)["elements"]
                    if e.get("type") != "Page"]

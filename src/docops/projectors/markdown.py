@@ -62,20 +62,77 @@ _LATEX_WIDGET = re.compile(
 #: `displayMode="true"` inside such a widget.
 _DISPLAY = re.compile(r'displayMode\s*=\s*("|\')true\1')
 
+#: MathPix's own Markdown delimiters — the dialect this corpus is written in.
+#:
+#: NOT a style choice. `pdfdrill mathpix` asks for these on the wire
+#: (`mathpix_client.CONVERSION_OPTIONS["conversion_options"]["md"]`), so every
+#: bought `.md` in the library carries them: measured on 600 intact downloads,
+#: `$…$` in 100% and a `$$` fence on its own line in 84%, against one `\tag{}`
+#: in the whole sample. The UI's export defaults differ (`\(…\)`, `\[…\]`,
+#: `\section*`, `\begin{tabular}`) — that is the MathPix dialect this
+#: projector used to emit, and it matches no file pdfdrill ever downloaded.
+#:
+#: Mirrored rather than imported: `docops` does not depend on the CLI package,
+#: and `tests/test_md_is_mathpix_shaped.py` holds the two definitions equal so
+#: a change to the purchase cannot silently outrun the projection.
+MATH_INLINE = ("$", "$")
+MATH_DISPLAY = ("$$", "$$")
+
+
+#: A math span as MathPix's `lines.json` delimits it — which is NOT what its
+#: `.md` uses. The md options choose `$…$`; the reading always says `\(…\)`,
+#: so every prose string the model holds arrives in the UI dialect and has to
+#: be re-delimited on the way out. `_unwidget` never saw these: they are not
+#: widgets, they are the text itself.
+_MATH_SPAN = re.compile(r"\\\[(?P<d>.+?)\\\]|\\\((?P<i>.+?)\\\)", re.S)
+
+#: A dollar that is not already escaped AND does not open a TiddlyWiki widget.
+#: `escape_dollar: True` is in the conversion options pdfdrill sends, and 58 of
+#: 400 intact downloads carry an escaped `\$` (302 occurrences): in a `$…$`
+#: dialect a bare literal dollar opens mathematics and swallows the rest of the
+#: line. The `<` guard is not cosmetic — without it this escaped the `$` of
+#: `<$latex text="x^2"/>`, `_unwidget` no longer recognised the widget, and the
+#: projection shipped the widget source as prose. Four tests caught it.
+_BARE_DOLLAR = re.compile(r"(?<![\\<])\$")
+
+
+def _mathpix_math(text: str) -> str:
+    r"""Prose into MathPix's md dialect: `\(x\)` → `$x$`, `\[x\]` → `$$x$$`,
+    and a literal `$` BETWEEN the spans escaped.
+
+    One pass over the math spans rather than two substitutions, because the
+    escaping must not reach inside a formula: `\(a\$b\)` is mathematics with a
+    dollar in it, and escaping that changes the equation.
+    """
+    out: list[str] = []
+    pos = 0
+    for m in _MATH_SPAN.finditer(text):
+        out.append(_BARE_DOLLAR.sub(r"\\$", text[pos:m.start()]))
+        if m.group("d") is not None:
+            out.append(f"{MATH_DISPLAY[0]}{m.group('d')}{MATH_DISPLAY[1]}")
+        else:
+            out.append(f"{MATH_INLINE[0]}{m.group('i')}{MATH_INLINE[1]}")
+        pos = m.end()
+    out.append(_BARE_DOLLAR.sub(r"\\$", text[pos:]))
+    return "".join(out)
+
 
 def _unwidget(text: str) -> str:
-    r"""`<$latex text="x^2" displayMode="false"/>` → `\(x^2\)`.
+    r"""`<$latex text="x^2" displayMode="false"/>` → `$x^2$`.
 
-    MathPix's own Markdown — the reference this output has to match, because it
-    is what a reader of this corpus already knows — writes inline mathematics
-    `\(…\)` and display `\[…\]`. So does the model's own `latex` prop.
+    MathPix's own Markdown is the reference this output has to match, because
+    it is what a reader of this corpus already knows — and what it writes is
+    `$…$` / `$$…$$`, because that is what pdfdrill asks for. See `MATH_INLINE`:
+    this returned `\(…\)` / `\[…\]` until 2026-10-23, which is the UI export's
+    dialect and matches no file in the library.
     """
     def one(m: re.Match) -> str:
         tex = (m.group("tex") or "").strip()
         if not tex:
             return ""
         tex = tex.replace("&quot;", '"').replace("&amp;", "&")
-        return f"\\[{tex}\\]" if _DISPLAY.search(m.group(0)) else f"\\({tex}\\)"
+        d = MATH_DISPLAY if _DISPLAY.search(m.group(0)) else MATH_INLINE
+        return f"{d[0]}{tex}{d[1]}"
     return _LATEX_WIDGET.sub(one, text)
 
 
@@ -136,7 +193,7 @@ class MarkdownProjector(BaseProjector):
         bibkey = str(doc.meta.get("bibkey") or "document")
         self._titles = self._title_map(doc, title_for, bibkey)
         out: list[str] = []
-        if self.params.get("front_matter", True):
+        if self.params.get("front_matter", False):
             out.append(self._front_matter(doc, bibkey))
         for obj in self._flow(doc):
             block = self._block(obj, doc)
@@ -276,28 +333,31 @@ class MarkdownProjector(BaseProjector):
         r"""A display equation: its LaTeX, else its crop as an image.
 
         An equation with neither — a CDN-only object whose crop was never
-        fetched — yields NOTHING rather than an empty `\[\]`, which every
-        renderer shows as a stray bracket.
+        fetched — yields NOTHING rather than an empty `$$$$`, which every
+        renderer shows as a stray fence.
         """
         tex = str(obj.props.get("latex") or obj.props.get("latex_original")
                   or "").strip()
         if tex:
             num = str(obj.props.get("refnum") or "").strip()
-            body = f"\\[{tex}\\]"
+            # The fence on its own line, as MathPix writes it. The NUMBER stays
+            # plain text beside it: `\tag{}` appears once in 600 reference
+            # files, so it is not part of the dialect — and dropping the number
+            # would cut the only handle the prose has on the equation.
+            body = f"{MATH_DISPLAY[0]}\n{tex}\n{MATH_DISPLAY[1]}"
             return f"{body}\n\n({num})" if num else body
         link = self._image_link(obj)
-        return f"![{self._titles.get(obj.id, 'equation')}]({link})" if link else ""
+        return f"![]({link})" if link else ""
 
     def _figure(self, obj) -> str:
         link = self._image_link(obj)
         cap = self._clean(str(obj.props.get("caption") or ""))
-        alt = cap or self._titles.get(obj.id, obj.type.lower())
         if not link:
             # No image to link. The CAPTION is still content and is kept — a
             # figure whose bytes are missing is not a reason to lose its words.
-            return f"*{cap}*" if cap else ""
-        out = f"![{alt}]({link})"
-        return f"{out}\n\n*{cap}*" if cap else out
+            return cap
+        out = f"![]({link})"
+        return f"{out}\n\n{cap}" if cap else out
 
     def _table(self, obj, doc) -> str:
         """A pipe table from the Table's rows, else its crop, else its caption.
@@ -316,12 +376,12 @@ class MarkdownProjector(BaseProjector):
                      "| " + " | ".join(["---"] * width) + " |"]
             lines += ["| " + " | ".join(r) + " |" for r in body]
             table = "\n".join(lines)
-            return f"{table}\n\n*{cap}*" if cap else table
+            return f"{table}\n\n{cap}" if cap else table
         link = self._image_link(obj)
         if link:
-            out = f"![{cap or self._titles.get(obj.id, 'table')}]({link})"
-            return f"{out}\n\n*{cap}*" if cap else out
-        return f"*{cap}*" if cap else ""
+            out = f"![]({link})"
+            return f"{out}\n\n{cap}" if cap else out
+        return cap
 
     def _rows(self, obj, doc) -> list:
         """[[cell text, …], …] for a Table, from its `cells` GRID.
@@ -417,6 +477,9 @@ class MarkdownProjector(BaseProjector):
     def _clean(self, text: str) -> str:
         """Prose fit for Markdown: widgets become LaTeX, markers go, and the
         LaTeX sectioning a MathPix line sometimes carries is unwrapped."""
+        # The READING's delimiters first, while the widget output is not yet in
+        # the string: `_unwidget` emits `$…$` now, and escaping would eat it.
+        text = _mathpix_math(text)
         text = _unwidget(text)
         text = _strip_transclusions(text)
         # `\title{X}` / `\author{X}` / `\section{X}` leak in from MathPix's

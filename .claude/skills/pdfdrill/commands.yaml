@@ -365,8 +365,13 @@ commands:
 - name: md
   section: Extraction
   summary: 'Markdown from the unified model — headings, prose, IMAGES as links and TABLES as pipe
-    tables, no transclusions (R3). Prefers a genuine MathPix .md, then the model, then the text
-    layer. --image-base points MathPix-shaped crop URLs at a local crop server
+    tables, no transclusions (R3). THE OUTPUT IS THE MATHPIX DIALECT, because the corpus is
+    written in it: `$…$` inline and a `$$` fence on its own line (the delimiters pdfdrill asks
+    MathPix for on the wire), `#`/`##` headings, pipe tables, `![](…)` with no alt text, a caption
+    as plain text, and NO YAML front matter. A genuine MathPix .md still on disk WINS over every
+    projection and is served untouched — it was paid for, and `<bibkey>.md` is the one filename
+    both it and this command own; 41 bought downloads in the library were lost to a projection
+    before that was enforced. Then the model, then the text layer. --image-base points MathPix-shaped crop URLs at a local crop server
     (pdfreader/inspectserver.py or tools/imageserver/mathpix_server.py) so a figure with no fetched
     crop still resolves in a Markdown reader.'
   offline_ok: true
@@ -497,7 +502,9 @@ commands:
     NOT RUN — the install cannot run it (no NumPy, so no free lane) or it costs money and `drill`
     never spends. In both cases there is no inspect.html, which is what `drill` promises, so a
     script can tell without parsing prose. Everything before the lane still ran, and the message
-    is the same as it ever was.'
+    is the same as it ever was. Also 3 when the inspect.html was written WITHOUT page images (no
+    Ghostscript): the file opens, the element tree works, and every box sits on a blank page —
+    the same promise unkept, so it reports the same way.'
   offline_ok: true
   positionals:
   - name: pdf
@@ -2375,7 +2382,10 @@ commands:
   summary: 'DevTools-style docmodel inspector HTML (<bibkey>.inspect.html): every DocObject as a
     hover/click box on the rendered page AND a DOM-like ELEMENTS tree + INSPECTOR pane (region/LaTeX/
     props/realizations/alignments) + reading-order REFLOW. Self-contained (embeds downscaled pages);
-    --no-images = boxes-only; --dpi N inlined-page DPI (default 120)'
+    --no-images = boxes-only; --dpi N inlined-page DPI (default 120). Page renders already in
+    <drill>/inspect/pages are REUSED (same document, same DPI, newer than the PDF), so a second run
+    costs no Ghostscript. Reports how many pages carry an image and EXITS 3 when none do — a box on a
+    blank page is a failed inspector, not a quieter one; --no-images asks for that and exits 0'
   offline_ok: true
   positionals:
   - name: pdf
@@ -2509,8 +2519,9 @@ commands:
   done_when: fact:LATEX_INGESTED
   section: Introspection (fast, no extraction)
   summary: 'INJECT the author''s LaTeX source (.tex/.tgz, arXiv e-print auto-downloaded) as a competing
-    `tex` provenance on each matched equation (original+expanded LaTeX). INPUT direction (was `latex`);
-    for LaTeX OUTPUT use `latex`. --tex <path>'
+    `tex` provenance on each matched equation AND each matched inline formula (original+expanded LaTeX;
+    an equation matches on similarity, an inline formula on an exact key — it is too short for a
+    threshold). INPUT direction (was `latex`); for LaTeX OUTPUT use `latex`. --tex <path>'
   offline_ok: true
   positionals:
   - name: pdf

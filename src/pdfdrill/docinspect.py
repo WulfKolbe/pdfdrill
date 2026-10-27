@@ -257,6 +257,46 @@ def _union(a: Optional[dict], b: Optional[dict]) -> Optional[dict]:
     return {"x": x0, "y": y0, "w": x1 - x0, "h": y1 - y0}
 
 
+def _author_latex(obj: dict) -> dict:
+    r"""The author's own LaTeX for a maths object, and WHERE it was found.
+
+    T-0080 item 2: the inspector shows `latex_original` as TEXT and renders
+    `latex`. Reading `props["latex_original"]` alone would have shipped a
+    feature that does nothing on the documents it is for: `cmd_injectlatex`
+    attaches the author's form to the matched equation as a
+    `provenance="tex"` REALIZATION, and only creates it in props when there was
+    no MathPix scaffold to overlay onto. Measured on the two gate papers
+    (1702.06385, 2210.01629v3, both after `pdfdrill injectlatex`): of 254
+    maths objects, 0 carried `props["latex_original"]` and 27 carried it on a
+    realization.
+
+    `from` is part of the answer, not bookkeeping. When it is `"tex"`, the
+    rendered `latex` beside it is the document's OWN reading (MathPix or
+    geometry) while this text is the author's — two readings of one equation,
+    and a reader comparing them has to know that is what they are looking at.
+    `pdfdrill compare` is the surface that puts them side by side.
+    """
+    pr = obj.get("props") or {}
+    if (pr.get("latex_original") or "").strip():
+        return {"latex_original": pr["latex_original"], "orig_from": "props"}
+    for r in obj.get("realizations") or []:
+        rp = r.get("props") or {}
+        if r.get("provenance") == "tex" and (rp.get("latex_original") or "").strip():
+            out = {"latex_original": rp["latex_original"], "orig_from": "tex",
+                   "orig_score": r.get("score")}
+            # The author's READING, expanded and resolved — a second renderable
+            # form of the same equation, beside the document's own. Without it
+            # the author's LaTeX reaches the page as text only, and the owner's
+            # goal for T-0080 ("an inspect page with pdf2mmd2's geometry AND
+            # the author's LaTeX") is half met: 15, 12 and 9 objects on the
+            # three gate documents carry a reading nothing rendered.
+            author = (rp.get("latex") or "").strip()
+            if author and author != (pr.get("latex") or "").strip():
+                out["latex_author"] = author
+            return out
+    return {}
+
+
 def object_geometry(obj: dict, sidx: dict) -> tuple[Optional[int], Optional[dict], str]:
     """
     Return (page, bbox_in_mathpix_points, text_preview) for a DocObject.
@@ -427,6 +467,7 @@ def collect_elements(model: dict, sidx: dict, *, with_blobs: bool = False):
         # type-specific payloads used by reflow + inspector
         if obj["type"] in ("Formula", "Equation"):
             rec["latex"] = pr.get("latex", "")
+            rec.update(_author_latex(obj))
             # a numbered Equation is display math by definition; a Formula
             # follows its own display flag (inline vs block).
             rec["display"] = True if obj["type"] == "Equation" else bool(pr.get("display"))
@@ -883,6 +924,17 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .reflow .reflow-el.hl{background:rgba(92,150,200,.14)}
 .reflow [data-obj].sel{background:rgba(92,150,200,.22);box-shadow:0 0 0 2px rgba(92,150,200,.5)}
 .katex-missing{font-family:var(--mono);font-size:.85em;background:#eee;padding:1px 4px;border-radius:3px}
+.katex-refused{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:baseline;
+  border-left:3px solid #b3261e;background:#fdf1f0;padding:3px 7px;border-radius:3px;max-width:100%}
+.kr-mark{font:600 11px/1.4 var(--sans);color:#b3261e;letter-spacing:.02em}
+.kr-why{font:11px/1.4 var(--sans);color:#6b2b26}
+.kr-src{font-family:var(--mono);font-size:.82em;color:var(--ink);word-break:break-all;min-width:0}
+.katex-audit{margin:0 0 1rem;padding:.5rem .8rem;border-left:4px solid #5b6b7a;
+  background:#f3f6f8;color:#2d3a45;font:12px/1.55 -apple-system,system-ui,sans-serif}
+.katex-audit summary{cursor:pointer;font-weight:600}
+.katex-audit ol{margin:.5rem 0 0;padding-left:1.4rem;max-height:16rem;overflow:auto}
+.katex-audit li{margin:.2rem 0}
+.katex-audit code{font-family:var(--mono);font-size:.9em;word-break:break-all}
 
 /* ---- sidebar: tree ---- */
 .side h4{margin:0;padding:9px 12px;font:11px/1 var(--sans);letter-spacing:.08em;
@@ -966,6 +1018,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 </head>
 <body>
 """ + KATEX_WARNING_HTML + r"""
+<div class="katex-audit" id="katexAudit">counting what KaTeX refuses…</div>
 <div class="topbar">
   <div class="brand">doc<span class="k">inspect</span></div>
   <div class="crumb"><b id="cb-key"></b> · <span id="cb-sub"></span></div>
@@ -1128,12 +1181,51 @@ function setLang(role){
 }
 
 /* ---------- KaTeX helper ---------- */
+/* NOTE: the line above is a BOUNDARY. `tests/test_docinspect_lang_js.py`
+ * slices the shipped language block between `const LANGS = …` and that exact
+ * string so that it runs the real code instead of a copy — making it the
+ * opener of this comment deleted the boundary and broke 11 tests.
+ *
+ * TWO failures, and they used to look identical. `katex-missing` means the
+ * RENDERER is not here (offline, CDN blocked, `onerror` fired) and nothing was
+ * tried; `katex-refused` means KaTeX loaded and refused THIS formula. One grey
+ * box for both told a reader nothing about which of the two they were seeing.
+ *
+ * throwOnError:true is the whole of T-0080 item 2 — "a KaTeX-unrenderable
+ * formula marked rather than shown as error text". With the default `false`,
+ * KaTeX puts its own error INTO the output as red text containing the source,
+ * so the catch below never fires, the formula looks rendered, and a count of
+ * failures is zero. Measured over the drill library: 6,373 of 23,608 expanded
+ * display equations are refused, every one of which was being shown as error
+ * text.
+ *
+ * strict:false matches the measurement. KaTeX's default `strict:"warn"` only
+ * warns, but `strict:true` THROWS on things that render perfectly well, so
+ * leaving it unset here and set in the measure would make the page's count and
+ * the measured count two different numbers. */
+function katexWhy(msg){
+  const s = String(msg||'');
+  let m = /Undefined control sequence: (\\[A-Za-z@]+)/.exec(s);
+  if(m) return m[1] + ' is not in KaTeX';
+  m = /No such environment: (\S+)/.exec(s);
+  if(m) return 'no ' + m[1] + ' environment in KaTeX';
+  return s.replace(/^KaTeX parse error: /,'').split(' at position')[0].slice(0,140);
+}
 function renderMath(tex, display, into){
   if(window.__noKatex || !window.katex){
-    into.innerHTML = '<span class="katex-missing">'+esc(tex)+'</span>'; return;
+    into.innerHTML = '<span class="katex-missing" title="KaTeX did not load, so '
+      + 'nothing was tried — this is not a claim about the formula">'
+      + esc(tex)+'</span>'; return;
   }
-  try{ window.katex.render(tex, into, {displayMode:!!display, throwOnError:false}); }
-  catch(e){ into.innerHTML = '<span class="katex-missing">'+esc(tex)+'</span>'; }
+  try{ window.katex.render(tex, into, {displayMode:!!display, throwOnError:true,
+                                       strict:false}); }
+  catch(e){
+    const why = katexWhy(e && e.message);
+    into.innerHTML = '<span class="katex-refused" title="'+esc(why)+'">'
+      + '<span class="kr-mark">KaTeX cannot render this</span>'
+      + '<span class="kr-why">'+esc(why)+'</span>'
+      + '<code class="kr-src">'+esc(tex)+'</code></span>';
+  }
 }
 function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
@@ -1181,6 +1273,28 @@ function kv(k,v){ return '<div class="kv"><span class="k">'+esc(k)+'</span><span
 function txt(s){ return '<div class="txtprev">'+esc(s||'')+'</div>'; }
 function eqBlock(latex){ return sec('rendered')+'<div class="eqrender" data-eq="'+esc(latex||'')+'"></div>'; }
 function latexSrc(latex){ return sec('latex')+'<div class="latexsrc">'+esc(latex||'')+'</div>'; }
+/* The author's own form, as TEXT and never rendered: it still holds the macros
+ * the author defined, which is exactly what no browser renderer can know (and
+ * `docops.katex_notice` measures: 11,088 of 11,624 undefined occurrences
+ * corpus-wide are the source document's own macros). Rendering it would put a
+ * red error where the provenance belongs. */
+function authorSrc(e){
+  const src = (e.latex_original||'').trim();
+  if(!src) return '';
+  const head = e.orig_from==='tex'
+    ? "author's latex · tex provenance"+(e.orig_score!=null?' · match '+e.orig_score:'')
+    : "author's latex";
+  let h = sec(head)+'<div class="latexsrc">'+esc(src)+'</div>';
+  /* and the author's own READING, rendered. Two readings of one equation: the
+   * block above is the document's (MathPix or geometry), this is the author's.
+   * It is renderable at all only because the expansion now resolves the
+   * commands that exist for LaTeX and not for a formula — 13 of these were
+   * refused on 1702.06385 before that pass. */
+  if((e.latex_author||'').trim())
+    h += sec("author's reading · rendered")
+       + '<div class="eqrender" data-eq="'+esc(e.latex_author)+'"></div>';
+  return h;
+}
 function cropTag(){ return '<img class="cropimg" data-crop="1">'; }
 function fillDeferred(host, e){   // resolve data-eq / data-crop placeholders post-insert
   host.querySelectorAll('[data-eq]').forEach(n=>renderMath(n.getAttribute('data-eq')||'',true,n));
@@ -1411,7 +1525,7 @@ register({ type:'Equation',       // numbered display equation (arXiv-style)
   render(e){ const n=el('div','eqblock numbered'); const m=el('div','eqmath'); renderMath(e.latex||'',true,m); n.appendChild(m);
     if(e.refnum!=null){ const t=el('span','eqnum'); t.textContent='('+e.refnum+')'; n.appendChild(t);} return n; },
   detail(e){ let h=''; if(e.refnum!=null)h+=kv('equation','('+e.refnum+')');
-    h+=eqBlock(e.latex)+latexSrc(e.latex)+kv('display','block');
+    h+=eqBlock(e.latex)+latexSrc(e.latex)+authorSrc(e)+kv('display','block');
     if(e.cdn_url)h+=sec('mathpix crop')+cropTag()+'<div class="latexsrc" style="margin-top:6px">'+esc(e.cdn_url)+'</div>'; return h; } });
 
 register({ type:'Formula',        // inline or block math per its display flag
@@ -1421,7 +1535,8 @@ register({ type:'Formula',        // inline or block math per its display flag
    * still a first-class element everywhere else: tree row, page box, inspector. */
   render(e){ if(!e.display) return null;
     const n=el('div','eqblock'); renderMath(e.latex||'',true,n); return n; },
-  detail(e){ let h=eqBlock(e.latex)+latexSrc(e.latex)+kv('display',e.display?'block':'inline');
+  detail(e){ let h=eqBlock(e.latex)+latexSrc(e.latex)+authorSrc(e)
+      +kv('display',e.display?'block':'inline');
     if(e.cdn_url)h+=sec('mathpix crop')+cropTag(); return h; } });
 
 /* A rendered SVG is the AUTHOR's figure recompiled from its own LaTeX; the
@@ -2040,8 +2155,67 @@ function inkRender(){
   draw();
 }
 
+/* ---- the count the gate asks for --------------------------------------- *
+ * Over EVERY maths element, once, at load — not over what is on screen. The
+ * inspector renders lazily (a detail pane, a reflow node, a page box), so a
+ * tally accumulated by `renderMath` would depend on where the reader scrolled
+ * and would read as "0 refused" on a document whose every formula is refused.
+ *
+ * This is the page's own count with the page's own KaTeX, which is the only
+ * count that answers "does this document render here". */
+function katexAudit(){
+  const host = document.getElementById('katexAudit');
+  if(!host) return;
+  const maths = EL.filter(e=>(e.type==='Formula'||e.type==='Equation')
+                             && (e.latex||'').trim());
+  const withAuthor = maths.filter(e=>(e.latex_original||'').trim()).length;
+  /* EVERY renderable form, not one per object: an equation that carries the
+   * author's reading as well has TWO things the page renders, and counting
+   * only the first hides exactly the half this work is about. */
+  const forms = [];
+  maths.forEach(e=>{
+    forms.push({id:e.id, type:e.type, tex:e.latex, display:!!e.display,
+                which:'latex'});
+    if((e.latex_author||'').trim())
+      forms.push({id:e.id, type:e.type, tex:e.latex_author, display:!!e.display,
+                  which:"author's reading"});
+  });
+  const prov = ' ' + maths.length + ' formula' + (maths.length===1?'':'s')
+    + ', ' + withAuthor + " with the author's latex beside them, "
+    + forms.length + ' rendered form' + (forms.length===1?'':'s') + ' in all.';
+  if(window.__noKatex || !window.katex){
+    host.innerHTML = '<b>KaTeX did not load</b>, so nothing here was rendered '
+      + 'and nothing was refused —' + esc(prov) + ' The marks on the page say '
+      + 'the renderer is absent, not that a formula is wrong.';
+    return;
+  }
+  const bad = [];
+  forms.forEach(f=>{
+    try{ window.katex.renderToString(f.tex, {displayMode:f.display,
+                                             throwOnError:true, strict:false}); }
+    catch(err){ bad.push({id:f.id, why:katexWhy(err && err.message),
+                          tex:f.tex, type:f.type, which:f.which}); }
+  });
+  window.__katexRefused = bad;        // the hook a test or drillui reads
+  if(!bad.length){
+    host.innerHTML = '<b>KaTeX 0.16.9 renders every formula in this document.</b>'
+      + esc(prov);
+    return;
+  }
+  const items = bad.map(b=>'<li><code>'+esc(b.id)+'</code> '+esc(b.type)+' ('
+    + esc(b.which)+') — '+esc(b.why)
+    + '<br><code>'+esc(b.tex.slice(0,300))+'</code></li>').join('');
+  host.innerHTML = '<details open><summary>KaTeX 0.16.9 refused '+bad.length
+    + ' of '+forms.length+' rendered form'+(forms.length===1?'':'s')
+    + ' — each one listed, none hidden</summary>'
+    + '<ol>'+items+'</ol></details>'
+    + '<div style="margin-top:.4rem">Each is MARKED where it appears, not shown '
+    + 'as error text.' + esc(prov) + '</div>';
+}
+
 init();
 inkRender();
+katexAudit();
 </script>
 </body>
 </html>
@@ -2067,9 +2241,10 @@ def build_from_paths(
     page_filter: Optional[set] = None,
     ink_tree: Optional[dict] = None,
     ink_tables: Optional[dict] = None,
-) -> tuple[str, int, int, str]:
+) -> tuple[str, int, int, str, int]:
     """Reusable core behind the CLI and `pdfdrill inspect`: load the model,
-    resolve the image source, and return (html, n_pages, n_elements, mode).
+    resolve the image source, and return (html, n_pages, n_elements, mode,
+    n_pages_carrying_an_image).
     When `out` is given the html is also written there. No image source and no
     sibling viewer/pages → falls back to `embed` with missing PNGs (boxes-only,
     the tree/inspector still work), so it never hard-fails on a headless model."""
@@ -2129,7 +2304,13 @@ def build_from_paths(
                            if e.get("page") in page_filter)
     else:
         n_el = _n_elements(all_elements)
-    return html_doc, len(pages), n_el, mode
+    # HOW MANY PAGES ACTUALLY CARRY AN IMAGE. `prepare_pages` substitutes an
+    # empty src for every page whose PNG it cannot open, so a build with 40 of
+    # 319 pages rendered is indistinguishable from a complete one unless
+    # someone counts — and until 2026-10-22 nobody did: the caller's note fired
+    # only when the pages folder was missing altogether.
+    n_img = sum(1 for v in pages.values() if v.get("src"))
+    return html_doc, len(pages), n_el, mode, n_img
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -2158,12 +2339,12 @@ def main(argv: Optional[list[str]] = None) -> int:
             return 2
 
     out = args.out or (os.path.splitext(args.model)[0] + ".inspect.html")
-    doc, n_pages, n_el, mode = build_from_paths(
+    doc, n_pages, n_el, mode, n_img = build_from_paths(
         args.model, out=out, tiddlers=args.tiddlers, pages_dir=args.pages_dir,
         image_base=args.image_base, embed=args.embed, embed_dpi=args.embed_dpi,
         src_dpi=args.src_dpi, title=args.title, katex_dir=args.vendor_katex)
     print(f"Wrote {out} ({len(doc)//1024} KB) — {n_el} elements, "
-          f"{n_pages} pages, image mode: {mode}.")
+          f"{n_img} of {n_pages} pages with an image, image mode: {mode}.")
     return 0
 
 

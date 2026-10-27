@@ -435,6 +435,123 @@ Each of these cost real time or real data in this project.
     the weakest link in that chain* — and whatever a tool silently relocates,
     the user's next command still carries the old path.
 
+39. **A projection inherits its source document's licence.** Everything this
+    repo writes — `*.md`, `*.tiddlers.json`, `*.lines.json`, `*.docmodel.json` —
+    is the document re-encoded, so a rule that admits an extension admits the
+    rights of every document that extension exists for. `!**/*.md` in the
+    library's `.gitignore` committed the personalised ISO 32000-2 sponsored
+    copy's full text: counted and never quoted, the owner's surname 1,020 times
+    and "single user" 1,023 times, once per page of a 1,020-page standard. The
+    PDF had been excluded for months and was never in doubt. What let the
+    markdown through was the justification "34,260 files and only 0.24 GB, the
+    cheapest thing in this tree" — a statement about SIZE, used to settle a
+    question about RIGHTS. *Cheap to store says nothing about free to hold.*
+    Ask what an extension is a projection OF, per document, before admitting it.
+
+40. **Verify an exclusion with `git check-ignore --no-index`; the plain form
+    answers for files it has already excused.** Plain `git check-ignore <path>`
+    reports a TRACKED file as not-ignored whatever the rules say. In the library
+    1,197 PDFs had been committed before a deny-all `/**` root was written, and
+    gitignore never evicts a tracked file — so those kept working while every
+    PDF added since was refused in silence: 2,655 source documents, 23.44 GB,
+    including the Heim books the owner then drove to another machine to work on
+    and could not find. Three batteries of check-ignore probes ran that day and
+    all three were right and blind, because *a battery only tests paths someone
+    thought of, and this one also excluded the paths that would have failed.* A
+    check that cannot fail for a whole category is not a check for that
+    category — rule 36 again, for exclusions instead of guards.
+
+41. **A docstring that describes behaviour nobody implemented is worse than no
+    docstring: it retires the question.** `_inspect_pages_dir` said "reusing any
+    already present" and "Never raises". It reused nothing and it raised.
+    `rasterize` calls `_require_gs()` as its first act, so the function asked
+    Ghostscript for permission BEFORE it looked at the directory it maintains: on
+    a machine without gs the RuntimeError fired first, `except RuntimeError`
+    returned None, and every render on disk was discarded. A ser7 clone produced
+    a 7,272,092-byte `BH1org.inspect.html` instead of 56,137,806 — the complete
+    element tree over 319 BLANK pages — while 319 correct `p{N}.png` sat in the
+    folder it had just given up on. The same blindness ran the other way with gs
+    present: every call re-rendered all 319 pages, 481 MB of PNG and 32 s of gs,
+    over byte-identical renders. It survived a month and an auditing session
+    because the sentence had already answered the question anyone would have
+    asked. *Write down what the code does, or write nothing; a claim in a
+    docstring is tested by nothing and believed by everyone.*
+    And its other half, rule 36 once more: an inspector whose every page is
+    blank is a FAILED build, not a quieter one. `prepare_pages` substitutes an
+    empty `src` per page it cannot find and counted nothing, so 40 rendered
+    pages of 319 read exactly like 319 of 319; `inspect` now counts the images
+    it shipped and exits 3 when there are none, because *a caller should not
+    have to parse prose to learn it got nothing.*
+
+42. **A guard keyed on OUR bookkeeping cannot protect what SOMEONE ELSE wrote.**
+    `cmd_md` carried a guard whose comment said "A GENUINE MathPix markdown
+    still wins" — `if sc.get_layer("md")["source"] == "mathpix": return None`.
+    The MathPix download writes `evidence.mathpix_files` and never touches the
+    md layer, so on the documents that mattered the layer read `'model'`,
+    `'latex'` or `None`, the guard never fired, and `_md_from_latex_source` and
+    `_md_from_model` — both of which write `<stem>.md`, the same path the
+    download owns — replaced the file. Measured over the library: of 1,329
+    documents holding a bought MathPix md, **41 no longer have it** (28 to
+    `MarkdownProjector`, 7 to the latex/llm-compact routes, 6 to `translate`
+    before 815 gave the bi-layer its own name). bh2's 922,111-byte download is
+    on no disk and in no commit. Of the 1,285 still intact the layer protected
+    **54**; the other 1,231 were one `pdfdrill md` away. *Ask the record that
+    the other writer actually writes* — and where two producers share one
+    filename, *ask the file*: our markdown writers sign their output with a
+    YAML `generator:` line or the bi-layer's `seg source` divs, MathPix signs
+    nothing, and absence of our signature is the only honest test of
+    authorship. Size is not: `fetch_mathpix` reports "cached" when the md
+    merely EXISTS (only `.lines.json` gets a content check), so a later run
+    re-stamps the recorded byte count — 93 documents hold a MathPix md whose
+    size differs from the record and 4 hold a projection whose size matches it
+    exactly.
+    And the same defect had a second face, in the same function: the command's
+    own summary said "Prefers a genuine MathPix .md, then the model, then the
+    text layer" while the code tried latex first, the model second and MathPix
+    third. *An order stated in prose and inverted in code is not a preference,
+    it is a bug with documentation.*
+
+43. **"The same format as X" needs X measured, not remembered.** Asked to make
+    `pdfdrill md` emit MathPix's Markdown, the obvious reading was the dialect
+    of the export in hand: `\(…\)`, `\[…\]`, `\section*{}`,
+    `\begin{tabular}`, `\footnotetext{}`. Counting 600 intact downloads in
+    the library said otherwise — `$…$` 100%, a `$$` fence on its own line 84%,
+    `#`/`##` headings 91%/99%, pipe tables 70%, `\section*` 1%, `tabular` 0%,
+    `\tag{}` once in the whole sample — because the dialect is chosen by the
+    REQUEST: `mathpix_client.CONVERSION_OPTIONS` asks for `["$","$"]`, and the
+    hand export that prompted the question came from the UI, whose defaults
+    differ. So MathPix has no single markdown format, and the one worth matching
+    is the one pdfdrill buys. The projector differed from it in four places, not
+    one, and already agreed on everything else. *A format is a measurement over
+    the artifacts you hold, and the delimiters now live in one place
+    (`markdown.MATH_INLINE`) with a test holding them equal to the purchase, so
+    the projection cannot drift from what the wire asks for.*
+    **And one format per provider was still one too few.** The delimiter change
+    taught the widget path `$…$`, and the first acceptance run still carried 28
+    `\(` — because the model is built from `lines.json`, and THAT format
+    delimits inline math `\(…\)` whatever the md options say (80 occurrences
+    and zero `$` in the reading checked). Prose on a DocObject therefore arrives
+    in the UI dialect and has to be re-delimited on the way out, which no amount
+    of reading the projector would have shown: *the format of the input is not
+    the format of the output, even from one provider, and only the artifact says
+    which is which.*
+
+44. **A signature in the output cannot survive a change to the output format.**
+    `_md_is_ours` decided authorship by reading the YAML `generator:` line at the
+    top of a projection — correct until the projector was asked to match
+    MathPix, which writes no front matter. The header went, the signature went
+    with it, and the very next acceptance run served a pdfdrill projection back
+    as "Markdown from MathPix": 816's defect, reintroduced by the fix for 787's,
+    in the same hour and caught only because the acceptance run reads the output
+    and not the exit code. The repair is not a cleverer signature but a different
+    place to keep it — `_write_md` now records the sha256 of every markdown it
+    writes, so the file at `<stem>.md` is ours if and only if it is still what we
+    put there, whatever shape that is. *Identity belongs in the record, not in
+    the artifact: a mark inside the content is hostage to every decision about
+    the content.* The content signature stays as the fallback for sidecars
+    written before the digest, because every projection older than this one does
+    still carry its header.
+
 ---
 
 ## 2. Environment facts that are not obvious

@@ -157,3 +157,52 @@ def test_demote_leaves_a_row_with_nothing_to_demote_alone():
 def test_ampersand_safe_passes_through_when_there_is_no_ampersand():
     body = r"\begin{tikzcd} A \end{tikzcd}"
     assert _ampersand_safe(body, "tikzcd") == body
+
+
+def test_an_inner_dollar_inside_text_does_not_cut_the_demotion_short():
+    r"""`renderable()` deliberately permits a `$` inside `\text{}` (668), and
+    `_demote_line`'s pattern `(?:[^$\\]|\\.)*` stopped at it, so the
+    substitution replaced only the PREFIX of the cell and left the rest of
+    the LaTeX plus an orphan closing `$` in the row.
+
+    Measured: one such cell in `M15_Lecture_notes` EQ3293 cost vol35 13,603
+    errors. The leftover carried `\end{aligned}` whose `\begin` had been
+    swallowed, so xelatex sat in an alignment it never opened and every later
+    `&` became `Misplaced alignment tab character`. Rebuilt with this fix the
+    same volume compiles to 0 errors and 347 pages, where the broken build
+    gave 321 and lost its table structure from EQ0566 on. Corpus-wide 19
+    cells did this, in 6 of 54 volumes, for 73,847 spurious errors. The row
+    losses that accompanied them were `_fault_lines`'s defect, not this one.
+    """
+    cell = (r"$\displaystyle \begin{aligned} G \times X "
+            r"\xrightarrow{\sigma} X \\ \text{\reflectbox{$\Downarrow$}} "
+            r"G \times X \xrightarrow{\sigma} X. \end{aligned}$")
+    tail = r" & \includegraphics[width=24.69mm]{d-crops/d-EQ3293.jpg} \\ \hline"
+    line = r"{\scriptsize doc} & {\ttfamily EQ3293} & " + cell + tail
+    out = _demote_line(line)
+
+    # the WHOLE cell goes, not its prefix
+    assert out == (r"{\scriptsize doc} & {\ttfamily EQ3293} & "
+                   r"\emph{(not rendered)}" + tail)
+    # and therefore none of the three signatures of the truncated match
+    assert "aligned" not in out            # no orphaned \end
+    assert "Downarrow" not in out          # no leftover LaTeX
+    assert "$" not in out                  # no orphan closing dollar
+
+
+def test_demotion_still_takes_one_cell_when_two_are_rendered():
+    """738's invariant: the first rendered cell only, so a row of three keeps
+    the two that typeset."""
+    line = (r"a & $\displaystyle \text{\scriptsize $x$} y$ & "
+            r"$\displaystyle z$ & c \\ \hline")
+    out = _demote_line(line)
+    assert out == (r"a & \emph{(not rendered)} & $\displaystyle z$ & c "
+                   r"\\ \hline")
+
+
+def test_an_escaped_dollar_does_not_end_the_cell():
+    r"""The `\\.` half of the old pattern was there for an escaped `\$`, and
+    that case must keep working."""
+    line = r"a & $\displaystyle \text{5\$} + x$ & c \\ \hline"
+    out = _demote_line(line)
+    assert out == r"a & \emph{(not rendered)} & c \\ \hline"

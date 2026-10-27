@@ -54,6 +54,72 @@ def normalize_latex(s: str) -> str:
     return s
 
 
+#: The font commands `normalize_latex` does NOT already unwrap (`_MATHRM` has
+#: mathrm/text/mathbf/mathit/boldsymbol, `_OPNAME` has operatorname). A
+#: multi-letter identifier's FONT is not its content: MathPix reads
+#: `\textsc{TrivialTree}` as `\operatorname{TrivialTree}`, and the two are the
+#: same function in the same formula.
+_FONT_WRAP = re.compile(r"\\(?:operatorname|textsc|textit|mathit|textrm|textsf|"
+                        r"mathsf|texttt|mathtt|mbox)\s*\{([^{}]*)\}")
+#: `x^{\prime}` and `x'` are one apostrophe in two spellings.
+_PRIME = re.compile(r"\^\{?\\prime\}?")
+#: A run of scripts hanging off one base: `_i^2`, `^2_i`, `'_i`, `_i'`. Sub and
+#: super (and a prime) COMMUTE, and the two orders are the same mathematics.
+_SCRIPT_RUN = re.compile(r"((?:[_^](?:\{[^{}]*\}|\\?\w+)|'){2,})")
+_SCRIPT_PART = re.compile(r"[_^](?:\{[^{}]*\}|\\?\w+)|'")
+
+
+def author_match_key(s: str) -> str:
+    r"""The key that decides "the author wrote THIS formula".
+
+    `normalize_latex` is the comparison this repo SCORES with, and every
+    agreement number it quotes came from it. This is a stricter question than
+    scoring asks: not how close two readings are, but whether a model object
+    and an author's own source are the same piece of mathematics — because what
+    is attached is shown to a reader as the author's LaTeX, and a wrong one is
+    worse than none.
+
+    It is `normalize_latex` plus four stated equivalences, each one a class the
+    corpus actually carries. What each class is worth, measured 2026-10-27 over
+    the drill library's MathPix-route models (85,446 Formula objects in 55
+    documents, cumulative, in this order):
+
+        normalize_latex alone            29,184
+        + \ldots == \dots                29,206   (+22)
+        + a font wrapper is not content  29,207   (+1)
+        + x^{\prime} == x'               30,453   (+1,246)
+        + script order commutes          +36 of a 2,588-formula sample (1.4%)
+
+    `\textsc`/`\textit` pay almost nothing corpus-wide and a great deal on a
+    document with an algorithm block (14 of 1702.06385's 160 formulas), which
+    is why the measure is quoted per class and not as one number.
+
+    The whole key, over the whole population, is in `docs/HANDOVER.md`:
+    38,681 of 69,667 Formula objects in 391 documents, median 61.1% per
+    document.
+
+    NOT a similarity threshold. The display-equation loop attaches at 0.55,
+    which is right for an equation; an inline formula is three characters long,
+    and at that length `\mid`/`\min` score 0.75 and `X_{2}`/`Y_2` score 0.67.
+    """
+    t = s or ""
+    # BEFORE `normalize_latex`, not after: its own brace collapse turns
+    # `\textit{type}(a)` into `\textittype(a)`, where no wrapper is left to
+    # unwrap. The two passes are not commutative and the wrong order is silent.
+    for _ in range(4):                       # a font wrapper inside another
+        n = _FONT_WRAP.sub(r"\1", t)
+        if n == t:
+            break
+        t = n
+    t = _PRIME.sub("'", t)
+    t = normalize_latex(t)
+    if not t:
+        return ""
+    t = t.replace("\\ldots", "\\dots")
+    return _SCRIPT_RUN.sub(
+        lambda m: "".join(sorted(_SCRIPT_PART.findall(m.group(1)))), t)
+
+
 def latex_similarity(a: str, b: str) -> float:
     r"""Similarity of two LaTeX strings, normalized first. Symmetric.
 

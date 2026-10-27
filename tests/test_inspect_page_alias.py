@@ -103,14 +103,27 @@ def test_an_unrelated_page_is_not_disturbed(tmp_path, monkeypatch):
 
 def test_the_alias_and_the_canonical_file_agree_after_every_render(tmp_path, monkeypatch):
     """The property that matters, independent of how it is achieved — the
-    hardlink cannot provide it, because `rasterize` renames onto a new inode."""
+    hardlink cannot provide it, because `rasterize` renames onto a new inode.
+
+    Each pass AGES THE PDF past the render that exists, which is what makes a
+    render happen at all now: `_pages_on_disk` reuses a page image only while
+    it is newer than the document it came from, so this loop also pins the
+    staleness rule. Without that the second pass would (correctly) reuse the
+    first render and the property under test would never be exercised — the
+    fixture varies the page size at a FIXED DPI, which a real rasterizer
+    cannot do.
+    """
+    import os
+    import time
     sc = _SC(tmp_path)
     pdf = tmp_path / "d.pdf"
     pdf.write_bytes(b"%PDF-1.4\n")
     pages = tmp_path / "inspect" / "pages"
     import pdfdrill.pdf_reading as pr
     monkeypatch.setattr(pr, "parse_pages", lambda spec, n: [8])
-    for w, h in ((3400, 4400), (5100, 6600), (1700, 2200)):
+    for i, (w, h) in enumerate(((3400, 4400), (5100, 6600), (1700, 2200))):
         monkeypatch.setattr(pr, "rasterize", _fake_rasterize(tmp_path, w, h))
+        newer = time.time() + 10 * (i + 1)           # the document changed
+        os.utime(pdf, (newer, newer))
         commands._inspect_pages_dir(pdf, sc, "8", 400)
         assert _dims(pages / "p8.png") == _dims(pages / "page-0008.png") == (w, h)

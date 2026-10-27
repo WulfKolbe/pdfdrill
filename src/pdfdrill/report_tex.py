@@ -2461,15 +2461,35 @@ def unresolved_formulas(fo):
 #: the `\input xy` it needs and comes back as an image the cell CAN hold.
 _XY_CONSTRUCT = re.compile(r"\\(?:xymatrix|xygraph|xy|xyoption)(?![a-zA-Z])")
 
+#: TikZ, named from `_PICTURE_ENVS` above rather than a second list — the names
+#: whose corpus count is measured in that comment (tikzpicture 762 · tikzcd
+#: 658). Added 2026-10-27 on the owner's yes, relayed by gemma4-ba, after every
+#: TikZ row of an evidence-image report printed "(not rendered)": this gate was
+#: the only route to a separate compile and it answered for XY-pic alone, so a
+#: `tikzpicture` — not legal display maths — fell through `display_safe` to the
+#: refusal. `\usetikzlibrary` counts too: the two rows `display_safe` DID
+#: accept open with it, and a library declaration in a cell is not maths
+#: either. The owner's yes is TikZ; `region_standalone.needs_math_wrapper`
+#: admits tabular/minipage/axis/lstlisting as well and routing those is a
+#: separate decision, so this is not that predicate.
+_TIKZ_CONSTRUCT = re.compile(
+    r"\\begin\{(?:%s)\*?\}|\\usetikzlibrary(?![a-zA-Z])"
+    % "|".join(_PICTURE_ENVS))
+
 
 def needs_own_document(latex: str) -> bool:
     r"""True when this value must be compiled separately, not set in a cell.
 
-    Today that means XY-pic. `\xymatrix` is a picture-mode parser, not a maths
+    XY-pic and TikZ. `\xymatrix` is a picture-mode parser, not a maths
     expression: it takes over the alignment machinery of whatever it is inside,
-    which is fine in a paragraph and fatal in a `longtable` row.
+    which is fine in a paragraph and fatal in a `longtable` row. A tikzpicture
+    is not maths at all, and a tikzcd is a commutative diagram whose `&` the
+    enclosing longtable claims — the 239-error shape `_ampersand_safe` works
+    around in a cell and `region_standalone` removes by compiling the body
+    alone in its own document.
     """
-    return bool(_XY_CONSTRUCT.search(latex or ""))
+    s = latex or ""
+    return bool(_XY_CONSTRUCT.search(s) or _TIKZ_CONSTRUCT.search(s))
 
 
 def refused_for_align_only(latex: str) -> bool:
@@ -2530,40 +2550,114 @@ def refused_for_align_only(latex: str) -> bool:
     return True                       # everything else passed: the & is it
 
 
+#: Where a separately compiled region lands, relative to the report's own
+#: directory — the ONE place that name is written, because an HTML report and a
+#: PDF report of the same document must reference the same file or each
+#: silently compiles its own copy.
+STANDALONE_DIR = "standalone-math"
+
+
+def standalone_png(latex: str, ident: str, out_dir, dpi: int = 400,
+                   timeout: int = 90, author_preamble: str = "") -> tuple:
+    r"""The value compiled as its OWN document: `(png_path, "")` or
+    `(None, reason)`.
+
+    443's compile, split out of `standalone_math` so both halves of a report
+    can share it. The PDF half turns the path into an `\includegraphics` cell
+    (`standalone_cell`); the HTML half references it as an `<img src>`, where a
+    LaTeX cell is no use.
+
+    CACHED BOTH WAYS. A produced PNG is reused — the first half of a report
+    pays for the compile and the second must not pay again. A REFUSAL is
+    remembered too, in a `.err` memo beside where the PNG would be: a failing
+    xelatex costs up to `timeout` and `region_standalone._clean` removes its
+    log, so without the memo the second half repeats every failure of the first
+    and has nothing to show for it. The memo is keyed to the exact body and
+    preamble that failed, because both are expected to change under these rows
+    (`packages_extra` is an open item on the diagram props) and a memo that
+    outlived its input would turn the retry into a no-op reporting a stale
+    error.
+    """
+    import hashlib
+    from pathlib import Path as _P
+    d = _P(out_dir) / STANDALONE_DIR
+    name = sanitize_title(ident)
+    png = d / ("%s.png" % name)
+    memo = d / ("%s.err" % name)
+    key = hashlib.sha256(
+        ("%s\x00%s" % (latex or "", author_preamble or "")).encode("utf-8")
+    ).hexdigest()[:16]
+    if png.is_file():
+        return png, ""
+    if memo.is_file():
+        try:
+            head, _, rest = memo.read_text(
+                encoding="utf-8", errors="replace").partition("\n")
+        except Exception:
+            head, rest = "", ""
+        if head.strip() == key:
+            return None, rest.strip()
+    try:
+        from .region_standalone import render as _r
+        d.mkdir(parents=True, exist_ok=True)
+        # RAW, not $-wrapped: `region_standalone` decides the wrapper
+        # itself (`needs_math_wrapper`), and wrapping it here made every
+        # one of the four fail with "Missing $ inserted" — a double
+        # wrap, reported by the renderer as if the value were malformed.
+        got, err = _r(name, latex, d, dpi=dpi, timeout=timeout,
+                      author_preamble=author_preamble)
+    except Exception as exc:                       # pragma: no cover - defensive
+        got, err = None, "%s: %s" % (type(exc).__name__, exc)
+    if got is None or not _P(got).is_file():
+        reason = (err or "no output")[:200]
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+            memo.write_text("%s\n%s\n" % (key, reason), encoding="utf-8")
+        except Exception:
+            pass
+        return None, reason
+    try:
+        memo.unlink(missing_ok=True)
+    except Exception:
+        pass
+    return _P(got), ""
+
+
+def standalone_cell(png, col_mm: float = 100.0) -> str:
+    r"""A produced PNG as the `\includegraphics` cell that holds it."""
+    from pathlib import Path as _P
+    p = _P(png)
+    rel = ("%s/%s" % (p.parent.name, p.name)) if p.parent.name else p.name
+    return ("\\includegraphics[width=%smm,height=48mm,keepaspectratio]{%s}"
+            % (round(col_mm - 4), rel))
+
+
+#: What a row says when nothing could be produced for it. 836's rule is that
+#: one unrenderable row costs one row; the owner's 2026-10-27 addition is that
+#: it also says WHY, in both halves of the report.
+NOT_RENDERED_TEX = "\\emph{(not rendered)}"
+
+
+def refusal_cell(reason: str = "") -> str:
+    r = (reason or "").strip()
+    return NOT_RENDERED_TEX + ((" {\\tiny %s}" % esc_text(r[:80])) if r else "")
+
+
 def standalone_math(latex: str, ident: str, out_dir, col_mm: float = 100.0,
                     dpi: int = 400, timeout: int = 90,
                     author_preamble: str = "") -> str:
     r"""443 — the value compiled as its OWN document, returned as an
     \includegraphics cell, or "" when it will not compile.
 
-    Used only for `refused_for_align_only` rows: the `&` that makes the value
+    Used for `refused_for_align_only` rows: the `&` that makes the value
     illegal INSIDE a longtable cell is an ordinary array separator in a
-    document of its own.
+    document of its own. Kept at this contract (a cell, or "") because that is
+    what its caller wants; the graphic rows want the reason too and call
+    `standalone_png` directly.
     """
-    from pathlib import Path as _P
-    d = _P(out_dir) / "standalone-math"
-    png = d / ("%s.png" % sanitize_title(ident))
-    if not png.is_file():
-        try:
-            from .region_standalone import render as _r
-            d.mkdir(parents=True, exist_ok=True)
-            # RAW, not $-wrapped: `region_standalone` decides the wrapper
-            # itself (`needs_math_wrapper`), and wrapping it here made every
-            # one of the four fail with "Missing $ inserted" — a double
-            # wrap, reported by the renderer as if the value were malformed.
-            got, _err = _r(sanitize_title(ident), latex, d,
-                           dpi=dpi, timeout=timeout,
-                           author_preamble=author_preamble)
-            if got is None:
-                return ""
-            png = _P(got)
-        except Exception:
-            return ""
-    if not png.is_file():
-        return ""
-    return ("\\includegraphics[width=%smm,height=48mm,keepaspectratio]{%s}"
-            % (round(col_mm - 4), png.name if png.parent.name == "" else
-               "standalone-math/" + png.name))
+    png, _err = standalone_png(latex, ident, out_dir, dpi=dpi, timeout=timeout,
+                               author_preamble=author_preamble)
+    return standalone_cell(png, col_mm) if png is not None else ""
 
 
 def _cellrect_row(title: str, cells: "list[str]") -> str:
@@ -4182,6 +4276,101 @@ def _surviving_renders(tex_path: Path) -> int:
 
 
 
+# Exactly the two messages a BROKEN ALIGNMENT emits about rows that are
+# themselves fine. Established by experiment, not by reading TeX: demoting
+# vol35's 31 genuine faults removed all 12,342 `Misplaced alignment tab`
+# and all 2,471 `Misplaced \\noalign` in one pass, while every one of the 15
+# `Extra alignment tab has been changed to \\cr` survived untouched — so
+# that third message is a fault of the row it names (a row carrying one `&`
+# too many for the table's columns) and must stay demotable. Listing it
+# here left 15 errors in the document permanently.
+_COLLATERAL = (
+    "! Misplaced alignment tab character &.",
+    "! Misplaced \\noalign.",
+)
+
+
+def _fault_lines(log_text: str) -> set:
+    r"""The source lines a TeX log blames for a fault OF THEIR OWN.
+
+    The demote loop used to harvest every `^l\.(\d+)` in the log, whoever
+    printed it. Inside a longtable that is catastrophically wrong: ONE row
+    that breaks the alignment makes TeX report every later `&` as a
+    misplaced alignment tab and every later `\hline` as a misplaced
+    `\noalign`, and each of those complaints prints the line it was reading.
+    Measured on vol35, one pass over a clean table: 14,936 errors, of which
+    14,813 are exactly those two messages and 123 are faults of the row they
+    name — 2,814 distinct lines blamed where 31 are at fault. The loop
+    demoted 2,359 rows to repair 31, so roughly 2,328 correct equations were
+    replaced by "(not rendered)" and the volume still looked finished.
+
+    Demoting a collateral line cannot help: the complaint is a consequence
+    of the alignment already being broken, and it goes away when the row
+    that broke it is demoted. So the collateral is skipped and the loop
+    comes round again — convergence is unaffected, because every genuine
+    fault in the pass is still demoted in that pass.
+
+    The 79-column guard is 884's other half: TeX wraps its own log at
+    `max_print_line`, so a row carrying `(n+1)!` can put that `!` at the
+    start of the next log line. Eight volume tables were reported with 1-2
+    errors that way and have none; here such a line would demote an
+    innocent row.
+    """
+    lines = log_text.split("\n")
+    out = set()
+    for i, ln in enumerate(lines):
+        if not ln.startswith("! "):
+            continue
+        if i and len(lines[i - 1]) == 79:
+            continue                       # a wrapped source line
+        if ln.startswith(_COLLATERAL):
+            continue
+        for j in range(i + 1, min(i + 40, len(lines))):
+            m = re.match(r"l\.(\d+)", lines[j])
+            if m:
+                out.add(int(m.group(1)))
+                break
+            if lines[j].startswith("! "):
+                break                      # this error named no line
+    return out
+
+
+def _display_cell(line: str):
+    r"""The span of the first `$\displaystyle …$` cell in `line`, or None.
+
+    Counts braces instead of matching a pattern, because an inner `$` is a
+    math toggle inside a `\text{}` group and the cell's own closer is the
+    first `$` that is not inside one. A `\` consumes the character after it,
+    so an escaped `\$` and the `\\` that separates alignment rows both pass
+    through. `depth <= 0` and not `== 0` because `display_safe` accepts an
+    over-closed cell (`a}` renders), though none of this corpus's 231,047
+    rendered cells is brace-unbalanced.
+
+    None when the scan runs off the end — a cell whose braces never close.
+    Refusing to demote leaves the errors in the document, which is loud and
+    which 284 already describes; guessing where the cell ended is what cost
+    four volume tables their structure.
+    """
+    head = "$\\displaystyle "
+    i = line.find(head)
+    if i < 0:
+        return None
+    depth, k = 0, i + len(head)
+    while k < len(line):
+        c = line[k]
+        if c == "\\":
+            k += 2                      # an escape consumes its character
+            continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+        elif c == "$" and depth <= 0:
+            return i, k + 1
+        k += 1
+    return None
+
+
 def _demote_line(line: str) -> str:
     r"""Replace whatever this row RENDERS with `(not rendered)`, leaving its
     other cells alone. Returns the line unchanged when there is nothing to
@@ -4206,12 +4395,33 @@ def _demote_line(line: str) -> str:
     # loses three cells, which is what it cost before on the first pass. Every
     # other row now loses exactly the cell that failed.
     #
-    # `(?:[^$\\]|\\.)*` so an escaped `\$` inside the cell and the `\\` that
-    # separates alignment rows do not end the match early.
-    out, n = re.subn(r"\$\\displaystyle (?:[^$\\]|\\.)*\$",
-                     r"\\emph{(not rendered)}", line, count=1)
-    if n:
-        return out
+    # NOT A REGEX, for the same reason the picture branch below is not one.
+    # The pattern was `\$\\displaystyle (?:[^$\\]|\\.)*\$`, whose class stops at
+    # the first UNESCAPED `$` — and `renderable()` deliberately PERMITS one
+    # inside `\text{}` (668). On such a cell the substitution replaced only
+    # the PREFIX and left the rest of the LaTeX plus an orphan closing `$` in
+    # the row. The comment here accounted for an escaped `\$` and for the
+    # `\\` between alignment rows, and not for the legal one.
+    #
+    # Measured: `M15_Lecture_notes` EQ3293 is ONE such cell, and it cost vol35
+    # all 13,603 of its errors. The leftover carried an `\end{aligned}` whose
+    # `\begin` had been swallowed, so xelatex sat in an alignment it never
+    # opened and read every later `&` as a misplaced alignment tab. 19 such
+    # cells across 6 of 54 volumes produced 73,847 spurious errors and cost
+    # four tables their structure from the failing longtable chunk onward —
+    # vol35's broke at EQ0566, `I_{\text{DS}} (\mu\text{A}\,\mu\text{m}^{-1})`,
+    # the first row of that chunk, and the volume came out 26 pages short —
+    # while the PDFs still ran 321–361 pages, so nothing announced it.
+    #
+    # The 2,359 ROWS vol35 demoted are NOT this defect, and the first reading
+    # of this measurement said they were. Fixing only this one leaves all
+    # 2,359 demoted with 0 errors; `_fault_lines` is what takes them to 37.
+    # Do not read the two as one fault. Third defect in this pattern's history
+    # (284, 738, this), which is why the cell is now scanned, not matched.
+    span = _display_cell(line)
+    if span:
+        i, k = span
+        return line[:i] + "\\emph{(not rendered)}" + line[k:]
     i = line.find("\\resizebox{")
     if i < 0:
         return line
@@ -4304,8 +4514,9 @@ def compile_fixpoint(tex_path: Path, max_iter: int = 40):
                 break
             src = src_tex.read_text().split("\n")
             changed = False
-            for n in sorted({int(x) for x in
-                             _re.findall(r"^l\.(\d+)", text, _re.M)}):
+            # ONLY the rows at fault — see `_fault_lines`. Harvesting
+            # every `l.NNN` demoted 2,359 of vol35's rows to repair 31.
+            for n in sorted(_fault_lines(text)):
                 i = n - 1
                 if i < len(src):
                     new = _demote_line(src[i])

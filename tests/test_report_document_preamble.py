@@ -76,10 +76,17 @@ def test_a_word_containing_xy_is_not_an_xy_diagram():
     assert not rt.needs_own_document(r"xy + z")
 
 
-def test_a_failed_separate_compile_refuses_the_row_rather_than_the_report():
+def test_a_failed_separate_compile_refuses_the_row_rather_than_the_report(tmp_path):
     """THE RULE THE 0-PAGE REPORT BOUGHT. 50 of 64 xy rows compiled standalone
     and 14 did not; letting those 14 fall through to the cell cost every row
-    after the first of them. One unrenderable row must cost one row."""
+    after the first of them. One unrenderable row must cost one row.
+
+    2026-10-27: the call site is `rt.standalone_png`, not `rt.standalone_math`
+    — the row now also SAYS why it was refused (the owner asked for the error
+    in both halves of the report), and the reason is what `standalone_math`'s
+    "a cell, or empty" contract discards. The rule under test is unchanged: a
+    refusal is one cell, and the failing body is never emitted.
+    """
     from pdfdrill.reports import tex as T
 
     class _R:
@@ -87,19 +94,26 @@ def test_a_failed_separate_compile_refuses_the_row_rather_than_the_report():
         identifier = "x"
         trailing_punct = ""
         listing = ""
+        svg = ""
+        svg_error = ""
 
     calls = []
 
-    def _fails(*a, **kw):
-        calls.append(kw)
-        return ""                       # the separate compile did not produce
+    def _fails(latex, ident, out_dir, dpi=400, timeout=90, author_preamble=""):
+        calls.append({"author_preamble": author_preamble})
+        return None, "! Undefined control sequence."
 
-    old, rt.standalone_math = rt.standalone_math, _fails
+    old, rt.standalone_png = rt.standalone_png, _fails
     try:
-        cell = T._rendered(_R(), (0, 0, 0, 0, 100, 0), ".", "author preamble")
+        # tmp_path, never ".": an earlier version of this test ran the REAL
+        # compile against the repo root and left a standalone-math/x.err memo
+        # in it, which then got committed.
+        cell = T._rendered(_R(), (0, 0, 0, 0, 100, 0), tmp_path, "author preamble")
     finally:
-        rt.standalone_math = old
-    assert cell == r"\emph{(not rendered)}", cell
+        rt.standalone_png = old
+    assert cell.startswith(r"\emph{(not rendered)}"), cell
+    assert "Undefined control sequence" in cell, cell
+    assert "xymatrix" not in cell, "the failing body must not reach the cell"
     assert calls and calls[0]["author_preamble"] == "author preamble", (
         "the author's preamble must reach the separate compile — it is what "
         "carries the `\\input xy` the diagram needs")

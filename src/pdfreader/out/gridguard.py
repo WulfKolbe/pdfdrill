@@ -40,8 +40,23 @@ ratio, or measure nothing.
 
     python3 gridguard.py
 """
-import glob, statistics, sys
-sys.path.insert(0, "/home/wkolbe/pdf2mmd")
+import glob, os, statistics, sys
+from pathlib import Path
+
+# WHERE THE READER IS, AND WHERE THE CORPORA ARE. All three used to be absolute
+# paths into one account: `/home/<user>/pdf2mmd` and two globs under
+# `/home/<user>/pdfdrill-library`. On any other machine they name nothing, and
+# this script then measured 0 listing blocks against 0 prose blocks and printed
+# a ZeroDivisionError — or, on the machine they were written on, measured a tree
+# nobody was testing (T-0078). The library globs were worse than useless: they
+# also stated, in a public repository, where licence-bound corpora sit on that
+# disk. `$PDF2MMD_CODE` / `$PDF2MMD_LIBRARY` / `$PDF2MMD_LSTGOLD` are what the
+# eight other scripts in this folder already use.
+CODE = Path(os.environ.get("PDF2MMD_CODE", Path(__file__).resolve().parents[2]))
+LIB = Path(os.environ.get("PDF2MMD_LIBRARY", Path.home() / "pdfdrill-library"))
+GOLD = Path(os.environ.get("PDF2MMD_LSTGOLD", LIB / "lstgold"))
+if str(CODE) not in sys.path:
+    sys.path.insert(0, str(CODE))
 from concurrent.futures import ThreadPoolExecutor
 from pdfreader import docmodel_six as dm
 
@@ -91,8 +106,16 @@ def prose_cv(f):
         flush(); run.clear()
     return out
 
-lst = sorted(glob.glob("/home/wkolbe/pdfdrill-library/lstgold/pdf/lst-*.pdf"))
-doc = sorted(glob.glob("/home/wkolbe/pdfdrill-library/wzlxjtu-*/wzlxjtu-*.pdf"))[:45]
+lst = sorted(glob.glob(str(GOLD / "pdf" / "lst-*.pdf")))
+doc = sorted(glob.glob(str(LIB / "wzlxjtu-*" / "wzlxjtu-*.pdf")))[:45]
+# REFUSE RATHER THAN DIVIDE BY ZERO. Both sides are needed: the separation this
+# script measures is listings AGAINST prose, and one empty side is not a
+# smaller measurement, it is none. Say which variable is unset.
+if not lst or not doc:
+    raise SystemExit(
+        "no corpus to measure: %d listing PDFs under %s, %d prose PDFs under "
+        "%s — set $PDF2MMD_LSTGOLD and $PDF2MMD_LIBRARY to your copies"
+        % (len(lst), GOLD / "pdf", len(doc), LIB))
 with ThreadPoolExecutor(max_workers=6) as ex:
     pos = [c for r in ex.map(listing_cv, lst) for c in r]
     neg = [c for r in ex.map(prose_cv, doc) for c in r]

@@ -121,6 +121,37 @@ def test_a_named_but_unrun_paid_lane_reaches_nothing(tmp_path, monkeypatch):
     assert "NOT RUN by `drill`" in out and "costs money" in out
 
 
+def test_an_inspector_with_no_page_images_reaches_drills_exit_status(
+        tmp_path, monkeypatch):
+    """Rule 41, one level up. `inspect` carries EXIT_LANE_NOT_RUN for an
+    inspector whose every page is blank; a caller of `drill` must not have to
+    read the inspect section to learn that the artifact it promised has no
+    pages in it. `drill` already makes exactly this statement for a lane that
+    was reported and not run."""
+    from pdfdrill.cli import EXIT_LANE_NOT_RUN, Report
+    pdf = _seed_scan(tmp_path)
+    lines_json = commands._lines_json_path(pdf)
+
+    def fake_lane(*a, **k):
+        lines_json.parent.mkdir(parents=True, exist_ok=True)
+        lines_json.write_text('{"pages": [{"lines": []}]}', encoding="utf-8")
+        return "stub geometry reading"
+
+    monkeypatch.setattr(commands, "cmd_gemmaocr", fake_lane)
+    monkeypatch.setattr(R, "ink_available", lambda: True)
+    monkeypatch.setenv("PDFDRILL_SANDBOX", "1")
+    monkeypatch.setenv("PDFDRILL_NO_PREFLIGHT", "1")
+    monkeypatch.setattr(commands, "cmd_geometry", lambda *a, **k: "")
+    monkeypatch.setattr(commands, "cmd_inspect", lambda *a, **k: Report(
+        "scan.pdf: the inspector has 0 of 10 page images, so every box sits "
+        "on a blank page.", EXIT_LANE_NOT_RUN))
+    out = cli._do_drill([str(pdf)])
+    assert "0 of 10 page images" in out, out
+    assert getattr(out, "exit_code", 0) == EXIT_LANE_NOT_RUN, (
+        "drill reported success over an inspector with no pages (exit "
+        f"{getattr(out, 'exit_code', 0)})")
+
+
 def test_no_inspect_still_stops_at_geometry(tmp_path, monkeypatch):
     """`--no-inspect` is the one documented way to get the tail without it."""
     pdf = _seed_scan(tmp_path)

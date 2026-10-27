@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 r"""test_table — the table pipeline, fed deliberately malformed elements.
 
-    python3 -m pytest test_table.py -q
+    python3 -m pytest tests/test_table.py -q
 
 The table is a MEASUREMENT instrument: if it drops an equation quietly, every
 number taken from it is wrong and nothing says so. These tests assert the two
@@ -12,8 +12,15 @@ properties that matter --
 
 -- and that malformed input is REFUSED VISIBLY rather than swallowed.
 
-Needs $PDFDRILL_SRC for `report_tex` (the preamble and the compile gate) and
-xelatex for the probe tests, which skip without it.
+The module under test is `src/pdfreader/out/eqtable_716.py`, loaded BY PATH
+because `out/` is not a package. This file used to live beside it and be found
+only by a hand-typed `pytest` inside that directory; it moved here so the
+documented suite runs it (owner, 2026-10-26), and the 23 tests below are 23
+more than the documented number used to cover.
+
+`eqtable_716` reads `pdfdrill.report_tex` (the preamble and the compile gate)
+and finds it through $PDFDRILL_SRC, defaulting to the `src/` of this checkout.
+xelatex is needed by the probe tests, which skip without it.
 """
 import importlib.util
 import shutil
@@ -23,7 +30,10 @@ from pathlib import Path
 
 import pytest
 
-_here = Path(__file__).resolve().parent
+#: The module under test, two directories over: `out/` has no `__init__.py`,
+#: so there is nothing to import — it is loaded by path, as its own `--help`
+#: runs it. Named from THIS file so the pair moves together.
+_here = Path(__file__).resolve().parents[1] / "src" / "pdfreader" / "out"
 _s = importlib.util.spec_from_file_location("eq", _here / "eqtable_716.py")
 eq = importlib.util.module_from_spec(_s)
 _s.loader.exec_module(eq)
