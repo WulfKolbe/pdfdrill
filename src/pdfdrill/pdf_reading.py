@@ -189,19 +189,79 @@ def _require_gs() -> str:
 # So they are a PAIR; either alone is close to pointless. gs sits on the critical
 # path of every raster route (inspect, OCR, vision, eqblobs), and the invocation
 # used to be duplicated across three call sites with none of them threaded.
-RENDER_THREADS = max(8, min(os.cpu_count() or 8, 16))
+#: Never more than this many gs processes however big the machine is: above 16
+#: the sharding measurement below flattens and the memory per process stops
+#: paying for itself.
+_WORKER_CAP = 16
+
+
+def render_cores() -> int:
+    """The cores THIS PROCESS may use -- not the machine's.
+
+    `os.cpu_count()` reports the box. A run pinned with `taskset -c 8-15` still
+    read 16 here, so pinning pdfdrill did not make pdfdrill smaller and the
+    drillgroup core split could not be enforced from outside it.
+    """
+    try:
+        return max(1, len(os.sched_getaffinity(0)))
+    except (AttributeError, OSError):            # not Linux
+        return max(1, os.cpu_count() or 1)
+
+
+def _env_cap(name: str, value: int) -> int:
+    """An override may only LOWER the budget -- a cap that can be raised is not
+    a cap. Junk is ignored rather than taken: gs is on the critical path of
+    every raster route, so a typo in a shell export must not stop the render.
+    """
+    raw = (os.environ.get(name) or "").strip()
+    if not raw:
+        return value
+    try:
+        want = int(raw)
+    except ValueError:
+        return value
+    return max(1, min(value, want)) if want > 0 else value
+
+
+def render_plan(pages: int) -> "tuple[int, int]":
+    """(gs processes, rendering threads each), product <= `render_cores()`.
+
+    ONE decision for both halves. They used to be two module constants,
+    `RENDER_WORKERS` and `RENDER_THREADS`, each defensible alone and never
+    multiplied by anybody: 16 x 16 = 256 rendering threads on 16 cores for a
+    single `rasterize` call. The owner saw it as "more than 16 gs at once"; one
+    `pdfdrill evidence` crop pass was measured at 241 gs processes and load 137.
+
+    The budget goes to WORKERS first, because the measurement below says
+    sharding is the 6.3x lever and `-dNumRenderingThreads` pays about 20% on
+    text pages. When there are fewer pages than cores the remainder goes to
+    threads instead of being wasted -- a one-page render is still one process
+    with every core, which is the case the old constants got right by accident.
+    """
+    cores = render_cores()
+    workers = _env_cap("PDFDRILL_GS_WORKERS",
+                       max(1, min(cores, max(1, int(pages or 1)), _WORKER_CAP)))
+    threads = _env_cap("PDFDRILL_GS_THREADS", max(1, cores // workers))
+    return workers, threads
 _BAND_BITMAP = 8_000_000          # force banding so the threads have work
 
 
-def gs_render_args() -> list[str]:
+def gs_render_args(threads: "int | None" = None) -> list[str]:
     """The shared gs RENDERING flags — threads + banding, nothing else.
 
     Deliberately carries no device, resolution, page range or output path: those
     belong to the call site, and a helper that set them would silently override
     a caller's choice.
+
+    `threads=None` means "this process is the only gs", so it takes the whole
+    affinity budget -- `eqblobs` calls it that way for its single render. A
+    sharded caller passes the count from `render_plan`, so that the product of
+    processes and threads is decided in exactly one place.
     """
+    if threads is None:
+        threads = render_plan(1)[1]
     return [f"-dMaxBitmap={_BAND_BITMAP}",
-            f"-dNumRenderingThreads={RENDER_THREADS}"]
+            f"-dNumRenderingThreads={max(1, int(threads))}"]
 
 
 
@@ -222,11 +282,13 @@ _DEVICE = {"jpg": "jpeg", "png": "png16m", "pgm": "pgmraw"}
 
 
 def _gs_base(gs: str, dpi: int, ext: str, *, gray: bool = False,
-             use_cropbox: bool = False) -> list[str]:
+             use_cropbox: bool = False,
+             threads: "int | None" = None) -> list[str]:
     device = _DEVICE.get(ext, "png16m")
     if gray and device == "png16m":
         device = "pnggray"
-    base = [gs, "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER", *gs_render_args(),
+    base = [gs, "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER",
+            *gs_render_args(threads),
             f"-sDEVICE={device}", f"-r{max(int(dpi), RASTER_MIN_DPI)}"]
     # 654 — `use_cropbox=True` renders the page's CropBox, not its MediaBox.
     # A page with no declared CropBox has CropBox == MediaBox, so this is a
@@ -256,7 +318,8 @@ def _gs_base(gs: str, dpi: int, ext: str, *, gray: bool = False,
 #
 # So sharding is the real lever and `-dNumRenderingThreads` is the small one
 # (it pays ~20% on TEXT pages, where banding gives the threads something to do).
-RENDER_WORKERS = max(1, min(os.cpu_count() or 4, 16))
+#: Workers and threads are now ONE decision -- see `render_plan`, which is
+#: given the page count because a shard that does not exist cannot use a core.
 
 
 def _page_count(pdf: Path) -> int:
@@ -372,12 +435,17 @@ def rasterize(pdf: Path, out_dir: Path, *, pages: Optional[list[int]] = None,
     gs = _require_gs()
     ext = {"jpg": "jpg", "jpeg": "jpg", "pgm": "pgm"}.get(fmt, "png")
     pad = 4                                              # page-0001.png (sorts + parses)
-    base = _gs_base(gs, dpi, ext, gray=gray, use_cropbox=use_cropbox)
     if pages is None:                                   # all pages
         pages = list(range(1, _page_count(pdf) + 1))
     if not pages:
         return []
-    shards = plan_shards(pages, RENDER_WORKERS)
+    # The page count has to be known BEFORE the budget is split, so this is
+    # deliberately after the resolution above: `render_plan` gives a one-page
+    # render its cores as threads instead of starting one gs per core.
+    workers, threads = render_plan(len(pages))
+    base = _gs_base(gs, dpi, ext, gray=gray, use_cropbox=use_cropbox,
+                    threads=threads)
+    shards = plan_shards(pages, workers)
     if len(shards) == 1:
         _render_shard(base, pdf, shards[0], out_dir, ext, pad)
     else:
