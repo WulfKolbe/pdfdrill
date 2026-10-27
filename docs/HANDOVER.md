@@ -1892,3 +1892,86 @@ error.
   `svg` field, and the crop corpus has 0 Table objects to measure it on.
 - `commands.yaml` was NOT touched: no command and no flag changed, only what a
   cell shows.
+
+## 256 rendering threads on 16 cores: the gs budget is now one decision (2026-10-27)
+
+The owner, through gemma4-ba: "limit pdfdrill's gs workers so they don't
+oversubscribe the cores". They had seen more than 16 gs at once.
+
+**Two constants that were never multiplied.** `pdf_reading` carried
+`RENDER_WORKERS = max(1, min(cpu_count, 16))` and, 67 lines away,
+`RENDER_THREADS = max(8, min(cpu_count, 16))`. `rasterize` shards the pages
+across the first and hands EVERY shard `-dNumRenderingThreads=` the second, so
+one call asked for **16 x 16 = 256 rendering threads on 16 cores**. Each
+constant is defensible alone, which is why this survived review: the defect
+only exists in the product, and the product appears nowhere in the source.
+Measured consequence, 2026-10-26: one `pdfdrill evidence` crop pass forked
+**241 concurrent gs processes** and took the load average to **137**.
+
+Two further faults in the same two lines:
+
+- `os.cpu_count()` reports the MACHINE. A run pinned with `taskset -c 8-15`
+  still started 16 workers of 16 threads, so the drillgroup core split (4-7 are
+  GLYPHDRILL's) could not be enforced from outside pdfdrill.
+- `max(8, ...)` made 8 threads a FLOOR, so a 2-core container asked for 8
+  before any sharding at all.
+
+**Now:** `render_cores()` counts `len(os.sched_getaffinity(0))`, and
+`render_plan(pages)` returns both halves from one budget with
+`workers * threads <= render_cores()`. The budget goes to workers first, because
+this file's own measurement says sharding is the 6.3x lever and
+`-dNumRenderingThreads` about 20% on text pages; when there are fewer pages than
+cores the remainder goes to threads instead of being wasted, so a one-page
+render is still one process with every core — the case the old constants got
+right by accident. `PDFDRILL_GS_WORKERS` / `PDFDRILL_GS_THREADS` may only
+LOWER the budget: a cap that can be raised is not a cap.
+
+**Measured, `pdfdrill rasterize` on a 40-page arXiv paper, 400 dpi, each tree's
+own installed console script, fresh shell, clean directory:**
+
+| | gs procs | threads each | threads asked | wall | pngs |
+|---|---|---|---|---|---|
+| before, unpinned | 16 | 16 | **256** | 3.8 s | 40 |
+| after, unpinned | 16 | 1 | **16** | 4.4 s | 40 |
+| before, `taskset -c 0-3` | **16** | 16 | 256 | 9.4 s | 40 |
+| after, `taskset -c 0-3` | **4** | 1 | **4** | 12.1 s | 40 |
+
+**The wall-clock effect, measured properly the second time.** The table above
+was taken while a 7-minute pytest suite was compiling on the same 16 cores, and
+an earlier version of this section read "~16% unpinned, ~29% pinned" off it.
+That was wrong -- it measured the machine. Retracted.
+
+Measured again by INTERLEAVING the arms (before, after, before, after...), five
+repeats each, same 40-page input, each tree's own installed console script.
+Alternating cancels slow drift in background load, which is exactly what the
+first attempt fell for; `min` is the least-contended run of each arm:
+
+| | before | after | |
+|---|---|---|---|
+| unpinned, min | 3.82 s | 3.87 s | **+1.3%** |
+| unpinned, median | 3.95 s | 3.97 s | +0.5% |
+| `taskset -c 0-3`, min | 8.10 s | 7.56 s | **-6.7%** |
+| `taskset -c 0-3`, median | 8.37 s | 7.87 s | -6.0% |
+
+So **the cap is free unpinned and FASTER pinned.** Unpinned the two arms'
+ranges overlap (before 3.82-4.21, after 3.87-4.14) and the difference is inside
+the noise. Pinned it is a real gain, and the reason is the defect itself: 16
+processes each asking 16 threads on 4 cores is thrashing, and 4 x 1 is
+right-sized. The ~20% this file measures for threads on text pages did not
+show up as a loss, because that measurement was one process alone with cores
+to spare -- not 16 processes competing.
+
+Independently checked by the drillgroup coordinator from a fresh clone with its
+own installed venv under `env -i`: `pdfdrill rasterize` on a 54-page copy under
+`taskset -c 8-11` gave exit=0, 54 PNGs, **4 gs processes each with
+-dNumRenderingThreads=1** read from `/proc/<pid>/cmdline`, and 115 tests passing
+(these plus T-0078's).
+
+A middle setting (8 processes x 2 threads, the same budget of 16) remains
+unmeasured. There is now no timing reason to look for one.
+
+Not done, deliberately: the cross-process budget. Two pdfdrill runs at once
+still get a full budget each, so the machine can still see 32 gs. A lock-file
+slot pool was proposed and left out of this change because it is the only part
+that can deadlock a batch and it needs its own failure mode for a holder that
+dies (gemma4-ba agreed).

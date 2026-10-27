@@ -18,19 +18,31 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from pdfdrill.pdf_reading import gs_render_args, RENDER_THREADS
+from pdfdrill.pdf_reading import gs_render_args, render_cores, render_plan
 
 
 def test_threads_and_banding_are_both_present():
     args = gs_render_args()
     joined = " ".join(args)
-    assert f"-dNumRenderingThreads={RENDER_THREADS}" in joined
+    assert f"-dNumRenderingThreads={render_plan(1)[1]}" in joined
     assert any(a.startswith("-dMaxBitmap=") for a in args), \
         "threads without banding leaves them idle — the pair is the point"
 
 
-def test_at_least_eight_threads():
-    assert RENDER_THREADS >= 8, RENDER_THREADS
+def test_the_threads_never_outnumber_the_cores_we_may_use():
+    r"""THIS TEST USED TO SAY THE OPPOSITE, and the old assertion was the
+    defect: `RENDER_THREADS = max(8, ...)` made 8 threads a FLOOR, so a 2-core
+    container asked for 8 and a 16-core box asked for 16 in each of 16 sharded
+    processes -- 256 threads on 16 cores (see
+    tests/test_gs_workers_never_oversubscribe_the_cores.py).
+
+    Changed by the owner's word of 2026-10-27, "limit pdfdrill's gs workers so
+    they don't oversubscribe the cores", NOT because the old number was
+    arbitrary: 8 was measured, it was just measured for one process alone.
+    """
+    workers, threads = render_plan(1)
+    assert 1 <= threads <= render_cores()
+    assert workers * threads <= render_cores()
 
 
 def test_args_are_render_only_no_device_or_output():

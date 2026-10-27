@@ -53,8 +53,8 @@ scanned book, 32 pages at 400 DPI:
 16 processes               1.4s   6.3x
 ```
 
-`rasterize` shards the requested pages across `RENDER_WORKERS` processes
-(`plan_shards`), which took a real 32-page render from 8.7 s to 2.2 s.
+`rasterize` shards the requested pages across `render_plan(pages)[0]`
+processes (`plan_shards`), which took a real 32-page render from 8.7 s to 2.2 s.
 
 **The trap:** gs restarts its `%d` output counter at 1 for EVERY invocation, so
 parallel ranges sharing one `-sOutputFile=out/%03d.png` template overwrite each
@@ -82,9 +82,20 @@ banded (-dMaxBitmap=8M) + threads=8   2.76s   (20%)
 banded alone (threads unset)          3.45s   (nothing)
 ```
 
-They are a PAIR. `pdf_reading.gs_render_args()` is the single place that sets
-both (`RENDER_THREADS = max(8, min(cpu_count, 16))`), used by all three gs call
-sites, which previously duplicated the invocation with none of them threaded.
+They are a PAIR. `pdf_reading.gs_render_args(threads)` is the single place that
+sets both, used by all three gs call sites, which previously duplicated the
+invocation with none of them threaded.
+
+**The thread count is not independent of the process count** (2026-10-27). It
+used to be: `RENDER_THREADS = max(8, min(cpu_count, 16))` beside
+`RENDER_WORKERS = max(1, min(cpu_count, 16))`, which multiply to 256 rendering
+threads on 16 cores for ONE `rasterize` call — measured once at 241 gs
+processes and load average 137. `render_plan(pages)` now returns both halves
+from one budget, `workers * threads <= len(os.sched_getaffinity(0))`, spending
+it on processes first because sharding is the 6.3x lever above and threads
+~20%. `os.sched_getaffinity` rather than `os.cpu_count` so that a `taskset`
+pin is obeyed. `PDFDRILL_GS_WORKERS` / `PDFDRILL_GS_THREADS` lower the budget
+and can never raise it.
 
 ## What the inspector needs from the model
 
