@@ -44,9 +44,18 @@ WHAT IS DELIBERATELY NOT HERE, because it is a different defect in each case:
     a number this pass does not know. Dropping them would silently remove
     content, which is worse than a formula that visibly does not render. They
     belong to the marking in item 2.
-  * `\emph` (8, 7), `\textsc` (24, 8) are formatting a renderer genuinely
-    cannot do (KaTeX has no small caps). Translating them would be a guess
-    about what the author meant, not a no-op. Also item 2.
+  * `\emph` (8 equations, 7 documents) is formatting a renderer genuinely
+    cannot do. Translating it would be a guess about what the author meant,
+    not a no-op. Also item 2.
+
+    `\textsc` (24, 8) was in this list for the same reason and is now a rule,
+    by the owner's decision of 2026-10-27: `\textsc{X}` -> `\text{X}`, and
+    THE SMALL CAPS ARE LOST. It is the only rule here that changes what is
+    drawn. What bought it: the four `\textsc` procedure names in 1702.06385's
+    Algorithm 1, which are 4 of the 5 KaTeX refusals the
+    `author-latex-every-route` gate measured once inline formulas carried the
+    author's reading at all. A procedure name set upright beats a formula that
+    does not render.
   * `tikzcd` (1,072 equations, 17 documents) and `tikzpicture` (545, 8) are the
     single largest group of refusals left, and no rewriting reaches them: they
     are pictures that were captured as equations.
@@ -77,6 +86,11 @@ IDENTITY = "identity"
 DROP_WITH_ARGUMENT = "drop-with-argument"
 #: the command alone goes; it takes no argument
 DROP = "drop"
+#: the command is RENAMED, keeping whatever argument it had. The only kind
+#: that changes what is DRAWN rather than removing something unrenderable —
+#: see `\textsc` below, and the owner's decision recorded in this module's
+#: docstring.
+RENAME = "rename"
 
 
 class Rule(NamedTuple):
@@ -87,11 +101,12 @@ class Rule(NamedTuple):
     that works and is not written down cannot be added.
     """
     name: str                 #: without the backslash
-    kind: str                 #: IDENTITY | DROP_WITH_ARGUMENT | DROP
+    kind: str                 #: IDENTITY | DROP_WITH_ARGUMENT | DROP | RENAME
     before: str
     after: str
     equations: int            #: equations it refused, corpus-wide
     documents: int            #: documents those came from
+    to: str = ""              #: RENAME only: the command it becomes
 
 
 #: THE RULES. Order is irrelevant — `resolve` applies all of them until none
@@ -109,11 +124,24 @@ RULES = (
          r"x = y \label{eq:one}", r"x = y ", 7, 1),
     Rule("noindent", DROP,
          r"\noindent x = y", r"x = y", 2, 2),
+    # SMALL CAPS ARE LOST. This rule does not remove something meaningless —
+    # it draws the author's text in a different face, which is why the measure
+    # listed `\textsc` among the things it deliberately did NOT translate.
+    # The owner weighed that on 2026-10-27 and chose it anyway: a procedure
+    # name set in upright text beats a formula that does not render at all.
+    # The four that bought the decision are 1702.06385's Algorithm 1, inline
+    # (`\textsc{Crack}(D, \mathcal{M})` and three more) — 4 of the 5 KaTeX
+    # refusals on the `author-latex-every-route` gate, in two independent
+    # renders. `\emph` (8 equations, 7 documents) was NOT chosen with it.
+    Rule("textsc", RENAME,
+         r"\textsc{Crack}(D, \mathcal{M})", r"\text{Crack}(D, \mathcal{M})",
+         24, 8, to="text"),
 )
 
 _IDENTITY = tuple(r.name for r in RULES if r.kind == IDENTITY)
 _WITH_ARG = tuple(r.name for r in RULES if r.kind == DROP_WITH_ARGUMENT)
 _BARE = tuple(r.name for r in RULES if r.kind == DROP)
+_RENAME = tuple((r.name, r.to) for r in RULES if r.kind == RENAME)
 
 
 def _braced(s: str, i: int) -> "tuple[str, int]":
@@ -182,6 +210,17 @@ def _drop_with_argument(s: str, name: str) -> str:
             i = m.end()                    # no argument there: drop the command
     
 
+def _rename(s: str, name: str, to: str) -> str:
+    r"""`\<name>` -> `\<to>`, and nothing else.
+
+    The argument is not parsed: `\textsc` and `\text` take the same one, braced
+    or a single token, so renaming the control sequence preserves whatever the
+    author wrote. A brace-reading version would have to decide what to do with
+    `\textsc X`, and there is nothing to decide.
+    """
+    return re.sub(r"\\" + name + r"(?![A-Za-z])", "\\\\" + to, s)
+
+
 def _drop(s: str, name: str) -> str:
     r"""`\<name>` -> nothing. `(?![A-Za-z])` is load-bearing: without it
     `\xspace` would also eat the start of a longer name."""
@@ -203,6 +242,8 @@ def resolve(latex: str) -> str:
         out = _drop_with_argument(out, name)
     for name in _BARE:
         out = _drop(out, name)
+    for name, to in _RENAME:
+        out = _rename(out, name, to)
     return out
 
 

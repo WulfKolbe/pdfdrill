@@ -71,18 +71,29 @@ def test_the_rules_carry_the_population_each_came_from():
     for r in L.RULES:
         assert r.equations > 0 and r.documents > 0, r
         assert r.documents <= r.equations, r
-    assert sum(r.equations for r in L.RULES) == 1163, (
+    assert sum(r.equations for r in L.RULES) == 1187, (
         "the stated total no longer matches the rules; re-run the measure "
         "rather than editing the number")
+    # 1,187 = the measured 1,163 for the six, plus the 24 `\textsc` equations
+    # the same run counted separately — `\textsc` was in the "deliberately not
+    # here" list until the owner chose it on 2026-10-27, so its population was
+    # never part of the six. The two numbers are one measurement, not a
+    # correction of it.
     # 1,163 is the equations whose FIRST error was one of the six. 1,065 of
     # them render after the rules; the other 98 have a second error
     # underneath. The two numbers are different measurements of the same run
     # and neither is the other's correction.
 
 
-def test_the_six_names_are_the_measured_six():
+def test_the_names_are_the_measured_six_plus_the_one_the_owner_chose():
+    r"""Six by measurement, one by decision. `\textsc` is last because it is
+    not the same kind of rule: the six remove something a renderer cannot use,
+    and it changes the face the author's text is drawn in. See
+    `tests/test_small_caps_become_text_so_the_formula_renders.py`."""
     assert [r.name for r in L.RULES] == [
-        "ensuremath", "vspace", "xspace", "centering", "label", "noindent"]
+        "ensuremath", "vspace", "xspace", "centering", "label", "noindent",
+        "textsc"]
+    assert [r.name for r in L.RULES if r.kind == L.RENAME] == ["textsc"]
 
 
 # ---------------------------------------------------------------------------
@@ -154,16 +165,21 @@ def test_an_empty_or_absent_fragment_comes_back_unchanged():
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("cmd", [r"\ref{eq:1}", r"\eqref{eq:1}",
-                                 r"\emph{x}", r"\textsc{x}"])
+                                 r"\emph{x}"])
 def test_a_command_that_prints_something_is_left_alone(cmd):
     r"""These REFUSE in KaTeX too — `\ref` in 35 equations across 18
-    documents, `\eqref` in 20 across 7, `\textsc` in 24 across 8 — and are
-    still not this pass's business. `\ref` prints a number this pass does not
-    know, and dropping it would silently remove content; `\textsc` is
-    formatting KaTeX genuinely cannot do, so translating it would be a guess
-    about what the author meant. A formula that visibly does not render is
-    better than one that renders something else, which is why they belong to
-    the marking and not here."""
+    documents, `\eqref` in 20 across 7 — and are still not this pass's
+    business. `\ref` prints a number this pass does not know, and dropping it
+    would silently remove content; `\emph` is formatting KaTeX genuinely
+    cannot do, so translating it would be a guess about what the author meant.
+    A formula that visibly does not render is better than one that renders
+    something else, which is why they belong to the marking and not here.
+
+    `\textsc` (24 equations, 8 documents) was the fourth member of this list
+    and was MOVED OUT of it by the owner on 2026-10-27 — the same argument,
+    decided the other way, for the one case where the author's text is a
+    procedure name and upright text reads correctly. That it is no longer here
+    is the decision, not an omission."""
     assert L.resolve("x = " + cmd) == "x = " + cmd
 
 
@@ -349,5 +365,9 @@ def test_the_module_states_what_it_does_not_resolve():
     """The four classes the measure found and left: they are the reason the
     remaining 6,382 is not a regression but a different piece of work."""
     doc = L.__doc__ or ""
-    for token in (r"\ref", "tikzcd", "tikzpicture", "textsc", "6,373", "7,438"):
+    # `\emph` where `\textsc` used to be: `\textsc` is now a RULE (owner,
+    # 2026-10-27), so a docstring that still listed it as unresolved would be
+    # wrong. It must still be NAMED there — as the rule it became.
+    for token in (r"\ref", "tikzcd", "tikzpicture", r"\emph", "textsc",
+                  "6,373", "7,438"):
         assert token in doc, f"latex_only's docstring no longer states {token}"
