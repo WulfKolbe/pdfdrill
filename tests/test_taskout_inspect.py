@@ -101,11 +101,13 @@ def test_the_first_line_read_is_bounded(tmp_path):
 
 
 def test_mentioning_the_folder_in_a_path_is_not_naming_the_document(tmp_path):
-    """The REAL first line of the bad capture. It contains "penev_A" — inside
-    the path — so a substring test passes it and the check would have been
-    written and still not caught the defect it exists for."""
+    """The first line of the bad capture, with the account redacted — as it is
+    in `taskout.py`'s own copy of it. It contains "penev_A" — inside the path —
+    so a substring test passes it and the check would have been written and
+    still not caught the defect it exists for. The redaction changes nothing
+    here: what the test turns on is the folder name appearing in a PATH."""
     bad = _cap(tmp_path, "cap.txt",
-               "Uploading /home/wkolbe/pdfdrill-library/penev_A/"
+               "Uploading /home/<user>/pdfdrill-library/penev_A/"
                "evidence-equation.pdf...")
     assert "penev_A" in bad.read_text(encoding="utf-8")      # it IS in there
     res = taskout.inspect_list(tmp_path, "634", [(bad, "", "penev_A")])

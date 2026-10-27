@@ -11,6 +11,7 @@ import os
 import pytest
 
 from pdfreader import mathpix_merge as MM
+from pdfreader import testpaths
 
 
 @pytest.fixture
@@ -95,7 +96,12 @@ class TestBest:
         assert reference.covering(99, (0.0, 0.0, 100.0, 100.0), 792.0) == []
 
 
-REAL = "/home/claude/edge/tir/mathpix.lines.json"
+#: A real vendor export, which is not shipped. This was an absolute path into
+#: a DIFFERENT machine's account (a sandbox home), so the class below could not
+#: be run by anybody at all — it skipped everywhere, including here.
+#: `$PDF2MMD_TEST_MATHPIX` points at your own export; the default is inside the
+#: install folder, like every other fixture path (owner, 2026-10-27).
+REAL = testpaths.CORPUS_MATHPIX
 
 
 @pytest.mark.skipif(not os.path.exists(REAL), reason="needs a real lines.json")

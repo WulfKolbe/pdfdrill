@@ -104,14 +104,14 @@ def test_safe_filename_truncates_absurd_length():
 def test_parse_uri_list_handles_file_uris_comments_and_encoding():
     payload = (
         "# a comment\r\n"
-        "file:///home/wk/Mein%20Scan.png\r\n"
+        "file:///home/me/Mein%20Scan.png\r\n"
         "\r\n"
-        "file://localhost/home/wk/b.png\r\n"
+        "file://localhost/home/me/b.png\r\n"
         "https://example.com/evil.png\r\n"
         "/plain/path/c.png\r\n"
     )
     assert up.parse_uri_list(payload) == [
-        "/home/wk/Mein Scan.png", "/home/wk/b.png", "/plain/path/c.png",
+        "/home/me/Mein Scan.png", "/home/me/b.png", "/plain/path/c.png",
     ]
 
 
