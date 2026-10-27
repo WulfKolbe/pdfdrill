@@ -1684,11 +1684,14 @@ which is how both gate papers behaved. Measured, same document, two routes:
 | `drill` (no lines.json, born-digital) | 170 | 170, in props | 1 (the fusion above) |
 | `model` + `injectlatex` (lines.json present) | 178 | 18, on realizations | 0 |
 
-The second number is the owner's goal unmet: 18 of 178. The author's source
-carries 19 display equations and no inline maths, so on the MathPix route the
-160 inline Formulas can never get an author reading from `injectlatex` at
-all — only `build_source_model` produces those, and **nothing in `src/` calls
-it** (its only callers are tests).
+The second number is the owner's goal unmet: 18 of 178. `injectlatex` reads
+`extract_display_equations` and nothing else, and that source has 19 display
+equations, so on the MathPix route the 160 inline Formulas could not get an
+author reading from it at all — only `build_source_model` produced those, and
+**nothing in `src/` called it** (its only callers were tests). The source is
+not short of inline maths: the follow-up below measures **400 inline
+occurrences, 185 distinct forms**, in the same file. Closed by the next
+section.
 
 **A prose comment in the page script can be load-bearing.**
 `tests/test_docinspect_lang_js.py` slices the shipped language block between
@@ -1697,3 +1700,135 @@ so that it runs the real code and not a copy. Extending that line into a block
 comment's opener deleted the boundary and failed 11 tests with
 `ValueError: substring not found` — nothing about KaTeX. The line is now marked
 as a boundary in `docinspect.py` itself.
+
+## The author's LaTeX on every route (owner, 2026-10-27: "Author LaTeX on every route")
+
+The step the owner chose after T-0080 items 1-2: with a MathPix (or any other)
+`lines.json` on disk, `drill` must still give the author's LaTeX for INLINE
+formulas too. Two things were missing, not one.
+
+**One: nothing read the author's inline maths.** `cmd_injectlatex` reads
+`extract_display_equations`, so only an Equation could ever carry a
+`provenance="tex"` reading. `latex_source.extract_inline_math(body)` is its
+counterpart, and `commands.attach_author_inline(doc, body, macros)` gives each
+`Formula` object the author's own reading of that formula.
+
+**Two: the overlay was gated on the route.** `cmd_model`'s auto-merge ran only
+for `lines_source in ("pdfminer-chars", "pdfplumber-chars")`, so on the richest
+input pdfdrill has the author's LaTeX never arrived at all. The gate is now
+`_arxiv_id_for(pdf, sc)` alone — except that `--no-source` suppresses it, like
+every other author-source lane, because that flag exists to measure a READER
+with the author's source out of the way. The PROSE merge (`cmd_merge`) stays
+born-digital-only: the char layer is garbled by two-column interleaving and the
+arXiv margin stamp, MathPix's prose is not, and replacing it would throw away
+the reading that was paid for.
+
+### Why an exact key and not the display loop's threshold
+
+The display loop attaches at `latex_similarity >= 0.55`, which is right for an
+equation. An inline formula is three characters, and at that length the best
+match is routinely the wrong formula — measured on 1702.06385, the model's
+`\mid` scores 0.75 against the author's `\min`, `X_{2}` scores 0.67 against
+`Y_2`, `\mathcal{G} \leftarrow` scores 0.84 against
+`\mathcal{M}_{X \rightarrow Y}`. What is attached is shown to a reader AS THE
+AUTHOR'S LATEX, so a wrong match is not a partial result, it is a false one.
+`scoring.author_match_key` is therefore an EXACT key: `normalize_latex` plus
+four stated equivalences (`\ldots`==`\dots`; a font wrapper is not content, so
+`\operatorname{X}`==`\textsc{X}`==`\textit{X}`; `x^{\prime}`==`x'`; and script
+order commutes, so `T'_i`==`T_i^{\prime}`). `normalize_latex` itself is NOT
+touched: it is what `compare` and `scoring` score with, and every agreement
+number in this repo came from it.
+
+The key is applied BEFORE `normalize_latex`, not after — its brace collapse
+turns `\textit{type}(a)` into `\textittype(a)`, where no wrapper is left to
+unwrap. The two passes do not commute and the wrong order is silent.
+
+### Two independent choices, both measured
+
+The harvest blanks only display maths and verbatim-like blocks — NOT
+`_STRUCT_RE`, which is `build_source_model`'s prose splitter and also blanks
+`algorithm`, `figure`, `table`, `itemize`… Those are not paragraphs, which is
+why prose skips them, but the `$...$` inside them is the author's, and MathPix
+reads every pseudocode line as a Formula. On 1702.06385's 160 Formula objects:
+
+| blanking | key | given a reading |
+|---|---|---|
+| `_STRUCT_RE` | `normalize_latex` | 109 |
+| display+verbatim only | `normalize_latex` | 123 |
+| `_STRUCT_RE` | `author_match_key` | 113 |
+| display+verbatim only | `author_match_key` | **132** |
+
+Neither choice substitutes for the other: the widest key over the prose
+splitter still reads 19 fewer formulas than the narrow blanking does.
+
+### The gate, both routes, on the page's own KaTeX 0.16.9
+
+`pdfdrill drill 1702.06385.pdf` twice in two clean directories, once with the
+document's MathPix `lines.json` beside the PDF and once without, then the
+shipped `inspect.html` driven through `tests/dom_shim.js` and real KaTeX 0.16.9
+in node, reading the page's own `window.__katexRefused`:
+
+| route | maths objects | with the author's latex | rendered forms | refused |
+|---|---|---|---|---|
+| no `lines.json` (born-digital) | 170 | **170** | 170 | 1 |
+| MathPix `lines.json` present | 178 | **150** (was 18) | 264 | 5 |
+
+The MathPix route's 150 are 18 display equations and **132 of 160 inline
+formulas**; the sidecar records the split (`latex_attached` 18,
+`latex_inline_attached` 132, `latex_inline_formulas` 160,
+`latex_inline_unmatched` 28) and `model_caps` reads
+`{geometry: True, math: True, source: mathpix, merged: latex}` — the first time
+a MathPix model has said `merged: latex`.
+
+**One consequence to know about.** `cmd_injectlatex` also runs
+`ingest_source_graphics`, so a MathPix model now gains the author's TikZ and
+table bodies as Diagram/Table objects — `latex_graphics: 1` on the gate
+document, which `pdfdrill svg` can render and MathPix gave as a picture. That
+is `injectlatex`'s documented behaviour when run by hand on a MathPix model;
+what changed is that nobody has to remember to run it.
+
+**The 5 refusals are the counting working, not a regression.** One is the
+`\midM` fusion already recorded above, now visible on a Formula's author
+reading as well. The other four are `\textsc`, which T-0080 deliberately did
+not resolve ("formatting KaTeX cannot do, so translating them would be a
+guess") — all four are the author's own algorithm block, e.g.
+`T_i \leftarrow \textsc{TrivialTree}(a_i)`. They were invisible before because
+the forms were not in the page at all. If `\textsc{X}` -> `\text{X}` is
+acceptable (it loses small caps, which is why it was left out), it is a
+one-line rule in `latex_only.RULES` and the owner's call.
+
+### What it reaches corpus-wide, and what it does not
+
+Measured with the SHIPPED functions over every library folder that has a
+`lines.json`, the author's e-print and a model whose Formula objects carry no
+`latex_original` (which is what makes it a MathPix-route model and not a
+circular measurement):
+
+    documents measured                391
+      skipped: already an author model   120
+      skipped: no Formula objects         17
+      skipped: model too large to parse    1
+      skipped: source unreadable           2
+    MathPix Formula objects          69,667
+    given the author's reading       38,681   55.5%
+    per document                     median 61.1%, mean 56.1%, 0.0% .. 97.6%
+                                     266 of 391 documents at or above 50%
+    with the PROSE blanking rule     34,945   50.2%   (-3,736)
+
+**Quote the median, not the total.** The one skipped model is 1511.08771's, at
+**4.73 GB** — it alone holds about 70,600 Formula objects, as many as the other
+390 documents together, and parsing it needs ~25 GB of dicts. An earlier pass
+that did parse it reported 41.9% for the same code, because that one document
+is half the denominator. Its size is a finding of its own and not this task's.
+
+The 44.5% that get nothing are overwhelmingly one class: **MathPix's own
+fragments and splits.** On 1702.06385 the 28 unmatched are `P(`, `)`, `\mid`,
+`K(x)+`, `N C I`, `{ }_{\delta}` and a formula cut mid-line. Corpus-wide only
+12 of 30,985 were forms the author wrote in DISPLAY maths, so pooling the
+display equations into the inline key would buy nothing. **A fragment has no
+author reading to find, and `unmatched` is the honest report: the pass counts
+it rather than attaching the nearest thing.**
+
+Every attached reading goes through `expand_math`, so T-0080's six rules hold
+across the corpus: of the 38,681 attached, **0** still carry one of the
+LaTeX-only commands (`latex_only.names_left` is empty on all of them).
