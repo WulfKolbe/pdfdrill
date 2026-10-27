@@ -1527,3 +1527,173 @@ module — through `requires_fork(...)` in
 `bash vendor/install-pdfminer-fork.sh --user --rebuild`. README's install block
 names that step too: `pip install -e .` alone cannot do it, and the fork cannot
 be a requirement because it is a local patch, not a package on PyPI.
+
+## The author's LaTeX now renders, and what refuses it is named (T-0080 items 1-2, 2026-10-27)
+
+**31.5% of the author's expanded maths could not be rendered, and the page said
+nothing.** Measured read-only over the drill library through the same four
+functions `cmd_injectlatex` uses — 530 e-print sources readable, 441 with at
+least one display equation, 23,608 display equations expanded and each given to
+KaTeX 0.16.9 (the version `docinspect._KATEX_JS` loads from cdnjs), with
+`throwOnError: true`:
+
+| | equations |
+|---|---|
+| expanded display equations measured | 23,608 |
+| refused by KaTeX 0.16.9 | 7,438 (31.5%) |
+| refused with one of six LaTeX-only commands as the first error | 1,163 |
+| now rendering, after `latex_only.resolve` | **1,065**, 0 newly broken |
+| still refused | 6,373 |
+
+`src/pdfdrill/latex_only.py` holds the six as a stated table, each with the
+example it is stated by and the population it came from: `\ensuremath` (732
+equations, 30 documents), `\vspace` (352/18), `\xspace` (53/8), `\centering`
+(17/3), `\label` (7/1), `\noindent` (2/2).
+
+**The expander was not the thing to fix.** An author writes
+`\newcommand{\dom}{\ensuremath{\mathbb{D}}}` and `expand_macros` substitutes
+the body verbatim, which is what a macro IS. `\ensuremath` means "be in maths
+mode even if you are not", and a formula already is — so the expansion is
+correct and unrenderable at the same time. `latex_source.expand_math` is the
+maths-side entry point (`expand_macros` then `latex_only.resolve`) and the only
+call a new maths site should make. `latex_original` is never touched.
+
+**The two graphics sites deliberately do NOT resolve.** A Diagram's or Table's
+`latex_code` goes to a real `xelatex` run (`pdfdrill svg`), where `\vspace`
+means what it says. Both sides call the same expander on the same kind of
+string and the only difference is what the result is for, so the split is
+stated in `tests/test_a_formula_carries_no_latex_only_command.py`
+(`GRAPHICS_ONLY`) and a new maths site that calls the raw expander fails there.
+
+**Not resolved, on purpose, each for its own reason.** `\ref` (35 equations, 18
+documents) and `\eqref` (20/7) PRINT a number this pass does not know, so
+dropping them would silently remove content; `\textsc` (24/8) and `\emph` (8/7)
+are formatting KaTeX cannot do, so translating them would be a guess.
+`tikzcd` (1,072 equations, 17 documents) and `tikzpicture` (545/8) are pictures
+captured as equations and no rewriting reaches them. And 374 of the 456
+distinct undefined names occur in ONE document each (2,084 equations) — the
+author's own macros `extract_macros` did not pick up, which is a gap in macro
+COLLECTION and the corpus-wide form `docops.katex_notice` already records.
+
+### Three quiet defects in the inspector, all now loud
+
+1. **`throwOnError: false`.** KaTeX's default on a formula it cannot parse is
+   to put its own error INTO the output as red text containing the source, so
+   `renderMath`'s `catch` never fired and every count of failures was zero.
+   6,373 formulas were being shown that way.
+2. **One grey box for two different things.** `katex-missing` meant both "KaTeX
+   did not load" and "KaTeX refused this formula". A reader could not tell a
+   broken formula from a broken network, and the second says nothing about the
+   formula. `katex-refused` is now its own mark, and names what KaTeX objected
+   to.
+3. **`props["latex_original"]` is empty on the documents this is for.**
+   `cmd_injectlatex` attaches the author's form to the matched equation as a
+   `provenance="tex"` REALIZATION and writes props only when there was no
+   MathPix scaffold. Measured on the two gate papers after
+   `pdfdrill injectlatex`: of 254 maths objects, **0** carried
+   `props["latex_original"]` and 27 carried it on a realization. A props-only
+   reader would have shipped a feature that does nothing on its own gate.
+
+The inspector now shows `latex_original` as TEXT (never rendered — it still
+holds the author's macros) and renders two forms: the document's own reading
+and, beneath it, the author's. The count is taken **once over every renderable
+form at load** (`katexAudit`), not accumulated by `renderMath`: the inspector
+renders lazily, so a tally built while rendering reports what the reader
+scrolled past and would say "0 refused" about a document whose every formula is
+refused. `window.__katexRefused` is the hook a test or drillui reads.
+
+**Resolving also improved matching.** `latex_similarity` compares the EXPANDED
+forms, so on 1702.06385 `injectlatex` went from 15 of 19 display equations
+attached (4 unmatched) to **18 of 19** (1 unmatched), with no change to the
+matcher.
+
+### The gate, on the page's own KaTeX
+
+| document | maths objects | rendered forms | with the author's latex | refused |
+|---|---|---|---|---|
+| 1702.06385 | 178 | 196 | 18 | **0** |
+| 2210.01629v3 | 49 | 61 | 12 | **0** |
+| 2510.15795 (diagrams) | 263 | 272 | 9 | **3, each listed** |
+
+The three on 2510.15795 are `tikzcd` blocks the author wrote as display
+equations, so their author's reading is a picture body KaTeX cannot render.
+They are marked where they appear and listed in the page's own banner.
+
+### What is left on item 3 (T-0045's merge), measured
+
+Geometry is already there and MEASURED for everything that carries a box. What
+has none is the author's own pictures:
+
+| document | elements | boxed | unboxed |
+|---|---|---|---|
+| 1702.06385 | 462 | 427 (all measured) | 34 Reference, 1 Table |
+| 2210.01629v3 | 154 | 152 (all measured) | **2 Diagram** |
+| 2510.15795 | 473 | 418 | **55 Diagram** |
+
+Those Diagrams are the TikZ/table graphics `ingest_source_graphics` creates from
+the author's source, so they arrive with no region at all — they appear in the
+element tree and in reflow with no box on the page, which is `drill`'s own
+"131 elements and 131 missing boxes" failure in miniature. **`pdfdrill geometry
+--layout` does not reach them**: on 2510.15795 it moved the boxed objects from
+418-all-measured to 254 measured + 84 interpolated + 80 yolo and left all 55
+Diagrams unboxed. An equation can be joined to a reading by text similarity;
+a picture has no text, so the join T-0045 has to make is geometric — against
+the figure rects `cmd_images` lifts, or inkdrill's regions.
+
+**The same `throwOnError: false` is still in the other four KaTeX generators** —
+`docops/projectors/formula_report.py`, `comparison_html.py`,
+`distill_reader.py` and `pdfdrill/reports/html.py`. T-0080 item 2 named the
+inspector, so only the inspector was changed; the other four still show a
+refused formula as KaTeX's own red error text and still cannot count one.
+`docops.katex_notice` already exists because a warning retyped in five files
+says five different things within a month, and this is the same shape one level
+down: the marking belongs beside that constant.
+
+### Found by the new count, measured, and deliberately NOT fixed
+
+`pdfdrill drill 1702.06385.pdf` — the owner's own command, on the born-digital
+path where `cmd_model` auto-merges the e-print — now puts the author's LaTeX on
+170 of 170 maths objects, and the page's own KaTeX refuses exactly **one**:
+
+    author's source   L(\data\mid\model)          valid TeX
+    expanded          L(D\midM)                   \midM exists nowhere
+
+A control word ends at a backslash, so `\mid\model` needs no space; `_apply_once`
+substitutes `\model` -> `M` and the two fuse. The guard is one line before the
+append in `latex_source._apply_once`:
+
+    if expanded[:1].isalpha() and re.search(r"\\[A-Za-z]+\Z", "".join(out)):
+        out.append(" ")
+
+**Measured over the whole library, it changes 6 of 23,608 expansions and fixes
+1 more refusal.** That is why it is not in this branch: `expand_macros` is the
+function every consumer depends on, the two stated items do not include it, and
+six strings do not justify the blast radius. The audit now NAMES this case on
+the owner's own document, which was the point of counting. The owner's call.
+
+### Where the author's LaTeX does and does not arrive
+
+`cmd_model` auto-merges `injectlatex` only when `lines_source` is
+`pdfminer-chars`/`pdfplumber-chars` and the document is arXiv. **With a MathPix
+`lines.json` on disk the merge never fires**, so `pdfdrill drill` gives geometry
+with no author LaTeX at all and `pdfdrill injectlatex` has to be run by hand —
+which is how both gate papers behaved. Measured, same document, two routes:
+
+| route | maths objects | with the author's latex | refused |
+|---|---|---|---|
+| `drill` (no lines.json, born-digital) | 170 | 170, in props | 1 (the fusion above) |
+| `model` + `injectlatex` (lines.json present) | 178 | 18, on realizations | 0 |
+
+The second number is the owner's goal unmet: 18 of 178. The author's source
+carries 19 display equations and no inline maths, so on the MathPix route the
+160 inline Formulas can never get an author reading from `injectlatex` at
+all — only `build_source_model` produces those, and **nothing in `src/` calls
+it** (its only callers are tests).
+
+**A prose comment in the page script can be load-bearing.**
+`tests/test_docinspect_lang_js.py` slices the shipped language block between
+`const LANGS = …` and the literal line `/* ---------- KaTeX helper ---------- */`
+so that it runs the real code and not a copy. Extending that line into a block
+comment's opener deleted the boundary and failed 11 tests with
+`ValueError: substring not found` — nothing about KaTeX. The line is now marked
+as a boundary in `docinspect.py` itself.

@@ -9179,7 +9179,7 @@ def cmd_expandmath(pdf: Path, force: bool = False) -> str:
         # NEVER lose the author's form: only fill it if the build didn't.
         o.props.setdefault("latex_original", latex)
         try:
-            full = ls.expand_macros(latex, macros)
+            full = ls.expand_math(latex, macros)
         except Exception:                         # noqa: BLE001
             continue
         left = sorted(set(_TEX_CMD_RE.findall(full)) & names)
@@ -9262,7 +9262,7 @@ def cmd_sre(pdf: Path, out: str | None = None, plain: bool = False,
         stored = bool(p.get("latex_expanded_by"))
         if macros and not stored:
             try:                                 # last-mile expansion for latex2mml
-                sre_tex = ls.expand_macros(latex, macros)
+                sre_tex = ls.expand_math(latex, macros)
             except Exception:                    # noqa: BLE001
                 sre_tex = latex
         present = set(_TEX_CMD_RE.findall(sre_tex))
@@ -12365,7 +12365,7 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
     attached = unmatched = 0
     for se in src_eqs:
         original = se["latex"]
-        expanded = ls.expand_macros(original, macros)
+        expanded = ls.expand_math(original, macros)
         target = normalize_latex(expanded)
         if not target:
             continue
@@ -12411,7 +12411,7 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
         bk = doc.meta.get("bibkey", "DOC")
         for i, se in enumerate(src_eqs, 1):
             original = se["latex"]
-            expanded = ls.expand_macros(original, macros)
+            expanded = ls.expand_math(original, macros)
             if not normalize_latex(expanded):
                 continue
             doc.add(DocObject(type="Equation", props={
