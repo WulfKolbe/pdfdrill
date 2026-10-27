@@ -36,15 +36,19 @@ def _script_of(html: str) -> str:
     return html[i:j]
 
 
-def _boot(model: dict, *, body: str) -> dict:
+def _boot(model: dict, *, body: str, pre: str = "") -> dict:
     html = docinspect.build_inspector_html(model, pages={}, title="t")
     # concatenated, not imported: the repo is an ESM package, so `require`
     # of a plain script fails before anything is tested.
     start = html.index("<body>") + len("<body>")
     markup = html[start:html.index("<script", start)]    # markup only, no script
     assert 'id="langSel"' in markup and 'id="pageTool"' in markup
+    # `pre` runs AFTER the shim and BEFORE the page script, which is the only
+    # window in which a test can give the page a KaTeX: the shim ends with
+    # `katex = null; __noKatex = 1`, and the page script reads both at load.
     prog = "\n".join(["globalThis.__SHIM_BODY = " + json.dumps(markup) + ";",
                       _SHIM.read_text(encoding="utf-8"),
+                      pre,
                       _script_of(html),
                       "const OUT = {};",
                       body,
