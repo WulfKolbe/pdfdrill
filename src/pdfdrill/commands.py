@@ -827,11 +827,28 @@ _MERGEABLE_LINES_SOURCES = ("pdfminer", "pdfplumber", "tesseract",
 
 
 def _is_mathpix_lines(lines_path: Path) -> bool:
-    """True for a MathPix lines.json — it has no `source` key of its own (the
-    keyless routes stamp one) and carries MathPix-only line types."""
+    """True for a MathPix lines.json — a reading that was PAID FOR.
+
+    Four call sites spend or protect money on this answer, so it stays the
+    strict one: `model --reader mathpix` refuses to call a free reading a paid
+    one, and three places park a displaced reading as `<stem>.mathpix.bak.json`
+    rather than overwrite it.
+
+    It used to read "has no `source` key of its own", which made the ABSENCE of
+    a field the evidence of a purchase. That was right for 1,450 of the
+    library's readings and wrong for the rest: our own earliest reader output
+    declares nothing either, so pdfdrill called a file it had generated itself a
+    bought MathPix reading (`texbook-appendix-g-generating-boxes`, measured).
+    `_detect_lines_source` separates them — a UUID `image_id` is MathPix's own
+    `pdf_id`, document-stem ids are ours — and the unchanged half of the test is
+    that the line types must still be there.
+
+    The 1,450 answer exactly as before; what changes is that they answer on
+    evidence rather than on a missing key.
+    """
     if not lines_path.exists():
         return False
-    if _lines_json_source(lines_path):
+    if _lines_source(lines_path).lower() != "mathpix":
         return False
     return _has_mathpix_line_types(lines_path)
 
@@ -864,7 +881,28 @@ def _is_mathpix_lines(lines_path: Path) -> bool:
 #: prerequisite the reading already satisfied. Admitting it is NOT a claim
 #: that the reading was bought: `_is_mathpix_lines` still answers no, which is
 #: what the four money-spending call sites ask.
-_TYPED_GEOMETRY_SOURCES = ("", "mathpix", "pdfminer-docmodel", "pdf2mmd2",
+#: 2026-10-28, ENGINEERING 2d rule 5, the owner's decision: `""` IS GONE. A
+#: reading that declares no source is no longer admitted for declaring nothing;
+#: it is admitted when `_detect_lines_source` RECOGNISES it, and refused when
+#: it does not. The counts above were stale — measured again over the library
+#: the same day, 1,811 readings:
+#:
+#:   declares nothing   1,452   of which 1,450 are MathPix by their UUID ids,
+#:                              1 is one of our own readers (`mathpix-shaped`),
+#:                              1 is a 0-byte file — refused, as it was before
+#:   pdfminer-chars       174   EXCLUDED, points not pixels
+#:   pdfminer-docmodel    171
+#:   tesseract              8   EXCLUDED
+#:   visionocr              3   EXCLUDED
+#:   pdfminer / pdftotext / yolo-geometry   1 each   EXCLUDED
+#:
+#: Those are source strings, not the gate's answer — the gate also requires the
+#: LINE TYPES, which is why the two differ. Running the real gate over all 1,811
+#: readings, before and after: 1,438 admitted and 373 refused, BOTH SIDES, 0
+#: answers changed. Every admission is now a positive identification instead of
+#: an absence. `mathpix-shaped` needs no entry of its own: both gates test
+#: `src == s or src.startswith(s + "-")`.
+_TYPED_GEOMETRY_SOURCES = ("mathpix", "pdfminer-docmodel", "pdf2mmd2",
                            "gemma4-ink-yolo")
 
 
@@ -883,13 +921,18 @@ def _is_typed_geometry_lines(lines_path: Path) -> bool:
     populates, and CLAIMED in docs says a layer's `requires` names everything
     it READS. While the two questions shared one detector, a reading that
     DECLARED its producer failed the test — so our own glyph reader's output
-    satisfied `inspect`'s prerequisite only because of 168 legacy files that
-    forgot to declare a top-level source, and a reading that declares one
-    correctly made `--ensure` name a paid step that could not help.
+    satisfied `inspect`'s prerequisite only because a reading that declared
+    nothing was admitted for declaring nothing, and a reading that declared its
+    producer correctly made `--ensure` name a paid step that could not help.
+
+    "168 legacy files" is what this docstring used to say, and it was the third
+    of three disagreeing figures in this file for one population: measured over
+    the library on 2026-10-28 it is 1,452 of 1,811 readings. The `""` entry is
+    gone; `_detect_lines_source` identifies those readings from their content.
     """
     if not lines_path.exists():
         return False
-    src = (_lines_json_source(lines_path) or "").lower()
+    src = _lines_source(lines_path).lower()
     if not any(src == s or src.startswith(s + "-")
                for s in _TYPED_GEOMETRY_SOURCES):
         return False
@@ -1711,16 +1754,115 @@ def _fresh_docgraph(pdf: Path, sc: "Sidecar", model_path: Path):
     return model_io.load_docgraph(model_path)
 
 
-def _lines_json_source(lines_path: Path) -> str:
-    """Cheap read of the `source` field of a lines.json (e.g. 'tesseract',
-    'mathpix') without loading the whole file. Both producers emit `source`
-    near the top; falls back to '' if not found in the head."""
+#: How much of a lines.json the cheap probes read from each end. The head holds
+#: the top-level keys and the first page's `image_id`; the tail holds the last
+#: page's `page_width`, which sits AFTER that page's lines and is therefore
+#: megabytes in on a long document. 8 KB each, measured: of the 1,452 readings
+#: in the library that declare no source, 1,451 carry a `page_width` in their
+#: last 8 KB (the one miss is a 0-byte file).
+_LINES_PROBE = 8192
+
+
+def _lines_probe(lines_path: Path) -> "tuple[str, str]":
+    """(first 8 KB, last 8 KB) of a lines.json, as text. ('', '') on any error."""
     try:
-        head = lines_path.read_text(encoding="utf-8")[:8192]
+        size = lines_path.stat().st_size
+        with lines_path.open("rb") as fh:
+            head = fh.read(_LINES_PROBE)
+            if size > _LINES_PROBE:
+                fh.seek(max(_LINES_PROBE, size - _LINES_PROBE))
+                tail = fh.read(_LINES_PROBE)
+            else:
+                tail = b""
+        return (head.decode("utf-8", "replace"), tail.decode("utf-8", "replace"))
     except OSError:
-        return ""
+        return ("", "")
+
+
+def _lines_json_source(lines_path: Path) -> str:
+    """The `source` a lines.json DECLARES (e.g. 'tesseract', 'pdf2mmd2'), or ''.
+
+    Cheap by contract: every writer puts `source` among the first top-level
+    keys, so only the head is read. It used to say "without loading the whole
+    file" while doing `read_text()[:8192]`, which loads all of it and then
+    throws it away — 4.9 GB of library readings, up to 12 MB each, for 8 KB of
+    answer.
+
+    '' means "declares nothing", which is NOT the same as "unknown": 1,452 of
+    the library's 1,811 readings declare nothing, and `_detect_lines_source`
+    identifies them from content.
+    """
+    head, _ = _lines_probe(lines_path)
     m = re.search(r'"source"\s*:\s*"([^"]*)"', head)
     return m.group(1) if m else ""
+
+
+#: MathPix names a converted PDF with a UUID (its `pdf_id`) and builds every
+#: `image_id` as `<pdf_id>-<page>`. Nothing of ours generates a UUID: our
+#: writers use the document's own stem (`mathpix.image_id`), so this shape is
+#: MathPix's signature. Measured over the library: 1,450 of the 1,452 readings
+#: that declare no source carry it, and NO reading that declares a source does.
+_MATHPIX_IMAGE_ID = re.compile(
+    r'"image_id"\s*:\s*"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}'
+    r'-[0-9a-f]{12}-\d+"')
+
+#: A page size written as an INTEGER is a pixel frame; written as a float it is
+#: PDF points. Measured, and the split is total: all 1,451 parseable readings
+#: that declare no source have an integer `page_width` (2125, 2067, 816 …), and
+#: every point-frame reader in the library writes a float (612.0, 595.28).
+#: There is no size threshold here on purpose — 11 of those readings have a page
+#: narrower than 1000 px, 9 of them long scanned books whose smallest page is
+#: 816, so a "big enough to be pixels" test would refuse real MathPix readings.
+_PIXEL_PAGE_WIDTH = re.compile(r'"page_width"\s*:\s*(\d+)\s*[,}\n]')
+
+
+def _detect_lines_source(lines_path: Path) -> str:
+    """The producer of a lines.json that declares none, read from its CONTENT.
+
+    The owner's decision of 2026-10-28 (option 4a): pdfdrill identifies these
+    readings itself and writes NOTHING into the library. The alternative was to
+    stamp a `source` onto all 1,452 of them, which would have edited the
+    owner's own corpus to satisfy a test.
+
+    Returns '' when there is nothing to go on — and '' now means refused, which
+    is the point of the change. Three positive answers:
+
+      `mathpix`         the `image_id` is a UUID: MathPix's own `pdf_id`. 1,450
+                        of the 1,452 undeclared readings, and the richest input
+                        pdfdrill has.
+      `mathpix`         (also) any other reading in a pixel frame with MathPix
+                        line types whose ids are not ours. MathPix is the only
+                        writer that declares nothing, so this is the same
+                        assumption `_is_mathpix_lines` has always made — stated
+                        as evidence instead of as an absence.
+      `mathpix-shaped`  the ids name the DOCUMENT, so one of our own readers
+                        wrote it before they declared a source. Same geometry
+                        contract (both gates admit it by the `mathpix-` prefix),
+                        but NOT a bought reading, which is why the name differs.
+                        One file in the library today.
+    """
+    head, tail = _lines_probe(lines_path)
+    if not head:
+        return ""
+    if not _has_mathpix_line_types(lines_path):
+        return ""                         # no typed geometry: nothing to claim
+    if not (_PIXEL_PAGE_WIDTH.search(head) or _PIXEL_PAGE_WIDTH.search(tail)):
+        return ""                         # a float page size means PDF points
+    if _MATHPIX_IMAGE_ID.search(head):
+        return "mathpix"
+    stem = lines_path.name[:-len(".lines.json")] if \
+        lines_path.name.endswith(".lines.json") else lines_path.stem
+    if re.search(r'"image_id"\s*:\s*"' + re.escape(stem) + r'-\d+"', head):
+        return "mathpix-shaped"
+    return "mathpix"
+
+
+def _lines_source(lines_path: Path) -> str:
+    """What a lines.json IS: what it declares, or what its content shows.
+
+    One place, so the gates cannot disagree about the same file.
+    """
+    return _lines_json_source(lines_path) or _detect_lines_source(lines_path)
 
 
 # A "junky" filename stem that makes a poor tiddler prefix: a long leading
@@ -6237,7 +6379,10 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
         1 for o in objects
         if o["type"] == "Equation" and o.get("props", {}).get("cdn_url")
     )
-    lines_source = _lines_json_source(lines_path) or "mathpix"
+    # Declared, else identified from content: the `or "mathpix"` that used to
+    # stand alone here made the same guess this file now makes on evidence, and
+    # got it wrong for our own earliest reader output.
+    lines_source = _lines_source(lines_path) or "mathpix"
 
     sc.set_evidence("model_path", str(model_path.relative_to(sc.pdf_path.parent)))
     sc.set_evidence("model_object_counts", by_type)

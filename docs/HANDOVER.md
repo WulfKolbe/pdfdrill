@@ -2099,3 +2099,178 @@ a model (exit 0), so 2d rule 5 is not enforced. That is the `""` entry in
 recorded as a hole rather than left to be discovered. Closing it waits on the
 owner's decision about the 168 legacy files (stamp them, or detect the producer
 from content at read time).
+
+## A reading is read because it is identified, not because it is silent (2d rule 5, 2026-10-28)
+
+`_TYPED_GEOMETRY_SOURCES` began with `""`, so a lines.json that named no
+producer passed the geometry gate for naming nothing. Its own docstring called
+that an accident. The owner's decision (option 4a, relayed by
+pdfdrill-pdf2mmd2-migration): **pdfdrill identifies those readings from their
+content at read time and writes nothing into the library.** The alternative was
+to stamp a `source` onto every one of them — editing the owner's corpus so a
+test would pass.
+
+### First, the size of the thing, because three numbers were in circulation
+
+| source of the number | says |
+|---|---|
+| `_is_typed_geometry_lines`' docstring | 168 legacy files |
+| `_TYPED_GEOMETRY_SOURCES`' docstring | 1,579 of 1,747 readings |
+| **measured 2026-10-28, 1,811 readings** | **1,452 declare nothing** |
+
+Closing `""` without a detector would have refused four readings in five.
+
+### What the content says — all measured before any of it was coded
+
+* **MathPix names a converted PDF with a UUID** (its `pdf_id`) and builds every
+  `image_id` as `<pdf_id>-<page>`. **1,450 of the 1,452** undeclared readings
+  carry that shape, and **no** reading that declares a source carries it.
+  Nothing of ours generates a UUID — our writers use the document's stem.
+* **An integer `page_width` is a pixel frame; a float is PDF points.** The split
+  is total: 1,451 of 1,451 parseable undeclared readings are integers, every
+  point-frame reader in the library writes a float (612.0, 595.28).
+* **No size threshold**, deliberately: 11 undeclared readings have a page under
+  1000 px, 9 of them long scanned books whose smallest page is 816 px, so a
+  "big enough to be pixels" test would refuse real MathPix readings.
+
+Two undeclared readings are outside the UUID rule: one 0-byte file
+(`2308.06374/mmd-out/`, refused before this change too) and
+`texbook-appendix-g-generating-boxes`, whose ids name the document — one of our
+own readers, from before they declared anything.
+
+### The result, measured over all 1,811 readings
+
+| gate | old → new |
+|---|---|
+| typed geometry | **0 answers changed** — 1,438 admitted before and after, 373 refused before and after |
+| is-MathPix | **1 answer changed** — `texbook-appendix-g-generating-boxes`, True → False |
+
+So the loophole closes with **no reading lost**, and every admission is now a
+positive identification instead of an absence.
+
+### The one changed answer is a defect being fixed
+
+`_is_mathpix_lines` read "has no `source` key" as the evidence of a PURCHASE.
+That is true of 1,450 readings and false of our own earliest output, so pdfdrill
+called a file it had generated itself a bought MathPix reading. A reading wrongly
+believed to be paid is a reading nothing will regenerate, and four call sites
+spend or protect money on this answer. The detector separates them: a UUID id is
+MathPix (`mathpix`), document-stem ids are ours (`mathpix-shaped`, same geometry
+contract by the `mathpix-` prefix, not a purchase).
+
+### The probe was not cheap, whatever it said
+
+`_lines_json_source`'s docstring said "without loading the whole file" while
+doing `read_text()[:8192]` — the whole file, then discarded, on every call,
+across 4.9 GB of readings up to 12 MB each. It now reads 8 KB from each END: the
+head for the top-level keys and the first `image_id`, the tail because
+`page_width` sits AFTER its page's lines and is megabytes in on a long document
+(1,451 of 1,452 undeclared readings carry one in their last 8 KB).
+
+### Acceptance: the refusal is visible and names the next step
+
+Same command, same document (`1707.00189`, whose library reading declares
+nothing), two copies of the reading:
+
+    identified (UUID ids, pixel frame)
+      $ pdfdrill steps inspect 1707.00189.pdf
+      model → geometry → inspect
+      ... already done: gemmaocr, glyphlines, mathpix          # no paid step
+
+    unidentifiable (float page size, ids that are neither)
+      $ pdfdrill steps inspect 1707.00189.pdf
+      model → geometry → mathpix → inspect
+      ... mathpix (paid — run `pdfdrill mathpix` yourself; or `pdfdrill
+          gemmaocr`, which satisfies the same prerequisite)
+
+The refusal is not silent, and it names both the paid command and the free one.
+
+### Call sites deliberately left reading the DECLARED source only
+
+`_lines_source` (declared, else detected) is used by the two gates and by the
+recorded `lines_source` evidence. Four others still ask only what a file
+declares, each for a reason: the `--force` staleness check asks what the file
+CLAIMS about its lane (a detected value is never `pdfminer*`); `prefers_merged_route`
+is already handed `_is_mathpix_lines` separately; and two message formatters
+would change their wording without changing a decision. `_has_usable_math` was
+the one that looked risky, and it is not: it asks the source string only through
+`_is_keyless_textonly_source`, which is exact membership in `("tesseract",
+"pdfminer-chars", "pdfplumber-chars")`. Neither `""` nor `"mathpix"` nor
+`"mathpix-shaped"` is in that tuple, so the answer is identical whichever is
+passed — checked rather than assumed, which is why that call site could be left
+alone without a measurement hanging over it.
+
+### Four tests the closure turned around, and the one that was a real question
+
+The suite came back `4 failed, 6129 passed, 82 skipped` on the first run after
+the change. Three were fixtures abridged past the point where the content is
+identifiable, and one was a semantic question worth answering rather than
+patching.
+
+| test | why it failed | what changed |
+|---|---|---|
+| `test_model_reader_flag.py::test_a_forced_glyph_read_backs_up_a_mathpix_reading` | its fixture is two lines and no page at all; its own comment said MathPix is "identified by the ABSENCE of a `source` key" — the definition this change replaced | the fixture now carries what a real MathPix page carries: a UUID `image_id` and an integer page size |
+| `test_model_selfheal.py::test_latex_model_with_mathpix_lines_is_stale_without_caps` | same, through `_source_model_trap` → `_is_typed_geometry_lines` | same, in `_MATHPIX` |
+| `test_pagelines.py::test_it_stays_a_mathpix_shaped_reading` | asserted `_is_mathpix_lines` on pdf2mmd2's OWN assembled reading, from when one detector answered both questions | asserts what `inspect` actually requires (`_is_typed_geometry_lines`, `planner.detect`'s `lines:typed-geometry`), that the detector says `mathpix-shaped`, and that the money question says **no** |
+| `test_pagelines.py::test_a_declared_reader_still_carries_typed_geometry` | asserted `_is_mathpix_lines` is False for a reading that declares `source: "mathpix"` | now True — see below |
+
+`test_it_stays_a_mathpix_shaped_reading`'s docstring named the `lines:mathpix`
+prerequisite, which no longer exists: 897 moved `inspect` onto
+`lines:typed-geometry`. The test was still asserting the old wiring, so it was
+the last place in the repo that required pdf2mmd2's own reading to be called a
+purchase. Measured on `0902.0431` (209 real page files, 4.5 MB assembled): ids
+`0902.0431-001`, page 2125×2750 integers → `mathpix-shaped`, typed geometry
+True, is-MathPix False.
+
+**The real question: what is a reading that DECLARES `source: "mathpix"`?** The
+old code answered "not a purchase", because only MathPix leaves `source` out, so
+any declaration at all was taken as proof of a free reading. Measured: **0 of the
+library's 1,811 readings declare `mathpix`** (1,452 declare nothing, 174
+`pdfminer-chars`, 171 `pdfminer-docmodel`, 8 `tesseract`, 3 `visionocr`, one each
+`yolo-geometry`, `pdftotext`, `pdfminer`). So the case is about the rule, not
+about a file on disk — and the old rule was one stamp away from losing the
+protection entirely: anything that ever wrote `source: "mathpix"` onto a bought
+reading would have turned the four money sites off, silently. It now answers
+**yes**: a reading that says it was bought is protected. Over-protection costs a
+`.mathpix.bak.json`; under-protection costs the reading.
+
+### Environment: a worktree test run can silently test the MAIN checkout
+
+`python3 -m pytest` from `.worktrees/<branch>/` imports `pdfdrill` from
+**`/home/wkolbe/MX/PDFDRILL/src/`**, not from the worktree. The `~/.local`
+editable install points at the primary tree, and `tests/` adds nothing to
+`sys.path`, so the suite runs against another branch's source while every path in
+the output names the worktree. It is not a skip and not an error — the tests
+pass or fail against code that is not the code under test.
+
+The four failures above "passed" that way before being looked at properly.
+Checked, not assumed:
+
+    $ cd .worktrees/t-0045-pdf2mmd2-into-pdfdrill
+    $ python3 -c 'import pdfdrill; print(pdfdrill.__file__)'
+    /home/wkolbe/MX/PDFDRILL/src/pdfdrill/__init__.py          # the MAIN tree
+
+    $ /home/wkolbe/MX/venv-pd-t0045/bin/python3 -c 'import pdfdrill; print(pdfdrill.__file__)'
+    …/.worktrees/t-0045-pdf2mmd2-into-pdfdrill/src/pdfdrill/__init__.py
+
+So a worktree needs its own venv (`/home/wkolbe/MX/venv-pd-t0045`, full install,
+349 packages, with its own `pdfdrill` and `pdf2mmd2` console scripts), and every
+suite number and acceptance line from a worktree must come from it. One probe
+settles it before trusting a run: print `pdfdrill.__file__`.
+
+### Recorded, not fixed: the docmodel's `meta.source` still defaults to `mathpix`
+
+`docmodel/main.py` sets `doc.meta["source"] = declared_source(lines_json) or
+"mathpix"`, and that default is deliberately NOT the new content detector —
+docmodel does not import pdfdrill, and 2d puts the docmodel on pdfdrill's side
+of the boundary, not the reader's. The consequence: for an undeclared reading of
+our own, the sidecar's `lines_source` evidence now says `mathpix-shaped` where
+the model's `meta.source` says `mathpix`. Nothing downstream breaks — that field
+selects a COORDINATE SYSTEM and both names mean page pixels — but anyone
+comparing the two will find them disagreeing, so it is written down here rather
+than discovered.
+
+A sibling discriminator already existed and was left alone:
+`mathpix_conformance.reference_for` separates MathPix's own reading from ours by
+looking for `deferred_glyphs`, a field MathPix has no concept of. Same idea,
+different evidence, narrower job (it picks a conformance reference, not a lane).

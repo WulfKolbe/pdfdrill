@@ -51,11 +51,19 @@ default but a pdfdrill layer that runs the reader and names the path itself;
 until then a loose PDF takes `--out .`.
 
 The reader writes `{"pages": [...]}` and nothing else (`runner.py:180`), so its
-file declares no source at all. It cleared `inspect`'s geometry prerequisite
-anyway — through the `""` entry in `commands._TYPED_GEOMETRY_SOURCES`, which
-that tuple's own docstring calls an accident of "168 legacy files that forgot
-to declare a top-level source". A reader that is read only by accident is not
-integrated, and the accident is scheduled to close.
+file declares no source at all. It used to clear `inspect`'s geometry
+prerequisite through the `""` entry in `commands._TYPED_GEOMETRY_SOURCES` —
+which that tuple's own docstring called an accident — and a reader that is read
+only by accident is not integrated. That entry is now closed (2d rule 5,
+2026-10-28): an undeclared reading is admitted only when
+`commands._detect_lines_source` RECOGNISES it.
+
+An unstamped reading of this reader's still gets in, measured: its `image_id` is
+`<stem>-<page>`, which the detector reads as `mathpix-shaped` — ours, typed, in
+a pixel frame. So the stamp is not what keeps the reader readable; it is what
+makes the file say WHICH reader, instead of leaving pdfdrill to infer the one
+fact the detector can see. `mathpix-shaped` is the honest name for a guess;
+`pdf2mmd2` is the producer.
 
 The value is exactly `pdf2mmd2`, which both gates already name
 (`docmodel.mathpix._PAGE_PIXEL_SOURCES`, `commands._TYPED_GEOMETRY_SOURCES`),

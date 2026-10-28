@@ -151,9 +151,15 @@ def test_a_forced_glyph_read_backs_up_a_mathpix_reading(tmp_path, monkeypatch):
     pdf = d / "paper.pdf"
     pdf.write_bytes(b"%PDF-1.7\n%%EOF\n")
     lines = d / "paper.lines.json"
-    # MathPix output is identified by the ABSENCE of a `source` key (the
-    # keyless routes stamp one) plus MathPix-only line types.
-    mathpix = {"pages": [{"page": 1, "lines": [
+    # MathPix output is identified from its CONTENT (2d rule 5): a UUID
+    # `image_id` — MathPix's own `pdf_id` plus the page number — on a page whose
+    # frame is PIXELS, carrying MathPix's line types. It used to be identified
+    # by the ABSENCE of a `source` key, which made a missing field the evidence
+    # of a purchase and called our own undeclared readings bought ones. So the
+    # fixture now carries the page fields a real MathPix page carries.
+    mathpix = {"pages": [{"image_id": "8a29fc03-28d7-4c95-8397-e96f4ec2224d-1",
+                          "page": 1, "page_width": 2125, "page_height": 2750,
+                          "lines": [
         {"type": "math", "text": r"\\[ x^2 \\]"},
         {"type": "equation_number", "text": "(1)"}]}]}
     lines.write_text(json.dumps(mathpix), encoding="utf-8")
@@ -184,7 +190,8 @@ def test_the_backup_is_never_overwritten_by_a_second_run(tmp_path, monkeypatch):
                    '{"type": "math", "text": "THE PAID ONE"}]}]}',
                    encoding="utf-8")
     (d / "paper.lines.json").write_text(
-        '{"pages": [{"page": 1, "lines": ['
+        '{"pages": [{"image_id": "8a29fc03-28d7-4c95-8397-e96f4ec2224d-1",'
+        ' "page": 1, "page_width": 2125, "page_height": 2750, "lines": ['
         '{"type": "math", "text": "a later reading"}]}]}', encoding="utf-8")
     monkeypatch.setattr(
         "pdfreader.docmodel_six.build", lambda *a, **kw: (_ for _ in ()).throw(
