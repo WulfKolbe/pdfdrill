@@ -2072,3 +2072,30 @@ it calls. The editable install hid this — its path hook exposes the whole of
 module. `pdfreader`, `mathlayer`, `mathgold` and `passes` are **also** absent
 from that list and were deliberately left alone: they predate this task, and
 what a wheel should carry for them is a separate measurement.
+
+### Where the reader's file lands (audited 2026-10-28)
+
+The coordinator's clone audit of 2b raised it, and it is a cwd artifact rather
+than a defect. `cli` defaults `--out` to `./<stem>/`; pdfdrill looks for
+`<stem>.lines.json` beside the PDF. Measured both ways through the installed
+script:
+
+| cwd and command | file written | beside the PDF? |
+|---|---|---|
+| library root, `pdf2mmd2 1702.06385/1702.06385.pdf` | `1702.06385/1702.06385.lines.json` | **yes, no copy** |
+| a loose PDF, `pdf2mmd2 1702.06385.pdf` | `1702.06385/1702.06385.lines.json` | no, one level down |
+
+The library's layout IS `<name>/<name>.pdf` (the dropped `drillcheck.py`
+documented exactly that), so the manual route over the library needs no copy.
+The default is not changed, for the same reason `--refine` is not injected: the
+caller's `--out` is the caller's. The fix is a pdfdrill layer that runs the
+reader and names the path, not a cleverer default; until then a loose PDF takes
+`--out .`.
+
+Still open from the same audit: a lines.json with `source` REMOVED still builds
+a model (exit 0), so 2d rule 5 is not enforced. That is the `""` entry in
+`_TYPED_GEOMETRY_SOURCES` and it is pinned, deliberately, by
+`test_an_undeclared_file_passes_only_through_the_loophole` — the behaviour is
+recorded as a hole rather than left to be discovered. Closing it waits on the
+owner's decision about the 168 legacy files (stamp them, or detect the producer
+from content at read time).

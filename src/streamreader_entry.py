@@ -34,6 +34,22 @@ whose `total_pages` key I had written by hand; the reader writes `source` and
 `pages` and nothing else. The number survived re-measurement, the condition had
 been left out.
 
+WHERE THE FILE LANDS, and why that is not changed here either. `cli` defaults
+`--out` to `./<stem>/`, and pdfdrill looks for `<stem>.lines.json` BESIDE the
+PDF. Those agree whenever the document sits in a folder named after it, which is
+the library's own layout (`<name>/<name>.pdf`) — measured both ways:
+
+    cd <library>   pdf2mmd2 1702.06385/1702.06385.pdf  -> 1702.06385/1702.06385.lines.json
+                                                          beside the PDF, no copy
+    cd <tmp>       pdf2mmd2 1702.06385.pdf             -> 1702.06385/1702.06385.lines.json
+                                                          one level down from the PDF
+
+So the mismatch is an artifact of standing next to a loose PDF, not of the
+reader. The default is left alone for the same reason `--refine` is not
+injected: the caller's `--out` is the caller's. The fix is not a cleverer
+default but a pdfdrill layer that runs the reader and names the path itself;
+until then a loose PDF takes `--out .`.
+
 The reader writes `{"pages": [...]}` and nothing else (`runner.py:180`), so its
 file declares no source at all. It cleared `inspect`'s geometry prerequisite
 anyway — through the `""` entry in `commands._TYPED_GEOMETRY_SOURCES`, which
