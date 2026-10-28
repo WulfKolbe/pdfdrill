@@ -104,3 +104,10 @@ dist/
 /data/*.chars.json
 /data/*.tex.zip
 /data/*.tgz
+
+# ENGINEERING 2c (owner, 2026-10-27): a run's or an acceptance's outputs live in
+# `work/<task>/<what>-<date>/`, and worktrees in `.worktrees/<branch>/` — not in
+# `/tmp` ("The /tmp is not a location for me!!") and nothing loose in `~`. Both
+# are products of a run, never sources, so neither is committed.
+work/
+.worktrees/
