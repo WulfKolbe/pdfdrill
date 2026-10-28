@@ -2274,3 +2274,112 @@ A sibling discriminator already existed and was left alone:
 `mathpix_conformance.reference_for` separates MathPix's own reading from ours by
 looking for `deferred_glyphs`, a field MathPix has no concept of. Same idea,
 different evidence, narrower job (it picks a conformance reference, not a lane).
+
+## The gate had a blind side: the planner refused and the consumer read anyway (2026-10-28)
+
+The coordinator's audit of `6c8e3891` found it, and it reproduces: on a reading
+whose producer cannot be named, `pdfdrill steps inspect` correctly names the
+paid step — and `pdfdrill model <pdf> --no-source` exits 0 and builds the whole
+model from it. Measured on the library's `1707.00189` reading with its page
+frame turned to floats: 317 objects, and the report said **"1 equations carry a
+MathPix CDN image"** — a CDN crop claimed from a reading whose regions are in
+PDF points. The wrong-frame hazard the gate exists to prevent, arriving through
+the gate's own blind side. `pdfdrill inspect` then rendered 308 elements from it.
+
+So the rule is one rule in two places: the planner says the prerequisite is
+unsatisfied, and `model` refuses to build. `cmd_model` now returns
+`Report(refusal, EXIT_LANE_NOT_RUN)` — exit 3, the status the owner chose in
+2026-10-21 for "a lane was reported and not run", for the same reason: the
+command promises a model and there is none, and a caller should not have to
+parse prose to find that out.
+
+### The refusal names the file and the missing evidence, not a generic complaint
+
+    $ pdfdrill model 1707.00189.pdf --no-source
+    1707.00189.lines.json declares no producer and its content identifies none,
+    so pdfdrill will not build a model from it: its page size is written as a
+    float, which is PDF points — a page-pixel frame is written as an integer,
+    and every consumer of this reading's regions expects pixels.
+    … and the two shapes that WOULD identify it, then `glyphlines` (free),
+      `gemmaocr` (metered), `mathpix` (paid, never run for you)
+    exit=3
+
+`_unidentified_lines_reason` returns the specific failing half — nothing
+readable, no typed line in the first three pages, or a float page frame.
+
+### Writing the refusal first would have refused 75 of the owner's PAID readings
+
+This is the measurement that changed the design, and it is the reason to count
+before coding. The refusal set is "readings whose `_lines_source` is ''", and
+over the library that was **76** — not the 2 the earlier counts implied. Of
+those 76, **75 carry MathPix's UUID `image_id` AND an integer pixel frame**:
+they are genuine MathPix conversions. The detector was failing them on its
+line-type half, which looks at the first three pages — and a book opens with a
+cover, a title page and a colophon, all plain `text`. Among them: *A Primer of
+Analytic Number Theory* (13 MB), *An Invitation to Applied Category Theory*
+(15 MB), *Entropy and Diversity* (17 MB), `Geometric_topology` (18.8 MB),
+`dmoi4` (22 MB), `BirgitRichter_book` (12 MB), `Baker12PhD` (4.9 MB).
+
+The defect was mine, in the ORDER of the evidence: **who wrote a file and what
+the file can do are two questions.** An id is provenance and is conclusive on
+its own; the line types are a capability, and `_is_typed_geometry_lines` asks
+them separately. `_detect_lines_source` now tests the ids FIRST and does not
+require the line types to name a producer, so:
+
+| | |
+|---|---|
+| typed geometry | unchanged — the line types are still required there |
+| is-MathPix | unchanged — it still asks for the line types too |
+| `_lines_source` | now names the producer of 75 more readings |
+| `model` refuses | **1** reading, the 0-byte `2308.06374/mmd-out/` file |
+
+Both gates were re-measured over all 1,811 readings against the `6c8e3891`
+baseline to confirm the first two rows rather than argue them.
+
+### Deliberately narrower than the geometry gate
+
+A DECLARED keyless reader (`pdfminer-chars`, 174 readings; `tesseract`, 8) fails
+the geometry gate because its regions are points, and it is still a legal input
+to `model` — that is the merged route, where the author's LaTeX supplies the
+mathematics. What `model` refuses is a reading that names nobody AND shows
+nothing. Every reading it refuses is already refused by the geometry gate; the
+converse does not hold, and that asymmetry is the point.
+
+### Recorded, not fixed: 75 paid readings are still not PROTECTED as MathPix
+
+`_is_mathpix_lines` is `_lines_source(...) == "mathpix"` **and**
+`_has_mathpix_line_types(...)`, so those 75 books still answer False to the
+money question — as they did before any of this. Dropping the line-type half
+there would protect them (a displaced reading would be parked as
+`<stem>.mathpix.bak.json` instead of overwritten, which only ever adds
+protection), but it also feeds `prefers_merged_route`, so it would change the
+ROUTE CHOICE on 75 real documents. That is a decision, not a cleanup, so it is
+measured and left for the owner.
+
+### Also recorded: the cheap probe does not make the gate cheap
+
+`_lines_probe` reads 8 KB from each end, but `_has_mathpix_line_types` still
+does `read_text()` + `json.loads` on the WHOLE file — up to 22 MB here, 4.9 GB
+across the library. That is unchanged from before (both detectors always called
+it), so it is not a regression, but the gate is only as cheap as its most
+expensive half, and the id tests now short-circuit ahead of it for every
+identified reading.
+
+### Eight more tests the gate caught, which is the rule having teeth
+
+`test_folder`, `test_tiddler_update` (six tests) and `test_codelisting_bibkey`
+each build a model from a stand-in reading written
+
+    {"pages": [{"page": 1, "image_id": "i",
+                "lines": [{"type": "text", ...}]}]}
+
+— no declared source, an `image_id` that is neither a UUID nor the document's
+stem, and no typed line anywhere. They stand for "some reading exists", not for
+a particular reader, and nothing in them was ever about provenance.
+
+An undeclared text-only reading is not a real shape: over the library's 1,811
+readings the only one is a 0-byte file, because every real text reader declares
+itself (`pdfminer-chars` 174, `pdfminer-docmodel` 171, `tesseract` 8). So each
+fixture now declares `pdfminer-docmodel`, with that measurement in a comment
+beside it. The gate finding them is the rule working — a fixture that could not
+exist on disk was standing in for one that can.

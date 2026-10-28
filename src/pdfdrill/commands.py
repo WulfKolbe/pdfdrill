@@ -1844,16 +1844,27 @@ def _detect_lines_source(lines_path: Path) -> str:
     head, tail = _lines_probe(lines_path)
     if not head:
         return ""
-    if not _has_mathpix_line_types(lines_path):
-        return ""                         # no typed geometry: nothing to claim
-    if not (_PIXEL_PAGE_WIDTH.search(head) or _PIXEL_PAGE_WIDTH.search(tail)):
-        return ""                         # a float page size means PDF points
+    # AN ID IS PROVENANCE AND IT IS CONCLUSIVE ON ITS OWN. This is ordered the
+    # way it is because the first version asked for the line types FIRST, and
+    # that refused 75 of the library's MathPix readings: `_has_mathpix_line_types`
+    # looks at the first three pages, and a book opens with a cover, a title
+    # page and a colophon, which carry plain `text`. All 75 carry MathPix's UUID
+    # and a pixel frame — they were measured, not argued about. Who wrote a file
+    # and what the file can do are two questions, and the line types answer the
+    # second one (`_is_typed_geometry_lines` asks them separately, so neither
+    # gate's answer moves because of this ordering).
     if _MATHPIX_IMAGE_ID.search(head):
         return "mathpix"
     stem = lines_path.name[:-len(".lines.json")] if \
         lines_path.name.endswith(".lines.json") else lines_path.stem
     if re.search(r'"image_id"\s*:\s*"' + re.escape(stem) + r'-\d+"', head):
         return "mathpix-shaped"
+    # No id to go on, so the only evidence left is the shape of the reading
+    # itself, and both halves are needed: MathPix's line types IN a pixel frame.
+    if not _has_mathpix_line_types(lines_path):
+        return ""                         # no typed geometry: nothing to claim
+    if not (_PIXEL_PAGE_WIDTH.search(head) or _PIXEL_PAGE_WIDTH.search(tail)):
+        return ""                         # a float page size means PDF points
     return "mathpix"
 
 
@@ -1863,6 +1874,75 @@ def _lines_source(lines_path: Path) -> str:
     One place, so the gates cannot disagree about the same file.
     """
     return _lines_json_source(lines_path) or _detect_lines_source(lines_path)
+
+
+def _unidentified_lines_reason(lines_path: Path) -> str:
+    """Why `_lines_source` cannot name this reading's producer, in the words the
+    refusal prints. '' when it CAN be named, and '' when there is no file.
+
+    The specific missing piece, not a generic complaint: a person who is told
+    "it declares nothing" learns nothing they could not see, while "its page
+    size is a float, which is PDF points" names the thing to change.
+    """
+    if not lines_path.exists() or _lines_source(lines_path):
+        return ""
+    head, tail = _lines_probe(lines_path)
+    if not head:
+        try:
+            size = lines_path.stat().st_size
+        except OSError:
+            return "nothing could be read from it"
+        return "nothing could be read from it (%d bytes)" % size
+    if not _has_mathpix_line_types(lines_path):
+        return ("no line in its first three pages carries a typed line "
+                "(math, equation_number, simple_cell, page_info, "
+                "table_spanning_cell), so there is no typed geometry to read")
+    if not (_PIXEL_PAGE_WIDTH.search(head) or _PIXEL_PAGE_WIDTH.search(tail)):
+        return ("its page size is written as a float, which is PDF points — a "
+                "page-pixel frame is written as an integer, and every consumer "
+                "of this reading's regions expects pixels")
+    return "its content matches no reader pdfdrill knows"
+
+
+def _refuse_unidentified_lines(pdf: Path, lines_path: Path) -> "str | None":
+    """The refusal `model` prints, or None when the reading can be named.
+
+    ENGINEERING 2d rule 5, the half the first pass missed. Closing the `""`
+    entry in `_TYPED_GEOMETRY_SOURCES` put the refusal in the PLANNER — `steps
+    inspect` names the paid step — and the consuming command walked past it:
+    `model` exited 0 and built the whole model from a reading whose producer
+    could not be named, reporting "1 equations carry a MathPix CDN image" for a
+    reading whose regions are in PDF points. The wrong-frame hazard the gate
+    exists to prevent, arriving through the gate's own blind side. Found by the
+    coordinator's audit of 6c8e3891.
+
+    The refusal is deliberately NARROWER than the geometry gate. A DECLARED
+    keyless reader (`pdfminer-chars`, `tesseract`) fails that gate because its
+    regions are points, and it is still a legal input to `model` — the merged
+    route, where the author's LaTeX supplies the mathematics. What is refused
+    here is a reading that names nobody and shows nothing: measured over the
+    library's 1,811 readings, that is 1 file (a 0-byte one), and every reading
+    it refuses is already refused by the geometry gate.
+    """
+    reason = _unidentified_lines_reason(lines_path)
+    if not reason:
+        return None
+    return (
+        "%s declares no producer and its content identifies none, so pdfdrill "
+        "will not build a model from it: %s.\n"
+        "\n"
+        "A reading is read because it is identified, not because it is silent "
+        "(ENGINEERING 2d rule 5). Either of these identifies one:\n"
+        "  * a top-level `source` key naming the reader — "
+        "`{\"source\": \"pdf2mmd2\", \"pages\": [...]}`\n"
+        "  * MathPix's own shape — an `image_id` of `<uuid>-<page>`, or one "
+        "built from the document's stem, on pages framed in pixels\n"
+        "\n"
+        "To get one: `pdfdrill glyphlines %s` (free, offline, declares "
+        "`pdfminer-docmodel`), `pdfdrill gemmaocr %s` (metered), or `pdfdrill "
+        "mathpix %s` (paid, and never run for you). Moving this file aside "
+        "leaves `model` to read the PDF itself."
+        % (lines_path.name, reason, pdf.name, pdf.name, pdf.name))
 
 
 # A "junky" filename stem that makes a poor tiddler prefix: a long leading
@@ -6208,6 +6288,18 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
         stale = _source_model_trap(sc, lines_path)
     if sc.has(MODEL_BUILT) and model_path.exists() and not force and not stale:
         return _format_model(sc, built=False)      # 576 — say it was a no-op
+
+    # 2d rule 5, the consumer's half: a reading whose producer cannot be named
+    # is not built from. AFTER the no-op return on purpose — a model that
+    # already exists is still reported, because this refuses a BUILD, not a
+    # model that predates the rule. Every internal rebuild (`_stale_or_absent`
+    # ... `cmd_model(pdf)`, about twenty call sites) comes through here, so the
+    # gate is in one place; those callers then report "No model for X (run
+    # `pdfdrill model` first)", and running it prints this.
+    refused = _refuse_unidentified_lines(pdf, lines_path)
+    if refused is not None:
+        from .cli import EXIT_LANE_NOT_RUN, Report
+        return Report(refused, EXIT_LANE_NOT_RUN)
 
     # A lines.json from a WEAKER source must not shadow a better one forever. The
     # whole acquisition chain below is gated on "no lines.json yet", so a doc that

@@ -47,7 +47,17 @@ def test_load_bibtex_attaches_and_creates():
     assert "Smith" in smith.props["author"]
 
 
+#: 2d rule 5 (2026-10-28): `model` refuses a reading whose producer it cannot
+#: name, so a stand-in reading has to name one. These fixtures stand for "some
+#: reading exists", not for a particular reader, and an UNDECLARED text-only
+#: reading is not a real shape anyway — measured over the library's 1,811
+#: readings, the only one is a 0-byte file; every real text reader declares
+#: itself (`pdfminer-chars` 174, `pdfminer-docmodel` 171, `tesseract` 8).
+_READER = "pdfminer-docmodel"            # our own glyph reader, page pixels
+
+
 _LINES = {
+    "source": _READER,
     "pages": [{
         "page": 1, "image_id": "img1", "page_height": 1000, "page_width": 800,
         "lines": [

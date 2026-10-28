@@ -151,8 +151,26 @@ def test_a_point_frame_reading_that_declares_nothing_is_refused(tmp_path):
     assert not _is_mathpix_lines(p)
 
 
-def test_a_reading_with_no_typed_lines_is_refused(tmp_path):
+def test_an_identified_reading_with_no_typed_lines_is_named_but_not_admitted(tmp_path):
+    """The two questions, kept apart — and the reason the id is tested FIRST.
+
+    Asking for the line types before the id refused 75 of the library's MathPix
+    readings, measured: `_has_mathpix_line_types` looks at the first three pages
+    and a book opens with a cover, a title page and a colophon, all plain
+    `text`. All 75 carry MathPix's UUID and a pixel frame. So an id identifies
+    the PRODUCER on its own, while the line types decide what the reading can
+    DO — and the geometry gate still says no here."""
     p = _write(tmp_path, "doc", {"pages": [_page("doc-1", 1, kinds=("text",))]})
+    assert _detect_lines_source(p) == "mathpix-shaped"   # who wrote it
+    assert not _is_typed_geometry_lines(p)               # what it can do
+    assert not _is_mathpix_lines(p)
+
+
+def test_a_reading_with_neither_an_id_nor_typed_lines_is_refused(tmp_path):
+    """With no id to go on, the shape of the reading is the only evidence left,
+    and both halves are then required."""
+    p = _write(tmp_path, "doc", {"pages": [_page("whoever-1", 1,
+                                                 kinds=("text",))]})
     assert _detect_lines_source(p) == ""
     assert not _is_typed_geometry_lines(p)
 
