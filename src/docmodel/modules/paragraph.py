@@ -76,6 +76,12 @@ class ParagraphProcessor(BaseModule):
         current: Optional[dict[str, Any]] = None
         current_page: Optional[int] = None
         in_abstract = False
+        # DOES THIS READING TYPE ITS ABSTRACT? It decides which fence closes
+        # the abstract below, and it is a property of the READER, not of the
+        # document, so it is answered once.
+        typed_abstract = any(
+            (stream.payload.get(a) or {}).get("type") == "abstract"
+            for a in stream.anchors)
 
         def flush() -> None:
             nonlocal current
@@ -97,7 +103,23 @@ class ParagraphProcessor(BaseModule):
             if ltype == "abstract":
                 in_abstract = True
                 flush()
+                self.bump("lines_typed_abstract")
                 continue
+
+            # WHERE A READING TYPES ITS ABSTRACT, THE TYPE IS THE FENCE AT BOTH
+            # ENDS. `in_abstract` was latched on above and cleared only by
+            # `_ABSTRACT_END` — the literal `\end{abstract}`, which only a
+            # reading carrying LaTeX markup contains. MathPix types its
+            # abstract as plain `text`, so the regex released the latch and in
+            # the corpus this was written against the bug could not appear. The
+            # glyph reader DOES type it, and the first such line then shut the
+            # paragraph builder for the rest of the document: measured on the
+            # owner's sensors-15-23763, `lines_skipped_inside_an_abstract` 874,
+            # 4 Paragraph objects holding 460 of the reading's 69,566 prose
+            # characters, a 66 KB markdown file down to 9 KB. Exactly the three
+            # documents of the 15 with typed abstracts lost their text.
+            if typed_abstract and in_abstract:
+                in_abstract = False
 
             # 811 — a line the ListProcessor already folded into a ListItem is
             # not prose. 248 broke the paragraph on the `list_item` CONTAINER,
@@ -137,13 +159,16 @@ class ParagraphProcessor(BaseModule):
             if in_abstract:
                 # Skip while inside an abstract block.
                 flush()
+                self.bump("lines_skipped_inside_an_abstract")
                 continue
 
             if ltype in _BREAK_TYPES:
                 flush()
+                self.bump("lines_of_a_breaking_type")
                 continue
             if ltype not in _PROSE_TYPES:
                 flush()
+                self.bump("lines_of_a_non_prose_type")
                 continue
 
             # Skip a "title" line whose only content is the literal word

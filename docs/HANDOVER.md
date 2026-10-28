@@ -2526,3 +2526,67 @@ place of a refused `mathpix`. The message now names it and the operator runs it.
 Making `--ensure` substitute means auto-running a reader that rewrites an
 existing `lines.json`, which is a decision about the owner's data, not a
 cleanup.
+
+## A typed `abstract` line swallowed the rest of the paper (2026-10-28)
+
+Re-reading the owner's 15 YACCLAB papers with the free glyph reader fixed their
+structure — `section_header` 0 → 1..35, `list_item` 0 → 12..215 — and three of
+them came out with a markdown file a sixth of its former size. The correlation
+over the batch is exact: the three with typed `abstract` lines lost their text,
+the twelve without kept it.
+
+| folder | abstract lines | text lines | Paragraph | md KB |
+|---|---|---|---|---|
+| sensors-15-23763 | 14 | 704 | **4** | 9 |
+| 2016acivs | 5 | 213 | **1** | 6 |
+| 2019caip_labeling | 22 | 469 | **1** | 6 |
+| the other twelve | 0 | 261..996 | 30..126 | 26..91 |
+
+It is real loss, not paragraph merging, and that was checked before anything was
+changed: sensors' reading holds **69,566** prose characters and its model's
+Paragraph objects held **460** (all objects together 1,765). 2018jrtip, with no
+typed abstract, holds 51,364 and kept 52,245.
+
+### The mechanism, and why the corpus could never show it
+
+`ParagraphProcessor` sets `in_abstract = True` on a line typed `abstract` and
+clears it only through `_ABSTRACT_END` — the literal `\end{abstract}`, which
+only a reading carrying LaTeX markup contains. **MathPix types its abstract as
+plain `text`**, so in the corpus this was written against the regex always
+released the latch and the bug was unreachable. The glyph reader TYPES the
+abstract, so the first such line shut the paragraph builder for the whole
+document.
+
+The fix is to believe the type when the reading provides it: `typed_abstract` is
+answered once per reading, and where it holds, a non-abstract line clears the
+latch. The regex ladder stays for readings that do not type an abstract — that
+population's answers do not move.
+
+    sensors-15-23763    4 Paragraph →  49,  11,746 words
+    2016acivs           1 Paragraph →  24
+    2019caip_labeling   1 Paragraph →  65
+
+### What hid it for a day: a loop that reported nothing
+
+`[ParagraphProcessor] {'paragraphs_created': 4}` was the entire account of 704
+lines. Three `continue` paths had no counter at all, so there was no number
+anywhere saying lines had been dropped, let alone why — the
+silent-partial-success shape `_format_math_capture`'s own docstring warns about.
+Every silent path now counts itself:
+
+    lines_skipped_inside_an_abstract   lines_of_a_breaking_type
+    lines_typed_abstract               lines_of_a_non_prose_type
+
+On sensors the defect now reads straight off one line of output
+(`lines_skipped_inside_an_abstract: 874`) instead of needing a measurement
+campaign. That counter is the part worth keeping.
+
+### A test that lied twice before it worked
+
+The first version asserted a Paragraph COUNT and failed its own control: 60
+consecutive prose lines legitimately merge into two paragraphs, so the count
+measured the merger, not the defect. The second searched the whole model FILE
+for the body text — and the model embeds the reading's line payloads, so every
+sentence was "present" while no Paragraph had been built from it, and the test
+passed against the live defect. It asserts text coverage inside the model's own
+objects, which is what the defect destroys.
