@@ -153,6 +153,17 @@ commands:
     help: re-read, replacing an existing lines.json (including MathPix's)
   typed: true
   done_when: file:{stem}.lines.json
+  # It writes `pdfminer-docmodel`, which IS typed geometry (measured on
+  # 2018jrtip: a 2067x2923 PIXEL frame, 1172 typed lines — 11 math, 128
+  # list_item, 12 code, 7 section_header — where the chars route gives 1240
+  # untyped ones). `done_when` stays the weaker file test because 5 of 40
+  # sampled pdfminer-docmodel readings carry no typed-family line in their
+  # first three pages, so the stronger condition would call a successful run
+  # unfinished. This field is what lets the planner offer it in place of a
+  # PAID command: without it, a missing `lines:typed-geometry` named only
+  # `mathpix` and `gemmaocr`, and 16 documents were told to pay for what this
+  # does for free (owner, 2026-10-28).
+  also_satisfies: lines:typed-geometry
 - name: profile
   section: Introspection (fast, no extraction)
   summary: 'What is ON each page, and on what evidence — the triage layer (781o). Counting

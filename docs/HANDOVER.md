@@ -2436,3 +2436,93 @@ parametrised command-line pair). The detector test was verified red against
 command-line test cannot be made red that way, because it deliberately ignores
 the parent's environment and runs the installed script — which is the property
 that makes it worth having, so its red evidence is the run above instead.
+
+## The fresh clone was innocent: a free command satisfied a paid prerequisite and was never named (2026-10-28)
+
+The owner drilled the 15 YACCLAB papers (bib.txt refs [2], [4], [9], [13],
+[17], [21]–[24], [26], [29], [31]–[33], [35]) plus `dorst2005conformal` with a
+fresh clone and reported two symptoms: no LaTeX in the markdown, and wrong
+geometry. Both are real. Neither was the clone.
+
+### What the clone was accused of, and the measurement that cleared it
+
+The build stamp in those models reads `19e097d1`, `dirty: true` — the
+2026-10-21 commit *"the free lane was behind an extra, and the fresh install
+never built the fork"*, so the install-side defect was already fixed there. And
+the hypothesis was testable directly: the same command on this machine, with
+the patched pdfminer and all 349 packages, produces the same file.
+
+    $ pdfdrill drill 2016icpr.pdf            # this machine, every extra
+    source 'pdfminer-chars'   frame 595.28 POINTS   types {'text': 274}
+    # ser7's fresh clone: identical
+
+`hasattr(LTChar, "glyphname")` is False here too — it is an INSTANCE attribute,
+so that probe was never the discriminator it looks like. Checked, not assumed.
+
+### What actually happened: two free readers, and `drill` takes the weaker one
+
+`drill` → `cmd_model(pdf)` with no reader → step 2 of the acquisition chain,
+`_write_born_digital_lines`, which writes `pdfminer-chars`: PDF POINTS, untyped.
+The glyph reader is only reached by naming it. On the owner's own `2018jrtip.pdf`:
+
+| free reader | source | frame | lines |
+|---|---|---|---|
+| `drill`'s default | `pdfminer-chars` | 595.28 × 841.89 points | 1240, all `text` + 1 `math` |
+| `pdfdrill glyphlines` | `pdfminer-docmodel` | **2067 × 2923 pixels** | **1172 typed** — 11 math, 128 list_item, 12 code, 7 section_header, 2 title, 15 authors, 65 rotated_text |
+
+So "the geometry is wrong" is the points frame, and `pdfminer-chars` is excluded
+from `_TYPED_GEOMETRY_SOURCES` for exactly that reason. The free fix existed the
+whole time.
+
+### The defect, and it has a price
+
+`lines:typed-geometry` is satisfiable by three commands:
+
+    mathpix     done_when: lines:typed-geometry        PAID
+    gemmaocr    done_when: lines:typed-geometry        metered
+    glyphlines  done_when: file:{stem}.lines.json      FREE, offline
+
+`planner.equivalent_commands` grouped satisfiers by **string equality** of
+`done_when`, so the free command never joined the class, and every missing-
+prerequisite message named only the two that cost money — for all 16 documents.
+Fixed by letting a command declare `also_satisfies`, grouping on what commands
+satisfy rather than on one spelling, and listing free alternatives first and
+marked free:
+
+    mathpix (paid — run `pdfdrill mathpix` yourself; or `pdfdrill glyphlines`
+    (free, offline), `pdfdrill gemmaocr`, which satisfies the same prerequisite)
+
+**Why `glyphlines`' own `done_when` was NOT changed to the condition.** Sampled
+over 40 of the library's `pdfminer-docmodel` readings, 35 carry a typed-family
+line in their first three pages and **5 do not**, so the stronger condition
+would report `glyphlines` unfinished on about an eighth of documents after a
+perfect run. A command declares what it ALSO satisfies instead.
+
+### A test that protected the omission
+
+`test_paid_lane_guards.py::test_commands_that_satisfy_the_same_condition_are_known_to_be_alternatives`
+asserted `alts["mathpix"] == {"mathpix", "gemmaocr"}` — the MEMBERSHIP on the
+day it was written — while its own first sentence states the requirement
+("which command produces it is the operator's choice"). The membership was
+wrong, and exact equality then held it wrong. Rewritten to assert the
+requirement. This is the second recorded instance of the shape:
+`test_pdfminer_fork_survives_pip.py` pinned 905o's mechanism and passed while a
+fresh clone had no fork at all.
+
+### What is still true about the markdown
+
+`glyphlines` fixes the frame and the typing; it does NOT produce math LaTeX.
+Across the 15 papers the markdown holds 661 KB of text, 40 `math` lines and 40
+display blocks, and 6 of the 15 have no math at all — these are algorithm and
+benchmark papers. LaTeX needs `visionocr` (keyless, delegated) or `mathpix`
+(paid); the free author-LaTeX lane does not exist for them, as none is an arXiv
+e-print.
+
+### Recorded, not fixed: `--ensure` still cannot substitute the free command
+
+`planner.ensure` runs the missing OFFLINE prerequisites and skips the paid ones;
+it does not consult `equivalent_commands`, so it will not run `glyphlines` in
+place of a refused `mathpix`. The message now names it and the operator runs it.
+Making `--ensure` substitute means auto-running a reader that rewrites an
+existing `lines.json`, which is a decision about the owner's data, not a
+cleanup.

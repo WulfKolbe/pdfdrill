@@ -320,11 +320,33 @@ def test_the_report_is_prose_a_person_can_read():
 def test_commands_that_satisfy_the_same_condition_are_known_to_be_alternatives():
     """`requires` names what a layer READS; which command produces it is the
     operator's choice. `mathpix` and `gemmaocr` both end with a typed,
-    geometry-bearing reading beside the PDF."""
+    geometry-bearing reading beside the PDF — and so does `glyphlines`, for
+    free and offline.
+
+    This test used to assert `== {"mathpix", "gemmaocr"}`, which pinned the
+    MEMBERSHIP of the class on the day it was written instead of the
+    requirement its own first sentence states. The membership was wrong:
+    `glyphlines` writes `pdfminer-docmodel`, which passes the very detector
+    `lines:typed-geometry` names, and it was left out only because
+    `equivalent_commands` compared the SPELLING of each command's `done_when`.
+    The exact-equality assertion then protected the omission — 16 documents
+    were drilled on the weaker free reader and the prerequisite message sent
+    the owner to a paid lane (2026-10-28). Same shape as
+    `test_pdfminer_fork_survives_pip.py`, which locked in 905o's mechanism and
+    passed while a fresh clone had no fork at all.
+
+    So: assert the requirement. Every command that satisfies the condition is
+    in the class, and the free one is in it."""
     from pdfdrill.planner import equivalent_commands, load_manifest
-    alts = equivalent_commands(load_manifest())
-    assert alts.get("mathpix") == {"mathpix", "gemmaocr"}
-    assert alts.get("gemmaocr") == {"mathpix", "gemmaocr"}
+    man = load_manifest()
+    alts = equivalent_commands(man)
+    satisfy = {c["name"] for c in man["commands"]
+               if "lines:typed-geometry" in {c.get("done_when"),
+                                             c.get("also_satisfies")}}
+    assert satisfy >= {"mathpix", "gemmaocr", "glyphlines"}
+    for name in satisfy:
+        assert alts.get(name) == satisfy, name
+    assert "glyphlines" in alts["mathpix"], "the free lane must be reachable"
 
 
 def test_a_missing_paid_prerequisite_names_the_cheaper_alternative(tmp_path):

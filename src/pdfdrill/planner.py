@@ -437,9 +437,16 @@ def equivalent_commands(manifest: dict) -> dict:
     """
     by_cond: dict = {}
     for c in manifest.get("commands", []):
-        cond = c.get("done_when")
-        if cond:
-            by_cond.setdefault(cond, set()).add(c["name"])
+        # `done_when` is what the command FINISHES with; `also_satisfies` is a
+        # further condition it meets. Grouping on `done_when` alone compared
+        # two commands by the SPELLING of their condition, so `glyphlines`
+        # (`file:{stem}.lines.json`, free and offline) never joined `mathpix`
+        # and `gemmaocr` (`lines:typed-geometry`) although its reading passes
+        # that very detector. The consequence had a price: a missing
+        # prerequisite named only the two commands that cost money.
+        for cond in (c.get("done_when"), c.get("also_satisfies")):
+            if cond:
+                by_cond.setdefault(cond, set()).add(c["name"])
     out: dict = {}
     for names in by_cond.values():
         for n in names:
@@ -459,7 +466,17 @@ def describe(target: str, pdf: Path) -> str:
     def _tag(c):
         if c not in paid:
             return c
-        other = sorted(alts.get(c, set()) - {c})
+        # FREE FIRST, AND SAID TO BE FREE. The alternatives were listed in
+        # name order with no price on them, so `gemmaocr` (metered) read the
+        # same as `glyphlines` (free, offline) and the cheapest lane was the
+        # one nobody could see. 16 documents were drilled on the weaker free
+        # reader and this message sent the owner to a paid one (2026-10-28).
+        _net = {x["name"]: bool(x.get("network")) for x in man["commands"]}
+        other = sorted(alts.get(c, set()) - {c},
+                       key=lambda o: (bool(_net.get(o, False)), o))
+        other = ["`pdfdrill %s`%s" % (o, "" if _net.get(o, False)
+                                      else " (free, offline)")
+                 for o in other]
         if other:
             # NAME THE ALTERNATIVE. Two commands can satisfy one `done_when`
             # — `mathpix` buys a typed reading and `gemmaocr` reads one with a
@@ -469,7 +486,7 @@ def describe(target: str, pdf: Path) -> str:
             # mentions. `requires` names what a layer READS; which command
             # produces it is the operator's choice.
             return (f"{c} (paid — run `pdfdrill {c}` yourself; or "
-                    f"{', '.join('`pdfdrill %s`' % o for o in other)}, which "
+                    f"{', '.join(other)}, which "
                     f"satisfies the same prerequisite)")
         return f"{c} (paid — run `pdfdrill {c}` yourself)"
     return (f"`{target}` for {pdf.name} would run, in order:\n  "
