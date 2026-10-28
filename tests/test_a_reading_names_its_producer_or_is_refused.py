@@ -133,6 +133,39 @@ def test_a_reading_that_names_mathpix_is_treated_as_bought(tmp_path):
     assert _is_typed_geometry_lines(p)
 
 
+def test_an_id_never_vouches_for_the_FRAME(tmp_path):
+    """The regression the coordinator's audit of d2185ac3 found, both shapes.
+
+    Letting an id excuse the LINE-TYPE half was right — it is what stopped 75 of
+    the library's MathPix books being refused for opening with a cover page.
+    Letting an id excuse the FRAME test as well was a different claim and a
+    wrong one: an id says who wrote a file, and only the file says what
+    coordinate system it is in. Our own readers write BOTH frames (pdf2mmd2
+    pixels, pdfminer-* points), so a stem-shaped id on a float frame was
+    admitted as `mathpix-shaped` with typed geometry True — point regions served
+    as pixel geometry, the hazard this gate exists to stop.
+
+    No library file has this shape (stem ids with a float frame), which is why
+    it takes a plant and why the library counts did not move. The audit tested
+    the stem case; the UUID case below is the same hole one step further on, and
+    it was admitted as a PAID reading too.
+    """
+    for label, image_id in (("ours", "doc-1"), ("MathPix's", f"{UUID}-1")):
+        p = _write(tmp_path, "doc",
+                   {"pages": [_page(image_id, 1, width=2125.5, height=2750.5)]})
+        assert _detect_lines_source(p) == "", label
+        assert not _is_typed_geometry_lines(p), label
+        assert not _is_mathpix_lines(p), label
+
+
+def test_the_integer_frame_still_admits_both_id_shapes(tmp_path):
+    """The converse, so the fix cannot pass by refusing everything."""
+    p = _write(tmp_path, "doc", {"pages": [_page(f"{UUID}-1", 1)]})
+    assert _detect_lines_source(p) == "mathpix"
+    p = _write(tmp_path, "doc", {"pages": [_page("doc-1", 1)]})
+    assert _detect_lines_source(p) == "mathpix-shaped"
+
+
 # --- what is refused: the loophole, turned around --------------------------
 
 def test_the_empty_source_is_gone_from_the_gate():

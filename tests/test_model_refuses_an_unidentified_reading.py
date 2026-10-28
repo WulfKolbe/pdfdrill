@@ -173,3 +173,34 @@ def test_the_refusal_reaches_the_command_line(tmp_path):
     assert r.returncode != 0, r.stdout[-2000:]
     assert "1707.00189.lines.json" in r.stdout + r.stderr
     assert not (pdf.parent / "model.docmodel.json").exists()
+
+
+@pytest.mark.parametrize("image_id,label", [
+    ("1707.00189-001", "stem-shaped ids — one of our own readers"),
+    ("8a29fc03-28d7-4c95-8397-e96f4ec2224d-1", "a UUID — MathPix's own pdf_id"),
+])
+def test_a_float_frame_is_refused_on_the_command_line(tmp_path, image_id, label):
+    """The audit's plant for d2185ac3, through the installed console script.
+
+    An id identifies the producer; it says nothing about the coordinate system.
+    Our own readers write both frames (pdf2mmd2 pixels, pdfminer-* points), so
+    a float page size on a stem-shaped id was being served as pixel geometry.
+    The UUID row is the same hole one step on — it was admitted as a PAID
+    reading as well. No library file has either shape, which is why it takes a
+    plant: the library counts do not move, and the defect is still real.
+    """
+    script = _console_script()
+    if script is None:
+        pytest.skip("NOT RUN: no `pdfdrill` console script beside %s"
+                    % sys.executable)
+    pdf = _doc(tmp_path, _reading(None, image_id=image_id,
+                                 width=2125.5, height=2750.5))
+    env = {"HOME": os.environ.get("HOME", ""), "PATH": os.environ["PATH"],
+           "PDFDRILL_SANDBOX": "1", "PDFDRILL_NO_PREFLIGHT": "1",
+           "PYTHONDONTWRITEBYTECODE": "1"}
+    r = subprocess.run([str(script), "model", pdf.name, "--no-source"],
+                       cwd=str(pdf.parent), env=env,
+                       capture_output=True, text=True, timeout=300)
+    assert r.returncode != 0, "%s: %s" % (label, r.stdout[-1500:])
+    assert "points" in r.stdout + r.stderr, label
+    assert not (pdf.parent / "model.docmodel.json").exists(), label

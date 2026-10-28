@@ -1844,27 +1844,40 @@ def _detect_lines_source(lines_path: Path) -> str:
     head, tail = _lines_probe(lines_path)
     if not head:
         return ""
-    # AN ID IS PROVENANCE AND IT IS CONCLUSIVE ON ITS OWN. This is ordered the
-    # way it is because the first version asked for the line types FIRST, and
+    # THE FRAME IS NEVER TAKEN ON TRUST — not even from an id. What an id may
+    # excuse is the LINE-TYPE half, and only that.
+    #
+    # The first version of this function asked for the line types first, and
     # that refused 75 of the library's MathPix readings: `_has_mathpix_line_types`
-    # looks at the first three pages, and a book opens with a cover, a title
-    # page and a colophon, which carry plain `text`. All 75 carry MathPix's UUID
-    # and a pixel frame — they were measured, not argued about. Who wrote a file
-    # and what the file can do are two questions, and the line types answer the
-    # second one (`_is_typed_geometry_lines` asks them separately, so neither
-    # gate's answer moves because of this ordering).
+    # looks at the first three pages, and a book opens with a cover, a title page
+    # and a colophon, which carry plain `text`. All 75 carry MathPix's UUID and
+    # a pixel frame. So who wrote a file and what the file can do are two
+    # questions, and an id answers only the first.
+    #
+    # The fix for that then let an id skip the FRAME test too, which is a
+    # different claim and a wrong one. The coordinator's audit of d2185ac3 found
+    # it with a plant no library file has: stem-shaped ids on a float page
+    # frame, admitted as `mathpix-shaped` with typed geometry True — point
+    # regions served as pixel geometry, the exact hazard this gate exists to
+    # stop. Their diagnosis is right and it generalises one step further than
+    # they tested: a UUID id plus a float frame was admitted the same way, and
+    # as a PAID reading on top. An id says who wrote a file; only the file says
+    # what frame it is in. Measured, the test costs nothing: every reading this
+    # function identifies across the library carries an integer page size.
+    if not (_PIXEL_PAGE_WIDTH.search(head) or _PIXEL_PAGE_WIDTH.search(tail)):
+        return ""                         # a float page size means PDF points
     if _MATHPIX_IMAGE_ID.search(head):
-        return "mathpix"
+        return "mathpix"                  # MathPix's own `pdf_id`
     stem = lines_path.name[:-len(".lines.json")] if \
         lines_path.name.endswith(".lines.json") else lines_path.stem
     if re.search(r'"image_id"\s*:\s*"' + re.escape(stem) + r'-\d+"', head):
+        # Ours — and ours write BOTH frames (pdf2mmd2 pixels, pdfminer-* points),
+        # which is why the frame above had to be checked for this branch too.
         return "mathpix-shaped"
-    # No id to go on, so the only evidence left is the shape of the reading
-    # itself, and both halves are needed: MathPix's line types IN a pixel frame.
+    # No id to go on, so the shape of the reading is the only evidence left and
+    # both halves are then required.
     if not _has_mathpix_line_types(lines_path):
         return ""                         # no typed geometry: nothing to claim
-    if not (_PIXEL_PAGE_WIDTH.search(head) or _PIXEL_PAGE_WIDTH.search(tail)):
-        return ""                         # a float page size means PDF points
     return "mathpix"
 
 

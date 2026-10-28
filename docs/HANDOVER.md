@@ -2383,3 +2383,56 @@ itself (`pdfminer-chars` 174, `pdfminer-docmodel` 171, `tesseract` 8). So each
 fixture now declares `pdfminer-docmodel`, with that measurement in a comment
 beside it. The gate finding them is the rule working — a fixture that could not
 exist on disk was standing in for one that can.
+
+### An id says who wrote a file; only the file says what frame it is in
+
+The coordinator's audit of `d2185ac3` found the regression the previous fix
+introduced, with a plant no library file has: **stem-shaped ids on a float page
+frame**. It was admitted as `mathpix-shaped` with typed geometry True — point
+regions served as pixel geometry, which is the hazard this gate exists to stop.
+Under the committed code the report said it in so many words:
+
+    $ pdfdrill model 1707.00189.pdf --no-source        # ids 1707.00189-001,
+                                                       # page 2125.5 x 2750.5
+    Built unified model: 316 objects … 1 equations are located in OUR
+    coordinate system (the reading's own page pixels, source='mathpix-shaped')
+    exit=0
+
+"the reading's own page pixels" about a float page size. Their diagnosis is
+right: letting an id excuse the LINE-TYPE half is what saved the 75 books, but
+letting it excuse the FRAME test is a different claim. A UUID is MathPix's and
+MathPix always writes pixels; a stem-shaped id only says "one of ours", and ours
+write BOTH frames — pdf2mmd2 pixels, `pdfminer-*` points.
+
+**It generalises one step further than the audit tested.** A UUID id on a float
+frame was admitted the same way, and as a PAID reading on top
+(`_is_mathpix_lines` True). So the rule is not "the stem branch needs the frame"
+but **the frame is never taken on trust, from any id**; what an id may excuse is
+the line-type half, and only that. Measured, the uniform test costs nothing:
+every reading the detector identifies across the library carries an integer page
+size.
+
+Six shapes, measured through the detector after the fix:
+
+| reading | `_lines_source` | typed geometry | is-MathPix | `model` |
+|---|---|---|---|---|
+| stem id, integer frame (pdf2mmd2's own) | `mathpix-shaped` | yes | no | builds |
+| stem id, **float** frame (the audit's plant) | `''` | no | no | **refused** |
+| UUID, **float** frame (the second shape) | `''` | no | no | **refused** |
+| UUID, integer frame (real MathPix) | `mathpix` | yes | yes | builds |
+| UUID, integer frame, no typed line (a book's cover) | `mathpix` | no | no | builds |
+| no id, float frame | `''` | no | no | **refused** |
+
+The fifth row is the 75 books, still identified — the line-type exemption is
+intact, and the geometry gate still declines them, which is the two questions
+staying apart.
+
+**Why the library counts cannot show this, and what does instead.** No library
+file has stem ids with a float frame, so every count was identical before and
+after — the audit's point exactly. What catches it is a plant, and the test now
+carries both plants (`test_an_id_never_vouches_for_the_FRAME`, and the
+parametrised command-line pair). The detector test was verified red against
+`d2185ac3` by running it with that commit's `commands.py` on `PYTHONPATH`; the
+command-line test cannot be made red that way, because it deliberately ignores
+the parent's environment and runs the installed script — which is the property
+that makes it worth having, so its red evidence is the run above instead.
