@@ -25,9 +25,38 @@ def _modules():
     return sorted(PKG.glob("**/*.py"))
 
 
+#: 213, not pdf2mmd2's 214: `drillcheck.py` is not here. Step 2b dropped it,
+#: and `INVENTORY.md` had already decided "drop" for it in step 1 — it asked
+#: "does pdfdrill accept what pdf2mmd2 writes?", a question that stops existing
+#: once the reader IS pdfdrill's. It also made the suite red, by
+#: defaulting twice into the owner's own checkout where T-0078 forbids it. The
+#: path is not spelled here, for the reason the rule exists: this file is inside
+#: its own scope, and writing it out once made the suite red a second time —
+#: measured. That could not be fixed in place: the file is byte-locked to
+#: pdf2mmd2@5190249 by the tests below, and T-0078's own allowlist "may only
+#: shrink", so there was no edit and no exemption to reach for. The two
+#: contracts only collide on a file that should never have been ported.
+MOVED_MODULES = 213
+
+
 def test_the_package_is_here_and_whole():
     mods = _modules()
-    assert len(mods) == 214, f"expected 214 moved modules, found {len(mods)}"
+    assert len(mods) == MOVED_MODULES, (
+        f"expected {MOVED_MODULES} moved modules, found {len(mods)}")
+
+
+def test_the_development_tools_that_were_dropped_are_gone():
+    """A dropped module must not come back with the next sync from pdf2mmd2.
+
+    `drillcheck` is the one dropped so far, and it is named here rather than in
+    a comment because a decision no test holds is a decision that gets undone
+    by a future `cp -r`.
+    """
+    assert not (PKG / "drillcheck.py").is_file(), (
+        "src/streamreader/drillcheck.py is back; it was dropped in T-0045 step 2b")
+    namers = [p.relative_to(ROOT) for p in _modules()
+              if "drillcheck" in p.read_text(encoding="utf-8")]
+    assert not namers, f"the reader still reaches for drillcheck: {namers}"
 
 
 def test_every_module_names_its_source_commit():

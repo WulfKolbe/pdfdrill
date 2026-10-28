@@ -1975,3 +1975,100 @@ still get a full budget each, so the machine can still see 32 gs. A lock-file
 slot pool was proposed and left out of this change because it is the only part
 that can deadlock a batch and it needs its own failure mode for a holder that
 dies (gemma4-ba agreed).
+
+## The reader had no front door, and its output said nothing about itself (T-0045 step 2b, 2026-10-28)
+
+`src/streamreader/` arrived in step 2a as 214 modules nothing calls. Two things
+were missing before it could be a producer under ENGINEERING 2d ("pdf2mmd2,
+glyphdrill and Gemma should produce lines.json formated output and not interfere
+with docmodel data"):
+
+**No installed entry point.** `pyproject.toml` declared one console script,
+`pdfdrill`. Nothing a user could type produced the reader's lines.json. Now
+`pdf2mmd2 = "streamreader_entry:main"`.
+
+**No declared source.** The reader writes `{"pages": [...]}` and nothing else
+(`runner.py`, `_write_json(lines_json, {"pages": pages}, …)`). It cleared
+`inspect`'s geometry prerequisite anyway — through the `""` entry in
+`commands._TYPED_GEOMETRY_SOURCES`, which that tuple's own docstring calls an
+accident of "168 legacy files that forgot to declare a top-level source".
+`streamreader_entry` runs the reader unchanged and then writes
+`"source": "pdf2mmd2"` as the file's first key.
+
+### The number, and the flag it needs
+
+Measured through the installed entry point on 1702.06385 (9 pages, 170 maths
+objects, every one carrying the author's LaTeX), each arm in a fresh directory,
+then `pdfdrill model`:
+
+| lines.json beside the PDF | lines | maths boxed | matched + interpolated |
+|---|---|---|---|
+| none — pdfdrill reads the PDF itself | — | 30 of 170 | 45 + 62 |
+| `pdf2mmd2 <pdf>` (default warm-up, tsv) | 1029 | 31 of 170 | 56 + 59 |
+| `pdf2mmd2 <pdf> --refine` (glyph route) | 955 | 40 of 170 | 65 + 68 |
+
+**The stamp is worth +10 with `--refine` and +1 without.** The default warm-up
+reads poppler's text layer, which is the same ink pdfdrill already reads for
+itself; `--refine` patches the lines from the page's own glyphs (33471 glyphs,
+0 unassigned, agreement_min 0.9106, 0.6 s for 9 pages). The entry point does
+**not** inject `--refine`: a front door that quietly adds a flag the caller did
+not type is the worse defect. Any pdfdrill layer that comes to run the reader
+should pass it, and this table is the reason.
+
+A correction: `docs/t-0080/ITEM3-JOIN-DESIGN.md` first quoted the 40 as the
+reader's number without naming `--refine`, taken from a roll-up whose
+`total_pages` key had been written by hand. The number survived re-measurement;
+the condition had been left out. Both documents now carry the three arms.
+
+### Why the stamp is not inside the reader
+
+Every module under `src/streamreader/` is byte-identical to pdf2mmd2@5190249
+apart from a 4-line stamp, and `tests/test_streamreader_provenance.py` holds it
+there — including `test_stripping_the_stamp_reproduces_the_source_bytes`, which
+passes against the checkout, so all 213 modules are verified, not just claimed.
+pdfdrill-side behaviour therefore cannot live in the package. `streamreader_entry`
+is a module **beside** it, and the boundary is now a test in both directions
+(`tests/test_the_reader_boundary_holds_both_ways.py`): the reader imports nothing
+from pdfdrill's side, and only the entry point may name the reader. Imports are
+read from the AST, because `mathpix`, `linetypes` and `compare` are module names
+that exist on both sides and a text search answers a different question.
+
+### `drillcheck.py` is gone, and that is what turned the suite green
+
+213 modules, not 214. It asked "does pdfdrill accept what pdf2mmd2 writes?" — a
+question that stops existing once the reader IS pdfdrill's, and `INVENTORY.md`
+had already decided "drop" for it in step 1. It was also the single failing test
+on this branch: it defaulted twice into the owner's own checkout, which T-0078
+forbids. Neither contract could give way — the file is byte-locked, and
+T-0078's allowlist "may only shrink" — so the collision only existed on a file
+that should never have been ported. `test_the_development_tools_that_were_dropped_are_gone`
+now keeps it from returning with the next sync.
+
+### What was NOT deleted, measured rather than assumed
+
+The relayed step-2b scope said to delete `inkboxes`, `linescompare` and
+`structure` "where production needs none of them". Measured:
+
+| module | importers |
+|---|---|
+| `src/pdfreader/structure.py` | `docmodel_six.py` (6 sites), `project_mmd.py` |
+| `src/pdfreader/inkboxes.py` | `docmodel_six.py:4057` |
+| `src/pdfreader/linescompare.py` | **none, anywhere** |
+
+`docmodel_six` and `project_mmd` are what `src/pdfdrill/commands.py` imports, so
+`structure` and `inkboxes` are production dependencies and **stay**. They are
+also pdfdrill's own 2026-09-30 absorption of pdf2mmd v1, not pdf2mmd2's code,
+so 2d does not reach them at all. `linescompare` has no importer, but it is one
+of the three comparators `INVENTORY.md` decided to **merge into one**; deleting
+an input to a merge that has not happened loses the code the merge was supposed
+to harvest, so it stays too, recorded here instead.
+
+### Packaging: the editable install was hiding a hole
+
+`[tool.setuptools.packages.find]`'s `include` list never named `streamreader*`,
+so a built wheel would have shipped the new console script without the package
+it calls. The editable install hid this — its path hook exposes the whole of
+`src/`, so `import streamreader` worked. Added, with `py-modules` for the entry
+module. `pdfreader`, `mathlayer`, `mathgold` and `passes` are **also** absent
+from that list and were deliberately left alone: they predate this task, and
+what a wheel should carry for them is a separate measurement.

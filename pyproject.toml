@@ -127,6 +127,13 @@ fontid = [
 
 [project.scripts]
 pdfdrill = "pdfdrill.cli:main"
+# T-0045 / ENGINEERING 2d: the reader is a producer of lines.json, so it has a
+# front door of its own. Without one, nothing a user types produces its output
+# and the reader is unreachable from outside the repo. `streamreader_entry`
+# runs `streamreader.cli` unchanged and stamps the `source` the reader's format
+# has no field for; it sits outside the package because every module in
+# `src/streamreader/` is byte-identical to pdf2mmd2@5190249 by test.
+pdf2mmd2 = "streamreader_entry:main"
 
 # WHICH FILES ARE "THE SUITE". Without `testpaths`, a bare `python3 -m pytest`
 # from the root walks the whole tree and collected ONE file `pytest tests/`
@@ -141,7 +148,19 @@ testpaths = ["tests"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["pdfdrill*", "docmodel*", "docops*", "features*", "semantic*", "vocabnet*"]
+# `streamreader*` is here because `pdf2mmd2` above is a console script: a
+# non-editable install would ship the script and not the package it calls.
+# The editable install hid that -- its path hook exposes the whole of `src/`,
+# so `import streamreader` worked while a built wheel would not have carried it.
+include = ["pdfdrill*", "docmodel*", "docops*", "features*", "semantic*", "vocabnet*",
+           "streamreader*"]
+
+[tool.setuptools]
+# The reader's entry point is a single module, not a package, so `find` above
+# cannot see it. (`pdfreader`, `mathlayer`, `mathgold` and `passes` are also
+# absent from `include` and are NOT addressed here: they predate this task and
+# removing them from a wheel is a separate measurement.)
+py-modules = ["streamreader_entry"]
 
 [tool.setuptools.package-data]
 # the bundled font-category table (offline; built by tools/build_font_categories.py),

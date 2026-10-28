@@ -13,14 +13,27 @@ return to separate repositories. This design assumes their reading.
 `pdfdrill model` on 1702.06385, keyless, author's LaTeX present on all 170 maths
 objects (that is 59018c8e):
 
-| lines.json beside the PDF | maths objects boxed |
-|---|---|
-| none — pdfdrill builds its own, source `pdfminer-chars` | **30 of 170** |
-| pdf2mmd2's reader, source stamped `pdf2mmd2` | **40 of 170** |
+| lines.json beside the PDF | lines | maths objects boxed | matched + interpolated |
+|---|---|---|---|
+| none — pdfdrill builds its own, source `pdfminer-chars` | — | **30 of 170** | 45 + 62 |
+| `pdf2mmd2 <pdf>` — the reader's default warm-up (tsv) | 1029 | **31 of 170** | 56 + 59 |
+| `pdf2mmd2 <pdf> --refine` — the glyph route | 955 | **40 of 170** | 65 + 68 |
 
-The 30 reproduces the number pdfdrill-pdf2mmd2-migration measured independently,
-so the 40 is trustworthy. **The source switch is worth +10 and the remaining 130
-are the join.**
+The 30 reproduces the number pdfdrill-pdf2mmd2-migration measured independently.
+
+**Corrected 2026-10-28, re-measured through the installed `pdf2mmd2` entry
+point** (step 2b): the +10 holds only with `--refine`. This page first quoted
+the 40 as the reader's number without naming the flag, from a roll-up whose
+`total_pages` key I had written by hand while stamping a source onto a file that
+declares none; the real reader writes `source` and `pages` and nothing else. The
+default warm-up reads poppler's text layer — the same ink pdfdrill already reads
+for itself — and is worth **+1**. `--refine` patches the lines from the page's
+own glyphs (33471 glyphs, 0 unassigned, agreement_min 0.9106, 0.6 s for 9
+pages), and is worth **+10**.
+
+**So the join still has 130 to answer for, and whoever runs the reader must pass
+`--refine`.** The entry point does not pass it for them: a front door that
+quietly adds a flag the caller did not type is the worse defect.
 
 ## Why 130 miss, measured not assumed
 
