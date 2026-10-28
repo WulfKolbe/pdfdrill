@@ -21,6 +21,15 @@ from pdfdrill.svg import is_latex_graphic, compile_to_svg
 
 # ---------------- ISSUE 1: svg guard ----------------
 
+#: 2d rule 5 (2026-10-28): `model` refuses a reading whose producer it cannot
+#: name, so a stand-in reading has to name one. These fixtures stand for "some
+#: reading exists", not for a particular reader, and an UNDECLARED text-only
+#: reading is not a real shape anyway — measured over the library's 1,811
+#: readings, the only one is a 0-byte file; every real text reader declares
+#: itself (`pdfminer-chars` 174, `pdfminer-docmodel` 171, `tesseract` 8).
+_READER = "pdfminer-docmodel"            # our own glyph reader, page pixels
+
+
 def test_is_latex_graphic_rejects_code_accepts_graphics():
     assert not is_latex_graphic("")
     assert not is_latex_graphic("```\nfunction f()\nend\n```")        # fenced
@@ -118,7 +127,8 @@ def test_bibkey_threads_and_persists():
     with tempfile.TemporaryDirectory() as d:
         d = Path(d)
         pdf = d / "AKolbe-BA.pdf"; pdf.write_bytes(b"%PDF-1.4\n")
-        (d / "AKolbe-BA.lines.json").write_text(json.dumps({"pages": [
+        (d / "AKolbe-BA.lines.json").write_text(json.dumps(
+            {"source": _READER, "pages": [
             {"page": 1, "image_id": "i", "lines": [
                 {"id": "l1", "type": "text", "text": "Hello world.",
                  "text_display": "Hello world."}]}]}))

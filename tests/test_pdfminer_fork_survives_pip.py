@@ -83,18 +83,27 @@ def _has_glyph_identity():
 
 
 def test_the_patched_build_is_the_one_installed():
-    """Not a style check: stock pdfminer imports fine and silently drops the
-    glyph name, which is why this is asserted on the FEATURE."""
-    if not _has_glyph_identity():
-        pytest.skip("no patched pdfminer on this interpreter "
-                    "(vendor/install-pdfminer-fork.sh --user --rebuild)")
+    """FAILS when the fork is absent. It used to SKIP, which is the whole
+    problem: a missing fork is a broken install, and a suite that skips past it
+    reports green on an installation whose glyph-identity features silently
+    return nothing. An audit found exactly that — the documented install ended
+    with stock pdfminer and this file said nothing. Stock pdfminer imports fine
+    and drops the glyph name, so the assertion is on the FEATURE, not the import.
+    """
+    assert _has_glyph_identity(), (
+        "this interpreter has stock pdfminer, not the glyph-identity fork: "
+        "`LTChar.glyphname` is absent, so docmodel_six and the born-digital "
+        "reader silently lose every glyph name. `bash bootstrap.sh` now builds "
+        "it, or run `bash vendor/install-pdfminer-fork.sh --here --rebuild` "
+        "(use --here inside a venv; --user cannot work there).")
     assert _installed("pdfminer.six"), "patched pdfminer has no distribution metadata"
 
 
 def test_the_patched_version_satisfies_pdfplumbers_pin():
     """The property that makes it survive. Without it the next pip run wins."""
-    if not _has_glyph_identity():
-        pytest.skip("no patched pdfminer on this interpreter")
+    assert _has_glyph_identity(), (
+        "no patched pdfminer on this interpreter — see "
+        "test_the_patched_build_is_the_one_installed")
     pin = _pdfplumber_pin()
     if pin is None:
         pytest.skip("pdfplumber does not pin pdfminer.six exactly on this install")

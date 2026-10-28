@@ -1,0 +1,20 @@
+%!PS
+% "x =" a/b with a drawn fraction bar, then y with a raised 2, then a long
+% rule across the page (not a fraction bar).
+/Helvetica findfont 12 scalefont setfont
+100 700 moveto (x =) show
+130 708 moveto (a) show
+130 692 moveto (b) show
+0.4 setlinewidth
+128 704 moveto 140 704 lineto stroke
+160 700 moveto (y) show
+/Helvetica findfont 8 scalefont setfont
+167 705 moveto (2) show
+0.5 setlinewidth
+72 600 moveto 540 600 lineto stroke
+% a filled rectangle used as a rule, and a thick box that is no rule
+200 650 30 0.5 rectfill
+300 640 30 20 rectfill
+% a rule the way dvips draws one: a one-pixel image mask, scaled
+gsave 400 650 translate 30 0.4 scale 1 1 true [1 0 0 1 0 0] {<80>} imagemask grestore
+showpage

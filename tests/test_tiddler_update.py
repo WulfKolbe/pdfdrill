@@ -29,6 +29,15 @@ from docops.projectors.tiddlywiki import (
 # merge_updated_tiddlers — unit level
 # ---------------------------------------------------------------------------
 
+#: 2d rule 5 (2026-10-28): `model` refuses a reading whose producer it cannot
+#: name, so a stand-in reading has to name one. These fixtures stand for "some
+#: reading exists", not for a particular reader, and an UNDECLARED text-only
+#: reading is not a real shape anyway — measured over the library's 1,811
+#: readings, the only one is a 0-byte file; every real text reader declares
+#: itself (`pdfminer-chars` 174, `pdfminer-docmodel` 171, `tesseract` 8).
+_READER = "pdfminer-docmodel"            # our own glyph reader, page pixels
+
+
 def _pair(fresh_extra=None, old_extra=None, title="DOC_PARA_0001"):
     fresh = {"title": title, "text": "fresh text", "created": "1", "modified": "1"}
     old = {"title": title, "text": "old text", "created": "1", "modified": "1"}
@@ -271,7 +280,7 @@ def test_cmd_tiddlers_update_end_to_end():
         d = Path(d)
         pdf = d / "doc651.pdf"
         pdf.write_bytes(b"%PDF-1.4\n")
-        (d / "doc651.lines.json").write_text(json.dumps({"pages": [
+        (d / "doc651.lines.json").write_text(json.dumps({"source": _READER, "pages": [
             {"page": 1, "image_id": "i", "lines": [
                 {"id": "l1", "type": "text",
                  "text": "German prose here.",
@@ -343,7 +352,7 @@ def test_cmd_tiddlers_update_missing_file_reports_cleanly():
         d = Path(d)
         pdf = d / "doc651b.pdf"
         pdf.write_bytes(b"%PDF-1.4\n")
-        (d / "doc651b.lines.json").write_text(json.dumps({"pages": [
+        (d / "doc651b.lines.json").write_text(json.dumps({"source": _READER, "pages": [
             {"page": 1, "image_id": "i", "lines": [
                 {"id": "l1", "type": "text", "text": "hi", "text_display": "hi"}]}]}))
         cmd_model(pdf, bibkey="doc651b")
@@ -364,7 +373,7 @@ def test_cmd_tiddlers_update_bad_json_still_writes_the_fresh_file():
         d = Path(d)
         pdf = d / "doc651c.pdf"
         pdf.write_bytes(b"%PDF-1.4\n")
-        (d / "doc651c.lines.json").write_text(json.dumps({"pages": [
+        (d / "doc651c.lines.json").write_text(json.dumps({"source": _READER, "pages": [
             {"page": 1, "image_id": "i", "lines": [
                 {"id": "l1", "type": "text", "text": "hi", "text_display": "hi"}]}]}))
         cmd_model(pdf, bibkey="doc651c")
@@ -539,7 +548,7 @@ def test_unguarded_is_surfaced_end_to_end_through_cmd_tiddlers():
         d = Path(d)
         pdf = d / "doc651u.pdf"
         pdf.write_bytes(b"%PDF-1.4\n")
-        (d / "doc651u.lines.json").write_text(json.dumps({"pages": [
+        (d / "doc651u.lines.json").write_text(json.dumps({"source": _READER, "pages": [
             {"page": 1, "image_id": "i", "lines": [
                 {"id": "l1", "type": "text", "text": "German prose here.",
                  "text_display": "German prose here."}]}]}))
@@ -586,7 +595,7 @@ def test_sidecar_state_is_recorded_even_when_update_path_is_bad():
         d = Path(d)
         pdf = d / "doc651s.pdf"
         pdf.write_bytes(b"%PDF-1.4\n")
-        (d / "doc651s.lines.json").write_text(json.dumps({"pages": [
+        (d / "doc651s.lines.json").write_text(json.dumps({"source": _READER, "pages": [
             {"page": 1, "image_id": "i", "lines": [
                 {"id": "l1", "type": "text", "text": "hi", "text_display": "hi"}]}]}))
         cmd_model(pdf, bibkey="doc651s")
@@ -613,7 +622,7 @@ def test_sidecar_state_is_recorded_when_update_json_is_bad():
         d = Path(d)
         pdf = d / "doc651t.pdf"
         pdf.write_bytes(b"%PDF-1.4\n")
-        (d / "doc651t.lines.json").write_text(json.dumps({"pages": [
+        (d / "doc651t.lines.json").write_text(json.dumps({"source": _READER, "pages": [
             {"page": 1, "image_id": "i", "lines": [
                 {"id": "l1", "type": "text", "text": "hi", "text_display": "hi"}]}]}))
         cmd_model(pdf, bibkey="doc651t")

@@ -93,6 +93,13 @@ def run(
     # page-image PIXELS served from cdn.mathpix.com; a pdfminer lines.json (our
     # DRILLPDFse route) carries regions in PDF POINTS served from OUR local
     # pyramid. No mixing — each source stays in its own coordinate system.
+    # The default stays "mathpix" and is deliberately NOT the content detector
+    # in `pdfdrill.commands`: 2d says docmodel is pdfdrill's to write, and
+    # docmodel does not import pdfdrill. The consequence is a divergence worth
+    # knowing about — for an undeclared reading of our own, the sidecar's
+    # `lines_source` evidence now says "mathpix-shaped" where this says
+    # "mathpix" — recorded in HANDOVER rather than papered over, because the
+    # value here selects a COORDINATE SYSTEM and both names mean pixels.
     doc.meta["source"] = declared_source(lines_json) or "mathpix"
     # 575 — the code that decided this object graph. Written once, here, and
     # never overwritten by a later save: an enrichment pass changes props, not

@@ -1975,3 +1975,464 @@ still get a full budget each, so the machine can still see 32 gs. A lock-file
 slot pool was proposed and left out of this change because it is the only part
 that can deadlock a batch and it needs its own failure mode for a holder that
 dies (gemma4-ba agreed).
+
+## The reader had no front door, and its output said nothing about itself (T-0045 step 2b, 2026-10-28)
+
+`src/streamreader/` arrived in step 2a as 214 modules nothing calls. Two things
+were missing before it could be a producer under ENGINEERING 2d ("pdf2mmd2,
+glyphdrill and Gemma should produce lines.json formated output and not interfere
+with docmodel data"):
+
+**No installed entry point.** `pyproject.toml` declared one console script,
+`pdfdrill`. Nothing a user could type produced the reader's lines.json. Now
+`pdf2mmd2 = "streamreader_entry:main"`.
+
+**No declared source.** The reader writes `{"pages": [...]}` and nothing else
+(`runner.py`, `_write_json(lines_json, {"pages": pages}, …)`). It cleared
+`inspect`'s geometry prerequisite anyway — through the `""` entry in
+`commands._TYPED_GEOMETRY_SOURCES`, which that tuple's own docstring calls an
+accident of "168 legacy files that forgot to declare a top-level source".
+`streamreader_entry` runs the reader unchanged and then writes
+`"source": "pdf2mmd2"` as the file's first key.
+
+### The number, and the flag it needs
+
+Measured through the installed entry point on 1702.06385 (9 pages, 170 maths
+objects, every one carrying the author's LaTeX), each arm in a fresh directory,
+then `pdfdrill model`:
+
+| lines.json beside the PDF | lines | maths boxed | matched + interpolated |
+|---|---|---|---|
+| none — pdfdrill reads the PDF itself | — | 30 of 170 | 45 + 62 |
+| `pdf2mmd2 <pdf>` (default warm-up, tsv) | 1029 | 31 of 170 | 56 + 59 |
+| `pdf2mmd2 <pdf> --refine` (glyph route) | 955 | 40 of 170 | 65 + 68 |
+
+**The stamp is worth +10 with `--refine` and +1 without.** The default warm-up
+reads poppler's text layer, which is the same ink pdfdrill already reads for
+itself; `--refine` patches the lines from the page's own glyphs (33471 glyphs,
+0 unassigned, agreement_min 0.9106, 0.6 s for 9 pages). The entry point does
+**not** inject `--refine`: a front door that quietly adds a flag the caller did
+not type is the worse defect. Any pdfdrill layer that comes to run the reader
+should pass it, and this table is the reason.
+
+A correction: `docs/t-0080/ITEM3-JOIN-DESIGN.md` first quoted the 40 as the
+reader's number without naming `--refine`, taken from a roll-up whose
+`total_pages` key had been written by hand. The number survived re-measurement;
+the condition had been left out. Both documents now carry the three arms.
+
+### Why the stamp is not inside the reader
+
+Every module under `src/streamreader/` is byte-identical to pdf2mmd2@5190249
+apart from a 4-line stamp, and `tests/test_streamreader_provenance.py` holds it
+there — including `test_stripping_the_stamp_reproduces_the_source_bytes`, which
+passes against the checkout, so all 213 modules are verified, not just claimed.
+pdfdrill-side behaviour therefore cannot live in the package. `streamreader_entry`
+is a module **beside** it, and the boundary is now a test in both directions
+(`tests/test_the_reader_boundary_holds_both_ways.py`): the reader imports nothing
+from pdfdrill's side, and only the entry point may name the reader. Imports are
+read from the AST, because `mathpix`, `linetypes` and `compare` are module names
+that exist on both sides and a text search answers a different question.
+
+### `drillcheck.py` is gone, and that is what turned the suite green
+
+213 modules, not 214. It asked "does pdfdrill accept what pdf2mmd2 writes?" — a
+question that stops existing once the reader IS pdfdrill's, and `INVENTORY.md`
+had already decided "drop" for it in step 1. It was also the single failing test
+on this branch: it defaulted twice into the owner's own checkout, which T-0078
+forbids. Neither contract could give way — the file is byte-locked, and
+T-0078's allowlist "may only shrink" — so the collision only existed on a file
+that should never have been ported. `test_the_development_tools_that_were_dropped_are_gone`
+now keeps it from returning with the next sync.
+
+### What was NOT deleted, measured rather than assumed
+
+The relayed step-2b scope said to delete `inkboxes`, `linescompare` and
+`structure` "where production needs none of them". Measured:
+
+| module | importers |
+|---|---|
+| `src/pdfreader/structure.py` | `docmodel_six.py` (6 sites), `project_mmd.py` |
+| `src/pdfreader/inkboxes.py` | `docmodel_six.py:4057` |
+| `src/pdfreader/linescompare.py` | **none, anywhere** |
+
+`docmodel_six` and `project_mmd` are what `src/pdfdrill/commands.py` imports, so
+`structure` and `inkboxes` are production dependencies and **stay**. They are
+also pdfdrill's own 2026-09-30 absorption of pdf2mmd v1, not pdf2mmd2's code,
+so 2d does not reach them at all. `linescompare` has no importer, but it is one
+of the three comparators `INVENTORY.md` decided to **merge into one**; deleting
+an input to a merge that has not happened loses the code the merge was supposed
+to harvest, so it stays too, recorded here instead.
+
+### Packaging: the editable install was hiding a hole
+
+`[tool.setuptools.packages.find]`'s `include` list never named `streamreader*`,
+so a built wheel would have shipped the new console script without the package
+it calls. The editable install hid this — its path hook exposes the whole of
+`src/`, so `import streamreader` worked. Added, with `py-modules` for the entry
+module. `pdfreader`, `mathlayer`, `mathgold` and `passes` are **also** absent
+from that list and were deliberately left alone: they predate this task, and
+what a wheel should carry for them is a separate measurement.
+
+### Where the reader's file lands (audited 2026-10-28)
+
+The coordinator's clone audit of 2b raised it, and it is a cwd artifact rather
+than a defect. `cli` defaults `--out` to `./<stem>/`; pdfdrill looks for
+`<stem>.lines.json` beside the PDF. Measured both ways through the installed
+script:
+
+| cwd and command | file written | beside the PDF? |
+|---|---|---|
+| library root, `pdf2mmd2 1702.06385/1702.06385.pdf` | `1702.06385/1702.06385.lines.json` | **yes, no copy** |
+| a loose PDF, `pdf2mmd2 1702.06385.pdf` | `1702.06385/1702.06385.lines.json` | no, one level down |
+
+The library's layout IS `<name>/<name>.pdf` (the dropped `drillcheck.py`
+documented exactly that), so the manual route over the library needs no copy.
+The default is not changed, for the same reason `--refine` is not injected: the
+caller's `--out` is the caller's. The fix is a pdfdrill layer that runs the
+reader and names the path, not a cleverer default; until then a loose PDF takes
+`--out .`.
+
+Still open from the same audit: a lines.json with `source` REMOVED still builds
+a model (exit 0), so 2d rule 5 is not enforced. That is the `""` entry in
+`_TYPED_GEOMETRY_SOURCES` and it is pinned, deliberately, by
+`test_an_undeclared_file_passes_only_through_the_loophole` — the behaviour is
+recorded as a hole rather than left to be discovered. Closing it waits on the
+owner's decision about the 168 legacy files (stamp them, or detect the producer
+from content at read time).
+
+## A reading is read because it is identified, not because it is silent (2d rule 5, 2026-10-28)
+
+`_TYPED_GEOMETRY_SOURCES` began with `""`, so a lines.json that named no
+producer passed the geometry gate for naming nothing. Its own docstring called
+that an accident. The owner's decision (option 4a, relayed by
+pdfdrill-pdf2mmd2-migration): **pdfdrill identifies those readings from their
+content at read time and writes nothing into the library.** The alternative was
+to stamp a `source` onto every one of them — editing the owner's corpus so a
+test would pass.
+
+### First, the size of the thing, because three numbers were in circulation
+
+| source of the number | says |
+|---|---|
+| `_is_typed_geometry_lines`' docstring | 168 legacy files |
+| `_TYPED_GEOMETRY_SOURCES`' docstring | 1,579 of 1,747 readings |
+| **measured 2026-10-28, 1,811 readings** | **1,452 declare nothing** |
+
+Closing `""` without a detector would have refused four readings in five.
+
+### What the content says — all measured before any of it was coded
+
+* **MathPix names a converted PDF with a UUID** (its `pdf_id`) and builds every
+  `image_id` as `<pdf_id>-<page>`. **1,450 of the 1,452** undeclared readings
+  carry that shape, and **no** reading that declares a source carries it.
+  Nothing of ours generates a UUID — our writers use the document's stem.
+* **An integer `page_width` is a pixel frame; a float is PDF points.** The split
+  is total: 1,451 of 1,451 parseable undeclared readings are integers, every
+  point-frame reader in the library writes a float (612.0, 595.28).
+* **No size threshold**, deliberately: 11 undeclared readings have a page under
+  1000 px, 9 of them long scanned books whose smallest page is 816 px, so a
+  "big enough to be pixels" test would refuse real MathPix readings.
+
+Two undeclared readings are outside the UUID rule: one 0-byte file
+(`2308.06374/mmd-out/`, refused before this change too) and
+`texbook-appendix-g-generating-boxes`, whose ids name the document — one of our
+own readers, from before they declared anything.
+
+### The result, measured over all 1,811 readings
+
+| gate | old → new |
+|---|---|
+| typed geometry | **0 answers changed** — 1,438 admitted before and after, 373 refused before and after |
+| is-MathPix | **1 answer changed** — `texbook-appendix-g-generating-boxes`, True → False |
+
+So the loophole closes with **no reading lost**, and every admission is now a
+positive identification instead of an absence.
+
+### The one changed answer is a defect being fixed
+
+`_is_mathpix_lines` read "has no `source` key" as the evidence of a PURCHASE.
+That is true of 1,450 readings and false of our own earliest output, so pdfdrill
+called a file it had generated itself a bought MathPix reading. A reading wrongly
+believed to be paid is a reading nothing will regenerate, and four call sites
+spend or protect money on this answer. The detector separates them: a UUID id is
+MathPix (`mathpix`), document-stem ids are ours (`mathpix-shaped`, same geometry
+contract by the `mathpix-` prefix, not a purchase).
+
+### The probe was not cheap, whatever it said
+
+`_lines_json_source`'s docstring said "without loading the whole file" while
+doing `read_text()[:8192]` — the whole file, then discarded, on every call,
+across 4.9 GB of readings up to 12 MB each. It now reads 8 KB from each END: the
+head for the top-level keys and the first `image_id`, the tail because
+`page_width` sits AFTER its page's lines and is megabytes in on a long document
+(1,451 of 1,452 undeclared readings carry one in their last 8 KB).
+
+### Acceptance: the refusal is visible and names the next step
+
+Same command, same document (`1707.00189`, whose library reading declares
+nothing), two copies of the reading:
+
+    identified (UUID ids, pixel frame)
+      $ pdfdrill steps inspect 1707.00189.pdf
+      model → geometry → inspect
+      ... already done: gemmaocr, glyphlines, mathpix          # no paid step
+
+    unidentifiable (float page size, ids that are neither)
+      $ pdfdrill steps inspect 1707.00189.pdf
+      model → geometry → mathpix → inspect
+      ... mathpix (paid — run `pdfdrill mathpix` yourself; or `pdfdrill
+          gemmaocr`, which satisfies the same prerequisite)
+
+The refusal is not silent, and it names both the paid command and the free one.
+
+### Call sites deliberately left reading the DECLARED source only
+
+`_lines_source` (declared, else detected) is used by the two gates and by the
+recorded `lines_source` evidence. Four others still ask only what a file
+declares, each for a reason: the `--force` staleness check asks what the file
+CLAIMS about its lane (a detected value is never `pdfminer*`); `prefers_merged_route`
+is already handed `_is_mathpix_lines` separately; and two message formatters
+would change their wording without changing a decision. `_has_usable_math` was
+the one that looked risky, and it is not: it asks the source string only through
+`_is_keyless_textonly_source`, which is exact membership in `("tesseract",
+"pdfminer-chars", "pdfplumber-chars")`. Neither `""` nor `"mathpix"` nor
+`"mathpix-shaped"` is in that tuple, so the answer is identical whichever is
+passed — checked rather than assumed, which is why that call site could be left
+alone without a measurement hanging over it.
+
+### Four tests the closure turned around, and the one that was a real question
+
+The suite came back `4 failed, 6129 passed, 82 skipped` on the first run after
+the change. Three were fixtures abridged past the point where the content is
+identifiable, and one was a semantic question worth answering rather than
+patching.
+
+| test | why it failed | what changed |
+|---|---|---|
+| `test_model_reader_flag.py::test_a_forced_glyph_read_backs_up_a_mathpix_reading` | its fixture is two lines and no page at all; its own comment said MathPix is "identified by the ABSENCE of a `source` key" — the definition this change replaced | the fixture now carries what a real MathPix page carries: a UUID `image_id` and an integer page size |
+| `test_model_selfheal.py::test_latex_model_with_mathpix_lines_is_stale_without_caps` | same, through `_source_model_trap` → `_is_typed_geometry_lines` | same, in `_MATHPIX` |
+| `test_pagelines.py::test_it_stays_a_mathpix_shaped_reading` | asserted `_is_mathpix_lines` on pdf2mmd2's OWN assembled reading, from when one detector answered both questions | asserts what `inspect` actually requires (`_is_typed_geometry_lines`, `planner.detect`'s `lines:typed-geometry`), that the detector says `mathpix-shaped`, and that the money question says **no** |
+| `test_pagelines.py::test_a_declared_reader_still_carries_typed_geometry` | asserted `_is_mathpix_lines` is False for a reading that declares `source: "mathpix"` | now True — see below |
+
+`test_it_stays_a_mathpix_shaped_reading`'s docstring named the `lines:mathpix`
+prerequisite, which no longer exists: 897 moved `inspect` onto
+`lines:typed-geometry`. The test was still asserting the old wiring, so it was
+the last place in the repo that required pdf2mmd2's own reading to be called a
+purchase. Measured on `0902.0431` (209 real page files, 4.5 MB assembled): ids
+`0902.0431-001`, page 2125×2750 integers → `mathpix-shaped`, typed geometry
+True, is-MathPix False.
+
+**The real question: what is a reading that DECLARES `source: "mathpix"`?** The
+old code answered "not a purchase", because only MathPix leaves `source` out, so
+any declaration at all was taken as proof of a free reading. Measured: **0 of the
+library's 1,811 readings declare `mathpix`** (1,452 declare nothing, 174
+`pdfminer-chars`, 171 `pdfminer-docmodel`, 8 `tesseract`, 3 `visionocr`, one each
+`yolo-geometry`, `pdftotext`, `pdfminer`). So the case is about the rule, not
+about a file on disk — and the old rule was one stamp away from losing the
+protection entirely: anything that ever wrote `source: "mathpix"` onto a bought
+reading would have turned the four money sites off, silently. It now answers
+**yes**: a reading that says it was bought is protected. Over-protection costs a
+`.mathpix.bak.json`; under-protection costs the reading.
+
+### Environment: a worktree test run can silently test the MAIN checkout
+
+`python3 -m pytest` from `.worktrees/<branch>/` imports `pdfdrill` from
+**`/home/wkolbe/MX/PDFDRILL/src/`**, not from the worktree. The `~/.local`
+editable install points at the primary tree, and `tests/` adds nothing to
+`sys.path`, so the suite runs against another branch's source while every path in
+the output names the worktree. It is not a skip and not an error — the tests
+pass or fail against code that is not the code under test.
+
+The four failures above "passed" that way before being looked at properly.
+Checked, not assumed:
+
+    $ cd .worktrees/t-0045-pdf2mmd2-into-pdfdrill
+    $ python3 -c 'import pdfdrill; print(pdfdrill.__file__)'
+    /home/wkolbe/MX/PDFDRILL/src/pdfdrill/__init__.py          # the MAIN tree
+
+    $ /home/wkolbe/MX/venv-pd-t0045/bin/python3 -c 'import pdfdrill; print(pdfdrill.__file__)'
+    …/.worktrees/t-0045-pdf2mmd2-into-pdfdrill/src/pdfdrill/__init__.py
+
+So a worktree needs its own venv (`/home/wkolbe/MX/venv-pd-t0045`, full install,
+349 packages, with its own `pdfdrill` and `pdf2mmd2` console scripts), and every
+suite number and acceptance line from a worktree must come from it. One probe
+settles it before trusting a run: print `pdfdrill.__file__`.
+
+### Recorded, not fixed: the docmodel's `meta.source` still defaults to `mathpix`
+
+`docmodel/main.py` sets `doc.meta["source"] = declared_source(lines_json) or
+"mathpix"`, and that default is deliberately NOT the new content detector —
+docmodel does not import pdfdrill, and 2d puts the docmodel on pdfdrill's side
+of the boundary, not the reader's. The consequence: for an undeclared reading of
+our own, the sidecar's `lines_source` evidence now says `mathpix-shaped` where
+the model's `meta.source` says `mathpix`. Nothing downstream breaks — that field
+selects a COORDINATE SYSTEM and both names mean page pixels — but anyone
+comparing the two will find them disagreeing, so it is written down here rather
+than discovered.
+
+A sibling discriminator already existed and was left alone:
+`mathpix_conformance.reference_for` separates MathPix's own reading from ours by
+looking for `deferred_glyphs`, a field MathPix has no concept of. Same idea,
+different evidence, narrower job (it picks a conformance reference, not a lane).
+
+## The gate had a blind side: the planner refused and the consumer read anyway (2026-10-28)
+
+The coordinator's audit of `6c8e3891` found it, and it reproduces: on a reading
+whose producer cannot be named, `pdfdrill steps inspect` correctly names the
+paid step — and `pdfdrill model <pdf> --no-source` exits 0 and builds the whole
+model from it. Measured on the library's `1707.00189` reading with its page
+frame turned to floats: 317 objects, and the report said **"1 equations carry a
+MathPix CDN image"** — a CDN crop claimed from a reading whose regions are in
+PDF points. The wrong-frame hazard the gate exists to prevent, arriving through
+the gate's own blind side. `pdfdrill inspect` then rendered 308 elements from it.
+
+So the rule is one rule in two places: the planner says the prerequisite is
+unsatisfied, and `model` refuses to build. `cmd_model` now returns
+`Report(refusal, EXIT_LANE_NOT_RUN)` — exit 3, the status the owner chose in
+2026-10-21 for "a lane was reported and not run", for the same reason: the
+command promises a model and there is none, and a caller should not have to
+parse prose to find that out.
+
+### The refusal names the file and the missing evidence, not a generic complaint
+
+    $ pdfdrill model 1707.00189.pdf --no-source
+    1707.00189.lines.json declares no producer and its content identifies none,
+    so pdfdrill will not build a model from it: its page size is written as a
+    float, which is PDF points — a page-pixel frame is written as an integer,
+    and every consumer of this reading's regions expects pixels.
+    … and the two shapes that WOULD identify it, then `glyphlines` (free),
+      `gemmaocr` (metered), `mathpix` (paid, never run for you)
+    exit=3
+
+`_unidentified_lines_reason` returns the specific failing half — nothing
+readable, no typed line in the first three pages, or a float page frame.
+
+### Writing the refusal first would have refused 75 of the owner's PAID readings
+
+This is the measurement that changed the design, and it is the reason to count
+before coding. The refusal set is "readings whose `_lines_source` is ''", and
+over the library that was **76** — not the 2 the earlier counts implied. Of
+those 76, **75 carry MathPix's UUID `image_id` AND an integer pixel frame**:
+they are genuine MathPix conversions. The detector was failing them on its
+line-type half, which looks at the first three pages — and a book opens with a
+cover, a title page and a colophon, all plain `text`. Among them: *A Primer of
+Analytic Number Theory* (13 MB), *An Invitation to Applied Category Theory*
+(15 MB), *Entropy and Diversity* (17 MB), `Geometric_topology` (18.8 MB),
+`dmoi4` (22 MB), `BirgitRichter_book` (12 MB), `Baker12PhD` (4.9 MB).
+
+The defect was mine, in the ORDER of the evidence: **who wrote a file and what
+the file can do are two questions.** An id is provenance and is conclusive on
+its own; the line types are a capability, and `_is_typed_geometry_lines` asks
+them separately. `_detect_lines_source` now tests the ids FIRST and does not
+require the line types to name a producer, so:
+
+| | |
+|---|---|
+| typed geometry | unchanged — the line types are still required there |
+| is-MathPix | unchanged — it still asks for the line types too |
+| `_lines_source` | now names the producer of 75 more readings |
+| `model` refuses | **1** reading, the 0-byte `2308.06374/mmd-out/` file |
+
+Both gates were re-measured over all 1,811 readings against the `6c8e3891`
+baseline to confirm the first two rows rather than argue them.
+
+### Deliberately narrower than the geometry gate
+
+A DECLARED keyless reader (`pdfminer-chars`, 174 readings; `tesseract`, 8) fails
+the geometry gate because its regions are points, and it is still a legal input
+to `model` — that is the merged route, where the author's LaTeX supplies the
+mathematics. What `model` refuses is a reading that names nobody AND shows
+nothing. Every reading it refuses is already refused by the geometry gate; the
+converse does not hold, and that asymmetry is the point.
+
+### Recorded, not fixed: 75 paid readings are still not PROTECTED as MathPix
+
+`_is_mathpix_lines` is `_lines_source(...) == "mathpix"` **and**
+`_has_mathpix_line_types(...)`, so those 75 books still answer False to the
+money question — as they did before any of this. Dropping the line-type half
+there would protect them (a displaced reading would be parked as
+`<stem>.mathpix.bak.json` instead of overwritten, which only ever adds
+protection), but it also feeds `prefers_merged_route`, so it would change the
+ROUTE CHOICE on 75 real documents. That is a decision, not a cleanup, so it is
+measured and left for the owner.
+
+### Also recorded: the cheap probe does not make the gate cheap
+
+`_lines_probe` reads 8 KB from each end, but `_has_mathpix_line_types` still
+does `read_text()` + `json.loads` on the WHOLE file — up to 22 MB here, 4.9 GB
+across the library. That is unchanged from before (both detectors always called
+it), so it is not a regression, but the gate is only as cheap as its most
+expensive half, and the id tests now short-circuit ahead of it for every
+identified reading.
+
+### Eight more tests the gate caught, which is the rule having teeth
+
+`test_folder`, `test_tiddler_update` (six tests) and `test_codelisting_bibkey`
+each build a model from a stand-in reading written
+
+    {"pages": [{"page": 1, "image_id": "i",
+                "lines": [{"type": "text", ...}]}]}
+
+— no declared source, an `image_id` that is neither a UUID nor the document's
+stem, and no typed line anywhere. They stand for "some reading exists", not for
+a particular reader, and nothing in them was ever about provenance.
+
+An undeclared text-only reading is not a real shape: over the library's 1,811
+readings the only one is a 0-byte file, because every real text reader declares
+itself (`pdfminer-chars` 174, `pdfminer-docmodel` 171, `tesseract` 8). So each
+fixture now declares `pdfminer-docmodel`, with that measurement in a comment
+beside it. The gate finding them is the rule working — a fixture that could not
+exist on disk was standing in for one that can.
+
+### An id says who wrote a file; only the file says what frame it is in
+
+The coordinator's audit of `d2185ac3` found the regression the previous fix
+introduced, with a plant no library file has: **stem-shaped ids on a float page
+frame**. It was admitted as `mathpix-shaped` with typed geometry True — point
+regions served as pixel geometry, which is the hazard this gate exists to stop.
+Under the committed code the report said it in so many words:
+
+    $ pdfdrill model 1707.00189.pdf --no-source        # ids 1707.00189-001,
+                                                       # page 2125.5 x 2750.5
+    Built unified model: 316 objects … 1 equations are located in OUR
+    coordinate system (the reading's own page pixels, source='mathpix-shaped')
+    exit=0
+
+"the reading's own page pixels" about a float page size. Their diagnosis is
+right: letting an id excuse the LINE-TYPE half is what saved the 75 books, but
+letting it excuse the FRAME test is a different claim. A UUID is MathPix's and
+MathPix always writes pixels; a stem-shaped id only says "one of ours", and ours
+write BOTH frames — pdf2mmd2 pixels, `pdfminer-*` points.
+
+**It generalises one step further than the audit tested.** A UUID id on a float
+frame was admitted the same way, and as a PAID reading on top
+(`_is_mathpix_lines` True). So the rule is not "the stem branch needs the frame"
+but **the frame is never taken on trust, from any id**; what an id may excuse is
+the line-type half, and only that. Measured, the uniform test costs nothing:
+every reading the detector identifies across the library carries an integer page
+size.
+
+Six shapes, measured through the detector after the fix:
+
+| reading | `_lines_source` | typed geometry | is-MathPix | `model` |
+|---|---|---|---|---|
+| stem id, integer frame (pdf2mmd2's own) | `mathpix-shaped` | yes | no | builds |
+| stem id, **float** frame (the audit's plant) | `''` | no | no | **refused** |
+| UUID, **float** frame (the second shape) | `''` | no | no | **refused** |
+| UUID, integer frame (real MathPix) | `mathpix` | yes | yes | builds |
+| UUID, integer frame, no typed line (a book's cover) | `mathpix` | no | no | builds |
+| no id, float frame | `''` | no | no | **refused** |
+
+The fifth row is the 75 books, still identified — the line-type exemption is
+intact, and the geometry gate still declines them, which is the two questions
+staying apart.
+
+**Why the library counts cannot show this, and what does instead.** No library
+file has stem ids with a float frame, so every count was identical before and
+after — the audit's point exactly. What catches it is a plant, and the test now
+carries both plants (`test_an_id_never_vouches_for_the_FRAME`, and the
+parametrised command-line pair). The detector test was verified red against
+`d2185ac3` by running it with that commit's `commands.py` on `PYTHONPATH`; the
+command-line test cannot be made red that way, because it deliberately ignores
+the parent's environment and runs the installed script — which is the property
+that makes it worth having, so its red evidence is the run above instead.

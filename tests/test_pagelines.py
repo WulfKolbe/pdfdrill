@@ -120,15 +120,26 @@ def test_every_page_survives_verbatim(doc):
 
 @needs_real
 def test_it_stays_a_mathpix_shaped_reading(doc):
-    """`commands._is_mathpix_lines` answers the planner's `lines:mathpix`
-    prerequisite, which `inspect` depends on. Stamping provenance into the file
-    would break that chain and make `inspect --ensure` name a paid step, so the
-    assembled file carries exactly what the page files carry — no more."""
-    from pdfdrill.commands import _is_mathpix_lines, _lines_json_source
+    """The assembled file declares nothing, and pdfdrill identifies it from its
+    CONTENT rather than stamping provenance into the owner's corpus.
+
+    What `inspect` depends on is `lines:typed-geometry` (`planner.detect`, 897),
+    not "was it bought", so the assembled reading clears the prerequisite while
+    the money question answers NO — pdf2mmd2 wrote it and nothing was paid for.
+    The separator is measured here on pdf2mmd2's own page files: their ids name
+    the DOCUMENT (`0902.0431-001`), where MathPix's are its UUID `pdf_id`.
+
+    The earlier form of this test asserted `_is_mathpix_lines` instead, from
+    when that one detector answered both questions; 897 split them and 2d rule 5
+    closed the `""` entry, which is what turned the second answer around."""
+    from pdfdrill.commands import (_detect_lines_source, _is_mathpix_lines,
+                                   _is_typed_geometry_lines, _lines_json_source)
     pagelines.assemble(doc)
     lp = pagelines.lines_json(doc)
-    assert _lines_json_source(lp) == ""
-    assert _is_mathpix_lines(lp) is True
+    assert _lines_json_source(lp) == ""              # assemble stamps nothing
+    assert _detect_lines_source(lp) == "mathpix-shaped"
+    assert _is_typed_geometry_lines(lp) is True      # what `inspect` requires
+    assert _is_mathpix_lines(lp) is False            # and it was not bought
 
 
 @needs_real
@@ -320,13 +331,22 @@ def test_a_declared_reader_still_carries_typed_geometry(tmp_path):
     questions shared one detector, declaring a producer made `--ensure` name a
     paid step that could not have helped."""
     from pdfdrill.commands import _is_typed_geometry_lines, _is_mathpix_lines
-    for src in ("pdf2mmd2", "pdf2mmd2-tsv", "pdfminer-docmodel", "mathpix"):
-        pdf = _write(tmp_path, _lines(src))
+    for src in ("pdf2mmd2", "pdf2mmd2-tsv", "pdfminer-docmodel"):
+        _write(tmp_path, _lines(src))
         assert _is_typed_geometry_lines(tmp_path / "x.lines.json") is True, src
-        # and the money question still answers NO for everything but MathPix's
-        # own undeclared export
+        # and the money question answers NO: these readers are ours, and a
+        # reading of ours was not bought
         assert _is_mathpix_lines(tmp_path / "x.lines.json") is False, src
-    pdf = _write(tmp_path, _lines(None))      # MathPix declares nothing
+    # A reading that NAMES MathPix is MathPix's. Nothing in the library declares
+    # it — 0 of 1,811, measured 2026-10-28, because MathPix leaves `source` out
+    # — so this row states the rule rather than describing a file on disk: the
+    # four money sites must protect a reading that says it was bought. The
+    # earlier form read ANY declaration as proof that it was not, which is one
+    # stamp away from losing the protection entirely.
+    _write(tmp_path, _lines("mathpix"))
+    assert _is_mathpix_lines(tmp_path / "x.lines.json") is True
+    assert _is_typed_geometry_lines(tmp_path / "x.lines.json") is True
+    _write(tmp_path, _lines(None))      # MathPix declares nothing
     assert _is_mathpix_lines(tmp_path / "x.lines.json") is True
     assert _is_typed_geometry_lines(tmp_path / "x.lines.json") is True
 

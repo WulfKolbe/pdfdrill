@@ -1,0 +1,18 @@
+%!PS
+% A sentence, then a ruled table of 3 rows and 3 columns, then a sentence.
+/Times-Roman findfont 10 scalefont setfont
+72 700 moveto (A sentence before the table.) show
+0.4 setlinewidth
+% horizontal rules at y = 680 662 644 626, from x = 72 to 252
+[680 662 644 626] { 72 exch moveto 180 0 rlineto stroke } forall
+% vertical rules at x = 72 132 192 252, one per row as plain TeX draws them
+[72 132 192 252] { /x exch def
+  [680 662 644] { x exch moveto 0 -18 rlineto stroke } forall } forall
+/C { % (text) col row
+  18 mul 680 exch sub 13 sub exch 60 mul 72 add 6 add exch moveto show } def
+(A) 78 684 moveto show (B) 138 684 moveto show (C) 198 684 moveto show
+(a1) 0 0 C (b1) 1 0 C (c1) 2 0 C
+(a2) 0 1 C (b 2) 1 1 C (c2) 2 1 C
+(a3) 0 2 C (c3) 2 2 C
+72 600 moveto (A sentence after it.) show
+showpage

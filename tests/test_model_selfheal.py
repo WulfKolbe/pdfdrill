@@ -76,8 +76,13 @@ def _setup_no_caps(tmp, lines_body, model_source="latex"):
     return sc, model_path, lines_path
 
 
-#: a lines.json carrying the fields only MathPix writes
-_MATHPIX = ('{"pages":[{"lines":[{"type":"math","confidence":1,"font_size":36,'
+#: a lines.json carrying the fields only MathPix writes — including the page
+#: fields the content detector reads (2d rule 5): a UUID `image_id` (MathPix's
+#: own `pdf_id`) and an INTEGER page size, which is a pixel frame. Without them
+#: a reading declares nothing AND shows nothing, and is refused.
+_MATHPIX = ('{"pages":[{"image_id":"8a29fc03-28d7-4c95-8397-e96f4ec2224d-1",'
+            '"page":1,"page_width":2125,"page_height":2750,'
+            '"lines":[{"type":"math","confidence":1,"font_size":36,'
             '"region":{"top_left_x":725,"top_left_y":1541,"width":674,"height":114}}]}]}')
 #: the same shape from the keyless pdfminer route — geometry, but no confidence
 _PDFMINER = '{"pages":[{"lines":[{"type":"text","text":"x"}]}]}'

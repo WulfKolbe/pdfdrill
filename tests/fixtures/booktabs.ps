@@ -1,0 +1,13 @@
+%!PS
+% A table drawn with horizontal rules only: top, mid and bottom rule.
+/Times-Roman findfont 10 scalefont setfont
+72 720 moveto (A sentence before the table.) show
+0.6 setlinewidth
+[700 684 640] { 100 exch moveto 260 0 rlineto stroke } forall
+/C { moveto show } def
+(Command) 104 690 C (Value) 300 690 C
+(alpha) 104 670 C (one) 300 670 C
+(beta) 104 658 C (two) 300 658 C
+(gamma) 104 646 C (three) 300 646 C
+72 600 moveto (A sentence after it.) show
+showpage
