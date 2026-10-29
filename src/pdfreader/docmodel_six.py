@@ -1197,15 +1197,56 @@ def _off_row_band(grp: list, rules: list, span_pt: float) -> bool:
     for g in grp:
         if g.size < 0.95 * span_pt:
             continue                     # a script: off-row by size
-        cx = 0.5 * (g.rect[0] + g.rect[2])
-        if any(r.role == "fraction"
-               and r.rect[0] - 1 <= cx <= r.rect[2] + 1
-               and abs(g.baseline - 0.5 * (r.rect[1] + r.rect[3]))
-               > 0.12 * span_pt
-               for r in rules):
+        if _off_row_by_rule(g, rules, span_pt):
             continue                     # a fraction part: off-row by rule
         return False                     # a term of the row itself
     return True
+
+
+def _script_beside_its_base(g, dest: list, rules: list,
+                            span_pt: float) -> bool:
+    r"""Is `g` off the row of `dest` — a script beside its base, or a part the
+    page's own fraction bar puts off the row?
+
+    781 — THE MEASURE IS THE DESTINATION'S OWN SIZE, NOT THE PAGE'S.
+
+    `_off_row_band` asks `g.size < 0.95 * span_pt`, and `span_pt` is the
+    dominant size of the WHOLE PAGE, so every row of any block set smaller than
+    the body reads as a band of scripts in its entirety. 780 caught that once,
+    for a `\ttfamily\tiny` listing, with a monospace test — which answers only
+    the case where the smaller block happens to be code.
+
+    Measured on 2016icpr page 1 (body 10.0 pt, abstract 9.0 pt): all eight
+    abstract lines passed the gate and 733 moved 51 of 51, 50 of 50, 47 of 47,
+    51 of 51, 54 of 54, 55 of 55, 54 of 54 and 27 of 27 glyphs onto the row
+    above. `page.lines` held four rows of two lines interleaved glyph by glyph,
+
+        (CCALbs)troafcta—bTihnearpyroimblaegmeoisflwaeblel-lidnegﬁntheedcaonnd…
+
+    which a word-level projection prints as `an exact solution to problem the
+    exists`. The library's own reading of this paper carries it.
+
+    A superscript is small BESIDE ITS BASE; the page's dominant size says
+    nothing about it. 767's clause still admits a full-size numerator, because
+    there the page drew the evidence itself.
+    """
+    dsize = _dominant_size(dest) if dest else span_pt
+    if g.size < 0.95 * (dsize or span_pt):
+        return True
+    return _off_row_by_rule(g, rules, span_pt)
+
+
+def _off_row_by_rule(g, rules: list, span_pt: float) -> bool:
+    """767's clause on its own: a FULL-SIZE glyph the page's own fraction bar
+    puts off the row. Its centre is in the bar's x-range and its baseline is
+    not the bar's axis, which is what makes it a numerator or a denominator
+    rather than a term of the row."""
+    cx = 0.5 * (g.rect[0] + g.rect[2])
+    return any(r.role == "fraction"
+               and r.rect[0] - 1 <= cx <= r.rect[2] + 1
+               and abs(g.baseline - 0.5 * (r.rect[1] + r.rect[3]))
+               > 0.12 * span_pt
+               for r in rules)
 
 
 def _rule_role(node: RuleNode, glyphs: list[GlyphNode],
@@ -2083,11 +2124,18 @@ def _column_edge(rows: list[list["GlyphNode"]], rect: Rect) -> float | None:
     quiet.
     """
     edges: dict[int, int] = {}
+    # THE BUCKET LABEL IS NOT A COORDINATE, so keep the x that made it.
+    # `int(x // 12) * 12` rounds DOWN to a 12 pt grid: 2009tiplabeling's right
+    # column starts at 311.97 and is filed under 300. Reading the label back
+    # as a position is an error of up to 12 pt, and a gutter is 12 pt wide.
+    pos: dict[int, list[float]] = {}
     for r in rows:
         if len(r) <= 8:
             continue
-        k = int(min(g.rect[0] for g in r) // 12) * 12
+        x0 = min(g.rect[0] for g in r)
+        k = int(x0 // 12) * 12
         edges[k] = edges.get(k, 0) + 1
+        pos.setdefault(k, []).append(x0)
         # A row that ALREADY spans both columns contributes the x just after
         # its widest internal gap. Without this the detection is circular: a
         # page whose rows are all merged shows only one left-edge mode, so no
@@ -2102,6 +2150,7 @@ def _column_edge(rows: list[list["GlyphNode"]], rect: Rect) -> float | None:
         if at is not None and widest >= 1.5 * size:
             k2 = int(at // 12) * 12
             edges[k2] = edges.get(k2, 0) + 1
+            pos.setdefault(k2, []).append(at)
     if len(edges) < 2:
         return None
     # The first column is the LEFTMOST strong mode, not the most frequent.
@@ -2115,43 +2164,111 @@ def _column_edge(rows: list[list["GlyphNode"]], rect: Rect) -> float | None:
     ordered = sorted(((k, n) for k, n in edges.items() if k > first),
                      key=lambda kv: kv[0])
     mid = 0.5 * (rect[0] + rect[2])
-    for k, n in ordered:
-        # a second mode, well to the right of the first and past the middle,
-        # carrying a real share of the rows
-        # 748 -- A SECOND COLUMN CARRIES A REAL SHARE OF THE PAGE'S ROWS.
+    # A second mode, well to the right of the first and past the middle,
+    # carrying a real share of the rows.
+    #
+    # 748 -- A SECOND COLUMN CARRIES A REAL SHARE OF THE PAGE'S ROWS.
+    #
+    # The test was `n >= 0.1 * ordered[0][1]` -- a tenth of the FIRST
+    # CANDIDATE's own count, which is itself often 1, so any single piece
+    # of evidence passed. One display equation's internal `\quad` counts
+    # here (a row that spans both columns contributes the x after its
+    # widest gap), and on wzlxjtu-058 that produced a gutter at x=280.8
+    # on a ONE-COLUMN page whose text runs 85..510 unbroken.
+    #
+    # What it cost: every row straddling 280.8 was cut. The denominator
+    # of equation 4 is `p_{0|0} - p_{0|1}`, drawn as one stream run
+    # 403..411; the cut took `p_{0|0}` into one row and `- p_{0|1}` into
+    # another, and the equation came out
+    #
+    #     \frac{p_{0\mid0}}{- p} E[...]  \\  p 0|0 0|1
+    #
+    # Equation 3 of the same page, identical but for a `+` instead of the
+    # `-`, is correct -- its gap at the gutter is 3.4pt against this
+    # one's 5.0pt, and that is the whole difference between them.
+    #
+    # Measured against the SAME mode the `strong` set above uses: the two
+    # columns of a real two-column page carry almost the same number of
+    # rows (the comment above says 43 and 43). Here the page's dominant
+    # mode has 7 rows and the accepted "column" had 1.
+    # A SECOND COLUMN IS THE WIDTH OF THE FIRST, and that is what picks it out
+    # of the modes that clear the guards. The rule was "the FIRST mode past
+    # 0.9 * mid", and a display equation indented in the LEFT column clears
+    # every guard: measured on 2009tiplabeling page 1 (text 49..563, gutter at
+    # 313) the answer came back 278.2, seven rows were cut in the wrong place,
+    # and 10 of 88 finished lines still carried both columns' glyphs at one
+    # baseline. Across the fifteen CCL readings that was 2,165 of 9,688 body
+    # lines, 22.3%, and it is what the owner's Claude.ai chat reported as the
+    # columns being mixed up.
+    #
+    # Two columns of a paper are the same width by construction, so the second
+    # starts near the middle of the text MEASURE (not of the page: a wide
+    # margin moves the one and not the other). Among the candidates that pass,
+    # take the one nearest to that.
+    span0 = min((min(g.rect[0] for g in r) for r in rows if r), default=rect[0])
+    span1 = max((max(g.rect[2] for g in r) for r in rows if r), default=rect[2])
+    target = first + 0.5 * (span1 - span0)
+    # AND IT CARRIES A COMPARABLE SHARE OF THE ROWS. `n >= 2` let three rows of
+    # an indented equation stand in for a column: measured on a synthetic
+    # one-column page (text 85..510, an equation at 280), the old rule invented
+    # a gutter at 271.2 and 748 records what that costs in the real corpus —
+    # equation 4's denominator cut into `\frac{p_{0\mid0}}{- p}`. The code's
+    # own note says a real page's two columns carry 43 rows and 43; half the
+    # first column's own mode is the weakest form of that statement.
+    need = max(2, 0.5 * edges.get(first, 0))
+    cands = [k for k, n in ordered
+             if k > first + 0.25 * (rect[2] - rect[0]) and k > mid * 0.9
+             and n >= need]
+    if cands:
+        k = min(cands, key=lambda k: abs(k - target))
+        gl = [g for r in rows if r for g in r]
+        size = _dominant_size(gl) if gl else 10.0
+        size = size or 10.0
+        # THE EDGE IS THE MIDDLE OF THE GUTTER, AND THE GUTTER IS MEASURED.
         #
-        # The test was `n >= 0.1 * ordered[0][1]` -- a tenth of the FIRST
-        # CANDIDATE's own count, which is itself often 1, so any single piece
-        # of evidence passed. One display equation's internal `\quad` counts
-        # here (a row that spans both columns contributes the x after its
-        # widest gap), and on wzlxjtu-058 that produced a gutter at x=280.8
-        # on a ONE-COLUMN page whose text runs 85..510 unbroken.
+        # What stood here subtracted half a body size from `k` — and `k` is a
+        # 12 pt bucket LABEL. Measured on 2009tiplabeling page 1: the right
+        # column starts at 311.97, which buckets to 300, and the answer came
+        # back 300 - 5 = 295.0 while the LEFT column's text ends at 300.02. The
+        # cut point sat four points inside the left column, so no row could be
+        # split there: every body row has contiguous glyphs across 295 (`t`
+        # [287.8,290.6] `h`[290.6,295.6] `e`[295.6,300.0] in "...part of the
+        # foreground..."), the gap walk in `_split_at_columns` found no gap
+        # bracketing the edge on 11 of 13 straddling rows, and 15 of 88 lines
+        # finished carrying both columns. The splitter was never the fault.
         #
-        # What it cost: every row straddling 280.8 was cut. The denominator
-        # of equation 4 is `p_{0|0} - p_{0|1}`, drawn as one stream run
-        # 403..411; the cut took `p_{0|0}` into one row and `- p_{0|1}` into
-        # another, and the equation came out
+        # So resolve the label back to the column's own start, find where the
+        # column to its left actually ends, and cut between them. On that page
+        # the band is empty from 302 to 310 by glyph occupancy, and this puts
+        # the edge at 306.0.
+        start = min(pos.get(k) or [float(k)])
+        # Rows wholly left of that start are the left column; a row that
+        # crosses the gutter (a full-width table, or a row still merged at
+        # this stage) is not evidence of where the column ends.
+        ends = [max(g.rect[2] for g in r) for r in rows
+                if r and max(g.rect[2] for g in r) <= start]
+        # A GUTTER IS A FEW POINTS WIDE. Where every left-column row is still
+        # merged, the widest row left of the start is some short figure label
+        # and the midpoint would land deep inside the text; take the margin
+        # instead. Three body sizes is the bound: 2009tiplabeling's gutter is
+        # 11.95 pt against a 10 pt body.
+        if ends and start - max(ends) <= 3.0 * size:
+            return 0.5 * (max(ends) + start)
+        return start - 0.5 * size
+        # A SMALL margin left of the second column, not the midpoint to
+        # the first column's widest line. The midpoint is computed from
+        # rows that may still be fragments at this stage, and it landed
+        # at x=121 on a page whose columns divide at 312 -- cutting a
+        # bullet item in half after `We evaluate T`.
         #
-        #     \frac{p_{0\mid0}}{- p} E[...]  \\  p 0|0 0|1
-        #
-        # Equation 3 of the same page, identical but for a `+` instead of the
-        # `-`, is correct -- its gap at the gutter is 3.4pt against this
-        # one's 5.0pt, and that is the whole difference between them.
-        #
-        # Measured against the SAME mode the `strong` set above uses: the two
-        # columns of a real two-column page carry almost the same number of
-        # rows (the comment above says 43 and 43). Here the page's dominant
-        # mode has 7 rows and the accepted "column" had 1.
-        if k > first + 0.25 * (rect[2] - rect[0]) and k > mid * 0.9 \
-                and n >= 2:
-            # A SMALL margin left of the second column, not the midpoint to
-            # the first column's widest line. The midpoint is computed from
-            # rows that may still be fragments at this stage, and it landed
-            # at x=121 on a page whose columns divide at 312 -- cutting a
-            # bullet item in half after `We evaluate T`.
-            size = max((max(g.size for g in r) for r in rows if r),
-                       default=10.0)
-            return float(k) - 0.5 * size
+        # THE BODY'S SIZE, NOT THE PAGE'S LARGEST. `max` over every glyph on
+        # the page is the TITLE's size, and half of a 19.6 pt title is 9.8 pt
+        # of margin where the gutter is 5: measured on 2009tiplabeling page 1
+        # the mode is 300, the left column's text ends at 295, and the cut
+        # landed at 290.2 -- four points INSIDE the left column, so its last
+        # glyphs were handed to the right column and 9 of 88 lines still held
+        # both. The dominant size is the body text, which is what a gutter is
+        # measured in.
     return None
 
 
@@ -2614,9 +2731,29 @@ def _split_at_columns(rows: list[list["GlyphNode"]],
                       edge: float | None) -> list[list["GlyphNode"]]:
     """Cut any row that straddles a column gutter.
 
-    A row is split only where it has an INTERNAL GAP over the gutter, so a
-    full-width title or caption -- whose text runs straight across -- is left
-    whole. Without this, a table row in the left column and a listing line in
+    THE CUT IS A GAP, NOT A PARTITION. This used to sort each row into
+    `rect[2] <= edge` and `rect[0] >= edge` and measure between the two lists,
+    which fails twice over. A glyph OVERLAPPING the edge — pdfminer's rect is
+    the font's box, so a tall delimiter or an italic descender reaches past the
+    gutter without ink being there — belonged to neither list, and the split
+    was refused for the whole row; partitioning by the glyph's centre instead
+    put the overlapping glyph in one list while the other list still began
+    before it ended, so the measured gap came out 0.00. Measured on
+    2009tiplabeling page 1 with the edge correct at 295.0: 13 rows straddled
+    the gutter, ten of them reported `gap = 0.00`, and the split fixed one.
+
+    So the row is walked in x and the widest gap BETWEEN CONSECUTIVE GLYPHS
+    that spans the edge is the candidate. That gap is real white space by
+    construction, the two halves are contiguous in x, and every glyph lands on
+    exactly one side.
+
+    (`g not in left` was also wrong on its own terms: `GlyphNode` is a
+    dataclass, so `in` compares by VALUE, and two glyphs with the same rect and
+    text — a repeated digit in a table row — are equal.)
+
+    A row is split only where that gap is a GUTTER rather than a word space, so
+    a full-width title or caption whose text runs straight across is left
+    whole. Without that, a table row in the left column and a listing line in
     the right arrive as one row and are sorted together by x:
     `GPU code generation Yes No Yes Yes Yes 45 Computation bx(i, j, c)`.
     """
@@ -2625,19 +2762,40 @@ def _split_at_columns(rows: list[list["GlyphNode"]],
     out: list[list[GlyphNode]] = []
     for row in rows:
         row = sorted(row, key=lambda g: g.rect[0])
-        left = [g for g in row if g.rect[2] <= edge + 0.5]
-        right = [g for g in row if g.rect[0] >= edge - 0.5]
-        # Split only when there is a real GAP at the boundary. "Cleanly on
-        # both sides" is not enough: a full-width row of continuous text also
-        # satisfies it, and gets cut wherever a glyph edge happens to fall.
-        # A column break has a gutter; running text does not.
-        gap = (min(g.rect[0] for g in right) - max(g.rect[2] for g in left)
-               if left and right else 0.0)
-        size = max((g.size for g in row), default=10.0)
-        if (left and right and len(left) + len(right) == len(row)
-                and gap >= 0.8 * size):
-            out.append(left)
-            out.append(right)
+        if len(row) < 2:
+            out.append(row)
+            continue
+        # the widest inter-glyph gap that spans the edge
+        best_gap, best_i = -1.0, None
+        for i in range(len(row) - 1):
+            a, b = row[i], row[i + 1]
+            if a.rect[2] <= edge + 0.5 <= b.rect[0] + 0.5:
+                g = b.rect[0] - a.rect[2]
+                if g > best_gap:
+                    best_gap, best_i = g, i + 1
+        if best_i is None:
+            out.append(row)
+            continue
+        # A GUTTER IS THE ROW'S OWN WIDEST GAP, BY A CLEAR MARGIN — not a gap
+        # over some absolute width. The bar was `0.8 * max(g.size for g in
+        # row)`: 7.7 pt for a 9.6 pt body row and more for any row carrying a
+        # big delimiter, while 2009tiplabeling's gutter is about 5 pt. No
+        # constant can do this job in either direction, because full
+        # justification stretches a word space past 6 pt — a bar low enough to
+        # admit the gutter admits a stretched space in a full-width title and
+        # cuts it (`Fig. 6: A heatma` / `p comparing the normalized
+        # execution`). What separates them is the gap's width AGAINST THE OTHER
+        # GAPS IN THE SAME ROW: running text has word spaces that are all much
+        # of a muchness; a row spanning a gutter has one gap that is plainly
+        # not a word space.
+        inner = sorted(x for x in (row[i + 1].rect[0] - row[i].rect[2]
+                                   for i in range(len(row) - 1)) if x > 0.2)
+        typical = inner[len(inner) // 2] if inner else 0.0
+        size = _dominant_size(row) or 10.0
+        if best_gap >= 0.45 * size and (typical <= 0.0
+                                        or best_gap >= 1.6 * typical):
+            out.append(row[:best_i])
+            out.append(row[best_i:])
         else:
             out.append(row)
     return out
@@ -3136,6 +3294,29 @@ def build(path: str, pages: Iterable[int] | None = None, *,
         groups = _group_lines(upright_glyphs, rect=layout.bbox,
                               line_bands=line_bands_by_page.get(pno))
         groups = _split_local_columns(groups, layout.bbox)
+        # THE GUTTER IS EVIDENCE, AND IT OUTRANKS EVERY MERGE BELOW.
+        #
+        # `_group_lines` separates the columns and hands back rows that each
+        # belong to ONE column. The band sweep further down then put twelve of
+        # them back together on 2009tiplabeling page 1 -- the left column's
+        # [49.0..300.0] concatenated with the right column's [312.0..563.0] --
+        # because the two share a baseline (two columns of one paper have the
+        # same leading by construction) and their 12 pt separation clears a
+        # bar of `3.0 * span_pt`, 30 pt here. Its own comment asserted the
+        # opposite: "Prose columns share baselines too, but they are text and
+        # the gutter between them is far wider than that." It is not; a
+        # two-column IEEE paper's gutter is about one em.
+        #
+        # Measured: `_group_lines` returned 113 rows with 2 straddling, and
+        # `page.lines` came out with 14 of 89 straddling. That is the whole of
+        # what the owner's Claude.ai chat read as the columns being mixed --
+        # `...introduction of the Union- / improve neighborhood exploration`.
+        #
+        # So keep the edge and let every merge below consult it. None of them
+        # is entitled to join two groups that the column detector put on
+        # opposite sides of a gutter.
+        _gutter = (_column_edge(groups, layout.bbox)
+                   if layout.bbox is not None else None)
         rotated_groups = _group_rotated(rotated_glyphs)
         span_pt = _dominant_size(upright_glyphs or glyphs)
 
@@ -3294,6 +3475,10 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                     ax1 = max(g.rect[2] for g in a)
                     bx0 = min(g.rect[0] for g in b)
                     bx1 = max(g.rect[2] for g in b)
+                    # Opposite sides of the page's own gutter: not one row.
+                    if _gutter is not None and (ax1 <= _gutter <= bx0
+                                                or bx1 <= _gutter <= ax0):
+                        continue
                     # negative when the two INTERLEAVE in x
                     gap = max(bx0 - ax1, ax0 - bx1)
                     if gap > 5.0 * span_pt:
@@ -3619,6 +3804,35 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                         continue
                     dest = _idx[k][1]
                     if dest == _i or not groups[dest]:
+                        continue
+                    # 781 — A SCRIPT IS SMALL AGAINST THE ROW IT WOULD JOIN,
+                    # NOT AGAINST THE PAGE.
+                    #
+                    # `_off_row_band` asks `g.size < 0.95 * span_pt`, and
+                    # `span_pt` is the dominant size of the WHOLE PAGE. A block
+                    # set smaller than the body therefore reads as a band of
+                    # scripts in its entirety — which is 780's defect over
+                    # again, that one caught by a monospace test because the
+                    # block happened to be code.
+                    #
+                    # Measured on 2016icpr page 1 (body 10.0 pt, abstract
+                    # 9.0 pt): all eight abstract lines passed the gate, 51 of
+                    # 51 glyphs of each were moved onto the line above, and the
+                    # abstract came out as four rows of two lines interleaved
+                    # glyph by glyph —
+                    #
+                    #   (CCALbs)troafcta—bTihnearpyroimblaegmeoisflwaeblel-lid…
+                    #
+                    # which a word-level projection then prints as
+                    # `an exact solution to problem the exists`. The library's
+                    # own reading of this paper has it, so it is not new.
+                    #
+                    # The destination's own size is the measure that matters: a
+                    # superscript is small BESIDE ITS BASE. 767's fraction
+                    # clause still admits a full-size numerator, because there
+                    # the page drew the evidence itself.
+                    if not _script_beside_its_base(g, groups[dest],
+                                                   rules, span_pt):
                         continue
                     # a script sits beside its base, not a page away
                     db = (sum(x.baseline for x in groups[dest])
