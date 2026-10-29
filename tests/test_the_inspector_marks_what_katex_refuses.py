@@ -165,8 +165,10 @@ def test_a_renderer_that_did_not_load_is_a_different_mark():
       OUT.missing = n.querySelectorAll('.katex-missing').length;
       OUT.refused = n.querySelectorAll('.katex-refused').length;
       OUT.banner = document.getElementById('katexAudit').allText();
+      OUT.hidden = document.getElementById('katexAudit').hidden;
     """)
     assert out["missing"] == 1 and out["refused"] == 0, out
+    assert out["hidden"] is False, "an absent renderer is a finding too"
     assert "KaTeX did not load" in out["banner"], out["banner"]
     assert "refused" not in out["banner"].split("nothing was refused")[0], out["banner"]
 
@@ -174,10 +176,15 @@ def test_a_renderer_that_did_not_load_is_a_different_mark():
 def test_the_audit_counts_and_lists_every_refusal_at_load():
     out = _boot(_math_model(), pre=_FAKE_KATEX, body="""
       OUT.banner = document.getElementById('katexAudit').allText();
+      OUT.hidden = document.getElementById('katexAudit').hidden;
       OUT.hook = (window.__katexRefused||[]).map(b=>b.id);
       OUT.why  = (window.__katexRefused||[]).map(b=>b.why);
     """)
     assert out["hook"] == ["e2"], out
+    # THE OTHER HALF of hiding the clean case: a refusal is a finding, and the
+    # page must show it unasked. Hiding the quiet case is only defensible while
+    # this stays true.
+    assert out["hidden"] is False, out
     assert out["why"] == ["no tikzcd environment in KaTeX"], out
     assert "refused 1 of 3 rendered forms" in out["banner"], out["banner"]
     assert "e2" in out["banner"], out["banner"]
@@ -200,9 +207,14 @@ def test_a_document_that_renders_cleanly_says_so_with_its_population():
     m["objects"] = [o for o in m["objects"] if o["id"] != "e2"]
     out = _boot(m, pre=_FAKE_KATEX, body="""
       OUT.banner = document.getElementById('katexAudit').allText();
+      OUT.hidden = document.getElementById('katexAudit').hidden;
       OUT.n = (window.__katexRefused||[]).length;
     """)
     assert out["n"] == 0
+    # ... and says it WITHOUT a band across the top of the document. The
+    # sentence is in the element, where drillui and this test read it; the
+    # screen belongs to the document (owner, 2026-10-29).
+    assert out["hidden"] is True, out
     assert "renders every formula" in out["banner"], out["banner"]
     assert "2 formulas" in out["banner"], out["banner"]
     assert "1 with the author's latex" in out["banner"], out["banner"]
@@ -306,3 +318,23 @@ def test_the_page_asks_katex_not_to_swallow_its_own_errors():
     assert "strict:false" in html.replace(" ", ""), (
         "the audit and the page must use the same strictness as the measure, "
         "or the page's count and the measured count are different numbers")
+
+
+def test_the_page_carries_no_preamble_caveat_band():
+    r"""Owner, 2026-10-29: "please remove all the warnings, actuall 2 warnings
+    are spending valuable area of my screen". Both bands were above the
+    document: the KaTeX-preamble caveat, which is written for a page with a
+    rendered COLUMN, and the audit's own clean-case line. The caveat is gone
+    from this page and the audit speaks only when it has a refusal to name.
+
+    Asserted on the shipped markup by its words, not by the absence of an
+    import: reintroducing the band by pasting the text — which is how it got
+    into five files before `katex_notice` existed — must fail here too.
+    """
+    html = docinspect.build_inspector_html(_math_model(), pages={}, title="t")
+    for phrase in ("has no preamble", "katex-caveat",
+                   "may be correct, and one that looks right"):
+        assert phrase not in html, phrase
+    # the audit element is still shipped, and ships hidden
+    assert 'id="katexAudit" hidden' in html, (
+        "the quiet case must cost no screen area before the script even runs")
