@@ -310,6 +310,39 @@ def _slow_note(command: str) -> "str | None":
     return None
 
 
+def _slow_rate(command: str) -> "str | None":
+    r"""The per-page rate out of a `slow:` note — `"9.5 s/page"` — or None.
+
+    THE PRICE BELONGS WHERE THE CHOICE IS MADE. `_slow_note` is printed by
+    `--ensure`, which is the moment the time is already being spent;
+    `pdfdrill steps` is the moment an operator decides. Measured 2026-10-29:
+    `steps inspect` named `glyphlines` as the free alternative to `mathpix`
+    with no indication that it reads every glyph on every page — 25 min on a
+    470-page volume — so "free" was the only axis on screen, which is the same
+    one-axis blindness that sent 16 documents to the paid lane a day earlier.
+
+    Every `slow:` note states its rate as `N s/page`; the gate for that is in
+    `tests/test_a_heavy_command_says_so_before_it_spends.py`, so this reads a
+    convention rather than guessing at prose.
+    """
+    import re as _re
+    note = _slow_note(command)
+    if not note:
+        return None
+    m = _re.search(r"([\d.]+)\s*s/page", note)
+    if not m:
+        return "minutes"
+    # A CONDITIONAL COST MUST SAY WHAT IT IS CONDITIONAL ON. `geometry` is
+    # 0.12 s/page as the pdftotext fusion and 9.5 s/page with `--layout`, and
+    # `steps` showed the bare 9.5 for a chain that runs it WITHOUT the flag —
+    # a price quoted for work the chain was not going to do. The note names
+    # the flag (the gate for that is `test_drill_runs_nothing_that_declares_a
+    # _cost`, which holds drill to not passing it), so the rate carries it.
+    flag = _re.search(r"--[a-z][a-z-]*", note)
+    return (f"{m.group(1)} s/page with {flag.group(0)}" if flag
+            else f"{m.group(1)} s/page")
+
+
 def network_commands(manifest: dict) -> set:
     """Commands the manifest marks network/paid — DECLARED as dependencies,
     NEVER auto-run: `ensure` names them instead (a dependency that is not in
@@ -465,7 +498,8 @@ def describe(target: str, pdf: Path) -> str:
     alts = equivalent_commands(man)
     def _tag(c):
         if c not in paid:
-            return c
+            rate = _slow_rate(c)
+            return f"{c} ({rate})" if rate else c
         # FREE FIRST, AND SAID TO BE FREE. The alternatives were listed in
         # name order with no price on them, so `gemmaocr` (metered) read the
         # same as `glyphlines` (free, offline) and the cheapest lane was the
@@ -474,9 +508,13 @@ def describe(target: str, pdf: Path) -> str:
         _net = {x["name"]: bool(x.get("network")) for x in man["commands"]}
         other = sorted(alts.get(c, set()) - {c},
                        key=lambda o: (bool(_net.get(o, False)), o))
-        other = ["`pdfdrill %s`%s" % (o, "" if _net.get(o, False)
-                                      else " (free, offline)")
-                 for o in other]
+        def _alt(o):
+            bits = [] if _net.get(o, False) else ["free, offline"]
+            rate = _slow_rate(o)
+            if rate:
+                bits.append(rate)
+            return "`pdfdrill %s`%s" % (o, f" ({', '.join(bits)})" if bits else "")
+        other = [_alt(o) for o in other]
         if other:
             # NAME THE ALTERNATIVE. Two commands can satisfy one `done_when`
             # — `mathpix` buys a typed reading and `gemmaocr` reads one with a

@@ -162,6 +162,24 @@ def _flow(doc) -> list:
     return sorted(objs, key=key)
 
 
+def candidate_count(doc) -> int:
+    """How many objects the layout pass would TRY to box.
+
+    The same predicate `place` applies — no `region` of its own, and a family
+    the detector has boxes for — asked before the 400 dpi rasterize and the
+    detector run instead of after. It is the question "would this pass change
+    anything", and it costs a walk over the model.
+
+    `drill` asks it. Measured 2026-10-29 on 2016icpr: 0 candidates, and
+    `geometry --layout` duly reported "boxed 0 of 0" after spending 56.84 s —
+    263.93 s before the imposition fix, 97% of the whole drill. On a document
+    whose text match CANNOT place its objects — a scan, the geometry lane —
+    this is where the pass earns its cost, and there the count is positive.
+    """
+    return sum(1 for o in _flow(doc)
+               if not (o.props or {}).get("region") and _family(o))
+
+
 def place(doc, dets_by_page: dict, sizes_by_page: dict) -> dict:
     """Give every unboxed object a detector box, by the monotone walk above.
 

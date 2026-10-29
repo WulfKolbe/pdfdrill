@@ -2283,6 +2283,32 @@ def _do_plan(args):
     return "\n".join(lines)
 
 
+def _layout_candidates(pdf) -> "tuple[int, str]":
+    """(objects the layout detector pass would box, why that number).
+
+    Asked by `drill` before deciding whether to spend the pass. A model that
+    cannot be read answers 0 with its reason: `inspect` is the next step and
+    will say the same thing more precisely, and guessing "run it" here spends
+    minutes on a document that has no model to place anything on.
+    """
+    from . import layoutgeom
+    from .commands import Sidecar, _model_path
+    from . import model_io
+    try:
+        sc = Sidecar(pdf)
+        path = _model_path(sc)
+        if not path.exists():
+            return 0, "there is no model yet, so nothing could be placed on it."
+        doc = model_io.load_model(str(path))
+        n = layoutgeom.candidate_count(doc)
+    except Exception as exc:                                 # noqa: BLE001
+        return 0, f"the model could not be read ({type(exc).__name__})."
+    if n:
+        return n, ""
+    return 0, ("every object the detector could box already carries its own "
+               "region from the text match, so the pass would change nothing.")
+
+
 def _do_drill(args):
     """Drill a document the whole way, by the LANE CONTRACT, and end with an
     inspector.
@@ -2425,9 +2451,44 @@ def _do_drill(args):
     _facts = Sidecar(pdf).facts
     _has_reading = MODEL_BUILT in _facts or _lines_json_path(pdf).is_file()
     if _has_reading:
-        tail.append(("geometry --layout",
-                     _timed("geometry --layout",
-                            lambda: cmd_geometry(pdf, layout=True))))
+        # THE CHEAP FUSION RUNS; THE 400 dpi DETECTOR PASS IS NAMED AND NOT RUN.
+        # `drill` is the shallow entry point the SKILL promises — "always starts
+        # shallow … and escalates only when the question demands it" — and it
+        # was calling this with `layout=True`. Measured 2026-10-29 on 2016icpr
+        # (6 pages, cold, installed entry point): `geometry --layout` 263.93 s,
+        # 44 s/page, against 21.98 s for `profile`, the ONLY command the
+        # manifest calls `slow`. In the same drill it was 116.88 s of 120.73 s —
+        # 97% of the run — and on that document it placed nothing.
+        #
+        # What `drill` still needs is the pdftotext word-geometry fusion, which
+        # is what stops the inspector showing a box-less page (the defect this
+        # function was written for). The detector pass boxes only the objects
+        # the text match could not place, so it is an escalation, and it is
+        # reported the way a paid lane is: with the exact command.
+        tail.append(("geometry", _timed("geometry",
+                                        lambda: cmd_geometry(pdf))))
+        # ... AND THE EXPENSIVE HALF ONLY WHERE IT WOULD CHANGE THE ANSWER.
+        # "Escalates only when the question demands it" is not "never
+        # escalates": a scan whose text match cannot place its objects needs
+        # this pass, and that is the case `test_the_geometry_pass_is_asked_for
+        # _the_detector` was written for. What it does not need is the pass run
+        # over a born-digital paper whose every object is already boxed —
+        # measured on 2016icpr, 0 candidates and "boxed 0 of 0" for 56.84 s.
+        # `layoutgeom.candidate_count` is that question, asked for the price of
+        # a walk over the model instead of a 400 dpi render per page.
+        want, why = _layout_candidates(pdf)
+        if want:
+            tail.append(("geometry --layout",
+                         _timed("geometry --layout",
+                                lambda: cmd_geometry(pdf, layout=True))))
+        else:
+            tail.append(("geometry --layout",
+                         f"Not run: {why} The pass rasterizes every page at "
+                         f"400 dpi and runs the layout detector over it — "
+                         f"9.5 s/page measured, 12x the per-page cost of "
+                         f"`profile`, the one command this manifest calls "
+                         f"slow. To run it anyway: `pdfdrill geometry "
+                         f"--layout {pdf.name}`."))
         if not no_inspect:
             tail.append(("inspect", _timed("inspect", lambda: cmd_inspect(pdf))))
 
