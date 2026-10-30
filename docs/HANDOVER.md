@@ -2862,3 +2862,64 @@ types `$$` and types no environment at all. The practical consequence for a
 route table is that "no literal ||FO}} / ||CIT}} in any output" is a contract
 every projection shares, while a `$$` assertion belongs to the Markdown row
 alone.
+
+## A gate that had not run on the documented install for months
+
+Found while accounting for a 75-test difference between two sessions' suite
+numbers, which is the only reason anyone looked.
+
+`tests/test_stub_fidelity.py` checks that no test stub offers a public name its
+real class lacks — the rule written after `_SC` diverged from `Sidecar` three
+times in one week and seven tests passed having exercised nothing. It builds its
+pairs by importing every test module under `tests/`, guarded by
+`except Exception`.
+
+`pytest.importorskip` raises `Skipped`, and **`Skipped` is not an `Exception`**:
+its MRO is `Skipped -> OutcomeException -> BaseException`. So the skip escaped
+the guard while this file was being COLLECTED, and pytest skipped the whole
+file. 0 of 23 pairs checked, on every install without pyvips — which is every
+install the README documents — reported as one line of "1 skipped" in a
+6,257-test run. Nothing in the suite's output distinguished "the stub gate
+passed" from "the stub gate did not run".
+
+    except (Exception, pytest.skip.Exception)
+
+is the fix. Two tests hold it: one writes a module that calls `importorskip` on
+an absent name and converts an escaping `BaseException` into an AssertionError
+— because a test whose body raises `Skipped` is itself REPORTED as skipped,
+which is the same trap one level up — and `_PAIR_FLOOR` asserts the reach.
+
+### The floor is measured, and the measurement is the interesting part
+
+    pairs on a full install                                23
+    pairs on an install with none of sympy, pikepdf,
+      pyvips, img2pdf                                      23
+
+They agree, because no stub-declaring module needs any of those four. So
+`_PAIR_FLOOR = 22` sits one below the measured minimum: tight enough to catch a
+collapse, loose enough for an install that legitimately cannot import one
+stub-declaring module. The previous assertion was `>= 4`, which is also what a
+badly broken scan returns, so it could not have noticed this.
+
+### A simulation that was wrong in kind
+
+I first tried to reproduce the collapse by shadowing pyvips with a module that
+raises ImportError, and could not: the gate collected its 26 either way, old
+guard included. A genuinely absent module raises `ModuleNotFoundError` and
+`importorskip` skips; a module that is FOUND and raises `ImportError` is
+re-raised on purpose, so as not to mask a broken install. The shadow produced
+the second case. Reporting "cannot reproduce" from it would have been wrong.
+What verifies the fix on any machine is the mechanism:
+
+    import raises                                : Skipped
+    caught by Exception                          : False
+    caught by (Exception, pytest.skip.Exception)  : True
+
+### The four packages that decide what this suite collects
+
+sympy, pikepdf, pyvips, img2pdf — none named by the documented install. They
+account for 55 of the 80-node-id difference between a full install and a base
+one (`test_mathlayer` 13, three `scandrill` files 16, `test_imageserver_units`
+2, `scandrill/test_handoff` 24 behind img2pdf); the remaining 25 were this
+gate's whole file. A suite count is a property of its install, which this repo
+already says in words and now has a worked example of.
