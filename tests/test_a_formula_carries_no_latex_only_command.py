@@ -207,6 +207,31 @@ GRAPHICS_ONLY = {
     "pdfdrill/commands.py": {'expanded = ls.expand_macros(g["code"], macros)'},
 }
 
+#: The THIRD side, added 2026-10-30. The split above was stated as a dichotomy
+#: — a formula resolves, a picture's body does not — and running PROSE is
+#: neither. It must not resolve (`\ensuremath` outside maths is not the same
+#: command, and `\vspace` in a sentence is the author's spacing), and it does
+#: not go to xelatex either: it goes to a reader.
+#:
+#: These are the sites that expand the TEXT around a maths span. They exist
+#: because `expand_macros` was applied to no prose anywhere, on any route, so a
+#: text-mode macro was expanded nowhere: `\forget{…}` reached every projection
+#: of arxiv.math_9807032 seven times, and the author had defined it as
+#: `\newcommand{\forget}[1]{}`. See `latex_source.expand_prose`.
+PROSE_ONLY = {
+    "pdfdrill/latex_source.py": {
+        "out.append(expand_macros(text[last:], macros))",
+        "out.append(expand_macros(text[last:], macros, max_iter))",
+        "out.append(expand_macros(text[last:m.start()], macros, max_iter))",
+        "out.append(expand_macros(text[last:mm.start()], macros))",
+    },
+}
+
+
+def _declared(rel: str) -> set:
+    """Every line declared for `rel`, on either non-maths side."""
+    return GRAPHICS_ONLY.get(rel, set()) | PROSE_ONLY.get(rel, set())
+
 
 def _expander_calls():
     """{relpath: {stripped line}} for every call to the raw expander under
@@ -230,17 +255,20 @@ def _expander_calls():
 def test_every_expansion_site_declares_which_side_it_is_on():
     found = _expander_calls()
     extra = {rel: sorted(ls_ - GRAPHICS_ONLY.get(rel, set()))
-             for rel, ls_ in found.items() if ls_ - GRAPHICS_ONLY.get(rel, set())}
+             for rel, ls_ in found.items() if ls_ - _declared(rel)}
     assert not extra, (
-        "these call the raw expander and are not declared graphics-only, so "
-        "either they build a FORMULA and must call `expand_math` (which "
-        "resolves the LaTeX-only commands), or they build a picture body and "
-        "belong in GRAPHICS_ONLY: " + repr(extra))
+        "these call the raw expander and are not declared on a non-maths side, "
+        "so they either build a FORMULA and must call `expand_math` (which "
+        "resolves the LaTeX-only commands), or they build a picture body "
+        "(GRAPHICS_ONLY), or they expand running prose (PROSE_ONLY): "
+        + repr(extra))
+    declared = {rel: GRAPHICS_ONLY.get(rel, set()) | PROSE_ONLY.get(rel, set())
+                for rel in set(GRAPHICS_ONLY) | set(PROSE_ONLY)}
     missing = {rel: sorted(want - found.get(rel, set()))
-               for rel, want in GRAPHICS_ONLY.items()
+               for rel, want in declared.items()
                if want - found.get(rel, set())}
     assert not missing, (
-        "GRAPHICS_ONLY names a call site that is no longer there, so drop it: "
+        "a declaration names a call site that is no longer there, so drop it: "
         + repr(missing))
 
 

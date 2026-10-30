@@ -108,6 +108,30 @@ _MATH_SPAN_SOURCE = re.compile(
 #: gets the sentence with its mathematics deleted.
 _FO_TRANSCLUSION = re.compile(r"\{\{(?P<title>[^{}]*?)\|\|FO\}\}")
 
+#: A citation transclusion. Stripped with every other unresolved marker until
+#: 2026-10-30, so "as shown in [12]" read "as shown in" — 26 of them on
+#: arxiv.math_9807032, where the LaTeX route resolves all 26 and this one
+#: resolved none.
+_CIT_TRANSCLUSION = re.compile(r"\{\{(?P<title>[^{}]*?)\|\|CIT\}\}")
+
+#: A display environment the author wrote inside running prose. MathPix's md
+#: dialect is `$$ … $$`; a Markdown renderer types no `\begin{equation}`.
+#:
+#: Measured on arxiv.math_9807032: 22 inside Theorem statements and 24 inside
+#: Proof statements, which is exactly the 46 its `.md` carried. Only MARKDOWN
+#: converts these — in the LaTeX projection the environment is already right,
+#: and `$$` would be the wrong thing there.
+_DISPLAY_ENV = re.compile(
+    r"\\begin\{(?P<env>equation|displaymath|align|alignat|gather|multline"
+    r"|eqnarray|flalign)(?P<star>\*?)\}(?P<body>.*?)"
+    r"\\end\{\1\2\}", re.S)
+
+#: Of those, the ones whose body carries `&` alignment. Inside `$$ … $$` a bare
+#: `align` is invalid for KaTeX and MathJax both; `aligned` is the form they
+#: accept, and it is what the body means.
+_ALIGNED_ENVS = frozenset({"align", "alignat", "gather", "multline",
+                           "eqnarray", "flalign"})
+
 #: How `build_source_model` sanitises a tiddler title before writing it into a
 #: marker. Mirrored, because the marker in the prose is the sanitised form and
 #: the title map is built from `title_for`, which is not.
@@ -660,9 +684,52 @@ class MarkdownProjector(BaseProjector):
 
         return _FO_TRANSCLUSION.sub(one, text)
 
+    @staticmethod
+    def _render_citations(text: str) -> str:
+        """`{{<bibkey>_REF_<key>||CIT}}` → `[<key>]`, in place.
+
+        The citekey comes from `parse_title`, which is THE one place a title is
+        read (rule 17 — three identifier regexes broke in two days by carrying
+        their own). A marker whose title does not parse is left for
+        `_strip_transclusions`, as before: a key we cannot name is not a
+        citation we can print.
+        """
+        from .tiddlywiki import parse_title
+
+        def one(m: "re.Match") -> str:
+            parsed = parse_title(m.group("title"))
+            key = getattr(parsed, "key", None) if parsed else None
+            return f"[{key}]" if key else m.group(0)
+
+        return _CIT_TRANSCLUSION.sub(one, text)
+
+    @staticmethod
+    def _render_display_envs(text: str) -> str:
+        r"""`\begin{equation} x = y \end{equation}` → `$$x = y$$`.
+
+        The author writes display maths inside a theorem statement as an
+        environment, and `latex_source` keeps the statement as prose, so the
+        environment travels in the text rather than becoming an `Equation`
+        object. Markdown has to type it; the aligned family keeps its own inner
+        environment because `&` needs one.
+        """
+        def one(m: "re.Match") -> str:
+            body = (m.group("body") or "").strip()
+            if not body:
+                return ""
+            if m.group("env") in _ALIGNED_ENVS:
+                body = f"\\begin{{aligned}}\n{body}\n\\end{{aligned}}"
+            return f"{MATH_DISPLAY[0]}{body}{MATH_DISPLAY[1]}"
+
+        return _DISPLAY_ENV.sub(one, text)
+
     def _clean(self, text: str) -> str:
         """Prose fit for Markdown: widgets become LaTeX, markers go, and the
         LaTeX sectioning a MathPix line sometimes carries is unwrapped."""
+        # A display ENVIRONMENT first, before anything looks at delimiters: it
+        # is the only form here that carries its own, and the `$$` it becomes
+        # must not then be read as prose dollars.
+        text = self._render_display_envs(text)
         # The READING's delimiters first, while the widget output is not yet in
         # the string: `_unwidget` emits `$…$` now, and escaping would eat it.
         text = _mathpix_math(text, getattr(self, "_source_math", False))
@@ -671,6 +738,7 @@ class MarkdownProjector(BaseProjector):
         # must come after the pass that would re-read them as prose. Before
         # `_strip_transclusions`, which is what used to delete them.
         text = self._render_formulas(text)
+        text = self._render_citations(text)
         text = _strip_transclusions(text)
         # `\title{X}` / `\author{X}` / `\section{X}` leak in from MathPix's
         # `text_display` on front-matter lines. Stripping only the OPENING

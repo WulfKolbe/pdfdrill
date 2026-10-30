@@ -2738,3 +2738,91 @@ section above. `_fn.RUNNING_TEXT_TYPES` does not hold Theorem or Proof either,
 so a footnote mark or a citation INSIDE a theorem statement is not resolved on
 any route; untouched here deliberately (that machinery renumbers footnotes, and
 "ten wrong bodies attached to ten markers" is its own recorded defect class).
+
+## The author's macros were expanded for maths and never for prose
+
+A CLI driving pdfdrill reported four things on arxiv.math_9807032's source
+route. Measured, and the premise turned out to be half right: expansion WAS
+solved long ago — `expand_macros` in 2b01201f (2026-05-30), `expand_math` in
+043e92da (2026-10-27) — and it had exactly two call sites in
+`build_source_model`, the Equation branch and a Paragraph's inline spans.
+
+Five prose sites never called it: a Theorem's statement, a Proof's statement,
+an Abstract's text, a theorem's bracket title, and a Section's caption. And
+`expand_macros` was applied to no prose anywhere on any route — its only
+callers were `expand_math` and a Diagram's `code` — so a TEXT-mode macro was
+expanded nowhere at all.
+
+4b599430 (2026-06-26) created the Theorem objects and printed them as tiddlers
+in the same commit, a month after the expansion existed, so this is neither a
+regression nor the projector work of 893a4dfb/ce5a20e3 (neither touches
+`src/pdfdrill/`): those made four-month-old unexpanded text visible in four
+more projections.
+
+`expand_prose(text, macros)` is the split both halves need — a maths span
+through `expand_math` (which also resolves what no renderer knows), the text
+between spans through `expand_macros` alone, and the author's own delimiter
+kept, because the projector decides the dialect and a statement is prose. The
+paragraph branch now expands its between-span text the same way.
+
+    arxiv.math_9807032, in the .md        before   after
+    \RAgroups                                 66       0
+    \NeumannN                                 18       0
+    \Det                                      15       0
+    \forget                                    7       0
+    \mathcal G (the expansion of the first)    0      71
+    raw \begin{equation}                      46       0
+    citations, as [key]                        0      24
+    literal {{…||FO}} / {{…||CIT}}             0       0
+
+`\newcommand{\forget}[1]{}` is why expansion, not stripping, was right for the
+text-mode case: the author had already said what should happen to it. Three
+Paragraph objects disappear with it (52 → 49) because `\forget{…}` was their
+whole content, and the word count falls 8,304 → 8,191 for the same reason.
+
+### Two things fixed alongside, same measurement
+
+A display environment inside a statement reached the Markdown as
+`\begin{equation}`, which no Markdown renderer types: 22 in Theorem statements
+and 24 in Proof statements, exactly the 46 in the `.md`. `_render_display_envs`
+types them as `$$…$$`, and the aligned family keeps an inner `\begin{aligned}`
+because `&` needs one. The LaTeX projection is deliberately NOT changed — there
+the environment is already right and `$$` would be wrong, which a test pins.
+
+`{{…||CIT}}` was stripped with every other unresolved marker, so "as shown in
+[12]" read "as shown in" — 26 on this paper, all 26 resolved on the LaTeX route
+and none in Markdown. `_render_citations` reads the citekey through
+`parse_title` (THE one title reader, rule 17) and prints `[key]`: 24 citation
+forms over 10 distinct keys now reach the `.md`.
+
+### NOT fixed, and why
+
+**`[section]` theorem numbering.** The model counts 1, 2, 3 … along the
+shared-counter chain where the paper prints "Lemma 2.9".
+`extract_theorems`' own docstring records it ("the `[section]` reset/prefix is
+NOT applied"), the declaration scan already captures `reset_counter`, and two
+existing tests pin the sequential numbers
+(`test_extract_theorems_numbering_and_pairing`,
+`test_theorem_tiddlers_pair_and_caption_ref_resolves` asserting "Lemma 2
+(Scaling)"). Correcting it rewrites every theorem number in every projection
+and every `\ref` that resolves to one, so it needs the printed numbers of
+several real papers as its fixture. Left for a task of its own.
+
+**A `\cite` in a bracket title** could not be reproduced: zero of this paper's
+66 theorems has a bracket title. The title is no longer stored raw, so a
+command in one is cleaned and a cite in one now becomes `[key]` like any other;
+whether that was the reported case is unknown without the document.
+
+**`llmtext` keeps its markers** — 70 FO and 25 CIT, and 46 raw environments.
+Pre-existing (ce5a20e3's dump has the same), and arguably right: that dump
+makes every Formula its own titled, addressable unit, so a marker there is a
+pointer to another unit rather than a deletion. Changed nothing; recorded so
+the next reader does not "fix" it into a loss.
+
+**`pdfdrill latex --compile`** still produces no PDF on this paper. `\forget`
+is gone, but `\address`, `\bysame` and the bibliography scaffolding the `.md`
+tail also carries are not; under `-interaction=nonstopmode` the file compiles.
+
+**The `.md` has no References section** although `_md_from_latex_source`'s
+summary says the bibliography is included, and its tail carries raw
+`\ifx\undefined\bysame …`. Measured here, not chased.

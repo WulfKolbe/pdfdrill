@@ -705,6 +705,46 @@ def expand_math(fragment: str, macros: dict, max_iter: int = 8) -> str:
     return latex_only.resolve(expand_macros(fragment, macros, max_iter))
 
 
+def expand_prose(text: str, macros: dict, max_iter: int = 8) -> str:
+    r"""Prose with the author's macros expanded on BOTH sides of its maths.
+
+    `expand_math` is the maths call and it was the only one any prose site made,
+    through the inline-span walk in `build_source_model`'s paragraph branch. Two
+    consequences, both measured on arxiv.math_9807032 (2026-10-30):
+
+    * A Theorem's, Proof's or Abstract's statement called it nowhere, so
+      `\RAgroups` reached every projection 66 times, `\NeumannN` 18, `\Det` 15.
+    * `expand_macros` was never applied to prose on ANY route — its only
+      callers were this function's maths half and a Diagram's `code` — so a
+      TEXT-mode macro was expanded nowhere. `\forget{…}` is the case, 7 times
+      on that paper, and the author had written `\newcommand{\forget}[1]{}`:
+      expanding it is not a guess about their intent, it IS their instruction.
+
+    The split is the point. A maths span goes through `expand_math`, which also
+    resolves the commands no renderer knows (`latex_only.resolve`); the text
+    between spans goes through `expand_macros` alone, because `\ensuremath` and
+    friends mean something different outside maths. The delimiter the author
+    used is preserved — `$x$` stays `$x$`, `\(x\)` stays `\(x\)` — since the
+    projector decides the output dialect and a statement is prose, not a
+    formula.
+    """
+    if not text:
+        return text
+    out: list[str] = []
+    last = 0
+    for m in _INLINE_MATH.finditer(text):
+        paren = m.group("p")
+        inner = paren if paren is not None else m.group("d")
+        if inner is None:
+            continue
+        out.append(expand_macros(text[last:m.start()], macros, max_iter))
+        body = expand_math(inner, macros, max_iter)
+        out.append(f"\\({body}\\)" if paren is not None else f"${body}$")
+        last = m.end()
+    out.append(expand_macros(text[last:], macros, max_iter))
+    return "".join(out)
+
+
 def _collect_macro_defs(preamble: str) -> list[str]:
     """Full `\\newcommand`/`\\renewcommand`/`\\providecommand`/`\\DeclareMathOperator`
     and `\\def` definitions, with their (possibly multi-line, brace-balanced)
@@ -2119,7 +2159,14 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
         fi += 1
         if kind == "section":
             s_obj = DocObject(type="Section", props={
-                "level": it["level"], "caption": it["caption"],
+                # A heading is the fifth prose site, and the last one measured
+                # still carrying an author macro: `## Properties of the class
+                # $\RAgroups$`. Macro expansion ONLY — NOT `_clean_prose`,
+                # which rewrites `\ref{x}` to `(x)` and would take away the
+                # label the TiddlyWiki projector turns into a `<$link>` to the
+                # theorem a "Proof of Theorem~\ref{…}" heading names.
+                "level": it["level"],
+                "caption": expand_prose(it["caption"], macros),
                 "flow_index": fi, "bibkey": bibkey,
                 **({"is_appendix": True} if it.get("is_appendix") else {})})
             doc.add(s_obj)
@@ -2127,16 +2174,23 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
             n_sec += 1
         elif kind == "abstract":
             doc.add(DocObject(type="Abstract", props={
-                "text": _clean_prose(_transclude_cites(it["text"], bibkey)),
+                "text": _clean_prose(_transclude_cites(
+                    expand_prose(it["text"], macros), bibkey)),
                 "flow_index": fi, "bibkey": bibkey}))
             n_abs += 1
         elif kind == "theorem":
             t_obj = DocObject(type="Theorem", props={
                 "kind": it["kind"], "env": it["env"],
                 "printed_title": it["printed_title"],
-                "title": it["bracket_title"], "number": it["number"],
+                # The bracket title is PROSE — `\begin{lemma}[\textbf{Scaling}]`
+                # — and it was the one string here stored raw, which is why a
+                # command in a title reached the reader as a command.
+                "title": _clean_prose(_transclude_cites(
+                    expand_prose(it["bracket_title"], macros), bibkey)),
+                "number": it["number"],
                 "label": it["label"], "starred": it["starred"],
-                "statement": _clean_prose(_transclude_cites(it["statement"], bibkey)),
+                "statement": _clean_prose(_transclude_cites(
+                    expand_prose(it["statement"], macros), bibkey)),
                 "flow_index": fi, "bibkey": bibkey,
                 **({"parent_section": current_section} if current_section else {})})
             doc.add(t_obj)
@@ -2144,7 +2198,8 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
         elif kind == "proof":
             p_obj = DocObject(type="Proof", props={
                 "name": it["name"], "of_label": it["of_label"],
-                "statement": _clean_prose(_transclude_cites(it["statement"], bibkey)),
+                "statement": _clean_prose(_transclude_cites(
+                    expand_prose(it["statement"], macros), bibkey)),
                 "flow_index": fi, "bibkey": bibkey,
                 **({"parent_section": current_section} if current_section else {})})
             doc.add(p_obj)
@@ -2233,10 +2288,14 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                     title = re.sub(r"[^A-Za-z0-9_\-\.]", "_",
                                    title_for(bibkey, "Formula", formula_no))
                     formula_titles[key] = title
-                out.append(text[last:mm.start()])
+                # The prose BETWEEN the spans is expanded too: a text-mode macro
+                # was expanded on no route, and the author's `\forget{…}` is
+                # defined to discard its argument. See `expand_prose`, which is
+                # this same split for the sites that build no Formula objects.
+                out.append(expand_macros(text[last:mm.start()], macros))
                 out.append("{{" + title + "||FO}}")            # transclude the FO tiddler
                 last = mm.end()
-            out.append(text[last:])
+            out.append(expand_macros(text[last:], macros))
             prose = _clean_prose(_transclude_cites("".join(out), bibkey))
             prose, _ltx_objs, ltx_no = _capture_ltx(prose, bibkey, ltx_no)
             for _lo in _ltx_objs:
