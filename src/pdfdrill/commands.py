@@ -17510,7 +17510,13 @@ def cmd_status(pdf: Path, html: bool = False) -> str:
     if arts:
         parts.append("\nFiles (open in a tab / click in the Outputs panel):")
         for p in arts:
-            parts.append(f"  {p.relative_to(sc.pdf_path.parent)}  "
+            # `_artref`, NOT `relative_to(pdf.parent)`: in the self-contained
+            # layout the doc folder IS the parent, so that call collapsed every
+            # entry to a BARE basename — and drillui refuses a bare filename on
+            # purpose (a bare `foo.md` in the prose is almost always a name out
+            # of the document's CONTENT). The whole list, the PDF included, then
+            # rendered as plain text under a header promising a click.
+            parts.append(f"  {_artref(sc, p)}  "
                          f"({p.stat().st_size / 1024:.0f} KB)")
 
     # THE LANE, and therefore the next command — on every `status`, because

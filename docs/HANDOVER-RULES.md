@@ -552,6 +552,37 @@ Each of these cost real time or real data in this project.
     written before the digest, because every projection older than this one does
     still carry its header.
 
+45. **A rule that recognises a path by its SHAPE will recognise half of a URL.**
+    drillui turned every path-like token in pdfdrill's prose into a clickable
+    `/artifact?path=…` link, and refused a URL with `if (/^https?:/.test(path))
+    return`. The refusal never fired on the case that mattered: the token
+    pattern's lookbehind `(?<![\w/])` blocks a match that starts after a word
+    character or a slash, while `.` is in the path's own character class and not
+    in the lookbehind — so inside `https://www.inftyproject.org/articles/
+    2001_Grec_Kanahori.pdf` the engine simply started at the dot in the HOST and
+    captured `inftyproject.org/articles/2001_Grec_Kanahori.pdf`. By then the
+    scheme was gone, the guard had nothing to recognise, and the link resolved
+    under no root: every PDF the user added by URL produced exactly one dead
+    link (three of them in one session), while the real file sat in the library
+    under its bibkey. Without a `www.` the capture starts after the first dot
+    (`org/articles/x.pdf`) — the same defect, less recognisable. *Reject the
+    class, don't patch the character: the URL is now blanked before any rule
+    reads the text, so a rule added later inherits the exemption instead of the
+    hole.*
+    **And the list that promised a click produced none.** `status` prints
+    "Files (open in a tab / click in the Outputs panel)" and derived each entry
+    with `relative_to(sc.pdf_path.parent)` — which in the self-contained layout
+    collapses to a BARE basename, exactly what `_artref` exists to prevent and
+    says so in its docstring. drillui refuses a bare filename on purpose (a bare
+    `foo.md` in prose is almost always a name out of the document's content), so
+    the whole list, the document's own PDF included, rendered as plain text.
+    784 of this library's 3164 doc folders also carry a space in the name, which
+    no token pattern can span, so the folder-qualified path alone was not enough
+    either: the listing is now read as a LIST — `  <path>  (<n> KB)`, where the
+    size suffix anchored at end-of-line delimits the name exactly — and read
+    before the token rule, so the full path wins the truncated-tail guard.
+    *A structured line is evidence; a pattern over prose is a guess.*
+
 ---
 
 ## 2. Environment facts that are not obvious

@@ -838,9 +838,33 @@ const app = {
       `${this.turnNo} turn${this.turnNo===1?"":"s"}`;
   },
 
+  /* 557 — A URL IN THE PROSE IS NOT A LOCAL ARTIFACT PATH, and the token
+     rule could not tell. `add https://www.inftyproject.org/articles/
+     2001_Grec_Kanahori.pdf` is echoed into the terminal, and rule 2's
+     lookbehind `(?<![\w/])` only refuses a match that starts after a word
+     character or a slash — `.` is in the path class but NOT in the lookbehind,
+     so the engine started at the dot inside the HOST and captured
+     `inftyproject.org/articles/2001_Grec_Kanahori.pdf`: a scheme-less fragment
+     that `add`'s `/^https?:/` guard can no longer recognise. It was listed as
+     an artifact and linked as `/artifact?path=inftyproject.org%2Farticles%2F…`
+     — a path under no root, so the bridge 404s while the real file sits at
+     `<library>/2001_Grec_Kanahori/2001_Grec_Kanahori.pdf`. Without `www.` it is
+     worse: the capture starts after the FIRST dot (`org/articles/x.pdf`).
+
+     Fixed by BLANKING every URL before any rule reads the text, rather than by
+     patching one character class: the scheme is the only reliable marker, and a
+     rule added later would otherwise inherit the same hole. Spaces of the same
+     length keep every offset and every line boundary intact. A URL worth
+     opening never arrives through the prose — it comes as a `viewer` message
+     and is added as a {url} entry. */
+  _maskUrls(text){
+    return String(text).replace(/\bhttps?:\/\/\S+/gi, m => " ".repeat(m.length));
+  },
+
   /* ---- artifacts: turn pdfdrill's *.html/*.svg/*.pdf/*.md/*.json/… mentions into links ---- */
   scanArtifacts(text){
     let m, added = false;
+    text = this._maskUrls(text);          // 557 — a URL is not a path
     // 544 — `log` joins the list: 543 puts the COMPILE LOG of a failed build
     //    in INSPECT.txt, and a person opens that. It was the one path of 542's
     //    six the line rule could not match.
@@ -875,6 +899,21 @@ const app = {
     //     scrolled off or truncated, the file cannot.
     const insp = /^(\/[^\n]*\/INSPECT\.txt)$/im.exec(String(text));
     if (insp) this.readInspectList(insp[1]);
+    // 0c. 557 — THE FILE LISTING, spaces and all. `status` and `artifacts` print
+    //    one `  <path>  (<n> KB)` line per file under a header that promises
+    //    "click in the Outputs panel", and 784 of this library's 3164 doc
+    //    folders have a space in the name ("0111016 (1)/0111016 (1).pdf") —
+    //    which rule 2's token class cannot span, so a quarter of the library
+    //    listed its own PDF as unclickable text. The size suffix anchored at
+    //    end-of-line delimits the path EXACTLY, which no prose rule can do:
+    //    there is nothing to guess about where the name ends.
+    //    Runs BEFORE the token rule for the reason rule 0 gives: the full
+    //    path must be captured first, so `add`'s truncated-tail guard then
+    //    discards rule 2's fragment of the same file (`Garnets/probe-page-
+    //    text.json`, which 404s) instead of listing both.
+    const kb = new RegExp(
+      "^[ \\t]+(.+?\\." + EXT + ")[ \\t]+\\(\\d+ KB\\)[ \\t]*$", "gim");
+    while ((m = kb.exec(text)) !== null) add(m[1], m[2]);
     // 1. the FULL path (may contain spaces — drill dirs are named after the PDF)
     //    reported as `Open <path> in a browser|drillui`. The token regex below
     //    can't span spaces, so this bracket capture is what handles spaced names.

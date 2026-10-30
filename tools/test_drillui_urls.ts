@@ -29,7 +29,16 @@ const ok = (name: string, cond: boolean, extra = "") => {
 const wsUrl = (protocol: string, host: string, pathname: string): string => {
   if (protocol === "file:") return "ws://localhost:8787/ws";
   const proto = protocol === "https:" ? "wss" : "ws";
-  const base = pathname.replace(/[^/]*$/, "");
+  // THREE cases, as the page has them: a directory ("…/8787/"), a page FILE
+  // ("…/8787/index.html" → strip it), and a directory served WITHOUT its
+  // trailing slash ("…/8787" → append one). The last is the CoCalc default,
+  // and the single `replace(/[^/]*$/, "")` this mirror used to carry deleted
+  // the PORT segment there, yielding "/p/server/ws".
+  let base;
+  if (pathname.endsWith("/")) base = pathname;
+  else if (/\.[a-z0-9]+$/i.test(pathname.split("/").pop() || ""))
+    base = pathname.replace(/[^/]*$/, "");
+  else base = pathname + "/";
   return `${proto}://${host}${base}ws`;
 };
 const httpBase = (url: string): string => {
@@ -52,6 +61,9 @@ ok("ws CoCalc proxy prefix kept",
 ok("ws CoCalc proxy with index.html",
    wsUrl("https:", "host.cocalc.ai", "/PROJ/server/8787/index.html")
      === "wss://host.cocalc.ai/PROJ/server/8787/ws");
+ok("ws CoCalc proxy WITHOUT the trailing slash keeps the port",
+   wsUrl("https:", "host.cocalc.ai", "/PROJ/server/8787")
+     === "wss://host.cocalc.ai/PROJ/server/8787/ws");
 ok("ws file:// stays localhost",
    wsUrl("file:", "", "/whatever") === "ws://localhost:8787/ws");
 
@@ -68,7 +80,8 @@ ok("artifact URL resolves through the proxy",
 // --- source guard: the HTML still uses the path-aware forms --------------------
 const html = readFileSync(join(HERE, "drillui_term.html"), "utf8");
 ok("html: ws derives from location.pathname",
-   html.includes("location.pathname.replace(/[^/]*$/") &&
+   html.includes("const p = location.pathname;") &&
+   html.includes('if (p.endsWith("/")) base = p;') &&
    html.includes("${proto}://${location.host}${base}ws"));
 ok("html: httpBase strips only /ws (keeps prefix)",
    html.includes("u.pathname.replace(/\\/ws$/") &&
@@ -185,6 +198,124 @@ ok("bridge no-op on a quoted (existing) doc", reassemble(_f, ["--port", "9000"])
 rmSync(_d, { recursive: true });
 ok("bridge.ts contains the reassembly",
    readFileSync(join(HERE, "drillui_bridge.ts"), "utf8").includes("passthrough.splice(0, n - 1)"));
+
+// --- 557 — A URL IN THE PROSE IS NOT A LOCAL ARTIFACT PATH -------------------
+// `add https://www.inftyproject.org/articles/2001_Grec_Kanahori.pdf` is echoed
+// into the terminal. Rule 2's lookbehind `(?<![\w/])` refuses a match that
+// starts after a word character or a slash — but `.` is in the path class and
+// NOT in the lookbehind, so the engine started at the dot inside the HOST and
+// captured `inftyproject.org/articles/2001_Grec_Kanahori.pdf`: a scheme-less
+// fragment `add`'s `/^https?:/` guard can no longer recognise. It was listed as
+// an artifact and linked as `/artifact?path=inftyproject.org%2Farticles%2F…`,
+// which is under no root, so the bridge 404s — while the real file sits at
+// `<library>/2001_Grec_Kanahori/2001_Grec_Kanahori.pdf`. Without `www.` it is
+// worse: the capture starts after the FIRST dot (`org/articles/x.pdf`).
+// The mask is taken FROM the page, not mirrored, so the two cannot drift.
+const maskSrc = /_maskUrls\(text\)\{([\s\S]*?)\n  \},/.exec(htmlSrc);
+ok("html: _maskUrls present", !!maskSrc);
+const maskUrls = new Function("text", maskSrc ? maskSrc[1] : "return text;") as
+  (t: string) => string;
+const scan2 = (text: string): string[] => {
+  const EXT = "(html|svg|pdf|md|json|txt|tex|log)";
+  const re = new RegExp(
+    "(?<![\\w/])((?:[\\w.+~@%-]+\\/)+[\\w.+~@%-]+\\." + EXT + ")\\b(?!\\.[a-z])", "gi");
+  const out: string[] = [];
+  let m: RegExpExecArray | null;
+  const masked = maskUrls(text);
+  while ((m = re.exec(masked)) !== null) if (!/^https?:/i.test(m[1])) out.push(m[1]);
+  return out;
+};
+ok("a www URL yields no artifact",
+   scan2("? add https://www.inftyproject.org/articles/2001_Grec_Kanahori.pdf").length === 0,
+   JSON.stringify(scan2("? add https://www.inftyproject.org/articles/2001_Grec_Kanahori.pdf")));
+ok("a bare-host URL yields no artifact",
+   scan2("  adding https://inftyproject.org/articles/x.pdf … (reuses an existing drill)").length === 0,
+   JSON.stringify(scan2("  adding https://inftyproject.org/articles/x.pdf …")));
+ok("masking preserves offsets (same length)",
+   maskUrls("a https://x.org/y.pdf b").length === "a https://x.org/y.pdf b".length);
+ok("a real path on the same line as a URL survives",
+   scan2("got https://www.inftyproject.org/articles/2001_Grec_Kanahori.pdf → " +
+         "2001_Grec_Kanahori/2001_Grec_Kanahori.md")
+     .join(",") === "2001_Grec_Kanahori/2001_Grec_Kanahori.md");
+ok("a local path is untouched by the mask",
+   scan2("→ Markdown file: TPAMI_Math/TPAMI_Math.md  (open it directly)")
+     .join(",") === "TPAMI_Math/TPAMI_Math.md");
+ok("html: scanArtifacts applies the mask",
+   /scanArtifacts\(text\)\{[\s\S]{0,400}?_maskUrls\(/.test(htmlSrc));
+
+// --- 557b — the `status` / `artifacts` FILE LIST, spaces and all -------------
+// pdfdrill prints one `  <path>  (<n> KB)` line per file under a header that
+// promises "click in the Outputs panel". 784 of this library's 3164 doc folders
+// have a space in the name, and rule 2's token class cannot span a space — so a
+// quarter of the library listed its PDF as unclickable text. The size suffix
+// anchored at end-of-line delimits the path exactly, which is what no prose
+// rule can do.
+const KB_RE = new RegExp(
+  "^[ \\t]+(.+?\\.(html|svg|pdf|md|json|txt|tex|log))[ \\t]+\\(\\d+ KB\\)[ \\t]*$", "gim");
+const kbPaths = (text: string): string[] => {
+  const out: string[] = []; let m: RegExpExecArray | null;
+  KB_RE.lastIndex = 0;
+  while ((m = KB_RE.exec(text)) !== null) out.push(m[1]);
+  return out;
+};
+const listing = "Files (open in a tab / click in the Outputs panel):\n" +
+  "  0111016 (1)/0111016 (1).pdf  (288 KB)\n" +
+  "  2001_Grec_Kanahori/2001_Grec_Kanahori.md  (26 KB)\n" +
+  "  Kana/svg/EQ1.svg  (0 KB)\n" +
+  "  (the raw model JSON is hidden — `pdfdrill artifacts x.pdf --all` to include it)\n";
+ok("spaced doc folder captured whole",
+   kbPaths(listing).includes("0111016 (1)/0111016 (1).pdf"),
+   JSON.stringify(kbPaths(listing)));
+ok("all three listed files captured", kbPaths(listing).length === 3,
+   JSON.stringify(kbPaths(listing)));
+ok("the hidden-JSON note is not a path",
+   !kbPaths(listing).some(p => p.includes("raw model JSON")));
+ok("html: the KB-line rule is in the page",
+   /\\\(\\\\d\+ KB\\\)/.test(htmlSrc) || htmlSrc.includes("KB\\\\)"));
+
+// --- 557c — the listing rule runs BEFORE the token rule ---------------------
+// Rule 2 captures the tail of a spaced path after the last space
+// ("… Eu-Sc-Fe Garnets/probe-page-text.json" → "Garnets/probe-page-text.json",
+// a 404). `add`'s truncated-tail guard drops such a fragment only when the FULL
+// path was captured first — it asks "am I a tail of something already listed?",
+// never the reverse. So the listing rule has to run before the token rule, the
+// same ordering rule 0 states for absolute-path lines. Verified on the REAL
+// page object, not a mirror: scanArtifacts and its helpers are lifted out of
+// drillui_term.html and run over the real `status` output.
+const lift = (name: string, args: string) => {
+  const re = new RegExp("\\n  (?:async )?" + name + "\\(" + args + "\\)\\{([\\s\\S]*?)\\n  \\},");
+  const m = re.exec(htmlSrc);
+  if (!m) throw new Error("not found in drillui_term.html: " + name);
+  return m[1];
+};
+const page: any = {
+  artifacts: new Map<string, any>(),
+  artifactUrl: (p: string) => "http://x/artifact?path=" + encodeURIComponent(p),
+  renderArtifacts: () => {},
+};
+for (const [n, a] of [["_maskUrls", "text"], ["_isInternalArtifact", "path"],
+                      ["_leadInCandidates", "path"]] as [string, string][])
+  page[n] = new Function(a, lift(n, a)).bind(page);
+page._addFirstExisting = new Function("cands", "ext",
+  "return (async () => {" + lift("_addFirstExisting", "cands, ext") + "})()").bind(page);
+page.readInspectList = new Function("path",
+  "return (async () => {" + lift("readInspectList", "path") + "})()").bind(page);
+page.scanArtifacts = new Function("text", lift("scanArtifacts", "text")).bind(page);
+
+const DOC = "020-Cation Distribution in Eu-Sc-Fe Garnets";
+page.scanArtifacts(
+  "Files (open in a tab / click in the Outputs panel):\n" +
+  `  ${DOC}/${DOC}.md  (31 KB)\n` +
+  `  ${DOC}/${DOC}.pdf  (632 KB)\n` +
+  `  ${DOC}/probe-page-text.json  (24 KB)\n`);
+const listed = [...page.artifacts.keys()] as string[];
+ok("the spaced doc's PDF is listed whole", listed.includes(`${DOC}/${DOC}.pdf`),
+   JSON.stringify(listed));
+ok("no truncated 'Garnets/…' fragment is listed",
+   !listed.some(p => p.startsWith("Garnets/")), JSON.stringify(listed));
+ok("exactly the three listed files", listed.length === 3, JSON.stringify(listed));
+ok("html: the listing rule precedes the token rule",
+   htmlSrc.indexOf("// 0c. 557 —") < htmlSrc.indexOf("// 2. path-like tokens"));
 
 console.log(fails ? `\n${fails} FAILED` : "\nAll passed.");
 process.exit(fails ? 1 : 0);
