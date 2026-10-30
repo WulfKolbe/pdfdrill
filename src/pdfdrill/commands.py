@@ -6299,6 +6299,16 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
     # ⇒ rebuild. (No lines.json ⇒ this never fires; the source model is kept.)
     if lines_path.exists() and model_path.exists() and not stale:
         stale = _source_model_trap(sc, lines_path)
+    # A MODEL BUILT BY DIFFERENT MODEL-BUILDING CODE is rebuilt lazily — on
+    # demand, only this document, free, from the files already on disk (the
+    # owner's choice, 2026-10-30, after `md` served a model nine hours old
+    # projected by new code and reported a word count that was neither
+    # generation's). Keyed to `builder_key`, the building code's own identity:
+    # the repo sha would mark every model in a 3,235-folder library stale on
+    # every merge, including one that only touched a CLI string.
+    if model_path.exists() and not stale:
+        from . import buildstamp
+        stale = not buildstamp.builder_is_current(model_path)
     if sc.has(MODEL_BUILT) and model_path.exists() and not force and not stale:
         return _format_model(sc, built=False)      # 576 — say it was a no-op
 
@@ -7999,9 +8009,18 @@ def cmd_llmtext(pdf: Path, delimiter: str = "%%%%", split: bool = True) -> str:
     from docmodel.core import Document
     from docops.projectors.llm_text import LLMTextProjector
     from docops.base import OperatorConfig
+    from . import buildstamp
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
+    rebuilt = ""
+    if model_path.exists() and not buildstamp.builder_is_current(model_path):
+        # The lazy rebuild, as `md` does. This dump read whatever model was on
+        # disk and said nothing about which code built it.
+        rebuilt = buildstamp.builder_change_note(model_path)
+        cmd_model(pdf, force=True)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
     if not model_path.exists():
         return (f"No model for {pdf.name} — run `pdfdrill model` (PDF) or "
                 f"`pdfdrill markdown` (.md) first.")
@@ -8020,7 +8039,8 @@ def cmd_llmtext(pdf: Path, delimiter: str = "%%%%", split: bool = True) -> str:
     n_units = out.count("\n" + delimiter + "\n") + 1 if out else 0
     n_para = len(g.type_index.get("Paragraph", []))
     n_eq = len(g.type_index.get("Equation", [])) + len(g.type_index.get("Formula", []))
-    return (f"LLM text dump: {n_units} unit(s) from {n_para} paragraph(s) + "
+    lead = f"model rebuilt: {rebuilt}. " if rebuilt else ""
+    return (f"{lead}LLM text dump: {n_units} unit(s) from {n_para} paragraph(s) + "
             f"{n_eq} formula(s) (paragraphs split on double line breaks, "
             f"empty formulas skipped), delimiter '{delimiter}'. "
             f"Open {_artref(sc, out_path)} in a browser.")
@@ -18665,6 +18685,7 @@ def _md_from_latex_source(pdf: Path, sc: "Sidecar") -> "str | None":
     transclusions for Markdown ({{…||CIT}}→[CITATION: key], {{…||FO}}→[FORMULA N];
     the formulas are listed in the trailing glossary)."""
     model_path = _model_path(sc)
+    rebuilt = ""
     if not _is_latex_source_model(model_path):
         if not _arxiv_id_for(pdf, sc):
             return None                      # not arXiv, no source model → engine path
@@ -18673,6 +18694,17 @@ def _md_from_latex_source(pdf: Path, sc: "Sidecar") -> "str | None":
         model_path = _model_path(sc)
         if not _is_latex_source_model(model_path):
             return None                      # didn't actually build from source
+    else:
+        # The LAZY REBUILD (owner, 2026-10-30). `md` never consulted
+        # `_stale_or_absent` — it checked that a model existed — so a model
+        # built by older code was projected by new code in silence. Free: the
+        # e-print is already on disk, and nothing here buys a reading.
+        from . import buildstamp
+        if not buildstamp.builder_is_current(model_path):
+            rebuilt = buildstamp.builder_change_note(model_path)
+            cmd_model(pdf, force=True)
+            sc = Sidecar(pdf)
+            model_path = _model_path(sc)
     if not sc.has(BIBLIOGRAPHY_BUILT):
         cmd_bibliography(pdf)                 # references + linked citations (gold)
         sc = Sidecar(pdf)
@@ -18685,7 +18717,8 @@ def _md_from_latex_source(pdf: Path, sc: "Sidecar") -> "str | None":
     # See docs/superpowers/specs/2026-09-26-projection-audit.md F1.
     doc = load_model(_model_path(sc))
     md = _project_markdown(sc, doc)
-    return (f"Markdown from the author's LaTeX source ({len(md.split())} words) — "
+    lead = f"model rebuilt: {rebuilt}. " if rebuilt else ""
+    return (f"{lead}Markdown from the author's LaTeX source ({len(md.split())} words) — "
             f"no OCR/text-layer, so NO line-break hyphenation, an isolated "
             f"`## Abstract`, and the bibliography are included."
             + _write_md(pdf, sc, md, source="latex"))
@@ -18723,6 +18756,14 @@ def _md_from_model(pdf: Path, sc: "Sidecar",
     model_path = _model_path(sc)
     if not (sc.has(MODEL_BUILT) and model_path.exists()):
         return None
+    # The lazy rebuild, as on the author's-source path above.
+    from . import buildstamp
+    rebuilt = ""
+    if not buildstamp.builder_is_current(model_path):
+        rebuilt = buildstamp.builder_change_note(model_path)
+        cmd_model(pdf, force=True)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
     # A GENUINE MathPix markdown still wins: it is real Markdown written from
     # the same OCR, with its own images and tables. Only pdfdrill's own previous
     # output is overtaken here.
@@ -18736,7 +18777,8 @@ def _md_from_model(pdf: Path, sc: "Sidecar",
     import re as _re
     imgs = len(_re.findall(r"!\[[^\]]*\]\([^)]+\)", md))
     rows = len(_re.findall(r"^\s*\|.*\|\s*$", md, _re.M))
-    return (f"Markdown from the unified model ({len(md.split())} words, "
+    lead = f"model rebuilt: {rebuilt}. " if rebuilt else ""
+    return (f"{lead}Markdown from the unified model ({len(md.split())} words, "
             f"{imgs} image link(s), {rows} table row(s)) — images link to "
             f"`report-crops/<title>.jpg`; point `crops_base` at a URL to read "
             f"them from a server."

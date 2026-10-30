@@ -96,7 +96,11 @@ def stamp(refresh: bool = False) -> dict:
         if sha is not None:
             porcelain = _git("status", "--porcelain", "--untracked-files=no")
             dirty = bool(porcelain) if porcelain is not None else None
-        _CACHE = {"sha": sha, "dirty": dirty, "version": version()}
+        _CACHE = {"sha": sha, "dirty": dirty, "version": version(),
+                  # the model-BUILDING code's own identity, so a reader can ask
+                  # "would this build the same model" without asking "is this
+                  # the same commit" — see `builder_key`.
+                  "builder": builder_key()}
     out = dict(_CACHE)
     out["at"] = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
     return out
@@ -115,19 +119,104 @@ def describe(st: "dict | None") -> str:
                               st.get("version", "?"), st.get("at", "?"))
 
 
-def read_stamp(model_path, which: str = "build") -> "dict | None":
-    """The `build` (or `written`) stamp from a model file, without loading it.
+#: The sources that decide a model's object graph — its BUILDER. Keyed to
+#: these and not to the repo sha, so a commit that touches a CLI string or a
+#: doc does not mark every model in a 3,235-folder library stale.
+#:
+#: `docmodel/` builds from a reading; `latex_source` and `markdown_source` are
+#: the two routes that build from an author's own file and save straight
+#: through `model_io`, which is why they never had a `build` stamp at all.
+_BUILDER_SOURCES = tuple(
+    sorted((REPO / "src" / "docmodel").rglob("*.py"))
+    + [REPO / "src" / "pdfdrill" / "latex_source.py",
+       REPO / "src" / "pdfdrill" / "markdown_source.py"])
+
+_BUILDER_CACHE: "str | None" = None
+
+
+def builder_key() -> str:
+    """A short hash of the model-BUILDING code, cached per process.
+
+    `stamp()["sha"]` answers "which commit was checked out"; this answers "would
+    this code build the same model". The difference is the whole point: on
+    2026-10-30 a model built nine hours earlier was reused and projected by new
+    code, giving a word count that was neither generation's — and the repo sha
+    would have marked every model in the library stale on every merge, which
+    the owner declined for good reason.
+
+    A source that cannot be read contributes its name only, so a partial
+    checkout degrades to a weaker key rather than raising while a user waits.
+    """
+    global _BUILDER_CACHE
+    if _BUILDER_CACHE is None:
+        import hashlib
+        h = hashlib.sha256()
+        for p in _BUILDER_SOURCES:
+            h.update(str(getattr(p, "name", p)).encode())
+            try:
+                h.update(Path(p).read_bytes())
+            except OSError:
+                h.update(b"\0unreadable")
+        _BUILDER_CACHE = h.hexdigest()[:12]
+    return _BUILDER_CACHE
+
+
+def read_stamp(model_path, which: "str | None" = None) -> "dict | None":
+    """The stamp from a model file, without loading it.
 
     Reads the whole JSON — a model is tens of MB, so callers measuring a
     corpus should prefer passing metas they already hold.
+
+    `which=None`, the default, asks for THE PRODUCER: `build` when the model
+    has one, else `written`. That fallback is the fix for a reader that called
+    every author's-source model unstamped — `build` is written only by
+    `docmodel.main.run`, while `model_io.save_model` writes `written`, so the
+    whole source route carried a perfectly good stamp under the other name and
+    `cmd_model` said "this model predates 575" about a model built minutes
+    before.
+
+    NAMING a key is strict. A caller that asks for `written` wants the code
+    that last TOUCHED the file, which after an enrichment pass is not the code
+    that built it (see the module docstring); answering that question with the
+    other key's value would be a different fact, not a kinder default.
     """
     import json
     try:
         meta = json.loads(Path(model_path).read_text(encoding="utf-8")).get("meta") or {}
     except Exception:
         return None
-    st = meta.get(which)
-    return st if isinstance(st, dict) else None
+    keys = ("build", "written") if which is None else (which,)
+    for key in keys:
+        st = meta.get(key)
+        if isinstance(st, dict):
+            return st
+    return None
+
+
+def builder_is_current(model_path) -> bool:
+    """Would the code running now build the same model?
+
+    False for a missing model, for one with no builder key (every model written
+    before this field, which the owner's answer rebuilds lazily, one document at
+    a time), and for one whose builder differs.
+    """
+    st = read_stamp(model_path)
+    return bool(st) and st.get("builder") == builder_key()
+
+
+def builder_change_note(model_path) -> str:
+    """"built by <old>, now <new>" when the builder moved, else "".
+
+    The line the owner asked a lazy rebuild to print, so a reader is never left
+    to infer from a word count that the model under a projection has changed.
+    """
+    if builder_is_current(model_path):
+        return ""
+    st = read_stamp(model_path) or {}
+    old = st.get("builder")
+    return "built by %s, now %s" % (
+        (old[:7] if isinstance(old, str) and old else "an unstamped builder"),
+        builder_key()[:7])
 
 
 def key_of(st: "dict | None") -> str:
