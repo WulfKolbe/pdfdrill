@@ -45,6 +45,8 @@ from pathlib import Path
 from typing import Optional
 
 from ..base import BaseProjector
+from .common import (resolve_citation_markers, resolve_formula_markers,
+                     theorem_head)
 
 #: Object types rendered as an image, in the order a reader meets them.
 _FIGURE_TYPES = ("Picture", "Diagram", "Chart", "Figure")
@@ -101,11 +103,28 @@ _MATH_SPAN_SOURCE = re.compile(
     r"|(?<![\\$])\$(?!\$)(?P<ii>.+?)(?<!\\)\$",
     re.S)
 
-#: A Formula transclusion, the ONE marker this projector resolves rather than
-#: strips. `latex_source.build_source_model` cuts every inline span out of the
-#: paragraph and leaves this behind, so a reader who gets the prose without it
-#: gets the sentence with its mathematics deleted.
-_FO_TRANSCLUSION = re.compile(r"\{\{(?P<title>[^{}]*?)\|\|FO\}\}")
+#: The FO and CIT markers this projector RESOLVES rather than strips live in
+#: `common` (`resolve_formula_markers` / `resolve_citation_markers`), because
+#: `llm_text` has to resolve the same two and its own docstring forbids them
+#: ("no markup, no transclusion tokens"). One implementation, two callers.
+
+#: A display environment the author wrote inside running prose. MathPix's md
+#: dialect is `$$ … $$`; a Markdown renderer types no `\begin{equation}`.
+#:
+#: Measured on arxiv.math_9807032: 22 inside Theorem statements and 24 inside
+#: Proof statements, which is exactly the 46 its `.md` carried. Only MARKDOWN
+#: converts these — in the LaTeX projection the environment is already right,
+#: and `$$` would be the wrong thing there.
+_DISPLAY_ENV = re.compile(
+    r"\\begin\{(?P<env>equation|displaymath|align|alignat|gather|multline"
+    r"|eqnarray|flalign)(?P<star>\*?)\}(?P<body>.*?)"
+    r"\\end\{\1\2\}", re.S)
+
+#: Of those, the ones whose body carries `&` alignment. Inside `$$ … $$` a bare
+#: `align` is invalid for KaTeX and MathJax both; `aligned` is the form they
+#: accept, and it is what the body means.
+_ALIGNED_ENVS = frozenset({"align", "alignat", "gather", "multline",
+                           "eqnarray", "flalign"})
 
 #: How `build_source_model` sanitises a tiddler title before writing it into a
 #: marker. Mirrored, because the marker in the prose is the sanitised form and
@@ -427,15 +446,7 @@ class MarkdownProjector(BaseProjector):
                                or obj.props.get("text") or ""))
         if not body:
             return ""
-        head = (str(obj.props.get("printed_title") or "").strip()
-                or str(obj.props.get("kind") or "Theorem").strip().title())
-        num = obj.props.get("number")
-        if num is not None and not obj.props.get("starred"):
-            head = f"{head} {num}"
-        bracket = self._clean(str(obj.props.get("title") or "")).strip()
-        if bracket:
-            head = f"{head} ({bracket})"
-        return f"**{head}.** {body}"
+        return f"**{theorem_head(obj, self._clean)}.** {body}"
 
     def _proof(self, obj) -> str:
         r"""`**Proof.** <statement> $\square$`.
@@ -652,24 +663,41 @@ class MarkdownProjector(BaseProjector):
         there is nothing to render, and an empty `$$` is a stray fence in every
         renderer.
         """
-        formulas = getattr(self, "_formulas", None) or {}
+        return resolve_formula_markers(text, getattr(self, "_formulas", None),
+                                       inline=MATH_INLINE, display=MATH_DISPLAY)
 
+    @staticmethod
+    def _render_citations(text: str) -> str:
+        """`{{<bibkey>_REF_<key>||CIT}}` → `[<key>]`, in place."""
+        return resolve_citation_markers(text)
+
+    @staticmethod
+    def _render_display_envs(text: str) -> str:
+        r"""`\begin{equation} x = y \end{equation}` → `$$x = y$$`.
+
+        The author writes display maths inside a theorem statement as an
+        environment, and `latex_source` keeps the statement as prose, so the
+        environment travels in the text rather than becoming an `Equation`
+        object. Markdown has to type it; the aligned family keeps its own inner
+        environment because `&` needs one.
+        """
         def one(m: "re.Match") -> str:
-            obj = formulas.get(m.group("title"))
-            if obj is None:
-                return m.group(0)
-            tex = str(obj.props.get("latex")
-                      or obj.props.get("latex_original") or "").strip()
-            if not tex:
-                return m.group(0)
-            d = MATH_DISPLAY if obj.props.get("display") else MATH_INLINE
-            return f"{d[0]}{tex}{d[1]}"
+            body = (m.group("body") or "").strip()
+            if not body:
+                return ""
+            if m.group("env") in _ALIGNED_ENVS:
+                body = f"\\begin{{aligned}}\n{body}\n\\end{{aligned}}"
+            return f"{MATH_DISPLAY[0]}{body}{MATH_DISPLAY[1]}"
 
-        return _FO_TRANSCLUSION.sub(one, text)
+        return _DISPLAY_ENV.sub(one, text)
 
     def _clean(self, text: str) -> str:
         """Prose fit for Markdown: widgets become LaTeX, markers go, and the
         LaTeX sectioning a MathPix line sometimes carries is unwrapped."""
+        # A display ENVIRONMENT first, before anything looks at delimiters: it
+        # is the only form here that carries its own, and the `$$` it becomes
+        # must not then be read as prose dollars.
+        text = self._render_display_envs(text)
         # The READING's delimiters first, while the widget output is not yet in
         # the string: `_unwidget` emits `$…$` now, and escaping would eat it.
         text = _mathpix_math(text, getattr(self, "_source_math", False))
@@ -678,6 +706,7 @@ class MarkdownProjector(BaseProjector):
         # must come after the pass that would re-read them as prose. Before
         # `_strip_transclusions`, which is what used to delete them.
         text = self._render_formulas(text)
+        text = self._render_citations(text)
         text = _strip_transclusions(text)
         # `\title{X}` / `\author{X}` / `\section{X}` leak in from MathPix's
         # `text_display` on front-matter lines. Stripping only the OPENING

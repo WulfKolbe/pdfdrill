@@ -63,9 +63,15 @@ def _pairs():
     for name in _test_modules():
         try:
             mod = importlib.import_module(name)
-        except Exception:
-            continue                      # a module that will not import is
-                                          # its own test's problem, not this one
+        except (Exception, pytest.skip.Exception):
+            # a module that will not import is its own test's problem, not
+            # this one — and `pytest.importorskip` is how it says so. `Skipped`
+            # is NOT an Exception (Skipped -> OutcomeException ->
+            # BaseException), so `except Exception` alone let it escape here
+            # while this file was being collected, and pytest then skipped the
+            # whole file: 0 of 23 pairs checked, reported as "1 skipped", on
+            # every install without pyvips.
+            continue
         for attr, obj in vars(mod).items():
             if not inspect.isclass(obj) or attr not in _STANDS_FOR:
                 continue
@@ -83,11 +89,57 @@ def _pairs():
 _PAIRS = _pairs()
 
 
+#: The floor under `_PAIRS`, one below the MEASURED minimum.
+#:
+#: Measured 2026-10-30 on two installs: 23 pairs on a full one, and 23 on one
+#: with none of sympy, pikepdf, pyvips or img2pdf — the four optional packages
+#: that decide what this suite collects. They agree because no module that
+#: declares a stub needs any of the four, which is a fact about today's corpus
+#: and not a guarantee, so this stays a floor: an install that legitimately
+#: cannot import one stub-declaring module should not fail here.
+#:
+#: What the floor is FOR is the collapse. The gate checked 0 of its 23 pairs on
+#: every install without pyvips and said so only as "1 skipped" — see
+#: `test_a_module_that_skips_at_import_does_not_take_the_whole_gate_with_it`.
+#: `>= 4` was too low to notice that, since 4 is also what a badly broken scan
+#: returns.
+_PAIR_FLOOR = 22
+
+
 def test_the_scan_actually_found_stubs():
     """A pass because nothing was inspected is the failure this file exists
     to prevent, so the scan asserts its own reach."""
-    assert len(_PAIRS) >= 4, [p[0] for p in _PAIRS]
+    assert len(_PAIRS) >= _PAIR_FLOOR, [p[0] for p in _PAIRS]
     assert any(p[1].__name__ == "_SC" for p in _PAIRS)
+
+
+def test_a_module_that_skips_at_import_does_not_take_the_whole_gate_with_it(
+        tmp_path, monkeypatch):
+    """`pytest.importorskip` raises `Skipped`, and `Skipped` is NOT an
+    `Exception`: its MRO is Skipped -> OutcomeException -> BaseException. So
+    `except Exception` around the import let it escape `_pairs()` while this
+    module was being COLLECTED, and pytest skipped the whole file — 0 of 23
+    pairs checked, reported as "1 skipped" (25 node ids: the 23 pairs and the
+    two plain tests).
+
+    Measured 2026-10-30 on an install without pyvips, which is every install
+    the README documents: `pytest --collect-only -rs tests/test_stub_fidelity.py`
+    gave "collected 0 items / 1 skipped — could not import 'pyvips'".
+    """
+    (tmp_path / "test_a_module_that_skips_itself.py").write_text(
+        "import pytest\n"
+        "pytest.importorskip('a_package_this_machine_does_not_have')\n",
+        encoding="utf-8")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.setattr(sys.modules[__name__], "_test_modules",
+                        lambda: iter(["test_a_module_that_skips_itself"]))
+    try:
+        pairs = _pairs()
+    except BaseException as exc:          # noqa: BLE001 — the point of the test
+        raise AssertionError(
+            f"_pairs() let {type(exc).__name__} escape, which skips this whole "
+            f"file and every pair it should have checked") from None
+    assert pairs == []
 
 
 @pytest.mark.parametrize("modname,stub,real",

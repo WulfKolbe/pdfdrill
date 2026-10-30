@@ -8,6 +8,7 @@ present, falling back to surface anchor position).
 from __future__ import annotations
 
 import base64
+import re
 import urllib.request
 
 from docmodel.core import Document, DocObject
@@ -36,6 +37,17 @@ def embed_image(url: str, timeout: float = 30.0) -> str:
     return data
 
 
+#: The types every flow consumer renders.
+#:
+#: `Theorem`, `Proof` and `Algorithm` are deliberately NOT here, and their
+#: absence was defect 3's second half: seven projectors take their flow from
+#: this set, and a projector cannot render an object its flow never yields, so
+#: 66 theorem statements and 23 proofs were invisible to all of them at once.
+#: Only the projectors that HAVE a branch for those types ask for them, by
+#: name, through `flow_ordered_content(doc, types=…)` — because a flow object
+#: nobody renders is at best nothing and at worst noise, and four of the seven
+#: still have no branch. Add a type here only together with a branch in every
+#: consumer. (`CodeListing` is missing for the same reason and is the next one.)
 CONTENT_TYPES = {
     "Section", "Paragraph", "Equation", "Formula", "Table",
     "Picture", "Diagram", "Footnote", "Sidenote", "ListItem",
@@ -43,16 +55,99 @@ CONTENT_TYPES = {
 }
 
 
-def flow_ordered_content(doc: Document) -> list[DocObject]:
+#: A Formula transclusion in prose, as `latex_source.build_source_model` leaves
+#: it when it cuts an inline span out of a paragraph.
+FO_MARKER = re.compile(r"\{\{(?P<title>[^{}]*?)\|\|FO\}\}")
+
+#: A citation transclusion, likewise.
+CIT_MARKER = re.compile(r"\{\{(?P<title>[^{}]*?)\|\|CIT\}\}")
+
+
+def resolve_formula_markers(text: str, by_title: dict,
+                            inline=("$", "$"), display=("$$", "$$")) -> str:
+    """`{{<bibkey>_FO0001||FO}}` → the formula's LaTeX, delimited, in place.
+
+    ONE implementation for every projection that has to do this. A marker
+    naming no Formula, or one whose Formula carries no LaTeX, is left exactly
+    as it stands for the caller to strip: there is nothing to render, and an
+    empty `$$` is a stray fence in every renderer.
+    """
+    def one(m: "re.Match") -> str:
+        obj = (by_title or {}).get(m.group("title"))
+        if obj is None:
+            return m.group(0)
+        props = getattr(obj, "props", None) or {}
+        tex = str(props.get("latex") or props.get("latex_original") or "").strip()
+        if not tex:
+            return m.group(0)
+        d = display if props.get("display") else inline
+        return f"{d[0]}{tex}{d[1]}"
+
+    return FO_MARKER.sub(one, text)
+
+
+def resolve_citation_markers(text: str, fmt: str = "[{key}]") -> str:
+    """`{{<bibkey>_REF_<key>||CIT}}` → `[<key>]`, in place.
+
+    The citekey comes from `parse_title`, which is THE one place a title is read
+    (rule 17 — three identifier regexes broke in two days by carrying their
+    own). A marker whose title does not parse is left for the caller: a key we
+    cannot name is not a citation we can print.
+    """
+    from .tiddlywiki import parse_title
+
+    def one(m: "re.Match") -> str:
+        parsed = parse_title(m.group("title"))
+        key = getattr(parsed, "key", None) if parsed else None
+        return fmt.format(key=key) if key else m.group(0)
+
+    return CIT_MARKER.sub(one, text)
+
+
+def theorem_head(obj: DocObject, clean=None) -> str:
+    """What the paper calls this block: `Theorem 3 (Hirzebruch)`, `Satz`.
+
+    ONE implementation for every projection, because the head is what a reader
+    (and an LLM handed `<bibkey>_THM0003`) uses to tell a Lemma from a
+    Conjecture, and four projectors now print it. The printed title is the
+    author's own (`\\newtheorem{lemma}{Lemma}` → "Lemma"); the number follows
+    the shared-counter chain the reader resolved, and a starred environment has
+    none. Each caller supplies its own emphasis — bold, brackets, or a LaTeX
+    environment — so only the words live here.
+
+    `clean` is the caller's own prose pass, applied to the BRACKET TITLE alone:
+    an author writes `\\begin{theorem}[The $L^2$ case]`, so that argument is
+    prose and needs the same treatment as any other — which only the projector
+    knows how to give it.
+    """
+    p = obj.props or {}
+    head = (str(p.get("printed_title") or "").strip()
+            or str(p.get("kind") or "Theorem").strip().title())
+    num = p.get("number")
+    if num is not None and not p.get("starred"):
+        head = f"{head} {num}"
+    bracket = str(p.get("title") or "").strip()
+    if bracket and clean is not None:
+        bracket = clean(bracket).strip()
+    return f"{head} ({bracket})" if bracket else head
+
+
+def flow_ordered_content(doc: Document,
+                         types: "tuple[str, ...] | None" = None) -> list[DocObject]:
     """
     Return content objects sorted by their flow position. Uses the
     `flow_index` prop if it was set by DocumentFlowProcessor; otherwise
     falls back to (page, line_index) of the first surface realization.
+
+    `types` adds types to `CONTENT_TYPES` for this call: the caller states which
+    further types IT renders, so one projector gaining a branch cannot change
+    what another one is handed. See `CONTENT_TYPES`.
     """
+    wanted = CONTENT_TYPES if not types else (CONTENT_TYPES | set(types))
     items: list[tuple[tuple, DocObject]] = []
     lines = doc.streams.get("mathpix_lines")
     for obj in doc.objects.values():
-        if obj.type not in CONTENT_TYPES:
+        if obj.type not in wanted:
             continue
         fi = obj.props.get("flow_index")
         if isinstance(fi, int):

@@ -33,6 +33,37 @@ from .tiddlywiki import parse_title as _parse_title
 #: action that never happens.
 _CONTAINER_TYPES = frozenset(_CONTAINER_TYPES_TUPLE)
 
+#: The types this projector renders beyond `common.CONTENT_TYPES`, named here
+#: because `_render` has a branch for each. See `CONTENT_TYPES` for why the
+#: shared set is not widened instead.
+_EXTRA_FLOW_TYPES = ("Theorem", "Proof", "Algorithm")
+
+#: A `\newtheorem{name}` already declared by a preamble, starred or not.
+_NEWTHEOREM = re.compile(r"\\newtheorem\*?\s*\{\s*([^}]+?)\s*\}")
+
+
+def _declared_theorem_envs(preamble: str) -> set:
+    r"""The environments a preamble already declares.
+
+    An author's own preamble carries its `\newtheorem` lines, and a second
+    declaration of one is not a warning but a compile error ("Command
+    \theorem already defined"). The projector therefore declares only what the
+    preamble it is actually emitting does not.
+    """
+    return {m.group(1) for m in _NEWTHEOREM.finditer(preamble or "")}
+
+
+def _theorem_title(props: dict, env: str) -> str:
+    r"""The printed title for a `\newtheorem` this projector has to declare.
+
+    The author's own (`printed_title`) when the reader captured it; otherwise
+    the environment name set as a word, which is what `\newtheorem{lemma}`
+    would print anyway.
+    """
+    return (str((props or {}).get("printed_title") or "").strip()
+            or env.replace("_", " ").title())
+
+
 #: 640-a — templates whose target ALSO renders as a standalone block, so a
 #: materialised transclusion of it means "printed here, not there". Keyed by
 #: template, valued by the object type the title must name.
@@ -220,12 +251,19 @@ class LaTeXProjector(BaseProjector):
 
         # Render the BODY first: it decides which graphics packages the preamble
         # must load (a Diagram's `tikzpicture` / `\addplot` in a table).
-        items = [o for o in flow_ordered_content(doc) if o.id not in self._skip_ids]
+        items = [o for o in flow_ordered_content(doc, types=_EXTRA_FLOW_TYPES)
+                 if o.id not in self._skip_ids]
         body_blocks = self._render_flow(items)
         body_text = "\n".join(body_blocks)
 
         preamble = self._doc_preamble(meta)
         out: list[str] = [preamble.rstrip()]
+        # 893b — the theorem environments the body used. Same standard the
+        # preamble already holds `listings` to: a block that reaches the .tex
+        # without its declaration does not render badly, it FAILS TO COMPILE.
+        thm = self._theorem_preamble(doc)
+        if thm:
+            out += ["% theorem environments carried from the source:", thm]
         # graphics setup (tikz/pgfplots/definecolor/…) the body needs but the
         # default preamble lacks — pulled from the source's captured preamble.
         gfx = _pipe.graphics_preamble(doc, body_text)
@@ -280,6 +318,13 @@ class LaTeXProjector(BaseProjector):
         self._level_shift = (min(levels) - 1) if levels else 0
         # the object list the figure numbering and label-uniqueness check read
         self._all_objects = list(doc.objects.values())
+        self._by_object_id = {o.id: o for o in self._all_objects}
+        # Which theorem environments the BODY turns out to use, and whether it
+        # needs amsthm. Filled while rendering and read by `_theorem_preamble`
+        # afterwards — the same body-first order the graphics packages use (see
+        # `project`), because only the body knows what it emitted.
+        self._theorem_envs: dict[str, str] = {}
+        self._needs_amsthm = False
         self._fig_ords = None
         self._refnum_counts = None
         self._order, self._title_index = _pipe.formula_array(doc)
@@ -544,6 +589,124 @@ class LaTeXProjector(BaseProjector):
                 if t:
                     return t
         return None
+
+    def _theorem(self, obj) -> str:
+        r"""A Theorem or Proof in the author's OWN environment.
+
+        The prose goes through the same three calls a Paragraph's does — cites,
+        then footnote marks, then the materialised-marker pass — rather than a
+        second copy of that path: the statement is running text and every
+        caller that emits prose goes through `_cite` (fix round 2 of 642).
+
+        `env` is what the author wrote (`\newtheorem{satz}{Satz}` → `satz`), so
+        the projection still matches the source. The `\label` sits inside the
+        environment, which is where it has the theorem's number to record.
+        """
+        p = obj.props
+        raw = str(p.get("statement") or "").strip()
+        if not raw:
+            return ""
+        marked, notes = self._mark_footnotes(obj, self._cite(obj, raw))
+        text, owed = self._prose_notes(marked.strip())
+        notes = notes + owed
+        if not text.strip():
+            return ""
+        if obj.type == "Proof":
+            env = "proof"
+            name = str(p.get("name") or "").strip().rstrip(".")
+            opt = (f"[{_escape_text(name)}]"
+                   if name and name.lower() != "proof" else "")
+            self._needs_amsthm = True
+        else:
+            env = (str(p.get("env") or "").strip()
+                   or str(p.get("kind") or "").strip().lower() or "theorem")
+            bracket = str(p.get("title") or "").strip()
+            opt = f"[{_escape_text(bracket)}]" if bracket else ""
+            self._theorem_envs.setdefault(env, _theorem_title(p, env))
+        label = str(p.get("label") or "").strip()
+        head = f"\\begin{{{env}}}{opt}"
+        body = "\n".join([text] + notes) if notes else text
+        if label:
+            head = f"{head}\n\\label{{{label}}}"
+        return f"{head}\n{body}\n\\end{{{env}}}"
+
+    def _algorithm(self, obj) -> str:
+        """An Algorithm as a captioned `enumerate`, nested by step depth.
+
+        NOT `algorithm`/`algorithmic`: those need packages the author's
+        preamble may not load, and this projection's rule for a package is the
+        one `listings` is held to — declare it or do not emit what needs it.
+        An `enumerate` is in every class, and the nesting is the loop body.
+        """
+        p = obj.props
+        num = str(p.get("number") or "").strip()
+        title = _escape_text(str(p.get("title") or p.get("caption")
+                                 or "").strip())
+        caption = f"Algorithm {num}" if num else "Algorithm"
+        head = f"\\textbf{{{caption}}}" + (f" {title}" if title else "")
+        steps = [self._by_object_id[i] for i in (obj.children or [])
+                 if i in getattr(self, "_by_object_id", {})
+                 and self._by_object_id[i].type == "AlgorithmStep"]
+        if not steps:
+            steps = [o for o in getattr(self, "_all_objects", [])
+                     if o.type == "AlgorithmStep"
+                     and getattr(o, "parent", None) == obj.id]
+        rows, depths = [], []
+        for st in steps:
+            body = str(st.props.get("text") or st.props.get("content")
+                       or "").strip()
+            if not body:
+                continue
+            try:
+                depth = max(0, int(st.props.get("depth") or 0))
+            except (TypeError, ValueError):
+                depth = 0
+            rows.append((depth, self._cite(st, body)))
+            depths.append(depth)
+        if not rows:
+            return head
+        out, level = [head, "\\begin{enumerate}"], 0
+        for depth, body in rows:
+            while depth > level:
+                out.append("\\begin{enumerate}")
+                level += 1
+            while depth < level:
+                out.append("\\end{enumerate}")
+                level -= 1
+            out.append(f"\\item {body}")
+        out += ["\\end{enumerate}"] * (level + 1)
+        return "\n".join(out)
+
+    def _theorem_preamble(self, doc) -> str:
+        r"""`amsthm` plus a `\newtheorem` for every environment the body used
+        and the preamble does not already declare.
+
+        The author's own declarations are preferred over anything this
+        projector could guess: `latex_source.scan_environments` records each
+        `\newtheorem`'s printed title and starred-ness in
+        `meta['environments']['newtheorem']`, which is where "Lemme" rather
+        than "Lemma" comes from.
+        """
+        envs = dict(getattr(self, "_theorem_envs", {}) or {})
+        if not envs and not getattr(self, "_needs_amsthm", False):
+            return ""
+        for row in ((doc.meta.get("environments") or {}).get("newtheorem")
+                    or []):
+            if not isinstance(row, dict):
+                continue
+            name = str(row.get("name") or "").strip()
+            if name in envs:
+                envs[name] = str(row.get("title") or "").strip() or envs[name]
+        declared = _declared_theorem_envs(self._doc_preamble(doc.meta))
+        lines = []
+        if not re.search(r"\\usepackage(\[[^\]]*\])?\{[^}]*\bamsthm\b[^}]*\}",
+                         self._doc_preamble(doc.meta)):
+            lines.append("\\usepackage{amsthm}")
+        for env, title in envs.items():
+            if env in declared:
+                continue
+            lines.append(f"\\newtheorem{{{env}}}{{{title}}}")
+        return "\n".join(lines)
 
     def _doc_preamble(self, meta) -> str:
         """A document-specific preamble captured by `injectlatex` (macros the
@@ -1293,6 +1456,10 @@ class LaTeXProjector(BaseProjector):
             # that carries the mark (so `\footnotetext` executes on the page the
             # mark was set on).
             return "\n".join([text] + notes) if notes else text
+        if t in ("Theorem", "Proof"):
+            return self._theorem(obj)
+        if t == "Algorithm":
+            return self._algorithm(obj)
         if t == "Equation":
             latex = _pipe.sanitize_math((p.get("latex") or "").strip())
             if not latex:                                 # CDN-crop-only — nothing to typeset

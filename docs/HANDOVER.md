@@ -2658,3 +2658,268 @@ be a dollar sign, so it needs a content test rather than the route flag.
 
 Author macros `expand_math` does not resolve reach the output as they stand
 (`\Z\pi`, `\RAgroups`); no renderer will typeset them. Pre-existing, unchanged.
+
+## The markdown projector was not the only one (defect 3, second half)
+
+893a4dfb gave `Theorem`, `Proof` and `Algorithm` a branch in the Markdown
+projector. A CLI driving pdfdrill then measured the same document through the
+other projections and found the bodies missing there too. Measured on
+arxiv.math_9807032, which carries 66 Theorem (3,307 words) and 23 Proof (2,770
+words) objects:
+
+    projection                 before   after
+    <stem>.llm.txt   words      2,167   8,577
+                     THM units      0      66
+                     PROOF units    0      23
+    latex/<key>.tex  words      2,239   8,545
+                     theorem envs   0      66
+                     proof envs     0      23
+                     \newtheorem    0       9
+
+The "before" column is not a reconstruction: another session built both files
+from the pre-fix code at 06:13 on 2026-10-30, so it is the same document through
+the same commands on the parent commit.
+
+### One gate, not three oversights
+
+`common.CONTENT_TYPES` — which `flow_ordered_content` filters by, and which
+SEVEN projectors take their flow from (comparison_html, beamer, distill_reader,
+latex, plaintext, llm_compact twice) — never held `Theorem`, `Proof` or
+`Algorithm`. A projector cannot render an object its flow never yields, so a
+branch alone would have changed nothing, and the three projections did not
+each forget: they were all handed a flow with the theorems already removed.
+
+The default set is NOT widened. Four of those seven have no branch for these
+types and are not touched by this task, and a flow object nobody renders is at
+best nothing and at worst noise. `flow_ordered_content(doc, types=…)` lets a
+projector name the types IT renders, so one projector gaining a branch cannot
+change what another is handed. `CodeListing` is absent from the set for the
+same reason and is the next one.
+
+`llm_text` is the exception that proves the shape: it iterates every object and
+never consulted the gate, so there it really was a missing branch — plus two
+missing rows in `_TITLED_TYPES`, without which `title[o.id]` raises KeyError.
+
+### What the LaTeX route needed beyond a branch
+
+A theorem is the author's OWN environment (`\newtheorem{satz}{Satz}` → `satz`),
+kept in the Theorem's `env` prop, so the projection still matches the source.
+That means the preamble has to declare it — the standard `listings` is already
+held to here: *a block that reaches the .tex without its declaration does not
+render badly, it FAILS TO COMPILE*, and `--compile` is a real flag.
+`_theorem_preamble` emits `amsthm` plus one `\newtheorem` per environment the
+BODY used (body-first, exactly as the graphics packages are collected), taking
+each printed title from `meta['environments']['newtheorem']` — the author's own
+scan, which is where "Lemme" rather than "Lemma" would come from — and skipping
+anything the preamble already declares, because a second declaration is a
+compile error, not a warning.
+
+Nine declarations on this paper, one per environment used: Definition,
+Conjecture, Theorem, Remark, Proposition, Lemma, Corollary, Example, Situation.
+The .tex compiles to a 29-page PDF with the theorem headings typeset, with zero
+theorem-related complaints in the log.
+
+### Still open, measured here
+
+`pdfdrill latex --compile` reports no PDF on this paper — before the change as
+well as after. The cause is `\forget{…}`, an author macro the projection emits
+and the preamble does not define (7 occurrences; `\address` is the next one).
+Under `-interaction=nonstopmode` both the pre-fix and the fixed .tex produce a
+PDF, so the failure is the undefined macro and not the theorems.
+
+`PlainTextProjector` has no CLI verb at all: `plaintext` is advertised in
+`commands._OPENABLE_PROJECTIONS` and `cli.HANDLERS` has no entry for it, so a
+reader offered that projection cannot run it. Its branches are tested here but
+NOT acceptance-tested, because there is no command to run.
+
+26 in-text citations still leave this paper's Markdown (`{{…||CIT}}`), and the
+latex route resolves all 26 — the asymmetry is recorded in the first half's
+section above. `_fn.RUNNING_TEXT_TYPES` does not hold Theorem or Proof either,
+so a footnote mark or a citation INSIDE a theorem statement is not resolved on
+any route; untouched here deliberately (that machinery renumbers footnotes, and
+"ten wrong bodies attached to ten markers" is its own recorded defect class).
+
+## The author's macros were expanded for maths and never for prose
+
+A CLI driving pdfdrill reported four things on arxiv.math_9807032's source
+route. Measured, and the premise turned out to be half right: expansion WAS
+solved long ago — `expand_macros` in 2b01201f (2026-05-30), `expand_math` in
+043e92da (2026-10-27) — and it had exactly two call sites in
+`build_source_model`, the Equation branch and a Paragraph's inline spans.
+
+Five prose sites never called it: a Theorem's statement, a Proof's statement,
+an Abstract's text, a theorem's bracket title, and a Section's caption. And
+`expand_macros` was applied to no prose anywhere on any route — its only
+callers were `expand_math` and a Diagram's `code` — so a TEXT-mode macro was
+expanded nowhere at all.
+
+4b599430 (2026-06-26) created the Theorem objects and printed them as tiddlers
+in the same commit, a month after the expansion existed, so this is neither a
+regression nor the projector work of 893a4dfb/ce5a20e3 (neither touches
+`src/pdfdrill/`): those made four-month-old unexpanded text visible in four
+more projections.
+
+`expand_prose(text, macros)` is the split both halves need — a maths span
+through `expand_math` (which also resolves what no renderer knows), the text
+between spans through `expand_macros` alone, and the author's own delimiter
+kept, because the projector decides the dialect and a statement is prose. The
+paragraph branch now expands its between-span text the same way.
+
+    arxiv.math_9807032, in the .md        before   after
+    \RAgroups                                 66       0
+    \NeumannN                                 18       0
+    \Det                                      15       0
+    \forget                                    7       0
+    \mathcal G (the expansion of the first)    0      71
+    raw \begin{equation}                      46       0
+    citations, as [key]                        0      24
+    literal {{…||FO}} / {{…||CIT}}             0       0
+
+`\newcommand{\forget}[1]{}` is why expansion, not stripping, was right for the
+text-mode case: the author had already said what should happen to it. Three
+Paragraph objects disappear with it (52 → 49) because `\forget{…}` was their
+whole content, and the word count falls 8,304 → 8,191 for the same reason.
+
+### Two things fixed alongside, same measurement
+
+A display environment inside a statement reached the Markdown as
+`\begin{equation}`, which no Markdown renderer types: 22 in Theorem statements
+and 24 in Proof statements, exactly the 46 in the `.md`. `_render_display_envs`
+types them as `$$…$$`, and the aligned family keeps an inner `\begin{aligned}`
+because `&` needs one. The LaTeX projection is deliberately NOT changed — there
+the environment is already right and `$$` would be wrong, which a test pins.
+
+`{{…||CIT}}` was stripped with every other unresolved marker, so "as shown in
+[12]" read "as shown in" — 26 on this paper, all 26 resolved on the LaTeX route
+and none in Markdown. `_render_citations` reads the citekey through
+`parse_title` (THE one title reader, rule 17) and prints `[key]`: 24 citation
+forms over 10 distinct keys now reach the `.md`.
+
+### NOT fixed, and why
+
+**`[section]` theorem numbering.** The model counts 1, 2, 3 … along the
+shared-counter chain where the paper prints "Lemma 2.9".
+`extract_theorems`' own docstring records it ("the `[section]` reset/prefix is
+NOT applied"), the declaration scan already captures `reset_counter`, and two
+existing tests pin the sequential numbers
+(`test_extract_theorems_numbering_and_pairing`,
+`test_theorem_tiddlers_pair_and_caption_ref_resolves` asserting "Lemma 2
+(Scaling)"). Correcting it rewrites every theorem number in every projection
+and every `\ref` that resolves to one, so it needs the printed numbers of
+several real papers as its fixture. Left for a task of its own.
+
+**A `\cite` in a bracket title** could not be reproduced: zero of this paper's
+66 theorems has a bracket title. The title is no longer stored raw, so a
+command in one is cleaned and a cite in one now becomes `[key]` like any other;
+whether that was the reported case is unknown without the document.
+
+**`llmtext` keeps its markers** — 70 FO and 25 CIT, and 46 raw environments.
+Pre-existing (ce5a20e3's dump has the same), and arguably right: that dump
+makes every Formula its own titled, addressable unit, so a marker there is a
+pointer to another unit rather than a deletion. Changed nothing; recorded so
+the next reader does not "fix" it into a loss.
+
+**`pdfdrill latex --compile`** still produces no PDF on this paper. `\forget`
+is gone, but `\address`, `\bysame` and the bibliography scaffolding the `.md`
+tail also carries are not; under `-interaction=nonstopmode` the file compiles.
+
+**The `.md` has no References section** although `_md_from_latex_source`'s
+summary says the bibliography is included, and its tail carries raw
+`\ifx\undefined\bysame …`. Measured here, not chased.
+
+### The LLM dump forbade the tokens it was carrying
+
+A follow-up audit question — are `{{…||FO}}` in `.llm.txt` a unit-link format
+or the same missing-render defect? — answered from the spec rather than from
+inference, which corrected an earlier guess of mine in these notes.
+
+`LLMTextProjector`'s own docstring states the contract: "the content is the
+paragraph TEXT or the formula LATEX — nothing else (no markup, no transclusion
+tokens, no provenance), so an LLM sees clean, addressable units it can quote by
+title". So the 95 markers measured on arxiv.math_9807032 violated it, and the
+two kinds were not equally bad:
+
+    70 ||FO}}   35 FO unit HEADERS exist in the file → the pointer resolves
+    25 ||CIT}}  0 REF unit headers exist, because `Reference` has no row in
+                `_TITLED_TYPES` → dangling, pointing outside the file
+
+Resolved rather than stripped, because stripping is what defect 3 was, and the
+fix keeps BOTH halves of the docstring — the tokens go and the units stay:
+
+    .llm.txt        ||FO}} 70 → 0   ||CIT}} 25 → 0
+                    FO unit headers 35 → 35      [key] cites 0 → 24
+                    words 8,549 → 8,573
+
+`resolve_formula_markers` / `resolve_citation_markers` now live once in
+`common`, with markdown and llm_text as the two callers; markdown's output is
+byte-unchanged.
+
+Display environments were deliberately NOT re-delimited for this dump. THE
+DIALECT FOLLOWS THE CONSUMER: the contract says "the formula LATEX" and the
+reader is a language model, which parses `\begin{equation}` correctly — it is
+valid LaTeX, not a token. Markdown converts them because a Markdown renderer
+types `$$` and types no environment at all. The practical consequence for a
+route table is that "no literal ||FO}} / ||CIT}} in any output" is a contract
+every projection shares, while a `$$` assertion belongs to the Markdown row
+alone.
+
+## A gate that had not run on the documented install for months
+
+Found while accounting for a 75-test difference between two sessions' suite
+numbers, which is the only reason anyone looked.
+
+`tests/test_stub_fidelity.py` checks that no test stub offers a public name its
+real class lacks — the rule written after `_SC` diverged from `Sidecar` three
+times in one week and seven tests passed having exercised nothing. It builds its
+pairs by importing every test module under `tests/`, guarded by
+`except Exception`.
+
+`pytest.importorskip` raises `Skipped`, and **`Skipped` is not an `Exception`**:
+its MRO is `Skipped -> OutcomeException -> BaseException`. So the skip escaped
+the guard while this file was being COLLECTED, and pytest skipped the whole
+file. 0 of 23 pairs checked, on every install without pyvips — which is every
+install the README documents — reported as one line of "1 skipped" in a
+6,257-test run. Nothing in the suite's output distinguished "the stub gate
+passed" from "the stub gate did not run".
+
+    except (Exception, pytest.skip.Exception)
+
+is the fix. Two tests hold it: one writes a module that calls `importorskip` on
+an absent name and converts an escaping `BaseException` into an AssertionError
+— because a test whose body raises `Skipped` is itself REPORTED as skipped,
+which is the same trap one level up — and `_PAIR_FLOOR` asserts the reach.
+
+### The floor is measured, and the measurement is the interesting part
+
+    pairs on a full install                                23
+    pairs on an install with none of sympy, pikepdf,
+      pyvips, img2pdf                                      23
+
+They agree, because no stub-declaring module needs any of those four. So
+`_PAIR_FLOOR = 22` sits one below the measured minimum: tight enough to catch a
+collapse, loose enough for an install that legitimately cannot import one
+stub-declaring module. The previous assertion was `>= 4`, which is also what a
+badly broken scan returns, so it could not have noticed this.
+
+### A simulation that was wrong in kind
+
+I first tried to reproduce the collapse by shadowing pyvips with a module that
+raises ImportError, and could not: the gate collected its 26 either way, old
+guard included. A genuinely absent module raises `ModuleNotFoundError` and
+`importorskip` skips; a module that is FOUND and raises `ImportError` is
+re-raised on purpose, so as not to mask a broken install. The shadow produced
+the second case. Reporting "cannot reproduce" from it would have been wrong.
+What verifies the fix on any machine is the mechanism:
+
+    import raises                                : Skipped
+    caught by Exception                          : False
+    caught by (Exception, pytest.skip.Exception)  : True
+
+### The four packages that decide what this suite collects
+
+sympy, pikepdf, pyvips, img2pdf — none named by the documented install. They
+account for 55 of the 80-node-id difference between a full install and a base
+one (`test_mathlayer` 13, three `scandrill` files 16, `test_imageserver_units`
+2, `scandrill/test_handoff` 24 behind img2pdf); the remaining 25 were this
+gate's whole file. A suite count is a property of its install, which this repo
+already says in words and now has a worked example of.
