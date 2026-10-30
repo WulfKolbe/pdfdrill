@@ -45,6 +45,7 @@ from pathlib import Path
 from typing import Optional
 
 from ..base import BaseProjector
+from .common import theorem_head
 
 #: Object types rendered as an image, in the order a reader meets them.
 _FIGURE_TYPES = ("Picture", "Diagram", "Chart", "Figure")
@@ -427,15 +428,7 @@ class MarkdownProjector(BaseProjector):
                                or obj.props.get("text") or ""))
         if not body:
             return ""
-        head = (str(obj.props.get("printed_title") or "").strip()
-                or str(obj.props.get("kind") or "Theorem").strip().title())
-        num = obj.props.get("number")
-        if num is not None and not obj.props.get("starred"):
-            head = f"{head} {num}"
-        bracket = self._clean(str(obj.props.get("title") or "")).strip()
-        if bracket:
-            head = f"{head} ({bracket})"
-        return f"**{head}.** {body}"
+        return f"**{theorem_head(obj, self._clean)}.** {body}"
 
     def _proof(self, obj) -> str:
         r"""`**Proof.** <statement> $\square$`.

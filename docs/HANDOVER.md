@@ -2658,3 +2658,83 @@ be a dollar sign, so it needs a content test rather than the route flag.
 
 Author macros `expand_math` does not resolve reach the output as they stand
 (`\Z\pi`, `\RAgroups`); no renderer will typeset them. Pre-existing, unchanged.
+
+## The markdown projector was not the only one (defect 3, second half)
+
+893a4dfb gave `Theorem`, `Proof` and `Algorithm` a branch in the Markdown
+projector. A CLI driving pdfdrill then measured the same document through the
+other projections and found the bodies missing there too. Measured on
+arxiv.math_9807032, which carries 66 Theorem (3,307 words) and 23 Proof (2,770
+words) objects:
+
+    projection                 before   after
+    <stem>.llm.txt   words      2,167   8,577
+                     THM units      0      66
+                     PROOF units    0      23
+    latex/<key>.tex  words      2,239   8,545
+                     theorem envs   0      66
+                     proof envs     0      23
+                     \newtheorem    0       9
+
+The "before" column is not a reconstruction: another session built both files
+from the pre-fix code at 06:13 on 2026-10-30, so it is the same document through
+the same commands on the parent commit.
+
+### One gate, not three oversights
+
+`common.CONTENT_TYPES` — which `flow_ordered_content` filters by, and which
+SEVEN projectors take their flow from (comparison_html, beamer, distill_reader,
+latex, plaintext, llm_compact twice) — never held `Theorem`, `Proof` or
+`Algorithm`. A projector cannot render an object its flow never yields, so a
+branch alone would have changed nothing, and the three projections did not
+each forget: they were all handed a flow with the theorems already removed.
+
+The default set is NOT widened. Four of those seven have no branch for these
+types and are not touched by this task, and a flow object nobody renders is at
+best nothing and at worst noise. `flow_ordered_content(doc, types=…)` lets a
+projector name the types IT renders, so one projector gaining a branch cannot
+change what another is handed. `CodeListing` is absent from the set for the
+same reason and is the next one.
+
+`llm_text` is the exception that proves the shape: it iterates every object and
+never consulted the gate, so there it really was a missing branch — plus two
+missing rows in `_TITLED_TYPES`, without which `title[o.id]` raises KeyError.
+
+### What the LaTeX route needed beyond a branch
+
+A theorem is the author's OWN environment (`\newtheorem{satz}{Satz}` → `satz`),
+kept in the Theorem's `env` prop, so the projection still matches the source.
+That means the preamble has to declare it — the standard `listings` is already
+held to here: *a block that reaches the .tex without its declaration does not
+render badly, it FAILS TO COMPILE*, and `--compile` is a real flag.
+`_theorem_preamble` emits `amsthm` plus one `\newtheorem` per environment the
+BODY used (body-first, exactly as the graphics packages are collected), taking
+each printed title from `meta['environments']['newtheorem']` — the author's own
+scan, which is where "Lemme" rather than "Lemma" would come from — and skipping
+anything the preamble already declares, because a second declaration is a
+compile error, not a warning.
+
+Nine declarations on this paper, one per environment used: Definition,
+Conjecture, Theorem, Remark, Proposition, Lemma, Corollary, Example, Situation.
+The .tex compiles to a 29-page PDF with the theorem headings typeset, with zero
+theorem-related complaints in the log.
+
+### Still open, measured here
+
+`pdfdrill latex --compile` reports no PDF on this paper — before the change as
+well as after. The cause is `\forget{…}`, an author macro the projection emits
+and the preamble does not define (7 occurrences; `\address` is the next one).
+Under `-interaction=nonstopmode` both the pre-fix and the fixed .tex produce a
+PDF, so the failure is the undefined macro and not the theorems.
+
+`PlainTextProjector` has no CLI verb at all: `plaintext` is advertised in
+`commands._OPENABLE_PROJECTIONS` and `cli.HANDLERS` has no entry for it, so a
+reader offered that projection cannot run it. Its branches are tested here but
+NOT acceptance-tested, because there is no command to run.
+
+26 in-text citations still leave this paper's Markdown (`{{…||CIT}}`), and the
+latex route resolves all 26 — the asymmetry is recorded in the first half's
+section above. `_fn.RUNNING_TEXT_TYPES` does not hold Theorem or Proof either,
+so a footnote mark or a citation INSIDE a theorem statement is not resolved on
+any route; untouched here deliberately (that machinery renumbers footnotes, and
+"ten wrong bodies attached to ten markers" is its own recorded defect class).

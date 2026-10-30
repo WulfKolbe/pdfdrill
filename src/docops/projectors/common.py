@@ -36,6 +36,17 @@ def embed_image(url: str, timeout: float = 30.0) -> str:
     return data
 
 
+#: The types every flow consumer renders.
+#:
+#: `Theorem`, `Proof` and `Algorithm` are deliberately NOT here, and their
+#: absence was defect 3's second half: seven projectors take their flow from
+#: this set, and a projector cannot render an object its flow never yields, so
+#: 66 theorem statements and 23 proofs were invisible to all of them at once.
+#: Only the projectors that HAVE a branch for those types ask for them, by
+#: name, through `flow_ordered_content(doc, types=…)` — because a flow object
+#: nobody renders is at best nothing and at worst noise, and four of the seven
+#: still have no branch. Add a type here only together with a branch in every
+#: consumer. (`CodeListing` is missing for the same reason and is the next one.)
 CONTENT_TYPES = {
     "Section", "Paragraph", "Equation", "Formula", "Table",
     "Picture", "Diagram", "Footnote", "Sidenote", "ListItem",
@@ -43,16 +54,50 @@ CONTENT_TYPES = {
 }
 
 
-def flow_ordered_content(doc: Document) -> list[DocObject]:
+def theorem_head(obj: DocObject, clean=None) -> str:
+    """What the paper calls this block: `Theorem 3 (Hirzebruch)`, `Satz`.
+
+    ONE implementation for every projection, because the head is what a reader
+    (and an LLM handed `<bibkey>_THM0003`) uses to tell a Lemma from a
+    Conjecture, and four projectors now print it. The printed title is the
+    author's own (`\\newtheorem{lemma}{Lemma}` → "Lemma"); the number follows
+    the shared-counter chain the reader resolved, and a starred environment has
+    none. Each caller supplies its own emphasis — bold, brackets, or a LaTeX
+    environment — so only the words live here.
+
+    `clean` is the caller's own prose pass, applied to the BRACKET TITLE alone:
+    an author writes `\\begin{theorem}[The $L^2$ case]`, so that argument is
+    prose and needs the same treatment as any other — which only the projector
+    knows how to give it.
+    """
+    p = obj.props or {}
+    head = (str(p.get("printed_title") or "").strip()
+            or str(p.get("kind") or "Theorem").strip().title())
+    num = p.get("number")
+    if num is not None and not p.get("starred"):
+        head = f"{head} {num}"
+    bracket = str(p.get("title") or "").strip()
+    if bracket and clean is not None:
+        bracket = clean(bracket).strip()
+    return f"{head} ({bracket})" if bracket else head
+
+
+def flow_ordered_content(doc: Document,
+                         types: "tuple[str, ...] | None" = None) -> list[DocObject]:
     """
     Return content objects sorted by their flow position. Uses the
     `flow_index` prop if it was set by DocumentFlowProcessor; otherwise
     falls back to (page, line_index) of the first surface realization.
+
+    `types` adds types to `CONTENT_TYPES` for this call: the caller states which
+    further types IT renders, so one projector gaining a branch cannot change
+    what another one is handed. See `CONTENT_TYPES`.
     """
+    wanted = CONTENT_TYPES if not types else (CONTENT_TYPES | set(types))
     items: list[tuple[tuple, DocObject]] = []
     lines = doc.streams.get("mathpix_lines")
     for obj in doc.objects.values():
-        if obj.type not in CONTENT_TYPES:
+        if obj.type not in wanted:
             continue
         fi = obj.props.get("flow_index")
         if isinstance(fi, int):

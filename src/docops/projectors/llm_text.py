@@ -32,6 +32,7 @@ import re
 
 from docmodel.core import Document
 from ..base import BaseProjector
+from .common import theorem_head as _theorem_head
 
 _DBL = re.compile(r"\n\s*\n")
 _NULLISH = {"", "null", "none"}
@@ -43,7 +44,7 @@ def _is_empty_latex(latex) -> bool:
 
 #: The types this dump names, in the order it numbers them.
 _TITLED_TYPES = ("Paragraph", "Equation", "Formula", "Section", "Diagram",
-                 "Picture", "Table")
+                 "Picture", "Table", "Theorem", "Proof")
 
 
 def _title_map(objs, bibkey: str, key=None) -> dict:
@@ -126,6 +127,19 @@ def build_llm_text(objects, meta, *, delimiter: str = "%%%%",
             else:
                 for k, b in enumerate(blocks, 1):
                     units.append((fi, f"{title[o.id]}#{k}", b))
+        elif o.type in ("Theorem", "Proof"):
+            # The statement is the unit. This dump reads every object and never
+            # consulted `common.CONTENT_TYPES`, so here the body really was
+            # missing for want of a branch: 66 theorems and 23 proofs — 6,077
+            # words on arxiv.math_9807032 — were in the model and in no dump.
+            # The head is printed because an LLM reading `<bibkey>_THM0003`
+            # cannot tell a Lemma from a Conjecture, and the author's own
+            # printed title and number are what the paper calls it.
+            body = str(o.props.get("statement") or "").strip()
+            if not body:
+                continue
+            head = _theorem_head(o)
+            units.append((fi, title[o.id], f"{head}\n{body}" if head else body))
         elif o.type in ("Equation", "Formula"):
             latex = o.props.get("latex")
             if _is_empty_latex(latex):
