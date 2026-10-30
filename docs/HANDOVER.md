@@ -2826,3 +2826,39 @@ tail also carries are not; under `-interaction=nonstopmode` the file compiles.
 **The `.md` has no References section** although `_md_from_latex_source`'s
 summary says the bibliography is included, and its tail carries raw
 `\ifx\undefined\bysame …`. Measured here, not chased.
+
+### The LLM dump forbade the tokens it was carrying
+
+A follow-up audit question — are `{{…||FO}}` in `.llm.txt` a unit-link format
+or the same missing-render defect? — answered from the spec rather than from
+inference, which corrected an earlier guess of mine in these notes.
+
+`LLMTextProjector`'s own docstring states the contract: "the content is the
+paragraph TEXT or the formula LATEX — nothing else (no markup, no transclusion
+tokens, no provenance), so an LLM sees clean, addressable units it can quote by
+title". So the 95 markers measured on arxiv.math_9807032 violated it, and the
+two kinds were not equally bad:
+
+    70 ||FO}}   35 FO unit HEADERS exist in the file → the pointer resolves
+    25 ||CIT}}  0 REF unit headers exist, because `Reference` has no row in
+                `_TITLED_TYPES` → dangling, pointing outside the file
+
+Resolved rather than stripped, because stripping is what defect 3 was, and the
+fix keeps BOTH halves of the docstring — the tokens go and the units stay:
+
+    .llm.txt        ||FO}} 70 → 0   ||CIT}} 25 → 0
+                    FO unit headers 35 → 35      [key] cites 0 → 24
+                    words 8,549 → 8,573
+
+`resolve_formula_markers` / `resolve_citation_markers` now live once in
+`common`, with markdown and llm_text as the two callers; markdown's output is
+byte-unchanged.
+
+Display environments were deliberately NOT re-delimited for this dump. THE
+DIALECT FOLLOWS THE CONSUMER: the contract says "the formula LATEX" and the
+reader is a language model, which parses `\begin{equation}` correctly — it is
+valid LaTeX, not a token. Markdown converts them because a Markdown renderer
+types `$$` and types no environment at all. The practical consequence for a
+route table is that "no literal ||FO}} / ||CIT}} in any output" is a contract
+every projection shares, while a `$$` assertion belongs to the Markdown row
+alone.

@@ -45,7 +45,8 @@ from pathlib import Path
 from typing import Optional
 
 from ..base import BaseProjector
-from .common import theorem_head
+from .common import (resolve_citation_markers, resolve_formula_markers,
+                     theorem_head)
 
 #: Object types rendered as an image, in the order a reader meets them.
 _FIGURE_TYPES = ("Picture", "Diagram", "Chart", "Figure")
@@ -102,17 +103,10 @@ _MATH_SPAN_SOURCE = re.compile(
     r"|(?<![\\$])\$(?!\$)(?P<ii>.+?)(?<!\\)\$",
     re.S)
 
-#: A Formula transclusion, the ONE marker this projector resolves rather than
-#: strips. `latex_source.build_source_model` cuts every inline span out of the
-#: paragraph and leaves this behind, so a reader who gets the prose without it
-#: gets the sentence with its mathematics deleted.
-_FO_TRANSCLUSION = re.compile(r"\{\{(?P<title>[^{}]*?)\|\|FO\}\}")
-
-#: A citation transclusion. Stripped with every other unresolved marker until
-#: 2026-10-30, so "as shown in [12]" read "as shown in" — 26 of them on
-#: arxiv.math_9807032, where the LaTeX route resolves all 26 and this one
-#: resolved none.
-_CIT_TRANSCLUSION = re.compile(r"\{\{(?P<title>[^{}]*?)\|\|CIT\}\}")
+#: The FO and CIT markers this projector RESOLVES rather than strips live in
+#: `common` (`resolve_formula_markers` / `resolve_citation_markers`), because
+#: `llm_text` has to resolve the same two and its own docstring forbids them
+#: ("no markup, no transclusion tokens"). One implementation, two callers.
 
 #: A display environment the author wrote inside running prose. MathPix's md
 #: dialect is `$$ … $$`; a Markdown renderer types no `\begin{equation}`.
@@ -669,39 +663,13 @@ class MarkdownProjector(BaseProjector):
         there is nothing to render, and an empty `$$` is a stray fence in every
         renderer.
         """
-        formulas = getattr(self, "_formulas", None) or {}
-
-        def one(m: "re.Match") -> str:
-            obj = formulas.get(m.group("title"))
-            if obj is None:
-                return m.group(0)
-            tex = str(obj.props.get("latex")
-                      or obj.props.get("latex_original") or "").strip()
-            if not tex:
-                return m.group(0)
-            d = MATH_DISPLAY if obj.props.get("display") else MATH_INLINE
-            return f"{d[0]}{tex}{d[1]}"
-
-        return _FO_TRANSCLUSION.sub(one, text)
+        return resolve_formula_markers(text, getattr(self, "_formulas", None),
+                                       inline=MATH_INLINE, display=MATH_DISPLAY)
 
     @staticmethod
     def _render_citations(text: str) -> str:
-        """`{{<bibkey>_REF_<key>||CIT}}` → `[<key>]`, in place.
-
-        The citekey comes from `parse_title`, which is THE one place a title is
-        read (rule 17 — three identifier regexes broke in two days by carrying
-        their own). A marker whose title does not parse is left for
-        `_strip_transclusions`, as before: a key we cannot name is not a
-        citation we can print.
-        """
-        from .tiddlywiki import parse_title
-
-        def one(m: "re.Match") -> str:
-            parsed = parse_title(m.group("title"))
-            key = getattr(parsed, "key", None) if parsed else None
-            return f"[{key}]" if key else m.group(0)
-
-        return _CIT_TRANSCLUSION.sub(one, text)
+        """`{{<bibkey>_REF_<key>||CIT}}` → `[<key>]`, in place."""
+        return resolve_citation_markers(text)
 
     @staticmethod
     def _render_display_envs(text: str) -> str:

@@ -8,6 +8,7 @@ present, falling back to surface anchor position).
 from __future__ import annotations
 
 import base64
+import re
 import urllib.request
 
 from docmodel.core import Document, DocObject
@@ -52,6 +53,55 @@ CONTENT_TYPES = {
     "Picture", "Diagram", "Footnote", "Sidenote", "ListItem",
     "Abstract", "Toc",
 }
+
+
+#: A Formula transclusion in prose, as `latex_source.build_source_model` leaves
+#: it when it cuts an inline span out of a paragraph.
+FO_MARKER = re.compile(r"\{\{(?P<title>[^{}]*?)\|\|FO\}\}")
+
+#: A citation transclusion, likewise.
+CIT_MARKER = re.compile(r"\{\{(?P<title>[^{}]*?)\|\|CIT\}\}")
+
+
+def resolve_formula_markers(text: str, by_title: dict,
+                            inline=("$", "$"), display=("$$", "$$")) -> str:
+    """`{{<bibkey>_FO0001||FO}}` → the formula's LaTeX, delimited, in place.
+
+    ONE implementation for every projection that has to do this. A marker
+    naming no Formula, or one whose Formula carries no LaTeX, is left exactly
+    as it stands for the caller to strip: there is nothing to render, and an
+    empty `$$` is a stray fence in every renderer.
+    """
+    def one(m: "re.Match") -> str:
+        obj = (by_title or {}).get(m.group("title"))
+        if obj is None:
+            return m.group(0)
+        props = getattr(obj, "props", None) or {}
+        tex = str(props.get("latex") or props.get("latex_original") or "").strip()
+        if not tex:
+            return m.group(0)
+        d = display if props.get("display") else inline
+        return f"{d[0]}{tex}{d[1]}"
+
+    return FO_MARKER.sub(one, text)
+
+
+def resolve_citation_markers(text: str, fmt: str = "[{key}]") -> str:
+    """`{{<bibkey>_REF_<key>||CIT}}` → `[<key>]`, in place.
+
+    The citekey comes from `parse_title`, which is THE one place a title is read
+    (rule 17 — three identifier regexes broke in two days by carrying their
+    own). A marker whose title does not parse is left for the caller: a key we
+    cannot name is not a citation we can print.
+    """
+    from .tiddlywiki import parse_title
+
+    def one(m: "re.Match") -> str:
+        parsed = parse_title(m.group("title"))
+        key = getattr(parsed, "key", None) if parsed else None
+        return fmt.format(key=key) if key else m.group(0)
+
+    return CIT_MARKER.sub(one, text)
 
 
 def theorem_head(obj: DocObject, clean=None) -> str:

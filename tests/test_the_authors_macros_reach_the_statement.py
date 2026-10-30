@@ -248,3 +248,30 @@ def test_a_ref_in_a_heading_keeps_its_label(tmp_path):
                  tmp_path)
     cap = _section(doc, "Proof of")
     assert r"\ref{thm:main}" in cap
+
+
+# ── the LLM dump's own rule: "no transclusion tokens" ──────────────────────
+
+def test_the_llm_dump_carries_no_transclusion_token(tmp_path):
+    r"""`LLMTextProjector`'s docstring states the contract: the content is the
+    paragraph text or the formula latex, "nothing else (no markup, no
+    transclusion tokens, no provenance), so an LLM sees clean, addressable
+    units". Measured on arxiv.math_9807032 it carried 95 — 70 `||FO}}` and 25
+    `||CIT}}`."""
+    from docops.projectors.llm_text import build_llm_text
+
+    doc = _model(r"The group $\RAgroups$ acts, see \cite{Lueck1994}.", tmp_path)
+    out = build_llm_text(list(doc.objects.values()), doc.meta)
+    assert "||FO}}" not in out and "||CIT}}" not in out
+    assert r"\mathcal G" in out            # the formula, in place
+    assert "Lueck1994" in out             # the citation, by key
+
+
+def test_the_llm_dump_still_lists_each_formula_as_its_own_unit(tmp_path):
+    """Resolving the marker must not take the addressable unit away: the
+    docstring's "one unit per paragraph and per formula" is the other half."""
+    from docops.projectors.llm_text import build_llm_text
+
+    doc = _model(r"The group $\RAgroups$ acts.", tmp_path)
+    out = build_llm_text(list(doc.objects.values()), doc.meta)
+    assert "_FO0001" in out

@@ -32,6 +32,7 @@ import re
 
 from docmodel.core import Document
 from ..base import BaseProjector
+from .common import resolve_citation_markers, resolve_formula_markers
 from .common import theorem_head as _theorem_head
 
 _DBL = re.compile(r"\n\s*\n")
@@ -89,6 +90,20 @@ def build_llm_text(objects, meta, *, delimiter: str = "%%%%",
             return 0.0
 
     title = _title_map(objs, bib, key=flow)
+    # THIS DUMP'S OWN RULE, from the docstring above: the content is the
+    # paragraph text or the formula latex, "nothing else (no markup, no
+    # transclusion tokens, no provenance)". Measured on arxiv.math_9807032
+    # (2026-10-30) it carried 95 of them — 70 `||FO}}` whose target units ARE
+    # in the file (35 FO headers) and 25 `||CIT}}` whose targets are NOT, since
+    # `Reference` has no row in `_TITLED_TYPES`: a dangling pointer either way.
+    # Resolving them keeps the sentence whole AND satisfies the rule, which
+    # stripping them would not — that was defect 3's whole lesson.
+    by_title = {t: o for o in objs
+                if o.type == "Formula" and (t := title.get(o.id))}
+
+    def prose(text: str) -> str:
+        return resolve_citation_markers(
+            resolve_formula_markers(text, by_title))
 
     units: list[tuple[float, str, str]] = []
     for o in objs:
@@ -117,7 +132,7 @@ def build_llm_text(objects, meta, *, delimiter: str = "%%%%",
             if content:
                 units.append((fi, title[o.id], content))
         elif o.type == "Paragraph":
-            text = (o.props.get("text") or "").strip()
+            text = prose(o.props.get("text") or "").strip()
             if not text:
                 continue
             blocks = [b.strip() for b in _DBL.split(text) if b.strip()] if split_paragraphs \
@@ -135,7 +150,7 @@ def build_llm_text(objects, meta, *, delimiter: str = "%%%%",
             # The head is printed because an LLM reading `<bibkey>_THM0003`
             # cannot tell a Lemma from a Conjecture, and the author's own
             # printed title and number are what the paper calls it.
-            body = str(o.props.get("statement") or "").strip()
+            body = prose(str(o.props.get("statement") or "")).strip()
             if not body:
                 continue
             head = _theorem_head(o)
