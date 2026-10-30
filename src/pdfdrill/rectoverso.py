@@ -154,12 +154,36 @@ def _column_signal(lines: list[dict], pw: float, ph: float
                    ) -> tuple[Optional[str], dict]:
     """
     Narrow side-note column vs wide body column.
-    Uses explicit 'column' fields when present, else x-clusters line starts.
+
+    Reads whichever of `parent_id` / `column` actually DISTINGUISHES the lines,
+    and otherwise x-clusters the line starts. Not "when present": every reading
+    carries `column` and in both producers its value is always 0, so a presence
+    test meant this function never measured anything — see
+    `tests/test_the_column_detector_reads_the_value_not_the_key.py`.
     """
     body_band = (0.15 * ph, 0.88 * ph)     # exclude header/footer
     cols: dict[Any, list[tuple[float, float]]] = {}
 
-    explicit = all("column" in ln for ln in lines if _region(ln))
+    # BELIEVE A FIELD ONLY WHERE IT DISTINGUISHES SOMETHING. This was
+    # `all("column" in ln ...)` — a KEY-PRESENCE test — and every line a
+    # reading carries has the key, so the branch was taken every time, every
+    # line's key was the literal 0, every line landed in one bucket and
+    # `len(stats) < 2` gave up before measuring anything. The left-edge
+    # clustering below it, which works, was unreachable.
+    #
+    # Measured 2026-10-29: `column` is 0 on all 11,071 lines of the fifteen
+    # CCL readings, and it is 0 because MATHPIX puts 0 there — 194 of 194 lines
+    # on a real MathPix reading. Both producers state the column in the
+    # CONTAINER nesting instead (`parent_id` → a `type: "column"` record;
+    # 659 col0 / 468 col1 on 2009tiplabeling), so that is what to read when it
+    # is there. Same shape as `hasattr(LTChar, "glyphname")`: a presence test
+    # standing in for a value test, costing a capability in silence.
+    def _varies(f):
+        vals = {ln.get(f) for ln in lines if _region(ln)}
+        return len(vals - {None}) > 1
+
+    field = ("parent_id" if _varies("parent_id")
+             else "column" if _varies("column") else None)
     for ln in lines:
         r = _region(ln)
         if not r:
@@ -167,7 +191,7 @@ def _column_signal(lines: list[dict], pw: float, ph: float
         x, y, w, h = r
         if not (body_band[0] <= y <= body_band[1]):
             continue
-        key = ln["column"] if explicit else round(x / pw, 1)  # cluster by left edge
+        key = ln.get(field) if field else round(x / pw, 1)  # cluster by left edge
         cols.setdefault(key, []).append((x, w))
 
     if len(cols) < 2:

@@ -1300,14 +1300,24 @@ def test_a_value_with_no_span_yields_no_context(tmp_path):
 # ---------------------------------------------------------------- 531
 
 def test_every_katex_generator_carries_the_caveat():
-    """One text, one place — and it must reach each emitted page."""
+    """One text, one place — and it must reach each emitted page.
+
+    `docinspect` is NOT in this list (owner, 2026-10-29: "2 warnings are
+    spending valuable area of my screen"). It is not an exception made to save
+    space: the caveat's own first clause is "the rendered column is KaTeX", and
+    the inspector has no rendered column — it is the document, with a detail
+    pane. What the inspector says about KaTeX it says by measurement, in
+    `katexAudit`, over its own formulas with its own renderer, and only when
+    there is something to say. The pages below each put a KaTeX render BESIDE
+    another reading in a column a reader compares, which is the judgement the
+    caveat exists to qualify.
+    """
     import pathlib
     from docops.katex_notice import KATEX_WARNING_HTML
     root = pathlib.Path(__file__).resolve().parent.parent
     for rel in ("src/docops/projectors/formula_report.py",
                 "src/docops/projectors/comparison_html.py",
                 "src/docops/projectors/distill_reader.py",
-                "src/pdfdrill/docinspect.py",
                 "tools/corrections439.py"):
         src = (root / rel).read_text()
         assert "KATEX_WARNING_HTML" in src, rel

@@ -14157,6 +14157,45 @@ def cmd_translate(pdf: Path, target_lang: str = "EN-US",
 # Geometry fusion — lift pdftotext -tsv layout onto the model (cross-level)
 # ---------------------------------------------------------------------------
 
+def _imposition_shape_for(pdf: Path, sc: "Sidecar") -> str:
+    r"""`"1"` or `"auto"` — may this document's sheets be imposed at all?
+
+    AN IMPOSED SHEET IS A FACT ABOUT SCANNING. `nup` exists for penev_A, a
+    thesis PHOTOGRAPHED four printed pages to a sheet. A born-digital PDF's
+    page IS the printed page by construction — its producer wrote one page
+    object per page — and the model's `page` already indexes it. So the
+    imposition question is not asked of a document that has its own text layer.
+
+    MEASURED, 2026-10-29, `nup.detect` over 2016icpr's 400 dpi renders (A4,
+    3307x4677, two columns): pages 1, 2 and 4 read 1-up, pages 3 and 5 read
+    2x2, page 6 read 3-up. The quarters' aspects were 1.22-1.61 — PAGE aspects
+    — so the first fix tried here, a window on the shape of the piece a cut
+    would produce, could not separate them and was dropped. `nup.detect`'s own
+    comment is why: it rests on "a blank vertical channel through the middle of
+    a page is extraordinary", and in a library of IEEE/ICPR/TPAMI papers a
+    column gutter down the middle is the NORM.
+
+    The cost is a born-digital 2-up handout, which reads as 1-up. That is the
+    pre-existing behaviour, `--nup` says otherwise explicitly, and the module's
+    own asymmetry holds: a false POSITIVE cuts an ordinary page through the
+    middle of a sentence; a false negative leaves the lane where it already was.
+
+    The sidecar's own `text_layer` evidence answers for free when `size` has
+    run; otherwise one pdftotext -tsv (poppler, not ghostscript).
+    """
+    known = sc.get_evidence("text_layer")
+    if known is None:
+        known = (sc.get_evidence("size") or {}).get("text_layer") \
+            if isinstance(sc.get_evidence("size"), dict) else None
+    if known is None:
+        from . import word_boxes
+        try:
+            known = word_boxes.has_text_layer(pdf)
+        except Exception:                                    # noqa: BLE001
+            known = None
+    return "1" if known else "auto"
+
+
 def _layout_geometry(pdf: Path, sc: "Sidecar", doc, *,
                      force: bool = False,
                      allow_download: bool = False) -> "tuple[dict, str]":
@@ -14179,23 +14218,30 @@ def _layout_geometry(pdf: Path, sc: "Sidecar", doc, *,
         by_no = {pdf_reading.page_of(s): s for s in sheets}
         amap = _nup.split([(n, by_no[n]) for n in sorted(k for k in by_no
                                                          if k is not None)],
-                          work / "printed")
+                          work / "printed", nup=_imposition_shape_for(pdf, sc))
         printed = {int(k): work / "printed" / f"page-{int(k):04d}.png"
                    for k in amap}
+        # ONLY A 1-UP DOCUMENT CAN HAVE ITS DETECTIONS PUT ON MODEL OBJECTS: on
+        # an imposed sheet the printed page and the PDF page are different
+        # pages, and the model's `page` is the PDF's. Saying so beats placing
+        # four pages of boxes on one.
+        #
+        # AND THE QUESTION COMES BEFORE THE DETECTOR, which is the whole of the
+        # second half of this fix. It needs `amap` and nothing else, and it used
+        # to be asked three lines below — so on every document the imposition
+        # was misread, 400 dpi and a full detector pass ran and the next
+        # statement discarded the answer. Measured on 2016icpr: 263.93 s on 6
+        # pages, 97% of a `pdfdrill drill`, for a result thrown away.
+        if not _nup.is_identity(amap):
+            return {}, ("the sheets carry several printed pages each, so the "
+                        "detector's boxes are in printed-page coordinates and "
+                        "the model's pages are the PDF's — not placed")
         _yolo.detect([printed[n] for n in sorted(printed)], work / "yolo",
                      force=force, allow_download=allow_download)
     except _yolo.DetectorMissing as exc:
         return {}, f"layout detection unavailable — {exc}"
     except Exception as exc:                                 # noqa: BLE001
         return {}, f"layout detection failed — {type(exc).__name__}: {exc}"
-    # Only a 1-up document can have its detections put on model objects: on an
-    # imposed sheet the printed page and the PDF page are different pages, and
-    # the model's `page` is the PDF's. Saying so beats placing four pages of
-    # boxes on one.
-    if not _nup.is_identity(amap):
-        return {}, ("the sheets carry several printed pages each, so the "
-                    "detector's boxes are in printed-page coordinates and the "
-                    "model's pages are the PDF's — not placed")
     dets = {n: _yolo.load_for(work / "yolo", printed[n]) for n in printed}
     sizes = {n: layoutgeom.png_size(printed[n]) for n in printed}
     stats = layoutgeom.place(doc, dets, {n: s for n, s in sizes.items() if s})

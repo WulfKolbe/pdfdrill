@@ -46,7 +46,6 @@ CLI
 from __future__ import annotations
 
 import argparse
-from docops.katex_notice import KATEX_WARNING_HTML
 import base64
 import html
 import io
@@ -935,6 +934,9 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .katex-audit ol{margin:.5rem 0 0;padding-left:1.4rem;max-height:16rem;overflow:auto}
 .katex-audit li{margin:.2rem 0}
 .katex-audit code{font-family:var(--mono);font-size:.9em;word-break:break-all}
+/* A UA stylesheet already hides `[hidden]`, but this rule sets padding and a
+   border on the same element, so say it here too rather than rely on it. */
+.katex-audit[hidden]{display:none}
 
 /* ---- sidebar: tree ---- */
 .side h4{margin:0;padding:9px 12px;font:11px/1 var(--sans);letter-spacing:.08em;
@@ -1017,8 +1019,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 </style>
 </head>
 <body>
-""" + KATEX_WARNING_HTML + r"""
-<div class="katex-audit" id="katexAudit">counting what KaTeX refuses…</div>
+<div class="katex-audit" id="katexAudit" hidden>counting what KaTeX refuses…</div>
 <div class="topbar">
   <div class="brand">doc<span class="k">inspect</span></div>
   <div class="crumb"><b id="cb-key"></b> · <span id="cb-sub"></span></div>
@@ -2184,6 +2185,7 @@ function katexAudit(){
     + ', ' + withAuthor + " with the author's latex beside them, "
     + forms.length + ' rendered form' + (forms.length===1?'':'s') + ' in all.';
   if(window.__noKatex || !window.katex){
+    host.hidden = false;
     host.innerHTML = '<b>KaTeX did not load</b>, so nothing here was rendered '
       + 'and nothing was refused —' + esc(prov) + ' The marks on the page say '
       + 'the renderer is absent, not that a formula is wrong.';
@@ -2198,13 +2200,20 @@ function katexAudit(){
   });
   window.__katexRefused = bad;        // the hook a test or drillui reads
   if(!bad.length){
+    /* NOTHING TO WARN ABOUT TAKES NO BAND OF THE PAGE (owner, 2026-10-29:
+     * "2 warnings are spending valuable area of my screen"). The sentence
+     * stays in the DOM — drillui and the gate read it, and so does anyone
+     * who asks the element — but a page where every formula renders says so
+     * by rendering, not by a banner above the document. */
     host.innerHTML = '<b>KaTeX 0.16.9 renders every formula in this document.</b>'
       + esc(prov);
+    host.hidden = true;
     return;
   }
   const items = bad.map(b=>'<li><code>'+esc(b.id)+'</code> '+esc(b.type)+' ('
     + esc(b.which)+') — '+esc(b.why)
     + '<br><code>'+esc(b.tex.slice(0,300))+'</code></li>').join('');
+  host.hidden = false;
   host.innerHTML = '<details open><summary>KaTeX 0.16.9 refused '+bad.length
     + ' of '+forms.length+' rendered form'+(forms.length===1?'':'s')
     + ' — each one listed, none hidden</summary>'

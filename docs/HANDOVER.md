@@ -2436,3 +2436,225 @@ parametrised command-line pair). The detector test was verified red against
 command-line test cannot be made red that way, because it deliberately ignores
 the parent's environment and runs the installed script — which is the property
 that makes it worth having, so its red evidence is the run above instead.
+
+## The fresh clone was innocent: a free command satisfied a paid prerequisite and was never named (2026-10-28)
+
+The owner drilled the 15 YACCLAB papers (bib.txt refs [2], [4], [9], [13],
+[17], [21]–[24], [26], [29], [31]–[33], [35]) plus `dorst2005conformal` with a
+fresh clone and reported two symptoms: no LaTeX in the markdown, and wrong
+geometry. Both are real. Neither was the clone.
+
+### What the clone was accused of, and the measurement that cleared it
+
+The build stamp in those models reads `19e097d1`, `dirty: true` — the
+2026-10-21 commit *"the free lane was behind an extra, and the fresh install
+never built the fork"*, so the install-side defect was already fixed there. And
+the hypothesis was testable directly: the same command on this machine, with
+the patched pdfminer and all 349 packages, produces the same file.
+
+    $ pdfdrill drill 2016icpr.pdf            # this machine, every extra
+    source 'pdfminer-chars'   frame 595.28 POINTS   types {'text': 274}
+    # ser7's fresh clone: identical
+
+`hasattr(LTChar, "glyphname")` is False here too — it is an INSTANCE attribute,
+so that probe was never the discriminator it looks like. Checked, not assumed.
+
+### What actually happened: two free readers, and `drill` takes the weaker one
+
+`drill` → `cmd_model(pdf)` with no reader → step 2 of the acquisition chain,
+`_write_born_digital_lines`, which writes `pdfminer-chars`: PDF POINTS, untyped.
+The glyph reader is only reached by naming it. On the owner's own `2018jrtip.pdf`:
+
+| free reader | source | frame | lines |
+|---|---|---|---|
+| `drill`'s default | `pdfminer-chars` | 595.28 × 841.89 points | 1240, all `text` + 1 `math` |
+| `pdfdrill glyphlines` | `pdfminer-docmodel` | **2067 × 2923 pixels** | **1172 typed** — 11 math, 128 list_item, 12 code, 7 section_header, 2 title, 15 authors, 65 rotated_text |
+
+So "the geometry is wrong" is the points frame, and `pdfminer-chars` is excluded
+from `_TYPED_GEOMETRY_SOURCES` for exactly that reason. The free fix existed the
+whole time.
+
+### The defect, and it has a price
+
+`lines:typed-geometry` is satisfiable by three commands:
+
+    mathpix     done_when: lines:typed-geometry        PAID
+    gemmaocr    done_when: lines:typed-geometry        metered
+    glyphlines  done_when: file:{stem}.lines.json      FREE, offline
+
+`planner.equivalent_commands` grouped satisfiers by **string equality** of
+`done_when`, so the free command never joined the class, and every missing-
+prerequisite message named only the two that cost money — for all 16 documents.
+Fixed by letting a command declare `also_satisfies`, grouping on what commands
+satisfy rather than on one spelling, and listing free alternatives first and
+marked free:
+
+    mathpix (paid — run `pdfdrill mathpix` yourself; or `pdfdrill glyphlines`
+    (free, offline), `pdfdrill gemmaocr`, which satisfies the same prerequisite)
+
+**Why `glyphlines`' own `done_when` was NOT changed to the condition.** Sampled
+over 40 of the library's `pdfminer-docmodel` readings, 35 carry a typed-family
+line in their first three pages and **5 do not**, so the stronger condition
+would report `glyphlines` unfinished on about an eighth of documents after a
+perfect run. A command declares what it ALSO satisfies instead.
+
+### A test that protected the omission
+
+`test_paid_lane_guards.py::test_commands_that_satisfy_the_same_condition_are_known_to_be_alternatives`
+asserted `alts["mathpix"] == {"mathpix", "gemmaocr"}` — the MEMBERSHIP on the
+day it was written — while its own first sentence states the requirement
+("which command produces it is the operator's choice"). The membership was
+wrong, and exact equality then held it wrong. Rewritten to assert the
+requirement. This is the second recorded instance of the shape:
+`test_pdfminer_fork_survives_pip.py` pinned 905o's mechanism and passed while a
+fresh clone had no fork at all.
+
+### What is still true about the markdown
+
+`glyphlines` fixes the frame and the typing; it does NOT produce math LaTeX.
+Across the 15 papers the markdown holds 661 KB of text, 40 `math` lines and 40
+display blocks, and 6 of the 15 have no math at all — these are algorithm and
+benchmark papers. LaTeX needs `visionocr` (keyless, delegated) or `mathpix`
+(paid); the free author-LaTeX lane does not exist for them, as none is an arXiv
+e-print.
+
+### Recorded, not fixed: `--ensure` still cannot substitute the free command
+
+`planner.ensure` runs the missing OFFLINE prerequisites and skips the paid ones;
+it does not consult `equivalent_commands`, so it will not run `glyphlines` in
+place of a refused `mathpix`. The message now names it and the operator runs it.
+Making `--ensure` substitute means auto-running a reader that rewrites an
+existing `lines.json`, which is a decision about the owner's data, not a
+cleanup.
+
+## A typed `abstract` line swallowed the rest of the paper (2026-10-28)
+
+Re-reading the owner's 15 YACCLAB papers with the free glyph reader fixed their
+structure — `section_header` 0 → 1..35, `list_item` 0 → 12..215 — and three of
+them came out with a markdown file a sixth of its former size. The correlation
+over the batch is exact: the three with typed `abstract` lines lost their text,
+the twelve without kept it.
+
+| folder | abstract lines | text lines | Paragraph | md KB |
+|---|---|---|---|---|
+| sensors-15-23763 | 14 | 704 | **4** | 9 |
+| 2016acivs | 5 | 213 | **1** | 6 |
+| 2019caip_labeling | 22 | 469 | **1** | 6 |
+| the other twelve | 0 | 261..996 | 30..126 | 26..91 |
+
+It is real loss, not paragraph merging, and that was checked before anything was
+changed: sensors' reading holds **69,566** prose characters and its model's
+Paragraph objects held **460** (all objects together 1,765). 2018jrtip, with no
+typed abstract, holds 51,364 and kept 52,245.
+
+### The mechanism, and why the corpus could never show it
+
+`ParagraphProcessor` sets `in_abstract = True` on a line typed `abstract` and
+clears it only through `_ABSTRACT_END` — the literal `\end{abstract}`, which
+only a reading carrying LaTeX markup contains. **MathPix types its abstract as
+plain `text`**, so in the corpus this was written against the regex always
+released the latch and the bug was unreachable. The glyph reader TYPES the
+abstract, so the first such line shut the paragraph builder for the whole
+document.
+
+The fix is to believe the type when the reading provides it: `typed_abstract` is
+answered once per reading, and where it holds, a non-abstract line clears the
+latch. The regex ladder stays for readings that do not type an abstract — that
+population's answers do not move.
+
+    sensors-15-23763    4 Paragraph →  49,  11,746 words
+    2016acivs           1 Paragraph →  24
+    2019caip_labeling   1 Paragraph →  65
+
+### What hid it for a day: a loop that reported nothing
+
+`[ParagraphProcessor] {'paragraphs_created': 4}` was the entire account of 704
+lines. Three `continue` paths had no counter at all, so there was no number
+anywhere saying lines had been dropped, let alone why — the
+silent-partial-success shape `_format_math_capture`'s own docstring warns about.
+Every silent path now counts itself:
+
+    lines_skipped_inside_an_abstract   lines_of_a_breaking_type
+    lines_typed_abstract               lines_of_a_non_prose_type
+
+On sensors the defect now reads straight off one line of output
+(`lines_skipped_inside_an_abstract: 874`) instead of needing a measurement
+campaign. That counter is the part worth keeping.
+
+### A test that lied twice before it worked
+
+The first version asserted a Paragraph COUNT and failed its own control: 60
+consecutive prose lines legitimately merge into two paragraphs, so the count
+measured the merger, not the defect. The second searched the whole model FILE
+for the body text — and the model embeds the reading's line payloads, so every
+sentence was "present" while no Paragraph had been built from it, and the test
+passed against the live defect. It asserts text coverage inside the model's own
+objects, which is what the defect destroys.
+
+## The author's mathematics reached the model and not the Markdown (defect 3)
+
+Reported by a CLI driving pdfdrill: "pdfdrill's `md` for an arXiv e-print drops
+inline math and theorem bodies (Schick2001: 28 pages → 2021 words)". Schick2001
+is `arxiv.math_9807032` here, and the number is exact — 28 pages, 2,021 words.
+Both mechanisms were in `MarkdownProjector`; neither was in the reading.
+
+**1. The marker was deleted instead of rendered.**
+`latex_source.build_source_model` cuts every inline span out of the paragraph,
+files it as its own `Formula` (de-duplicated by content) and leaves
+`{{<bibkey>_FO0001||FO}}` behind. `_flow` skips `Formula` — "rendered inside the
+prose that hosts it" — and `_strip_transclusions` drops the marker "keeping
+nothing behind", on its own documented assumption that "a marker's payload is
+rendered in place by the caller before this runs". `_md_from_latex_source` is a
+caller that never did, so the LaTeX stayed in the model referenced by nothing in
+the output. `_render_formulas` resolves them now, and the numbering comes from
+`tiddlywiki.math_titles` rather than a second implementation of it: that
+function's own docstring says a second one "would silently drift and emit
+references that resolve to the wrong formula". 35 Formula objects carry 70
+markers on this paper, so resolving one object at every occurrence is the point.
+
+**2. Four object types had no branch.** `Theorem`, `Proof`, `Algorithm` and
+`AlgorithmStep` are types the LaTeX reader creates and `_block` ended with
+`return ""`, so 66 theorems and 23 proofs rendered as the empty string — which
+is why a statement-and-proof paper is hit far harder than an experimental one.
+`conserve.py` had already catalogued all four as types that "never reach the
+reader" (656); what was missing was the branch. `AlgorithmStep` also had to
+leave `_flow`: it carries no `flow_index`, so left in it the steps print after
+the bibliography instead of under their Algorithm.
+
+**3. The author's `$` is mathematics.** In LaTeX source a literal dollar is
+written `\$`, so a bare one opens math; on the MathPix route the opposite holds
+(`escape_dollar: True` is in the conversion options pdfdrill sends, and 58 of
+400 intact downloads carry 302 escaped dollars). One `_mathpix_math` served
+both, and it escaped the author's `$\alpha(M)$` into `\$\alpha(M)\$`. It takes
+the route as a parameter now; `_is_latex_source` answers from `source_counts`,
+which only `build_source_model` and `markdown_source` write.
+
+### Measured on one model, with only the projector changed
+
+    arxiv.math_9807032 (Schick2001, 28 pp)      HEAD     fixed
+    words                                      2,021     8,304
+    inline $…$ spans                              98       885
+    display $$ fences                             50        50
+    theorem-like blocks                            0        66
+    proof blocks                                   0        23
+    escaped \$ (in the shipped file)              26         0
+    literal {{…||FO}} markers                      0         0
+
+The 66 block heads tally with the model exactly: Definition 13, Remark 19,
+Lemma 10, Proposition 9, Theorem 7, Conjecture 5, Corollary 1, Example 1,
+Situation 1. `arxiv.2006.09299` — the instance the library index records as "58
+`Formula` objects and ONE `$`" — goes 2,552 → 3,514 words, 1 → 190 inline spans.
+
+### Still lost, and NOT fixed here
+
+`{{…||CIT}}` is stripped by the identical mechanism: 26 in-text citations leave
+Schick2001's Markdown, so "as shown in [12]" reads "as shown in".
+`_md_from_latex_source`'s own docstring already promises `[CITATION: key]`.
+
+The `.md` of the fifteen glyph-route documents still escapes its mathematics
+(`\$32\times32\$` — 180 occurrences on 2016icpr, 538 on 2009tiplabeling, 128 on
+sensors-15-23763). That is (3) again on a route where a bare `$` may genuinely
+be a dollar sign, so it needs a content test rather than the route flag.
+
+Author macros `expand_math` does not resolve reach the output as they stand
+(`\Z\pi`, `\RAgroups`); no renderer will typeset them. Pre-existing, unchanged.

@@ -67,15 +67,42 @@ def test_a_free_lane_is_drilled_to_an_inspector(tmp_path, monkeypatch):
 
 def test_the_geometry_pass_is_asked_for_the_detector(tmp_path, monkeypatch):
     """`geometry --layout` is the free half of the OCR path, and it is the
-    difference between a box-less inspector and a drawn one."""
+    difference between a box-less inspector and a drawn one — ON A DOCUMENT
+    THAT NEEDS IT.
+
+    This used to assert `layout=True` unconditionally, and that is how `drill`
+    came to spend 116.88 s of 120.73 s on a born-digital paper where the pass
+    reported "boxed 0 of 0". The contract it was written for is kept here, as
+    the case where the text match left objects unplaced; the other case is the
+    test below."""
     pdf = _pdf(tmp_path)
     ran: list = []
     _stub_probes(monkeypatch, ran)
     monkeypatch.setattr(R, "route_for_sidecar", lambda sc: _free())
     monkeypatch.setattr(C.Sidecar, "facts", property(lambda self: {"MODEL_BUILT"}))
+    monkeypatch.setattr(CLI, "_layout_candidates", lambda p: (23, ""))
     CLI._do_drill([str(pdf)])
     geom = [k for n, k in (x for x in ran if isinstance(x, tuple))]
-    assert geom and geom[0].get("layout") is True
+    assert any(k.get("layout") is True for k in geom), geom
+
+
+def test_the_geometry_pass_is_named_and_skipped_when_nothing_is_unplaced(
+        tmp_path, monkeypatch):
+    """The other half. 0 candidates means the pass cannot change the model, so
+    spending 9.5 s/page on it is spending it on nothing — and the reader is
+    told, with the command, the way a paid lane is named and not run."""
+    pdf = _pdf(tmp_path)
+    ran: list = []
+    _stub_probes(monkeypatch, ran)
+    monkeypatch.setattr(R, "route_for_sidecar", lambda sc: _free())
+    monkeypatch.setattr(C.Sidecar, "facts", property(lambda self: {"MODEL_BUILT"}))
+    monkeypatch.setattr(CLI, "_layout_candidates",
+                        lambda p: (0, "every object already carries a region."))
+    out = CLI._do_drill([str(pdf)])
+    geom = [k for n, k in (x for x in ran if isinstance(x, tuple))]
+    assert not any(k.get("layout") is True for k in geom), geom
+    assert "geometry --layout" in out and "Not run" in out
+    assert "already carries a region" in out
 
 
 def test_a_paid_lane_is_named_and_not_run(tmp_path, monkeypatch):

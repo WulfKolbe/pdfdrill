@@ -141,6 +141,9 @@ commands:
     whose patched pdfminer is not importable here. A MathPix lines.json is never overwritten
     without --force.'
   offline_ok: true
+  slow: >-
+    reads every glyph on every page — about 3.2 s/page, so 25 min on a 470-page
+    volume (measured 2026-10-29 on 2016icpr, 6 pages in 19.33 s)
   positionals:
   - name: pdf
     type: pdf
@@ -153,6 +156,17 @@ commands:
     help: re-read, replacing an existing lines.json (including MathPix's)
   typed: true
   done_when: file:{stem}.lines.json
+  # It writes `pdfminer-docmodel`, which IS typed geometry (measured on
+  # 2018jrtip: a 2067x2923 PIXEL frame, 1172 typed lines — 11 math, 128
+  # list_item, 12 code, 7 section_header — where the chars route gives 1240
+  # untyped ones). `done_when` stays the weaker file test because 5 of 40
+  # sampled pdfminer-docmodel readings carry no typed-family line in their
+  # first three pages, so the stronger condition would call a successful run
+  # unfinished. This field is what lets the planner offer it in place of a
+  # PAID command: without it, a missing `lines:typed-geometry` named only
+  # `mathpix` and `gemmaocr`, and 16 documents were told to pay for what this
+  # does for free (owner, 2026-10-28).
+  also_satisfies: lines:typed-geometry
 - name: profile
   section: Introspection (fast, no extraction)
   summary: 'What is ON each page, and on what evidence — the triage layer (781o). Counting
@@ -971,6 +985,10 @@ commands:
     and the ink knows where those are for free. Per-field confidence; weak on scanned generic
     sans. --limit 12 --ppi 200'
   offline_ok: true
+  slow: >-
+    crops words and runs the visual font classifier over them — about
+    1.6 s/page, so 13 min on a 470-page volume (measured 2026-10-29 on
+    2016icpr, 6 pages in 9.66 s)
   positionals:
   - name: pdf
     type: pdf
@@ -1380,6 +1398,13 @@ commands:
     route left 54 of 131 elements with no box; with --layout and the bibliography''s own entries
     matched, 8 remain.'
   offline_ok: true
+  slow: >-
+    with `--layout` it rasterizes every page at 400 dpi and runs the layout
+    detector over every one — about 9.5 s/page, so 74 min on a 470-page volume
+    (measured 2026-10-29 on 2016icpr, 6 pages in 56.84 s; it was 263.93 s
+    before a two-column paper stopped being read as an imposed sheet). Without
+    `--layout` the pdftotext word-geometry fusion is 0.12 s/page and `drill`
+    runs that much
   positionals:
   - name: pdf
     type: pdf
