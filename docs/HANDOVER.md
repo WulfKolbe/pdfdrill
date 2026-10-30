@@ -2590,3 +2590,71 @@ for the body text — and the model embeds the reading's line payloads, so every
 sentence was "present" while no Paragraph had been built from it, and the test
 passed against the live defect. It asserts text coverage inside the model's own
 objects, which is what the defect destroys.
+
+## The author's mathematics reached the model and not the Markdown (defect 3)
+
+Reported by a CLI driving pdfdrill: "pdfdrill's `md` for an arXiv e-print drops
+inline math and theorem bodies (Schick2001: 28 pages → 2021 words)". Schick2001
+is `arxiv.math_9807032` here, and the number is exact — 28 pages, 2,021 words.
+Both mechanisms were in `MarkdownProjector`; neither was in the reading.
+
+**1. The marker was deleted instead of rendered.**
+`latex_source.build_source_model` cuts every inline span out of the paragraph,
+files it as its own `Formula` (de-duplicated by content) and leaves
+`{{<bibkey>_FO0001||FO}}` behind. `_flow` skips `Formula` — "rendered inside the
+prose that hosts it" — and `_strip_transclusions` drops the marker "keeping
+nothing behind", on its own documented assumption that "a marker's payload is
+rendered in place by the caller before this runs". `_md_from_latex_source` is a
+caller that never did, so the LaTeX stayed in the model referenced by nothing in
+the output. `_render_formulas` resolves them now, and the numbering comes from
+`tiddlywiki.math_titles` rather than a second implementation of it: that
+function's own docstring says a second one "would silently drift and emit
+references that resolve to the wrong formula". 35 Formula objects carry 70
+markers on this paper, so resolving one object at every occurrence is the point.
+
+**2. Four object types had no branch.** `Theorem`, `Proof`, `Algorithm` and
+`AlgorithmStep` are types the LaTeX reader creates and `_block` ended with
+`return ""`, so 66 theorems and 23 proofs rendered as the empty string — which
+is why a statement-and-proof paper is hit far harder than an experimental one.
+`conserve.py` had already catalogued all four as types that "never reach the
+reader" (656); what was missing was the branch. `AlgorithmStep` also had to
+leave `_flow`: it carries no `flow_index`, so left in it the steps print after
+the bibliography instead of under their Algorithm.
+
+**3. The author's `$` is mathematics.** In LaTeX source a literal dollar is
+written `\$`, so a bare one opens math; on the MathPix route the opposite holds
+(`escape_dollar: True` is in the conversion options pdfdrill sends, and 58 of
+400 intact downloads carry 302 escaped dollars). One `_mathpix_math` served
+both, and it escaped the author's `$\alpha(M)$` into `\$\alpha(M)\$`. It takes
+the route as a parameter now; `_is_latex_source` answers from `source_counts`,
+which only `build_source_model` and `markdown_source` write.
+
+### Measured on one model, with only the projector changed
+
+    arxiv.math_9807032 (Schick2001, 28 pp)      HEAD     fixed
+    words                                      2,021     8,304
+    inline $…$ spans                              98       885
+    display $$ fences                             50        50
+    theorem-like blocks                            0        66
+    proof blocks                                   0        23
+    escaped \$ (in the shipped file)              26         0
+    literal {{…||FO}} markers                      0         0
+
+The 66 block heads tally with the model exactly: Definition 13, Remark 19,
+Lemma 10, Proposition 9, Theorem 7, Conjecture 5, Corollary 1, Example 1,
+Situation 1. `arxiv.2006.09299` — the instance the library index records as "58
+`Formula` objects and ONE `$`" — goes 2,552 → 3,514 words, 1 → 190 inline spans.
+
+### Still lost, and NOT fixed here
+
+`{{…||CIT}}` is stripped by the identical mechanism: 26 in-text citations leave
+Schick2001's Markdown, so "as shown in [12]" reads "as shown in".
+`_md_from_latex_source`'s own docstring already promises `[CITATION: key]`.
+
+The `.md` of the fifteen glyph-route documents still escapes its mathematics
+(`\$32\times32\$` — 180 occurrences on 2016icpr, 538 on 2009tiplabeling, 128 on
+sensors-15-23763). That is (3) again on a route where a bare `$` may genuinely
+be a dollar sign, so it needs a content test rather than the route flag.
+
+Author macros `expand_math` does not resolve reach the output as they stand
+(`\Z\pi`, `\RAgroups`); no renderer will typeset them. Pre-existing, unchanged.

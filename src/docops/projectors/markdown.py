@@ -86,6 +86,32 @@ MATH_DISPLAY = ("$$", "$$")
 #: widgets, they are the text itself.
 _MATH_SPAN = re.compile(r"\\\[(?P<d>.+?)\\\]|\\\((?P<i>.+?)\\\)", re.S)
 
+#: The same, for prose that came from the AUTHOR'S LaTeX rather than from a
+#: provider's reading. There `$ … $` is mathematics and a literal dollar is
+#: written `\$` — the opposite convention to MathPix's, which escapes the
+#: literal one on the wire (`escape_dollar: True`) and delimits its mathematics
+#: `\( … \)`. Reading the author's `$\alpha(M)$` with the provider's rule
+#: escaped both delimiters and shipped `\$\alpha(M)\$` as prose: the defect this
+#: pattern exists for. Mirrors `latex_source._INLINE_MATH`, which is what
+#: harvested the same spans on the way in.
+_MATH_SPAN_SOURCE = re.compile(
+    r"\\\[(?P<d>.+?)\\\]"
+    r"|\\\((?P<i>.+?)\\\)"
+    r"|(?<!\\)\$\$(?P<dd>.+?)(?<!\\)\$\$"
+    r"|(?<![\\$])\$(?!\$)(?P<ii>.+?)(?<!\\)\$",
+    re.S)
+
+#: A Formula transclusion, the ONE marker this projector resolves rather than
+#: strips. `latex_source.build_source_model` cuts every inline span out of the
+#: paragraph and leaves this behind, so a reader who gets the prose without it
+#: gets the sentence with its mathematics deleted.
+_FO_TRANSCLUSION = re.compile(r"\{\{(?P<title>[^{}]*?)\|\|FO\}\}")
+
+#: How `build_source_model` sanitises a tiddler title before writing it into a
+#: marker. Mirrored, because the marker in the prose is the sanitised form and
+#: the title map is built from `title_for`, which is not.
+_TITLE_SAFE = re.compile(r"[^A-Za-z0-9_\-\.]")
+
 #: A dollar that is not already escaped AND does not open a TiddlyWiki widget.
 #: `escape_dollar: True` is in the conversion options pdfdrill sends, and 58 of
 #: 400 intact downloads carry an escaped `\$` (302 occurrences): in a `$…$`
@@ -96,25 +122,48 @@ _MATH_SPAN = re.compile(r"\\\[(?P<d>.+?)\\\]|\\\((?P<i>.+?)\\\)", re.S)
 _BARE_DOLLAR = re.compile(r"(?<![\\<])\$")
 
 
-def _mathpix_math(text: str) -> str:
+def _mathpix_math(text: str, source_math: bool = False) -> str:
     r"""Prose into MathPix's md dialect: `\(x\)` → `$x$`, `\[x\]` → `$$x$$`,
     and a literal `$` BETWEEN the spans escaped.
 
     One pass over the math spans rather than two substitutions, because the
     escaping must not reach inside a formula: `\(a\$b\)` is mathematics with a
     dollar in it, and escaping that changes the equation.
+
+    `source_math=True` reads `$ … $` as a span too, which is right for the
+    author's own LaTeX and wrong for a provider's reading — see
+    `_MATH_SPAN_SOURCE`. Either way a `\$` stays an escaped dollar sign.
     """
     out: list[str] = []
     pos = 0
-    for m in _MATH_SPAN.finditer(text):
+    for m in (_MATH_SPAN_SOURCE if source_math else _MATH_SPAN).finditer(text):
+        g = m.groupdict()
+        display = g["d"] if g["d"] is not None else g.get("dd")
+        inline = g["i"] if g["i"] is not None else g.get("ii")
         out.append(_BARE_DOLLAR.sub(r"\\$", text[pos:m.start()]))
-        if m.group("d") is not None:
-            out.append(f"{MATH_DISPLAY[0]}{m.group('d')}{MATH_DISPLAY[1]}")
+        if display is not None:
+            out.append(f"{MATH_DISPLAY[0]}{display}{MATH_DISPLAY[1]}")
         else:
-            out.append(f"{MATH_INLINE[0]}{m.group('i')}{MATH_INLINE[1]}")
+            out.append(f"{MATH_INLINE[0]}{inline}{MATH_INLINE[1]}")
         pos = m.end()
     out.append(_BARE_DOLLAR.sub(r"\\$", text[pos:]))
     return "".join(out)
+
+
+def _is_latex_source(doc) -> bool:
+    """Was this model built from the author's own LaTeX?
+
+    The twin of `pdfdrill.commands._is_latex_source_model`, which asks the same
+    question of a model on disk. Mirrored rather than imported for the reason
+    `MATH_INLINE` is: `docops` does not depend on the CLI package.
+    `source_counts` is the positive marker — `latex_source.build_source_model`
+    and `markdown_source` are the only writers of it — and the two meta fields
+    the CLI predicate reads are honoured as well.
+    """
+    meta = getattr(doc, "meta", None) or {}
+    return bool(meta.get("source_counts")
+                or meta.get("latex_source_dir")
+                or "LaTeX source" in str(meta.get("source_path") or ""))
 
 
 def _unwidget(text: str) -> str:
@@ -192,6 +241,8 @@ class MarkdownProjector(BaseProjector):
 
         bibkey = str(doc.meta.get("bibkey") or "document")
         self._titles = self._title_map(doc, title_for, bibkey)
+        self._formulas = self._formula_map(doc, bibkey)
+        self._source_math = _is_latex_source(doc)
         out: list[str] = []
         if self.params.get("front_matter", False):
             out.append(self._front_matter(doc, bibkey))
@@ -224,16 +275,44 @@ class MarkdownProjector(BaseProjector):
                 continue
         return out
 
+    @staticmethod
+    def _formula_map(doc, bibkey: str) -> dict:
+        """{marker title: Formula object} — the reverse of what the prose holds.
+
+        `math_titles` is the numbering, and it is NOT re-derived here: its own
+        docstring says a second implementation "would silently drift and emit
+        references that resolve to the wrong formula", and a marker resolved to
+        the wrong formula is worse than one resolved to none. It numbers
+        `Formula` and `Equation`; a `SyntheticFormula` is content-addressed
+        (`FOX_<sha1>`) and has no row there, so it stays unresolved — and
+        `build_source_model`, which is what writes these markers, never makes
+        one.
+        """
+        from .tiddlywiki import math_titles
+
+        out: dict = {}
+        titles = math_titles(doc, bibkey)
+        for obj in doc.objects.values():
+            title = titles.get(obj.id) if obj.type == "Formula" else None
+            if title:
+                out[_TITLE_SAFE.sub("_", title)] = obj
+        return out
+
     # ------------------------------------------------------------------ flow
     @staticmethod
     def _flow(doc) -> list:
         """Objects in reading order, skipping the containers and the furniture.
 
         `Page` is a container, not prose; `TableRow`/`TableCell` are rendered by
-        their Table; `Formula` is rendered inside the prose that hosts it.
+        their Table and `AlgorithmStep` by its Algorithm; `Formula` is rendered
+        inside the prose that hosts it.
+
+        An `AlgorithmStep` carries no `flow_index` at all, so left in the flow
+        it does not merely duplicate its Algorithm — it sorts to the end and
+        prints the steps after the bibliography.
         """
-        skip = {"Document", "Page", "TableRow", "TableCell", "Formula",
-                "SyntheticFormula", "Citation", "LtxCommand"}
+        skip = {"Document", "Page", "TableRow", "TableCell", "AlgorithmStep",
+                "Formula", "SyntheticFormula", "Citation", "LtxCommand"}
         objs = [o for o in doc.objects.values() if o.type not in skip]
         return sorted(objs, key=lambda o: (o.props.get("flow_index") is None,
                                            o.props.get("flow_index") or 0))
@@ -288,6 +367,12 @@ class MarkdownProjector(BaseProjector):
             return self._list_item(obj)
         if t == "CodeListing":
             return self._code(obj)
+        if t == "Theorem":
+            return self._theorem(obj)
+        if t == "Proof":
+            return self._proof(obj)
+        if t == "Algorithm":
+            return self._algorithm(obj, doc)
         if t in ("Paragraph", "Abstract", "Toc", "Footnote", "Sidenote"):
             return self._prose(obj, t)
         return ""
@@ -328,6 +413,89 @@ class MarkdownProjector(BaseProjector):
             return ""
         lang = str(obj.props.get("language") or "")
         return f"```{lang}\n{body.rstrip()}\n```"
+
+    def _theorem(self, obj) -> str:
+        """A theorem-like block: `**Theorem 3 (Hirzebruch).** <statement>`.
+
+        The shape the TiddlyWiki projector already gives the same object, so the
+        two projections of one model agree. The printed title is the author's
+        own (`\\newtheorem{lemma}{Lemma}` → "Lemma"), the number follows the
+        shared-counter chain the reader resolved, and a starred environment has
+        neither.
+        """
+        body = self._clean(str(obj.props.get("statement")
+                               or obj.props.get("text") or ""))
+        if not body:
+            return ""
+        head = (str(obj.props.get("printed_title") or "").strip()
+                or str(obj.props.get("kind") or "Theorem").strip().title())
+        num = obj.props.get("number")
+        if num is not None and not obj.props.get("starred"):
+            head = f"{head} {num}"
+        bracket = self._clean(str(obj.props.get("title") or "")).strip()
+        if bracket:
+            head = f"{head} ({bracket})"
+        return f"**{head}.** {body}"
+
+    def _proof(self, obj) -> str:
+        r"""`**Proof.** <statement> $\square$`.
+
+        `\begin{proof}[Proof of Theorem 2]` names its target, and Markdown has
+        no field to keep that in — so the name belongs in the text. The box ends
+        the proof, which matters when prose follows it; a proof that already
+        ends in one does not get a second.
+        """
+        body = self._clean(str(obj.props.get("statement")
+                               or obj.props.get("text") or ""))
+        if not body:
+            return ""
+        name = str(obj.props.get("name") or "").strip().rstrip(".") or "Proof"
+        if not re.search(r"(?:\\square|\\blacksquare|\\qed\w*)\s*\$?\s*$", body):
+            body = f"{body} {MATH_INLINE[0]}\\square{MATH_INLINE[1]}"
+        return f"**{name}.** {body}"
+
+    def _algorithm(self, obj, doc) -> str:
+        """`**Algorithm 1** <title>` and its steps as a numbered list.
+
+        The steps are reached through the Algorithm's `children`, else by their
+        own `parent` — `cmd_algorithms` and the LaTeX reader both build them,
+        and an Algorithm whose steps arrived by only one of those routes is
+        still an Algorithm. Depth indents: a nested step is a step OF the step
+        above it, and flattening them loses the loop body.
+        """
+        num = str(obj.props.get("number") or "").strip()
+        head = f"**Algorithm {num}**" if num else "**Algorithm**"
+        title = self._clean(str(obj.props.get("title")
+                                or obj.props.get("caption") or "")).strip()
+        if title:
+            head = f"{head} {title}"
+
+        steps = [doc.objects[i] for i in (obj.children or [])
+                 if i in doc.objects
+                 and doc.objects[i].type == "AlgorithmStep"]
+        if not steps:
+            steps = [o for o in doc.objects.values()
+                     if o.type == "AlgorithmStep"
+                     and getattr(o, "parent", None) == obj.id]
+        rows: list[str] = []
+        top = 0
+        for st in steps:
+            body = self._clean(str(st.props.get("text")
+                                   or st.props.get("content") or "")).strip()
+            if not body:
+                continue
+            try:
+                depth = max(0, int(st.props.get("depth") or 0))
+            except (TypeError, ValueError):
+                depth = 0
+            if depth:
+                # Three spaces is the content column of `N. `, so the nested
+                # item belongs to the item above in every CommonMark renderer.
+                rows.append(f"{'   ' * depth}1. {body}")
+            else:
+                top += 1
+                rows.append(f"{top}. {body}")
+        return f"{head}\n\n" + "\n".join(rows) if rows else head
 
     def _equation(self, obj) -> str:
         r"""A display equation: its LaTeX, else its crop as an image.
@@ -474,13 +642,42 @@ class MarkdownProjector(BaseProjector):
             return False
 
     # ----------------------------------------------------------------- prose
+    def _render_formulas(self, text: str) -> str:
+        """`{{Schick2001_FO0001||FO}}` → `$\\pi_1(M)$`, in place.
+
+        This is the projector's first stated rule — "a formula is rendered
+        where it stands" — and the half of it that was never implemented for a
+        model built from the author's LaTeX. A marker naming no Formula, or one
+        whose Formula carries no LaTeX, is left for `_strip_transclusions`:
+        there is nothing to render, and an empty `$$` is a stray fence in every
+        renderer.
+        """
+        formulas = getattr(self, "_formulas", None) or {}
+
+        def one(m: "re.Match") -> str:
+            obj = formulas.get(m.group("title"))
+            if obj is None:
+                return m.group(0)
+            tex = str(obj.props.get("latex")
+                      or obj.props.get("latex_original") or "").strip()
+            if not tex:
+                return m.group(0)
+            d = MATH_DISPLAY if obj.props.get("display") else MATH_INLINE
+            return f"{d[0]}{tex}{d[1]}"
+
+        return _FO_TRANSCLUSION.sub(one, text)
+
     def _clean(self, text: str) -> str:
         """Prose fit for Markdown: widgets become LaTeX, markers go, and the
         LaTeX sectioning a MathPix line sometimes carries is unwrapped."""
         # The READING's delimiters first, while the widget output is not yet in
         # the string: `_unwidget` emits `$…$` now, and escaping would eat it.
-        text = _mathpix_math(text)
+        text = _mathpix_math(text, getattr(self, "_source_math", False))
         text = _unwidget(text)
+        # THEN the formula transclusions, which emit final delimiters and so
+        # must come after the pass that would re-read them as prose. Before
+        # `_strip_transclusions`, which is what used to delete them.
+        text = self._render_formulas(text)
         text = _strip_transclusions(text)
         # `\title{X}` / `\author{X}` / `\section{X}` leak in from MathPix's
         # `text_display` on front-matter lines. Stripping only the OPENING

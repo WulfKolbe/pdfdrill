@@ -12,7 +12,7 @@ by default.
 each with the population it came from, open items, and the failure classes that
 cost time here.
 
-**`docs/HANDOVER-RULES.md`** — the 44 working rules each learned by a defect,
+**`docs/HANDOVER-RULES.md`** — the 45 working rules each learned by a defect,
 the non-obvious environment facts (LgEval pin, dictionaries, `resume.sh`), and
 the unverified assumptions.
 

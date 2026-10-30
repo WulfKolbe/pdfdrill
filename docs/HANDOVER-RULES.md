@@ -552,6 +552,21 @@ Each of these cost real time or real data in this project.
     written before the digest, because every projection older than this one does
     still carry its header.
 
+45. **A precondition stated in a docstring is a precondition nobody checks.**
+    `_strip_transclusions` drops a marker "keeping nothing behind" and says why
+    it may: "a marker's payload is rendered in place by the caller before this
+    runs". One caller rendered it (`transclusion_render`, on the route the
+    function was written for) and one never did (`_project_markdown`, reached by
+    `md` for every arXiv e-print), so on that route the function deleted the
+    author's mathematics — the sentence kept, the formula gone, exit 0, a file
+    written, nothing to see in any count. The same shape as the `requires` rule
+    above: *a contract between two functions that only prose enforces is not a
+    contract, and the half of it that is never exercised is where the defect
+    lives.* Measured: Schick2001 (`arxiv.math_9807032`) 28 pages → 2,021 words,
+    against 8,304 once the markers resolve. The projector's own header stated
+    the rule it was breaking ("a formula is rendered where it stands"), which is
+    the second half of the lesson: a stated intention is not a test either.
+
 ---
 
 ## 2. Environment facts that are not obvious
