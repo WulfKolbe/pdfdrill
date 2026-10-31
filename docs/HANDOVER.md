@@ -2923,3 +2923,111 @@ one (`test_mathlayer` 13, three `scandrill` files 16, `test_imageserver_units`
 2, `scandrill/test_handoff` 24 behind img2pdf); the remaining 25 were this
 gate's whole file. A suite count is a property of its install, which this repo
 already says in words and now has a worked example of.
+
+## A model was served whatever code built it, and a theorem was numbered 6 where the paper prints 2.9
+
+Two fixes from the same run of the owner's own command after a merge.
+
+### The stale model, and why it was invisible
+
+`pdfdrill md math/9807032` reused the model a nine-hour-old commit had built
+and projected it with new code: 8,221 words, which is neither generation's
+(8,304 before the macro fix, 8,191 after). Three holes, not one:
+
+1. `_stale_or_absent` decides staleness from the INPUTS alone — a content-hash
+   proof of the recorded inputs, else lines.json's mtime. Which code wrote the
+   model was never consulted.
+2. The producing commit WAS in the file and WAS right — `meta["written"] =
+   {sha: e83e600f…}` against a running db5eac9c — but `read_stamp` defaulted to
+   `which="build"`, and only `docmodel.main.run` writes that key. Everything
+   saved through `model_io.save_model`, which is the whole author's-source
+   route, carried `written` and no `build`, so every one of those models
+   reported as unstamped and `cmd_model` printed "(no build stamp: this model
+   predates 575)" about a model built minutes before.
+3. `md` and `llmtext` never called `_stale_or_absent` at all — they checked that
+   a file existed — so fixing the staleness rule alone would not have caught it.
+
+The owner's choice: rebuild lazily, on demand, only the document being run,
+only when the model-BUILDING code changed, free, from the files already on
+disk, printing which builder it came from and which it is now.
+
+`buildstamp.builder_key()` is that identity: a sha256 over the model-building
+sources (`docmodel/`, `latex_source`, `markdown_source`), cached per process.
+NOT the repo sha — that would mark every model in a 3,235-folder library stale
+on a commit that touched a CLI string, which is why the blunt version was
+declined. `stamp()` carries it as a fifth field; `builder_is_current` and
+`builder_change_note` are the comparison and the line.
+
+Proven end to end on a copy of a pre-change model:
+
+    model rebuilt: built by an unstamped builder, now 96acbaa. Markdown from
+    the author's LaTeX source (8191 words) …
+    (the same command again)  Markdown from the author's LaTeX source (8191 words) …
+
+Fires once, free, then silent. `model`, `md` (both routes) and `llmtext` consult
+it; `_stale_or_absent` is deliberately NOT changed, because it serves callers
+that cannot rebuild and every hand-built test model would become stale under it.
+
+A WRONG TURN THE EXISTING TESTS CAUGHT. The first fallback applied to any
+`which`, so `read_stamp(m, "written")` answered with the `build` stamp.
+`test_read_stamp_from_a_model_file` pins that it must not, and it is right: the
+module's own docstring separates "the code that decided the object graph" from
+"the code that last touched the file", which an enrichment pass makes different
+facts. The fallback is now for the DEFAULT call only — "give me the producer" —
+and naming a key stays strict.
+
+### `[section]` numbering
+
+`extract_theorems` ran one counter per shared-counter group and skipped the
+`[section]` reset its own docstring recorded as a caveat. The declarations
+already carried `reset_counter`; only the numbering never read it.
+
+    arxiv.math_9807032, before    Definition 1, 2, 3, Conjecture 4, 5, Theorem 6 …
+    after                         Definition 1.1, 1.2, 1.3 … Theorem 1.6 …
+
+21 of the 22 numbers the paper prints in its running text are now in the
+model's set. Starred sectioning commands do not step the counter; a theorem
+before any sectioning command keeps the plain count, which is also why
+`test_theorems.py` passes unchanged — its fixture declares
+`\newtheorem{theorem}{Theorem}` with no `[section]`.
+
+### REVERTED THE DAY AFTER, and why — the rule was right and the numbers were not
+
+Two more real papers, measured because I had said this change needed three and
+shipped it with one:
+
+    math/0408400   25 model numbers, 27 cited, 25 AGREE, 0 model-only.
+                   Where extraction is complete the prefix is exact.
+    math/0107145   13 model numbers, 9 cited, 6 agree.
+      model  Thm 1.1 Lem 2.1 Lem 3.1 Lem 3.2 Lem 3.3 Thm 4.1 Lem 5.1
+             Cor 5.2 Ex 5.4  Lem 6.1 Prop 6.2 Lem 6.3 Thm 6.4
+      cited  Lem 3.1 Lem 3.4 Thm 1.1 Lem 3.6 Thm 4.1 Cor 5.2 Lem 6.1
+             Prop 6.2 Lem 6.5
+
+The numbers agree up to the first divergence in each section and then DRIFT:
+section 3's second and third lemmas are 3.2 and 3.3 where the paper cites 3.4
+and 3.6, because blocks the paper numbers are never extracted, and once the
+counter falls behind every later number in that section is shifted. The model's
+own list also jumps 5.1, 5.2, 5.4 — a gap at 5.3, which can only be a block
+extracted and numbered and then rendered as nothing.
+
+So the prefix is correct arithmetic over an incomplete input, and the output is
+worse than what it replaced. "Theorem 6" on a paper numbered 1.22 and 2.9 is
+out of band: a reader opens the PDF. "Lemma 3.2" where the paper says "Lemma
+3.4" names a DIFFERENT REAL LEMMA, and no reader can tell. That is the
+confident-plausible-wrong shape this file records three times already, so the
+numbering came out and the stale-model half stayed.
+
+The ten fixtures stay in the tree as `xfail(strict=True)` — seven of them; the
+two that assert the fallbacks still pass. strict is the point: when the
+extraction gap is closed they pass, and the suite says so rather than staying
+quiet, which is the failure mode `test_stub_fidelity` taught this week.
+
+### Three extraction gaps the numbering exposed, all open
+
+    9807032   "Theorem 1.22" cited, section 1 runs 1.1 … 1.21 — not extracted
+    0107145   3.4, 3.6 and 6.5 cited — not extracted
+    0107145   5.3 numbered by the model and rendered as nothing — a dropped
+              statement, which is loss and not only a wrong number
+
+Correct numbering needs these first. Measured, recorded, not chased.

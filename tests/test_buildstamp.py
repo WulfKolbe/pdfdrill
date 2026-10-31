@@ -8,7 +8,12 @@ from pdfdrill import buildstamp as B
 
 def test_stamp_has_the_four_fields():
     s = B.stamp(refresh=True)
-    assert set(s) == {"sha", "dirty", "version", "at"}
+    assert set(s) == {"sha", "dirty", "version", "at",
+        # 2026-10-30: the model-BUILDING code's own
+        # identity, so "would this build the same
+        # model" can be asked without asking "is
+        # this the same commit" — buildstamp.builder_key
+        "builder"}
     assert s["sha"] is None or len(s["sha"]) == 40
     assert s["dirty"] in (True, False, None)
 
@@ -72,7 +77,7 @@ def test_save_model_stamps_the_writer_without_mutating_the_document(tmp_path):
     model_io.save_model(p, doc)
     assert "written" not in doc.meta, "saving must not mutate the caller's doc"
     on_disk = json.loads(p.read_text())["meta"]
-    assert set(on_disk["written"]) == {"sha", "dirty", "version", "at"}
+    assert set(on_disk["written"]) == {"sha", "dirty", "version", "at", "builder"}
 
 
 def test_save_model_leaves_an_existing_build_stamp_alone(tmp_path):

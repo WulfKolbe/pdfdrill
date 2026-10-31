@@ -48,7 +48,8 @@ def test_save_load_model_preserves_document():
         # 575 — a saved model records who wrote it. That stamp is new content,
         # not lost content: everything else must round-trip identically, and
         # the stamp must survive the packed sidecar too.
-        assert set(got["meta"].pop("written")) == {"sha", "dirty", "version", "at"}
+        assert set(got["meta"].pop("written")) == {"sha", "dirty", "version",
+                                                   "at", "builder"}
         assert got == _model().to_dict()
 
 
