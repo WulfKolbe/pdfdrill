@@ -12,10 +12,10 @@ index ad2c210..0c51cf7 100644
          self.cur_item.add(item)
          return item.adv
 diff --git a/pdfminer/encodingdb.py b/pdfminer/encodingdb.py
-index 85d8c1f..2e5d74d 100644
+index 85d8c1f..d828bd3 100644
 --- a/pdfminer/encodingdb.py
 +++ b/pdfminer/encodingdb.py
-@@ -87,16 +87,24 @@ class EncodingDB:
+@@ -87,16 +87,27 @@ class EncodingDB:
      mac2unicode: ClassVar[dict[int, str]] = {}
      win2unicode: ClassVar[dict[int, str]] = {}
      pdf2unicode: ClassVar[dict[int, str]] = {}
@@ -37,10 +37,13 @@ index 85d8c1f..2e5d74d 100644
          if pdf:
              pdf2unicode[pdf] = c
 +            pdf2name[pdf] = name
++    # The PDF Reference (D.1, note) puts the hyphen at WinAnsi 0255; the
++    # ENCODING row ("space", None, 202, 173, None) names it "space".
++    win2name[173] = "hyphen"
  
      encodings: ClassVar[dict[str, dict[int, str]]] = {
          "StandardEncoding": std2unicode,
-@@ -105,6 +113,13 @@ class EncodingDB:
+@@ -105,6 +116,13 @@ class EncodingDB:
          "PDFDocEncoding": pdf2unicode,
      }
  
@@ -54,7 +57,7 @@ index 85d8c1f..2e5d74d 100644
      @classmethod
      def get_encoding(
          cls,
-@@ -125,3 +140,41 @@ class EncodingDB:
+@@ -125,3 +143,41 @@ class EncodingDB:
                          log.debug(str(e))
                      cid += 1
          return cid2unicode
@@ -434,10 +437,10 @@ index 03a75e8..06e3d38 100644
          except KeyError:
 diff --git a/tests/test_glyphname.py b/tests/test_glyphname.py
 new file mode 100644
-index 0000000..38d60c8
+index 0000000..e1a99e4
 --- /dev/null
 +++ b/tests/test_glyphname.py
-@@ -0,0 +1,291 @@
+@@ -0,0 +1,299 @@
 +"""Tests for PostScript glyph-name preservation (cid2name / to_glyphname /
 +LTChar.glyphname).
 +
@@ -490,6 +493,14 @@ index 0000000..38d60c8
 +        """G: names are available from a base encoding alone."""
 +        assert EncodingDB.get_encoding_names("WinAnsiEncoding")[65] == "A"
 +        assert EncodingDB.get_encoding_names("StandardEncoding")[65] == "A"
++
++    def test_winansi_173_is_the_hyphen(self):
++        """G: WinAnsi 0255 is the hyphen (PDF Reference D.1, note), not the
++        "space" the ENCODING table's extra row gives it; 160 stays "space"
++        and 45 "hyphen". The Unicode table is not this fork's to change."""
++        names = EncodingDB.get_encoding_names("WinAnsiEncoding")
++        assert (names[173], names[45], names[160]) == ("hyphen", "hyphen", "space")
++        assert EncodingDB.get_encoding("WinAnsiEncoding")[173] == " "
 +
 +    def test_unknown_base_encoding_falls_back_to_standard(self):
 +        """G: same fallback as get_encoding, so the two stay in step."""

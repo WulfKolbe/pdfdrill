@@ -76,11 +76,18 @@ PATCH = Path(__file__).resolve().parents[1] / "vendor" / "pdfminer-glyph-identit
 #: name becomes an attribute (+12 in LTChar), and the predicate made total
 #: (+2). Confined to layout.py, as R2 was.
 #:
+#: UPDATED FOR WinAnsi 173 (GLYPHDRILL2 T-0113, owner 2026-10-31): the fork's
+#: own `win2name` named WinAnsi 0255 "space", from stock pdfminer's ENCODING
+#: row ("space", None, 202, 173, None); the PDF Reference (D.1, note) has the
+#: hyphen there. Corrected in the fork's table only (+3 in the first
+#: EncodingDB hunk: a comment and `win2name[173] = "hyphen"`); `win2unicode`,
+#: which every existing caller reads, keeps its " ", so nothing they see moves.
+#:
 #: needs re-reading, not a list that needs updating.
 EXPECTED_FOOTPRINT = {
     ("pdfminer/converter.py", "class PDFLayoutAnalyzer(PDFTextDevice):", 2),
     ("pdfminer/encodingdb.py", "class EncodingDB:", 7),
-    ("pdfminer/encodingdb.py", "class EncodingDB:", 8),
+    ("pdfminer/encodingdb.py", "class EncodingDB:", 11),
     ("pdfminer/encodingdb.py", "class EncodingDB:", 38),
     ("pdfminer/layout.py", "", 1),
     ("pdfminer/layout.py", "class LTAnno(LTItem, LTText):", 44),
