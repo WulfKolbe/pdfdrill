@@ -33,6 +33,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+import pytest                                      # noqa: E402
 from pdfdrill import buildstamp                              # noqa: E402
 
 
@@ -53,12 +54,62 @@ def test_the_builder_key_changes_when_a_building_source_changes(tmp_path,
                                                                monkeypatch):
     a = tmp_path / "one.py"
     a.write_text("x = 1\n", encoding="utf-8")
-    monkeypatch.setattr(buildstamp, "_BUILDER_SOURCES", (a,))
+    monkeypatch.setattr(buildstamp, "_builder_sources", lambda: (a,))
     monkeypatch.setattr(buildstamp, "_BUILDER_CACHE", None)
     first = buildstamp.builder_key()
     a.write_text("x = 2\n", encoding="utf-8")
     monkeypatch.setattr(buildstamp, "_BUILDER_CACHE", None)
     assert buildstamp.builder_key() != first
+
+
+# ── the audit finding: the key was inert wherever REPO is not the repo ──────
+
+def test_the_builder_sources_do_not_depend_on_the_repo_path(monkeypatch):
+    """THE DEFECT, 2026-10-31. `REPO` is `parents[2]` of buildstamp.py, which is
+    the repository root only in a source or editable install. Under `pip install
+    .` it is `<venv>/lib/pythonX.Y`, where `src/docmodel` does not exist, so the
+    path-based list found NOTHING, `builder_key` hashed an empty sequence and
+    returned the same twelve characters for every version of the builder — in
+    the one function whose purpose is to notice that the builder changed.
+
+    Pointing REPO at nowhere must therefore change nothing."""
+    monkeypatch.setattr(buildstamp, "REPO", Path("/nonexistent/for/this/test"))
+    monkeypatch.setattr(buildstamp, "_BUILDER_CACHE", None)
+    srcs = buildstamp._builder_sources()
+    assert len(srcs) > 5
+    assert all(p.is_file() for p in srcs)
+    assert buildstamp.builder_key()
+
+
+def test_every_resolved_builder_source_exists_and_the_list_is_not_empty():
+    srcs = buildstamp._builder_sources()
+    assert srcs, "an empty builder list is a key that cannot change"
+    missing = [str(p) for p in srcs if not p.is_file()]
+    assert not missing, missing
+
+
+def test_a_builder_source_that_cannot_be_located_raises(monkeypatch):
+    """Raised, not degraded. The first version swallowed a missing source and
+    hashed a placeholder, which is how a constant key passed for a real one."""
+    monkeypatch.setattr(buildstamp, "_BUILDER_MODULES",
+                        ("pdfdrill.a_module_that_does_not_exist",))
+    monkeypatch.setattr(buildstamp, "_BUILDER_CACHE", None)
+    with pytest.raises(buildstamp.BuilderSourcesMissing):
+        buildstamp._builder_sources()
+
+
+def test_a_package_that_resolves_to_an_empty_directory_raises(monkeypatch,
+                                                              tmp_path):
+    class _Spec:
+        submodule_search_locations = [str(tmp_path)]
+        origin = None
+
+    import importlib.util
+    monkeypatch.setattr(buildstamp, "_BUILDER_MODULES", ("docmodel",))
+    monkeypatch.setattr(importlib.util, "find_spec", lambda n: _Spec())
+    monkeypatch.setattr(buildstamp, "_BUILDER_CACHE", None)
+    with pytest.raises(buildstamp.BuilderSourcesMissing):
+        buildstamp._builder_sources()
 
 
 def test_a_stamp_carries_the_builder_key():

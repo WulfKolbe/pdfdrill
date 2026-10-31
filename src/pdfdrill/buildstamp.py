@@ -126,12 +126,68 @@ def describe(st: "dict | None") -> str:
 #: `docmodel/` builds from a reading; `latex_source` and `markdown_source` are
 #: the two routes that build from an author's own file and save straight
 #: through `model_io`, which is why they never had a `build` stamp at all.
-_BUILDER_SOURCES = tuple(
-    sorted((REPO / "src" / "docmodel").rglob("*.py"))
-    + [REPO / "src" / "pdfdrill" / "latex_source.py",
-       REPO / "src" / "pdfdrill" / "markdown_source.py"])
+#: The modules whose code decides a model's object graph. Named as MODULES, not
+#: as repository paths: `REPO` is `parents[2]` of this file, which is the repo
+#: root only in a source or editable install. In a wheel or pipx install it is
+#: `<venv>/lib/pythonX.Y`, where `src/docmodel` does not exist — so a path-based
+#: list found NOTHING and `builder_key` returned the hash of an empty sequence,
+#: the same twelve characters for every build of every version. Found in audit
+#: 2026-10-31, after it had shipped.
+_BUILDER_MODULES = ("docmodel", "pdfdrill.latex_source",
+                    "pdfdrill.markdown_source")
 
 _BUILDER_CACHE: "str | None" = None
+
+
+class BuilderSourcesMissing(RuntimeError):
+    """The model-building code cannot be located, so no model can be judged.
+
+    Raised rather than degraded. A key computed over a partial list is a key
+    that silently stops changing, which is exactly the failure this module
+    exists to prevent: 2d rule 5's consumer half, applied to our own code —
+    a producer that cannot be named is not built from.
+    """
+
+
+def _builder_sources() -> "tuple[Path, ...]":
+    """Every file whose content defines the builder, resolved through imports.
+
+    `find_spec` rather than `import`, so asking the question has no import side
+    effects; and through the module system rather than a path, so it answers
+    the same way in an editable checkout, a wheel and a pipx install.
+    """
+    import importlib.util
+
+    out: list[Path] = []
+    for name in _BUILDER_MODULES:
+        try:
+            spec = importlib.util.find_spec(name)
+        except (ImportError, ValueError):
+            spec = None
+        if spec is None:
+            raise BuilderSourcesMissing(
+                "cannot locate %r: the model-building code is not importable, "
+                "so no model's builder can be identified" % name)
+        locs = list(getattr(spec, "submodule_search_locations", None) or [])
+        if locs:                                  # a package: every .py in it
+            found = sorted(p for loc in locs for p in Path(loc).rglob("*.py"))
+            if not found:
+                raise BuilderSourcesMissing(
+                    "package %r resolved to %s and contains no .py"
+                    % (name, locs))
+            out += found
+        elif spec.origin and spec.origin != "built-in":
+            out.append(Path(spec.origin))
+        else:
+            raise BuilderSourcesMissing(
+                "module %r has no file on disk (origin=%r)" % (name, spec.origin))
+    missing = [str(p) for p in out if not p.is_file()]
+    if missing:
+        raise BuilderSourcesMissing("listed builder sources do not exist: %s"
+                                    % missing[:5])
+    if not out:
+        raise BuilderSourcesMissing("no builder sources resolved")
+    return tuple(out)
 
 
 def builder_key() -> str:
@@ -144,19 +200,17 @@ def builder_key() -> str:
     would have marked every model in the library stale on every merge, which
     the owner declined for good reason.
 
-    A source that cannot be read contributes its name only, so a partial
-    checkout degrades to a weaker key rather than raising while a user waits.
+    A source that cannot be read RAISES. The first version swallowed it and
+    hashed a placeholder, which in a non-editable install made the key a
+    constant and the whole staleness check inert.
     """
     global _BUILDER_CACHE
     if _BUILDER_CACHE is None:
         import hashlib
         h = hashlib.sha256()
-        for p in _BUILDER_SOURCES:
-            h.update(str(getattr(p, "name", p)).encode())
-            try:
-                h.update(Path(p).read_bytes())
-            except OSError:
-                h.update(b"\0unreadable")
+        for p in _builder_sources():
+            h.update(p.name.encode())
+            h.update(p.read_bytes())
         _BUILDER_CACHE = h.hexdigest()[:12]
     return _BUILDER_CACHE
 
