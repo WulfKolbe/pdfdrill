@@ -1777,21 +1777,6 @@ def extract_theorems(body: str, theorem_envs, newtheorem_decls: list) -> dict:
             blocks.append((b["pos"], b["pos"] + len(b["code"]), env, b["code"]))
     blocks.sort()
 
-    # `[section]` — the reset/prefix this function used to skip. The ordinals of
-    # each sectioning command that STEPS its counter, so a theorem's prefix is
-    # how many of them precede it. A starred command prints no number and does
-    # not advance, so it is excluded; a theorem before the first one has no
-    # section to be numbered within and keeps the plain count.
-    reset_positions: dict = {}
-
-    def reset_ordinal(counter: str, at: int) -> int:
-        if not counter:
-            return 0
-        if counter not in reset_positions:
-            pat = re.compile(r"\\" + re.escape(counter) + r"(?!\*)\s*(?:\[|\{)")
-            reset_positions[counter] = [m.start() for m in pat.finditer(body)]
-        return sum(1 for p in reset_positions[counter] if p <= at)
-
     counters: dict = {}
     theorems = []
     for start, end, env, code in blocks:
@@ -1809,15 +1794,8 @@ def extract_theorems(body: str, theorem_envs, newtheorem_decls: list) -> dict:
         number = None
         if not starred:
             r = root(env)
-            # The ROOT's declaration owns the reset: `\newtheorem{lemma}[theorem]`
-            # shares theorem's counter, so it shares theorem's `[section]` too.
-            ordinal = reset_ordinal(
-                str((decl_by_name.get(r, {}) or {}).get("reset_counter") or ""),
-                start)
-            ckey = (r, ordinal)
-            counters[ckey] = counters.get(ckey, 0) + 1
-            number = (f"{ordinal}.{counters[ckey]}" if ordinal
-                      else counters[ckey])
+            counters[r] = counters.get(r, 0) + 1
+            number = counters[r]
         theorems.append({
             "env": env, "kind": env.rstrip("*"),
             "printed_title": d.get("title") or env.rstrip("*").title(),

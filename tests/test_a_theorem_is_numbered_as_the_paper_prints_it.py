@@ -27,6 +27,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+import pytest                                                # noqa: E402
 from pdfdrill import latex_source as ls                      # noqa: E402
 
 _SECTION_RESET = [
@@ -46,6 +47,8 @@ def _numbers(body, decls=None, envs=("theorem", "lemma")):
     return [t["number"] for t in res["theorems"]]
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "REVERTED 2026-10-31: the rule is right and the numbers are not. Measured on three real papers, the prefix is exact where extraction is complete (math/0408400: 25 of 25 agree with the printed numbers) and drifts where it is not (math/0107145: the model says Lemma 3.2 and 3.3 where the paper cites 3.4 and 3.6, because blocks it numbers are never extracted). A plausible wrong number that names a DIFFERENT real lemma is worse than an obviously wrong one, so this waits for the extraction gap. strict=True: when extraction is fixed these pass and the suite SAYS SO instead of staying quiet."))
 def test_a_theorem_is_numbered_within_its_section():
     body = (r"\section{First}" "\n"
             r"\begin{theorem} A. \end{theorem}" "\n"
@@ -55,6 +58,8 @@ def test_a_theorem_is_numbered_within_its_section():
     assert _numbers(body) == ["1.1", "1.2", "2.1"]
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "REVERTED 2026-10-31: the rule is right and the numbers are not. Measured on three real papers, the prefix is exact where extraction is complete (math/0408400: 25 of 25 agree with the printed numbers) and drifts where it is not (math/0107145: the model says Lemma 3.2 and 3.3 where the paper cites 3.4 and 3.6, because blocks it numbers are never extracted). A plausible wrong number that names a DIFFERENT real lemma is worse than an obviously wrong one, so this waits for the extraction gap. strict=True: when extraction is fixed these pass and the suite SAYS SO instead of staying quiet."))
 def test_the_counter_restarts_in_each_section():
     body = (r"\section{A}" "\n" r"\begin{theorem} x \end{theorem}" "\n"
             r"\section{B}" "\n" r"\begin{theorem} y \end{theorem}" "\n"
@@ -62,6 +67,8 @@ def test_the_counter_restarts_in_each_section():
     assert _numbers(body) == ["1.1", "2.1", "3.1"]
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "REVERTED 2026-10-31: the rule is right and the numbers are not. Measured on three real papers, the prefix is exact where extraction is complete (math/0408400: 25 of 25 agree with the printed numbers) and drifts where it is not (math/0107145: the model says Lemma 3.2 and 3.3 where the paper cites 3.4 and 3.6, because blocks it numbers are never extracted). A plausible wrong number that names a DIFFERENT real lemma is worse than an obviously wrong one, so this waits for the extraction gap. strict=True: when extraction is fixed these pass and the suite SAYS SO instead of staying quiet."))
 def test_a_shared_counter_is_shared_inside_the_section():
     r"""`\newtheorem{lemma}[theorem]{Lemma}` shares theorem's counter, so the
     lemma takes the next number in the SAME section, not its own sequence."""
@@ -73,6 +80,8 @@ def test_a_shared_counter_is_shared_inside_the_section():
     assert _numbers(body) == ["1.1", "1.2", "2.1"]
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "REVERTED 2026-10-31: the rule is right and the numbers are not. Measured on three real papers, the prefix is exact where extraction is complete (math/0408400: 25 of 25 agree with the printed numbers) and drifts where it is not (math/0107145: the model says Lemma 3.2 and 3.3 where the paper cites 3.4 and 3.6, because blocks it numbers are never extracted). A plausible wrong number that names a DIFFERENT real lemma is worse than an obviously wrong one, so this waits for the extraction gap. strict=True: when extraction is fixed these pass and the suite SAYS SO instead of staying quiet."))
 def test_a_starred_section_does_not_step_the_prefix():
     r"""`\section*{…}` prints no number and does not advance the counter, so a
     theorem after it belongs to the last numbered section."""
@@ -99,6 +108,8 @@ def test_a_declaration_with_no_reset_counter_is_untouched():
     assert _numbers(body, _NO_RESET, envs=("theorem",)) == [1, 2]
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "REVERTED 2026-10-31: the rule is right and the numbers are not. Measured on three real papers, the prefix is exact where extraction is complete (math/0408400: 25 of 25 agree with the printed numbers) and drifts where it is not (math/0107145: the model says Lemma 3.2 and 3.3 where the paper cites 3.4 and 3.6, because blocks it numbers are never extracted). A plausible wrong number that names a DIFFERENT real lemma is worse than an obviously wrong one, so this waits for the extraction gap. strict=True: when extraction is fixed these pass and the suite SAYS SO instead of staying quiet."))
 def test_a_starred_environment_is_still_unnumbered():
     decls = _SECTION_RESET + [
         {"name": "remark*", "title": "Remark", "shared_counter": "",
@@ -110,6 +121,8 @@ def test_a_starred_environment_is_still_unnumbered():
     assert nums == [None, "1.1"]
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "REVERTED 2026-10-31: the rule is right and the numbers are not. Measured on three real papers, the prefix is exact where extraction is complete (math/0408400: 25 of 25 agree with the printed numbers) and drifts where it is not (math/0107145: the model says Lemma 3.2 and 3.3 where the paper cites 3.4 and 3.6, because blocks it numbers are never extracted). A plausible wrong number that names a DIFFERENT real lemma is worse than an obviously wrong one, so this waits for the extraction gap. strict=True: when extraction is fixed these pass and the suite SAYS SO instead of staying quiet."))
 def test_subsection_reset_is_honoured_too():
     decls = [{"name": "theorem", "title": "Theorem", "shared_counter": "",
               "reset_counter": "subsection", "starred": False}]
@@ -120,6 +133,8 @@ def test_subsection_reset_is_honoured_too():
     assert _numbers(body, decls, envs=("theorem",)) == ["1.1", "2.1"]
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "REVERTED 2026-10-31: the rule is right and the numbers are not. Measured on three real papers, the prefix is exact where extraction is complete (math/0408400: 25 of 25 agree with the printed numbers) and drifts where it is not (math/0107145: the model says Lemma 3.2 and 3.3 where the paper cites 3.4 and 3.6, because blocks it numbers are never extracted). A plausible wrong number that names a DIFFERENT real lemma is worse than an obviously wrong one, so this waits for the extraction gap. strict=True: when extraction is fixed these pass and the suite SAYS SO instead of staying quiet."))
 def test_the_number_reaches_the_markdown_as_the_paper_prints_it(tmp_path):
     """End to end: the projection a reader sees carries the printed number."""
     from docops.base import OperatorConfig

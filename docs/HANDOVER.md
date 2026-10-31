@@ -2991,8 +2991,43 @@ before any sectioning command keeps the plain count, which is also why
 `test_theorems.py` passes unchanged — its fixture declares
 `\newtheorem{theorem}{Theorem}` with no `[section]`.
 
-### The 22nd number, which is a different defect
+### REVERTED THE DAY AFTER, and why — the rule was right and the numbers were not
 
-The paper cites "Theorem 1.22" and the model's section 1 runs 1.1 … 1.21 —
-21 consecutive numbers. So one numbered block in that section is never
-extracted. An extraction gap, not a numbering one; measured, not chased.
+Two more real papers, measured because I had said this change needed three and
+shipped it with one:
+
+    math/0408400   25 model numbers, 27 cited, 25 AGREE, 0 model-only.
+                   Where extraction is complete the prefix is exact.
+    math/0107145   13 model numbers, 9 cited, 6 agree.
+      model  Thm 1.1 Lem 2.1 Lem 3.1 Lem 3.2 Lem 3.3 Thm 4.1 Lem 5.1
+             Cor 5.2 Ex 5.4  Lem 6.1 Prop 6.2 Lem 6.3 Thm 6.4
+      cited  Lem 3.1 Lem 3.4 Thm 1.1 Lem 3.6 Thm 4.1 Cor 5.2 Lem 6.1
+             Prop 6.2 Lem 6.5
+
+The numbers agree up to the first divergence in each section and then DRIFT:
+section 3's second and third lemmas are 3.2 and 3.3 where the paper cites 3.4
+and 3.6, because blocks the paper numbers are never extracted, and once the
+counter falls behind every later number in that section is shifted. The model's
+own list also jumps 5.1, 5.2, 5.4 — a gap at 5.3, which can only be a block
+extracted and numbered and then rendered as nothing.
+
+So the prefix is correct arithmetic over an incomplete input, and the output is
+worse than what it replaced. "Theorem 6" on a paper numbered 1.22 and 2.9 is
+out of band: a reader opens the PDF. "Lemma 3.2" where the paper says "Lemma
+3.4" names a DIFFERENT REAL LEMMA, and no reader can tell. That is the
+confident-plausible-wrong shape this file records three times already, so the
+numbering came out and the stale-model half stayed.
+
+The ten fixtures stay in the tree as `xfail(strict=True)` — seven of them; the
+two that assert the fallbacks still pass. strict is the point: when the
+extraction gap is closed they pass, and the suite says so rather than staying
+quiet, which is the failure mode `test_stub_fidelity` taught this week.
+
+### Three extraction gaps the numbering exposed, all open
+
+    9807032   "Theorem 1.22" cited, section 1 runs 1.1 … 1.21 — not extracted
+    0107145   3.4, 3.6 and 6.5 cited — not extracted
+    0107145   5.3 numbered by the model and rendered as nothing — a dropped
+              statement, which is loss and not only a wrong number
+
+Correct numbering needs these first. Measured, recorded, not chased.
