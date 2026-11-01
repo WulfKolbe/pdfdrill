@@ -103,6 +103,11 @@ SCHEMA = "pdfdrill.eqlist/1"
 #: The declared frame. `docmodel_six.PX_PER_PT` / `mathpix_merge.PX_PER_PT`.
 PX_PER_PT = 250.0 / 72.0
 
+#: Slack when deciding whether a region is on its page, in 250 dpi pixels.
+#: One pixel is 0.288 pt -- below the rounding in every reading that writes
+#: these integers, and far below anything a crop would notice.
+_TOL = 1.0
+
 FRAME = {
     "px_per_pt": PX_PER_PT,
     "dpi": 250,
@@ -458,8 +463,14 @@ def build(library: Path, *, name: str = "eqlist", kind: str | None = None,
 
     rows, docs = [], []
     counts = {"rows": 0, "display": 0, "inline": 0, "with_latex": 0,
-              "structural_ok": 0, "with_region": 0, "lost_operand": 0}
+              "structural_ok": 0, "with_region": 0, "lost_operand": 0,
+              # T-0088. A row whose region is not on the page it names is
+              # REFUSED, not written: a crop of it lands off the page, and
+              # 164 of them reached the Gemma4 corpus run as identities.
+              "refused_region": 0}
     dropped = {}
+    refused: list = []
+    refused_by_reason: dict = {}
 
     for folder, bibkey, meta, why in listable:
         try:
@@ -483,8 +494,52 @@ def build(library: Path, *, name: str = "eqlist", kind: str | None = None,
             chosen = [pool[int(i * step)] for i in range(per_document)]
             dropped["beyond --per-document"] = (
                 dropped.get("beyond --per-document", 0) + len(pool) - len(chosen))
-        for i, eq in enumerate(chosen, 1):
-            r = _row(bibkey, eq, i)
+        # The page geometry THIS reading recorded, per page. Read here rather
+        # than from the document entry below, because the entry is built after
+        # the loop and `rows_listed` has to count what the loop actually wrote.
+        _pmap = data.get("pages") if isinstance(data.get("pages"), dict) else {}
+        _dw, _dh = page_size_pt(meta)
+
+        written = 0
+        for no, eq in enumerate(chosen, 1):
+            # T-0088 -- A REGION OUTSIDE ITS PAGE IS NOT AN IDENTITY.
+            #
+            # The list cannot repair the reading and must not pass the damage
+            # on. Measured 2026-11-01: on Raab page 8 (362.835 x 272.126 pt)
+            # the reading puts EQ0002 at (487, 221) px and the next row,
+            # EQ0003, at (7043, -6459); pdfminer itself reports that page's
+            # bbox as (0, 0, 362.83, 272.13) and then hands back glyphs at y
+            # up to 2147 pt, while poppler places every glyph on the page
+            # inside it. The fault is in the reading's placement, upstream of
+            # here; what belongs here is a refusal that names it.
+            _w, _h = page_size_from(_pmap, _dw, _dh, eq.get("page"))
+            _why = region_fault(eq.get("region") or {}, _w, _h)
+            if _why:
+                refused.append({
+                    "document": bibkey,
+                    "label": eq.get("identifier") or "",
+                    "page": eq.get("page"),
+                    "region": eq.get("region") or {},
+                    "page_width_pt": _w,
+                    "page_height_pt": _h,
+                    "reason": _why,
+                    "overflow_pt": region_overflow_pt(
+                        eq.get("region") or {}, _w, _h),
+                })
+                refused_by_reason[_why] = refused_by_reason.get(_why, 0) + 1
+                counts["refused_region"] += 1
+                continue
+            # `no` IS THE ORDINAL OVER THE CHOSEN ROWS, NOT OVER THE WRITTEN
+            # ONES, so a refusal leaves a GAP rather than renumbering every
+            # row after it. T-0088's gate is that rows with valid regions come
+            # out byte-identical, and renumbering breaks exactly that: on Raab
+            # the refusals are interleaved with good rows, so a contiguous
+            # count would shift `no` on 838 surviving rows and make every one
+            # of them differ from the list built before the gate existed. The
+            # gap is also the more honest record — it says a row was refused
+            # there, and `refused_regions` says which and why.
+            written += 1
+            r = _row(bibkey, eq, no)
             rows.append(r)
             counts["rows"] += 1
             counts[r["kind"]] = counts.get(r["kind"], 0) + 1
@@ -496,7 +551,7 @@ def build(library: Path, *, name: str = "eqlist", kind: str | None = None,
                 counts["with_region"] += 1
             if r["lost_operand"]:
                 counts["lost_operand"] += 1
-        docs.append(_document_entry(folder, bibkey, len(eqs), len(chosen),
+        docs.append(_document_entry(folder, bibkey, len(eqs), written,
                                     meta.get("producer"), meta.get("creator"),
                                     meta.get("pages"), why,
                                     kind=kind, n_of_kind=len(pool)))
@@ -537,6 +592,14 @@ def build(library: Path, *, name: str = "eqlist", kind: str | None = None,
                          "row rather than a changed one. Carried as provenance.",
         },
         "counts": counts,
+        # T-0088 -- LISTED, NEVER SILENT. Every row the region gate refused,
+        # with the page size it was judged against and the edge it crossed, so
+        # a reader can act on it; and the same grouped by cause, because a
+        # per-row field in a 280,000-row list is read only by someone who
+        # already suspects something, which is never the person reading the
+        # summary.
+        "refused_regions": refused,
+        "refused_regions_by_reason": dict(sorted(refused_by_reason.items())),
         # THE HEADLINE HAS TO SAY THIS OR NOTHING WILL. A partial read is
         # recorded per document, and a per-document field in a 2,238-entry
         # list is read by whoever already suspects something — which is never
@@ -668,6 +731,7 @@ def validate(data: dict) -> list:
     # regardless — the artefact asserts the property, so the artefact tests it.
     docmap = {d.get("document"): d for d in (data.get("documents") or [])}
     outside = 0
+    by_reason: dict = {}
     for r in rows:
         ident = r.get("identity") or {}
         reg = ident.get("region") or {}
@@ -677,13 +741,21 @@ def validate(data: dict) -> list:
                              ident.get("page"))
         if not (w and h):
             continue
-        if (reg.get("top_left_x", 0) + reg.get("width", 0) > w * PX_PER_PT + 1
-                or reg.get("top_left_y", 0) + reg.get("height", 0)
-                > h * PX_PER_PT + 1):
+        # T-0088 -- through `region_fault`, which is also the builder's gate.
+        # The test written here by hand had NO LOWER BOUND: it compared only
+        # `top_left + extent` against the page, so a region 1,008 px to the
+        # LEFT of the page (1-s2.0-S2405896315004644-main EQ0041: x -1008,
+        # width 861, x1 therefore -147) satisfied it. One predicate, used by
+        # the writer and the reader, cannot drift apart that way.
+        why = region_fault(reg, w, h)
+        if why:
             outside += 1
+            by_reason[why] = by_reason.get(why, 0) + 1
     if outside:
-        out.append(f"{outside} region(s) extend past the page they name — a "
-                   f"crop of one lands partly or wholly off the page")
+        out.append(f"{outside} region(s) are not on the page they name — a "
+                   f"crop of one lands partly or wholly off the page: "
+                   + "; ".join(f"{n} {k}" for k, n in
+                               sorted(by_reason.items(), key=lambda kv: -kv[1])))
 
     # The documents a row names must be present, or the measuring side cannot
     # calibrate and the lane silently degrades into refusals.
@@ -824,6 +896,95 @@ def utf8_safe(text: str) -> str:
         return quote(raw, safe="/ ()[]{}.,-_+=@~!$&';:#?*")
 
 
+def _axis_fault(lo: float, length: float, limit: float,
+                before: str, after: str, past: str) -> str | None:
+    """One axis of `region_fault`, so neither axis can be forgotten.
+
+    THE ORDER IS THE POINT. `lo` is tested against BOTH ends before the
+    extent is tested at all, because the check this replaces tested only
+    `lo + length > limit` and so had no lower bound: a region 1,008 px to the
+    LEFT of the page has `lo + length` well under the page width and passed.
+    """
+    if lo < -_TOL:
+        return before
+    if lo > limit + _TOL:
+        return after
+    if lo + length > limit + _TOL:
+        return past
+    return None
+
+
+def region_fault(region: dict, w_pt: float, h_pt: float) -> str | None:
+    """Why `region` cannot be a region of a `w_pt` x `h_pt` page, or None.
+
+    T-0088. The region is in `PX_PER_PT`, y down from the page's top-left;
+    the page is in points, because that is how every reading records it.
+
+    It reports AT MOST ONE fault PER AXIS, named for the edge crossed, so the
+    reasons group into a small countable set rather than one string per row.
+    The 164 rows gemma4-ba found fall into four groups this way, and the
+    largest of them -- 107 rows, 74 of them in one beamer deck -- is
+    "origin above the page; extends past the right edge", which is one
+    displacement, not two independent errors.
+
+    (0, 0) FOR THE PAGE MEANS "NOT RECORDED", AND IS NOT A FAULT. A reading
+    built before the per-page map existed has no page size to be judged
+    against, and convicting it on a size nobody wrote down is the mistake
+    `page_size_for` was created to stop: a document-level size taken from a
+    book's cover put 2,760 regions "off the page" that were all inside it.
+    """
+    if not region or not (w_pt and h_pt):
+        return None
+    w = region.get("width") or 0
+    h = region.get("height") or 0
+    if w <= 0 or h <= 0:
+        return "zero-area region"
+    fx = _axis_fault(region.get("top_left_x") or 0, w, w_pt * PX_PER_PT,
+                     "origin left of the page", "origin right of the page",
+                     "extends past the right edge")
+    fy = _axis_fault(region.get("top_left_y") or 0, h, h_pt * PX_PER_PT,
+                     "origin above the page", "origin below the page",
+                     "extends past the bottom edge")
+    return "; ".join(f for f in (fx, fy) if f) or None
+
+
+def region_overflow_pt(region: dict, w_pt: float, h_pt: float) -> float:
+    """How far outside a `w_pt` x `h_pt` page `region` reaches, in POINTS.
+
+    One number beside the reason, because the refused rows are two different
+    populations and a bare cause cannot tell them apart. Measured over the
+    library, 2026-11-01: of the 221 rows that merely "extend past the right
+    edge", 24 overflow by under 2 pt and 92 by under 10 pt -- which is the
+    BOX CONVENTION, not a misplacement (`eqglyphs.json` records it: pdfminer's
+    rectangle is the font LINE BOX by height and the ADVANCE width, so a glyph
+    at the right margin legitimately reaches past it) -- while 87 overflow by
+    more than 50 pt, up to 5,225 pt. The rule here refuses both, because a
+    region that is not on its page is not an identity; carrying the amount is
+    what lets that line be moved later from data instead of from a new
+    measurement.
+    """
+    if not region or not (w_pt and h_pt):
+        return 0.0
+    x0 = region.get("top_left_x") or 0
+    y0 = region.get("top_left_y") or 0
+    x1 = x0 + (region.get("width") or 0)
+    y1 = y0 + (region.get("height") or 0)
+    over = max(-x0, -y0, x1 - w_pt * PX_PER_PT, y1 - h_pt * PX_PER_PT, 0.0)
+    return round(over / PX_PER_PT, 3)
+
+
+def page_size_from(page_sizes: dict, w_pt: float, h_pt: float, page) -> tuple:
+    """(width, height) in points for ONE page, from a per-page map plus the
+    document-level fallback. The single implementation, because `build()`
+    needs it from a raw `equations.json` and `page_size_for` from a built
+    document entry, and two copies of this rule would drift."""
+    sizes = page_sizes if isinstance(page_sizes, dict) else {}
+    got = sizes.get(str(page)) if page is not None else None
+    if isinstance(got, dict) and got:
+        return (got.get("width_pt") or 0.0), (got.get("height_pt") or 0.0)
+    return (w_pt or 0.0), (h_pt or 0.0)
+
+
 def page_size_for(doc_entry: dict, page) -> tuple:
     """(width, height) in points for ONE page of a document.
 
@@ -832,14 +993,10 @@ def page_size_for(doc_entry: dict, page) -> tuple:
     because the fallback is what produced the 6.14% of rows that appeared to
     lie outside their own page.
     """
-    sizes = (doc_entry or {}).get("page_sizes") or {}
-    if not isinstance(sizes, dict):
-        sizes = {}
-    got = sizes.get(str(page)) if page is not None else None
-    if isinstance(got, dict) and got:
-        return (got.get("width_pt") or 0.0), (got.get("height_pt") or 0.0)
-    return ((doc_entry or {}).get("page_width_pt") or 0.0,
-            (doc_entry or {}).get("page_height_pt") or 0.0)
+    d = doc_entry or {}
+    return page_size_from(d.get("page_sizes") or {},
+                          d.get("page_width_pt") or 0.0,
+                          d.get("page_height_pt") or 0.0, page)
 
 
 def csv_rows(data: dict):

@@ -22072,6 +22072,24 @@ def cmd_eqlist(library: Path | None = None, *, out: Path | None = None,
         f"latex_sha16 detects a re-read",
         f"  frame: 250 dpi, y down, declared not inferred",
     ]
+    # T-0088 — THE HEADLINE HAS TO SAY THIS OR NOTHING WILL. A row refused
+    # for a region that is not on its page is absent from `rows`, and the row
+    # count alone reads as a healthy list: the first acceptance run of this
+    # gate printed "845 row(s)" for a library whose two documents had just had
+    # 385 rows refused, and said nothing. `refused_regions` carries them with
+    # their cause, but a per-row field in a 280,000-row list is read only by
+    # someone who already suspects something.
+    refused = data.get("refused_regions") or []
+    if refused:
+        by = data.get("refused_regions_by_reason") or {}
+        worst = max((r.get("overflow_pt") or 0) for r in refused)
+        lines.append(
+            "  REFUSED, region not on the page it names: %d row(s) in %d "
+            "document(s), up to %.1f pt outside — not written as identities, "
+            "listed in `refused_regions` with the edge each crossed"
+            % (len(refused), len({r.get("document") for r in refused}), worst))
+        lines += ["    %6d  %s" % (n, k) for k, n in
+                  sorted(by.items(), key=lambda kv: -kv[1])[:6]]
     if data.get("selection", {}).get("bounded"):
         lines.append("  BOUNDED SUBSET — not a measurement of the corpus")
     if nl:
