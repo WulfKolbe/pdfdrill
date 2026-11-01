@@ -43,7 +43,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from pdfreader.docmodel_six import _page_links          # noqa: E402
+from pdfreader.docmodel_six import _dest_name, _page_links   # noqa: E402
 
 #: The destination both fixtures name, chosen so `citekey` is also in play.
 DEST = "cite.polly"
@@ -253,3 +253,51 @@ def test_a_name_object_destination_yields_the_authors_bibtex_key():
     assert not [d for d in dests if d.startswith("/") or "'" in d], dests[:4]
     keys = sorted(ln.citekey for ln in links if ln.citekey)
     assert keys == ["DL", "GSh", "LL", "LL", "Litt", "Poonen"], keys
+
+
+@pytest.mark.skipif(not _lib_pdf("s41586-022-04731-z").is_file(),
+                    reason="s41586-022-04731-z is not in the library")
+def test_the_fragment_filter_merges_no_two_destinations():
+    """Stripping is not injective, so it could make two names one anchor.
+
+    Raised by the coordinator's audit of 3276cf02 and measured rather than
+    argued. The 120-PDF sample is VACUOUS for this question — not one of its
+    10,015 named destinations carried a C0/C1/DEL/U+FEFF character, so the
+    filter removed nothing there and could merge nothing. It fires on
+    s41586-022-04731-z, which is the worst case we know of because its
+    destination names are whole reference TEXTS: 1,544 characters are removed
+    across 93 destinations, and all 93 still map to 93 distinct fragments.
+
+    This is an upper bound on the risk, not a proof it cannot happen: a
+    document whose names differ ONLY in stripped characters would collide. The
+    assertion is that the one document where the filter does real work does
+    not.
+    """
+    from pdfminer.pdfdocument import PDFDocument
+    from pdfminer.pdfpage import PDFPage
+    from pdfminer.pdfparser import PDFParser
+    from pdfminer.pdftypes import resolve1
+
+    pdf = _lib_pdf("s41586-022-04731-z")
+    frags, dests = [], 0
+    with open(pdf, "rb") as fh:
+        doc = PDFDocument(PDFParser(fh))
+        for page in PDFPage.create_pages(doc):
+            raw = resolve1(page.annots) if page.annots else None
+            for a in raw or []:
+                a = resolve1(a)
+                sub = a.get("Subtype")
+                if getattr(sub, "name", sub) != "Link":
+                    continue
+                act = resolve1(a.get("A")) or {}
+                d = a.get("Dest") or act.get("D")
+                if d is None:
+                    continue
+                dests += 1
+                frag = _dest_name(d)
+                if frag is not None:
+                    frags.append(frag)
+    assert dests == 93, dests
+    assert len(frags) == 93, len(frags)
+    assert len(set(frags)) == len(frags), (
+        f"{len(frags) - len(set(frags))} destination(s) merged into another")
