@@ -3719,6 +3719,7 @@ INKREPORT_FINDINGS = {
 
 def _inkreport_chain(pdf: Path, preflight_only: bool = False,
                      prefer_refined: bool = False,
+                     render_provenance: "str | None" = None,
                      findings: "bool | None" = None,
                      profile: str = INKREPORT_PROFILE_DEFAULT,
                      timeout: int = 900,
@@ -3871,6 +3872,7 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
             try:
                 cmd_reporttex(pdf, compile_pdf=True, legend=True,
                               prefer_refined=prefer_refined,
+                              render_provenance=render_provenance,
                               formulas=rule, findings=findings)
                 lines = lines + [
                     "", "The reading build was restored — a failed measurement "
@@ -3934,6 +3936,7 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
                       findings=MEASURE_FINDINGS,
                       pages=MEASURE_PAGES_BOUND, ink_bullets=False,
                       prefer_refined=prefer_refined,
+                      render_provenance=render_provenance,
                       cellrect=True)                                  # unbounded
         # 2b — 557. NOW the manifest describes the report that exists, so
         # this is where an unmeasurable one is refused. Before the build
@@ -3992,7 +3995,20 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
         out.append("4 convert        %s" % _lines[0][:150])
 
     # 5 — the READING build, adopting.
+    #
+    # T-0116 — IT MUST RENDER THE SAME COLUMN THE MEASUREMENT DID. 557's rule
+    # is that phase 1 and phase 2 may differ only by the legend, and the first
+    # version of this change broke it in the widest possible way: the measure
+    # build rendered the competing provenance (12 rows on 0707.4470) and this
+    # build rendered the stored reading, so the ink in `measured_against`
+    # described a report whose entire maths column differed from the published
+    # one. That is defect 539's shape — an ink describing a 276-page listing
+    # while the reader opened a 19-page findings report — with the column in
+    # place of the shape. Caught by the gate check, not by a test, which is
+    # why there is now a test.
     cmd_reporttex(pdf, compile_pdf=True, legend=True, formulas=rule,
+                  prefer_refined=prefer_refined,
+                  render_provenance=render_provenance,
                   findings=findings)                # 557 — same shape as phase 1
     stamp = doc / "report.build.json"
     got = json.loads(stamp.read_text(encoding="utf-8")) if stamp.is_file() else {}
@@ -4077,6 +4093,7 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
 def cmd_inkreport(pdf: Path, preflight_only: bool = False,
                   findings: "bool | None" = None,
                   prefer_refined: bool = False,
+                  render_provenance: "str | None" = None,
                   profile: str = INKREPORT_PROFILE_DEFAULT,
                   timeout: int = 900,
                   pages: "int | None" = None,
@@ -4096,6 +4113,7 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
         return _inkreport_chain(pdf, preflight_only=preflight_only,
                                 findings=findings, profile=profile,
                                 prefer_refined=prefer_refined,
+                                render_provenance=render_provenance,
                                 timeout=timeout, pages=pages,
                                 accept_stale_geometry=accept_stale_geometry)
     # The plain path routes through `residuals --measure --pdf`, so the flag
@@ -4104,6 +4122,7 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
     # one a plain call takes.
     out = cmd_residuals(pdf, pdf_out=True, measure=True, timeout=timeout,
                         prefer_refined=prefer_refined,
+                        render_provenance=render_provenance,
                         accept_stale_geometry=accept_stale_geometry)
     return out + "\n" + alias_note("inkreport")
 
@@ -7171,6 +7190,7 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
 @_writes("residuals")
 def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
                   prefer_refined: bool = False,
+                  render_provenance: "str | None" = None,
                   conf: "float | None" = None, pages: "int | None" = None,
                   images: bool = True, paper: str = "a3",
                   landscape: bool = True, compile_pdf: bool = True,
@@ -7204,6 +7224,7 @@ def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
     if measure:
         out.append(_inkreport_chain(pdf, timeout=timeout, profile="internal",
                                     prefer_refined=prefer_refined,
+                                    render_provenance=render_provenance,
                                     findings=False,
                                     accept_stale_geometry=accept_stale_geometry))
     sc = Sidecar(pdf)
@@ -20476,6 +20497,7 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                   ink: str | None = None, legend: bool = True,
                   refined: bool = False,
                   prefer_refined: bool = False,
+                  render_provenance: str | None = None,
                   formulas: str = "unresolved",
                   findings: bool = False,
                   pages: "int | None" = None,
@@ -20504,6 +20526,19 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
     changes.json. It needs no tiddlers and no crops, so it is not gated on the
     projection chain the formula report needs.
     """
+    # T-0116 — THE TWO SELECTORS MAY NOT BE COMBINED. `--prefer-refined`
+    # shows the VERIFIED correction and asserts something; `--render-provenance`
+    # renders a competing reading so it can be MEASURED and asserts nothing. A
+    # row carrying both has no defined answer, and silently preferring one is
+    # how a measurement comes to describe a column nobody chose. Refusing is
+    # the whole of the precedence rule.
+    if prefer_refined and render_provenance:
+        import sys as _sys
+        print("pdfdrill reporttex: --prefer-refined and --render-provenance "
+              "cannot be combined. The first shows a verified correction, the "
+              "second renders a competing reading for measurement; a row with "
+              "both has no defined answer. Pick one.", file=_sys.stderr)
+        raise SystemExit(2)
     from . import report_tex as rt
     sc = Sidecar(pdf)
 
@@ -20724,6 +20759,7 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                         pages=0,          # 593 — never bounded; see above
                         render_regions=render_regions,
                         bullets=ink_bullets,
+                        render_provenance=render_provenance,
                         cellrect=cellrect)
     # 460 — the formulas rule, stated where the build is reported. A section
     # that shrank from 4,061 rows to 1 has to say so; a reader who sees only
@@ -20892,6 +20928,9 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                 legend=legend, ink_adopted=bool(ink_map),
                 bullets=bool(ink_map) and ink_bullets,
                 prefer_refined=prefer_refined,
+                render_provenance=r.get("render_provenance") or None,
+                rendered_ids=r.get("prov_rendered_ids") or [],
+                no_candidate_ids=r.get("prov_absent_ids") or [],
                 filters={"min_conf": min_conf, "max_conf": max_conf,
                          "types": types},
                 glyphs_dropped_count=(lost[0] if lost else 0),

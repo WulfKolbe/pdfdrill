@@ -837,6 +837,21 @@ commands:
       measurements of the same report cannot be confused. T-0116: this is what
       lets a competing provenance (pix2text, gemma) be confirmed at distance 0
       at all — without it the chain silently re-rendered the stored LaTeX.'
+  - name: render_provenance
+    flag: --render-provenance
+    type: str
+    help: 'RENDER A NAMED COMPETING READING so it can be MEASURED. Each row is
+      rendered from its `latex_candidate` realization of that provenance where
+      one exists (the field the TiddlyWiki projector already writes,
+      `latex_<provenance>`), and from its own `latex` where none does. It
+      asserts NOTHING about correctness: that is the difference from
+      --prefer-refined, which shows a VERIFIED correction and is gated on
+      identity evidence. A competing reading earns its place at report-chain
+      distance 0 or not at all. The two cannot be combined (exit 2) — a row
+      with both has no defined answer. The build stamp records the provenance
+      WITH ITS OUTCOME: how many rows it supplied, which ones, and which rows
+      it had nothing for, because a stamp that records the option cannot tell a
+      measurement of twelve competing rows from a measurement of none.'
   typed: true
 - name: publishready
   section: Reporting
@@ -2174,6 +2189,21 @@ commands:
       measurements of the same report cannot be confused. T-0116: this is what
       lets a competing provenance (pix2text, gemma) be confirmed at distance 0
       at all — without it the chain silently re-rendered the stored LaTeX.'
+  - name: render_provenance
+    flag: --render-provenance
+    type: str
+    help: 'RENDER A NAMED COMPETING READING so it can be MEASURED. Each row is
+      rendered from its `latex_candidate` realization of that provenance where
+      one exists (the field the TiddlyWiki projector already writes,
+      `latex_<provenance>`), and from its own `latex` where none does. It
+      asserts NOTHING about correctness: that is the difference from
+      --prefer-refined, which shows a VERIFIED correction and is gated on
+      identity evidence. A competing reading earns its place at report-chain
+      distance 0 or not at all. The two cannot be combined (exit 2) — a row
+      with both has no defined answer. The build stamp records the provenance
+      WITH ITS OUTCOME: how many rows it supplied, which ones, and which rows
+      it had nothing for, because a stamp that records the option cannot tell a
+      measurement of twelve competing rows from a measurement of none.'
   typed: true
 - name: reporttex
   section: Introspection (fast, no extraction)
@@ -2304,6 +2334,21 @@ commands:
       the fix rather than truncating the manifest, which would report a
       measurement of ten pages as a measurement of the document. `breport
       --pages N` is the bounded reading copy.'
+  - name: render_provenance
+    flag: --render-provenance
+    type: str
+    help: 'RENDER A NAMED COMPETING READING so it can be MEASURED. Each row is
+      rendered from its `latex_candidate` realization of that provenance where
+      one exists (the field the TiddlyWiki projector already writes,
+      `latex_<provenance>`), and from its own `latex` where none does. It
+      asserts NOTHING about correctness: that is the difference from
+      --prefer-refined, which shows a VERIFIED correction and is gated on
+      identity evidence. A competing reading earns its place at report-chain
+      distance 0 or not at all. The two cannot be combined (exit 2) — a row
+      with both has no defined answer. The build stamp records the provenance
+      WITH ITS OUTCOME: how many rows it supplied, which ones, and which rows
+      it had nothing for, because a stamp that records the option cannot tell a
+      measurement of twelve competing rows from a measurement of none.'
   typed: true
 - name: report
   section: Introspection (fast, no extraction)

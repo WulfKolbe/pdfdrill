@@ -270,7 +270,31 @@ def _typed_title() -> "re.Pattern":
 TYPED_TITLE = _typed_title()
 
 
-def rows_for(tiddlers, bibkey, refined=None):
+def rows_for(tiddlers, bibkey, refined=None, *, render_provenance=None,
+             rendered=None, no_candidate=None):
+    """Report rows from the tiddler array.
+
+    `render_provenance` renders each row's COMPETING reading of that
+    provenance where one exists, and the row's own `latex` where none does.
+    The field it reads is the one the TiddlyWiki projector already writes for
+    every `latex_candidate` realization — `latex_<provenance>`
+    (tiddlywiki.py:1684) — so nothing new is stored anywhere: `snip --gemma`
+    and a pix2text ingest both land in it, and 0707.4470 has carried
+    `latex_tex` from that path all along.
+
+    IT ASSERTS NOTHING. `refined` means "show the VERIFIED correction" and is
+    gated on identity evidence (`refine.IDENTITY_EVIDENCE`); this means
+    "render this reading so it can be MEASURED". A competing reading earns its
+    place at report-chain distance 0 or not at all, so it must not travel
+    through a field that claims it was verified.
+
+    `rendered` and `no_candidate`, when given, are sets this fills with the
+    titles it DID and DID NOT substitute. The caller needs them because a
+    stamp that records the OPTION rather than the outcome cannot tell a
+    measurement of twelve competing rows from a measurement of none — which
+    is exactly what `prefer_refined: True` with zero refined rows looked like
+    on 0707.4470 on 2026-11-01.
+    """
     fo, eq, tab, dia = [], [], [], []
     fpage = first_pages(tiddlers, bibkey)
     for t in tiddlers:
@@ -284,6 +308,18 @@ def rows_for(tiddlers, bibkey, refined=None):
         if refined and title in refined:
             # the whole of the change: one substitution, at read time
             latex = refined[title]["refined"]
+        elif render_provenance:
+            # AN EMPTY CANDIDATE IS NOT A CANDIDATE. A provenance that answered
+            # with "" has not read the row, and rendering it would put a blank
+            # against the scan and have the ink report a difference in the
+            # reading where there is an absence of one.
+            cand = (t.get("latex_%s" % render_provenance) or "").strip()
+            if cand:
+                latex = cand
+                if rendered is not None:
+                    rendered.add(title)
+            elif no_candidate is not None:
+                no_candidate.add(title)
         page = t.get("page") or fpage.get(title, "")
         dims = t.get("width", ""), t.get("height", "")
         # 282 — the full region, so a tex.zip image can be named by its
@@ -4172,7 +4208,10 @@ def write_build_stamp(pdf_out: Path, *, legend: bool, ink_adopted: bool,
                       formula_rule: str = "",
                       findings: bool | None = None,
                       pages_bound: "int | None" = None,
-                      bullets: "bool | None" = None) -> dict:
+                      bullets: "bool | None" = None,
+                      render_provenance: "str | None" = None,
+                      rendered_ids: "list | None" = None,
+                      no_candidate_ids: "list | None" = None) -> dict:
     """Write BUILD_STAMP beside the report and return it.
 
     `phase` is the field a reader acts on. A build with no legend and no ink is
@@ -4185,6 +4224,23 @@ def write_build_stamp(pdf_out: Path, *, legend: bool, ink_adopted: bool,
         "legend": bool(legend),
         "ink_adopted": bool(ink_adopted),
         "prefer_refined": bool(prefer_refined),
+        # T-0116 — WHAT WAS DONE, NOT WHAT WAS ASKED. `prefer_refined` above
+        # records the OPTION, and on 0707.4470 (2026-11-01) that produced a
+        # stamp saying `prefer_refined: True` for a build in which ZERO rows
+        # were refined, because the chain had regenerated the tiddlers from the
+        # model and wiped the injection. 54 rows measured and 19 "clean" were
+        # a measurement of the stored reading wearing another column's label,
+        # and nothing on disk distinguished it from the real thing.
+        #
+        # So the selector is recorded WITH ITS OUTCOME: how many rows the
+        # competing provenance actually supplied, which ones, and which rows it
+        # had nothing for. A reader can then tell a measurement of twelve
+        # competing rows from a measurement of none without rebuilding either.
+        "render_provenance": render_provenance or "",
+        "rendered_from_provenance": len(rendered_ids or []),
+        "rendered_ids": sorted(rendered_ids or []),
+        "no_candidate": len(no_candidate_ids or []),
+        "no_candidate_ids": sorted(no_candidate_ids or []),
         "filters": {k: v for k, v in (filters or {}).items() if v is not None},
         "glyphs_dropped": int(glyphs_dropped_count),
         # 579 — THE PHASE IS LEGEND + BULLETS, NOT LEGEND + ADOPTION.
@@ -5147,6 +5203,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                  pages: "int | None" = None,
                  formulas: str = "unresolved",
                  bullets: bool = True,
+                 render_provenance: "str | None" = None,
                  cellrect: bool = False) -> dict:
     """Generate report.tex; returns counts {equations, formulas, tables,
     unrecovered, out}.
@@ -5161,7 +5218,15 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
     tiddlers = json.loads(path.read_text())
     bibkey = resolve_bibkey(path)
     refined = refined_map(tiddlers) if prefer_refined else {}
-    fo, eq, tab, dia = rows_for(tiddlers, bibkey, refined)
+    # T-0116 — the titles the competing provenance DID and DID NOT supply, so
+    # the stamp can record the outcome instead of the option. Named apart from
+    # the `rendered` below, which counts emitted IMAGE rows.
+    _prov_rendered: set = set()
+    _prov_absent: set = set()
+    fo, eq, tab, dia = rows_for(tiddlers, bibkey, refined,
+                                render_provenance=render_provenance,
+                                rendered=_prov_rendered,
+                                no_candidate=_prov_absent)
     # 463 — AN EMPTY REPORT FROM A NON-EMPTY PROJECTION IS A DEFECT.
     #
     # A document with no mathematics is a fact and yields no rows. A document
@@ -5656,6 +5721,10 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
             json.dumps({"bibkey": bibkey, "rows": manifest}, indent=1),
             encoding="utf-8")
     return {"equations": len(eq), "formulas": len(fo), "tables": len(tab),
+            # T-0116 — the outcome of `render_provenance`, for the stamp.
+            "render_provenance": render_provenance or "",
+            "prov_rendered_ids": sorted(_prov_rendered),
+            "prov_absent_ids": sorted(_prov_absent),
             # 460 — `formulas` is what the section SHOWS. `formulas_total` is
             # what the document has and `formula_rule` says why the two
             # differ, so a caller reading only the first number cannot mistake
