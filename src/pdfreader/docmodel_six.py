@@ -36,6 +36,7 @@ from pdfminer.pdfdocument import PDFDocument
 from pdfminer.pdfpage import PDFPage
 from pdfminer.pdfparser import PDFParser
 from pdfminer.pdftypes import resolve1
+from pdfminer.utils import decode_text
 from pdfminer.layout import LTChar, LTCurve, LTImage, LTLine, LTRect
 
 from pdfreader import listings
@@ -1960,6 +1961,60 @@ def _stream_index(path: str, pages) -> dict[int, dict[tuple, int]]:
     return out
 
 
+#: Characters a fragment identifier cannot carry: the C0 and C1 controls, DEL,
+#: and U+FEFF. 1038 — s41586-022-04731-z uses whole reference TEXTS as its
+#: destination names, so correctly decoded they still hold 76 TABs, 76 CRs and
+#: 1,392 embedded U+FEFF, and a Markdown link target with a TAB in it is the
+#: same defect one layer down from the NUL that exposed it.
+def _fragment(text: str) -> "str | None":
+    kept = "".join(ch for ch in text
+                   if not (ord(ch) < 0x20 or 0x7F <= ord(ch) <= 0x9F
+                           or ch == "﻿"))
+    return kept.strip() or None
+
+
+def _dest_name(obj) -> "str | None":
+    r"""A link destination's NAME, decoded by the type the PDF gives it.
+
+    1038. One expression carried three defects, each silent, found by
+    conceptdrill reporting NUL bytes in `<doc>.glyphs.md` for three physics
+    papers (s41586-022-04731-z 11,717, s41467-023-39995-0 449,
+    s42005-020-0326-2 243):
+
+    * A PDF **string** is PDFDocEncoded or UTF-16BE with a leading BOM
+      (ISO 32000-1 7.9.2.2). `dest.decode("latin1")` read the second form one
+      byte at a time, so every ASCII character kept its NUL high byte and the
+      BOM became `þÿ`. `pdfminer.utils.decode_text` is that rule, and it was
+      already in the fork. This is why 3 of conceptdrill's 5 documents were
+      affected and 2 were not: s41598-023-32128-z writes 47 destinations with
+      no BOM, where Latin-1 and PDFDocEncoding agree, and sciadv.aax7163 has
+      no destinations at all.
+
+    * A **name object** went through `str()`, which on a pdfminer `PSLiteral`
+      yields `/'cite.LL'` — quotes, slash and all. Measured on 120 of the
+      library's 7,762 PDFs: 1,630 of 10,956 destinations are name objects, and
+      arxiv.1412.6194 page 1 emitted `](#/'cite.LL')` with
+      `LinkNode.citekey` None. The key the annotation exists to carry — the
+      author's own BibTeX key, which the printed `[22]` does not hold — was
+      being thrown away on every such link.
+
+    * An **explicit destination** (`[3 0 R /XYZ 0 792 0]`, 941 of the same
+      10,956) has no name at all, and `str()` made a Python list repr into a
+      Markdown anchor. It is now None: a destination with no name cannot be
+      anchored, and saying so is not the same as inventing a target.
+    """
+    if obj is None:
+        return None
+    if isinstance(obj, bytes):
+        return _fragment(decode_text(obj))
+    name = getattr(obj, "name", None)                  # PSLiteral
+    if name is not None:
+        return _fragment(name if isinstance(name, str) else decode_text(name))
+    if isinstance(obj, (list, tuple)):
+        return None                    # an explicit destination has no name
+    return _fragment(str(obj))
+
+
 def _page_links(path: str, pages: "range | None") -> dict[int, list[LinkNode]]:
     """Link annotations per page number, 1-based.
 
@@ -1990,11 +2045,9 @@ def _page_links(path: str, pages: "range | None") -> dict[int, list[LinkNode]]:
                         found.append(LinkNode(
                             rect=(min(rect[0], rect[2]), min(rect[1], rect[3]),
                                   max(rect[0], rect[2]), max(rect[1], rect[3])),
-                            uri=uri.decode("latin1") if isinstance(uri, bytes)
-                            else uri,
-                            dest=dest.decode("latin1")
-                            if isinstance(dest, bytes) else
-                            (str(dest) if dest is not None else None)))
+                            uri=_fragment(decode_text(uri))
+                            if isinstance(uri, bytes) else uri,
+                            dest=_dest_name(dest)))
                     except (TypeError, ValueError, AttributeError):
                         continue
                 if found:
