@@ -3718,6 +3718,7 @@ INKREPORT_FINDINGS = {
 
 
 def _inkreport_chain(pdf: Path, preflight_only: bool = False,
+                     prefer_refined: bool = False,
                      findings: "bool | None" = None,
                      profile: str = INKREPORT_PROFILE_DEFAULT,
                      timeout: int = 900,
@@ -3869,6 +3870,7 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
                 _s.replace(_h)
             try:
                 cmd_reporttex(pdf, compile_pdf=True, legend=True,
+                              prefer_refined=prefer_refined,
                               formulas=rule, findings=findings)
                 lines = lines + [
                     "", "The reading build was restored — a failed measurement "
@@ -3911,10 +3913,27 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
         # 613 — cellrect=True: the measure build must emit pdfdrill-rows.json,
         # because inkmeasure now claims each lattice row by the rectangle that
         # contains it. Without the manifest every document refuses.
+        # T-0116 — RENDER THE COLUMN THE CALLER ASKED FOR. This call used to
+        # omit `prefer_refined`, so it fell to its default False and the chain
+        # always re-rendered the STORED reading. That is not a missing feature
+        # but a wrong answer: build a refined report by hand, run `inkreport`,
+        # and step 2 replaces your build with an unrefined one and hands back
+        # distances for the stored LaTeX while the caller believes they are
+        # reading distances for the competing column. It is also why T-0116
+        # recorded pix2text as "not integrated" — the readings join the
+        # report's rows by string (the row identifier IS the tiddler title,
+        # report_tex.py:2933) and nothing could ask the measure build to
+        # render them.
+        #
+        # THREADED, NEVER HARD-CODED: the ink OF RECORD measures the
+        # document's own reading, and `build_stamp` writes `prefer_refined`
+        # into `measured_against`, so two measurements of the same report that
+        # rendered different columns cannot be confused on disk.
         cmd_reporttex(pdf, compile_pdf=True, legend=False,
                       formulas=MEASURE_FORMULA_RULE,
                       findings=MEASURE_FINDINGS,
                       pages=MEASURE_PAGES_BOUND, ink_bullets=False,
+                      prefer_refined=prefer_refined,
                       cellrect=True)                                  # unbounded
         # 2b — 557. NOW the manifest describes the report that exists, so
         # this is where an unmeasurable one is refused. Before the build
@@ -4057,6 +4076,7 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
 @_writes("inkreport")
 def cmd_inkreport(pdf: Path, preflight_only: bool = False,
                   findings: "bool | None" = None,
+                  prefer_refined: bool = False,
                   profile: str = INKREPORT_PROFILE_DEFAULT,
                   timeout: int = 900,
                   pages: "int | None" = None,
@@ -4075,9 +4095,15 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
             or profile != INKREPORT_PROFILE_DEFAULT or pages is not None):
         return _inkreport_chain(pdf, preflight_only=preflight_only,
                                 findings=findings, profile=profile,
+                                prefer_refined=prefer_refined,
                                 timeout=timeout, pages=pages,
                                 accept_stale_geometry=accept_stale_geometry)
+    # The plain path routes through `residuals --measure --pdf`, so the flag
+    # has to travel here too; otherwise `inkreport --prefer-refined` would be
+    # honoured only on the special-argument path and silently ignored on the
+    # one a plain call takes.
     out = cmd_residuals(pdf, pdf_out=True, measure=True, timeout=timeout,
+                        prefer_refined=prefer_refined,
                         accept_stale_geometry=accept_stale_geometry)
     return out + "\n" + alias_note("inkreport")
 
@@ -7144,6 +7170,7 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
 
 @_writes("residuals")
 def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
+                  prefer_refined: bool = False,
                   conf: "float | None" = None, pages: "int | None" = None,
                   images: bool = True, paper: str = "a3",
                   landscape: bool = True, compile_pdf: bool = True,
@@ -7176,6 +7203,7 @@ def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
     out = []
     if measure:
         out.append(_inkreport_chain(pdf, timeout=timeout, profile="internal",
+                                    prefer_refined=prefer_refined,
                                     findings=False,
                                     accept_stale_geometry=accept_stale_geometry))
     sc = Sidecar(pdf)
