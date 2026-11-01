@@ -53,8 +53,8 @@ need gs "Ghostscript — pdfdrill's only sanctioned rasterizer"
 # any other tool that pins a released pdfminer.six.
 PY="${PDFMM_PYTHON:-}"
 if [ -z "$PY" ]; then
-    if [ -x "$HERE/.pdfmm-venv/bin/python" ]; then
-        PY="$HERE/.pdfmm-venv/bin/python"
+    if [ -x "$HERE/work/pdfmm-venv/bin/python" ]; then
+        PY="$HERE/work/pdfmm-venv/bin/python"
     else
         PY="python3"
     fi
@@ -80,7 +80,7 @@ no change to existing behaviour). Build it once:
 
   $HERE/../../vendor/install-pdfminer-fork.sh
 
-That creates an isolated venv at $HERE/.pdfmm-venv and leaves your system
+That creates an isolated venv at $HERE/work/pdfmm-venv and leaves your system
 pdfminer.six alone; pdf2mmd.sh then finds it automatically. If you keep it
 elsewhere:
 

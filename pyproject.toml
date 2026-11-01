@@ -145,6 +145,12 @@ pdf2mmd2 = "streamreader_entry:main"
 # Pinned here so the command a newcomer types IS the documented command.
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# T-0113 — pytest's cache is the one hidden directory this repository
+# created in its own checkout root. The documented command line passes
+# `-p no:cacheprovider`, but a bare `pytest` does not, and the owner's
+# rule is about the tree, not about one command line. `work/` is already
+# git-ignored, visible, and where every other scratch artefact goes.
+cache_dir = "work/run-files/pytest-cache"
 
 [tool.setuptools.packages.find]
 where = ["src"]

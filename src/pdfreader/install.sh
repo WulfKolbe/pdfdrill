@@ -19,7 +19,7 @@
 #   ghostscript only for the render and crop tools, not for reading PDFs.
 #
 # WHAT IT TOUCHES
-#   This directory, and the venv (default ./.pdfmm-venv). Nothing else. Your
+#   This directory, and the venv (default ./work/pdfmm-venv). Nothing else. Your
 #   system pdfminer.six is not modified; other tools that pin
 #   `pdfminer.six==<release>` keep working.
 #
@@ -30,7 +30,26 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-VENV="$HERE/.pdfmm-venv"
+# T-0113 — VISIBLE, and NOT UNDER src/.
+#
+# Two requirements that pull apart. The owner's house rule of 2026-10-30
+# forbids hidden directories, so the old dot-named default had to go. But this
+# subtree is extractable and used to put its venv beside its own modules, and
+# inside this
+# repository that would mean 315 MB of installed numpy and scipy under `src/`
+# — where `tests/test_no_ocr_engine.py` walks `(ROOT/"src").rglob("*.py")`
+# looking for an OCR engine's argv head. A site-packages tree under src/ would
+# fail that test with a finding from a third-party package, which is a wrong
+# answer about this repository.
+#
+# So: inside the repository, build into the repository's own work/ tree.
+# Standalone (extracted on its own), keep it beside the modules as before.
+REPO="$(cd "$HERE/../.." 2>/dev/null && pwd || echo "")"
+if [ -n "$REPO" ] && [ -f "$REPO/pyproject.toml" ]; then
+    VENV="$REPO/work/pdfmm-venv"
+else
+    VENV="$HERE/work/pdfmm-venv"
+fi
 DO_VENV=1
 DO_TESTS=1
 CHECK_ONLY=0

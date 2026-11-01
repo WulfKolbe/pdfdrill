@@ -41,7 +41,7 @@ def lines():
 def test_the_patch_is_vendored_here():
     """Not read from a sibling checkout. `PDF2MMD_HOME` pointing at a stale
     tree is how ser7 ran 784 for a week while this machine ran 820, and how a
-    deleted ~/Downloads/pdf2mmd took ~/pdf2mmd/.pdfmm-venv with it."""
+    deleted ~/Downloads/pdf2mmd took the venv beside ~/pdf2mmd with it."""
     assert PATCH.exists(), "the fork must live in this repo, not beside it"
     assert PATCH.stat().st_size > 1000
 
@@ -111,9 +111,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _repo_files(name: str) -> list:
-    return [p for p in ROOT.rglob(name)
-            if ".git" not in p.parts and ".pdfmm-build" not in p.parts
-            and ".pdfmm-venv" not in p.parts]
+    # T-0113 — the venv and its build directory moved out of hidden names
+    # into `work/`, so `work` is what has to be skipped now. The two old names
+    # stay in the filter: a stale copy on someone's machine would otherwise
+    # make this test report a second patch file that is not in the repository.
+    skip = {".git", "work", ".pdfmm-build", ".pdfmm-venv"}
+    return [p for p in ROOT.rglob(name) if not (skip & set(p.parts))]
 
 
 def test_exactly_one_patch_in_the_repo():

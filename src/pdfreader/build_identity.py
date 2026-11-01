@@ -27,7 +27,7 @@ difference. Measured on this machine, the two builds side by side:
 
     live user site-packages   version …d20260930   patch: True
         font.spec False   glyphname_reliable False
-    vendor/.pdfmm-venv        version …d20261003   patch: True
+    work/pdfmm-venv           version …d20261003   patch: True
         font.spec True    glyphname_reliable True
 
 Both say True. One of them cannot do what R3 and R4 depend on. So the record

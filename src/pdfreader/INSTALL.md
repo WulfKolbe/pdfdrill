@@ -31,7 +31,7 @@ If you want only the pdfminer step:
 
     ./install-pdfminer-fork.sh
 
-That builds the patched pdfminer.six into `.pdfmm-venv/` beside the modules.
+That builds the patched pdfminer.six into `work/pdfmm-venv/` beside the modules.
 Your system pdfminer.six is not touched: other tools that pin
 `pdfminer.six==<release>` keep working, and only pdf2mmd uses the patched
 build.
@@ -57,7 +57,7 @@ writes `mmd-out/paper.md`, `paper.lines.json`, `paper.equations.json`,
 
 ## Tests
 
-    .pdfmm-venv/bin/python -m pytest -q
+    work/pdfmm-venv/bin/python -m pytest -q
 
 About 450 tests run anywhere. The rest need real PDFs, which are not shipped
 (they are copyrighted). To run those too, point these at your own copies:
@@ -66,7 +66,7 @@ About 450 tests run anywhere. The rest need real PDFs, which are not shipped
     PDF2MMD_TEST_LINES=/path/to/a.lines.json \
     PDF2MMD_TEST_PAGES=/path/to/page-images \
     PDF2MMD_TEST_ROTATED=/path/to/rotated.pdf \
-    .pdfmm-venv/bin/python -m pytest -q
+    work/pdfmm-venv/bin/python -m pytest -q
 
 A test that skips for want of a fixture is gated per TEST, not per module, so
 the count you see is the count that can actually run on your machine.

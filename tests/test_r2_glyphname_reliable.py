@@ -129,7 +129,10 @@ def test_it_is_a_flag_and_not_a_gate():
 
 import subprocess                                             # noqa: E402
 
-VENV_PY = Path(__file__).resolve().parents[1] / "vendor" / ".pdfmm-venv" / "bin" / "python"
+from tests.forkvenv import fork_python, have_fork_venv, skip_reason  # noqa: E402
+
+#: T-0113 — resolved in one place, honouring PDFMM_PYTHON.
+VENV_PY = fork_python()
 
 _LTCHAR_PROBE = r'''
 import json, sys
@@ -156,8 +159,8 @@ print(json.dumps(out))
 
 
 def _ltchar(*pdfs):
-    if not VENV_PY.exists():
-        pytest.skip(f"fork venv not built: {VENV_PY}")
+    if not have_fork_venv():
+        pytest.skip(skip_reason())
     for p in pdfs:
         if not Path(p).exists():
             pytest.skip(f"psred fixture not checked out: {p}")

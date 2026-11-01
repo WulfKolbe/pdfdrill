@@ -48,7 +48,7 @@ from pathlib import Path
 GOLD = Path(os.environ.get("PDF2MMD_LSTGOLD",
                            Path.home() / "pdfdrill-library" / "lstgold"))
 CODE = Path(os.environ.get("PDF2MMD_CODE", Path(__file__).resolve().parent.parent))
-PY = CODE / ".pdfmm-venv" / "bin" / "python"
+PY = CODE / "work" / "pdfmm-venv" / "bin" / "python"
 
 _LST = re.compile(r"\\begin\{lstlisting\}(?:\[([^\]]*)\])?\n(.*?)\\end\{lstlisting\}", re.S)
 _ESCAPE = re.compile(r"escapechar\s*=\s*(.)")

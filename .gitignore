@@ -77,6 +77,7 @@ dist/
 
 # R1 — the patched pdfminer is BUILT, never committed. One patch and one
 # installer live in vendor/; these are their scratch and output dirs.
+# Pre-T-0113 hidden names, kept so a stale copy does not show as untracked.
 .pdfmm-venv/
 .pdfmm-build/
 

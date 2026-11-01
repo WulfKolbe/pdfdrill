@@ -62,7 +62,7 @@ fails — `pdf2mmd.sh` checks for them by name before it starts.
 ```
 
 Clones pdfminer.six, applies `pdfminer-glyph-identity.patch`, installs it into
-an isolated venv at `./.pdfmm-venv`, and verifies the feature actually works.
+an isolated venv at `./work/pdfmm-venv`, and verifies the feature actually works.
 **Your system pdfminer.six is untouched**, so anything pinning a released
 version keeps running.
 
@@ -74,7 +74,7 @@ Other forms:
 ../../vendor/install-pdfminer-fork.sh --check           # verify an existing install
 ```
 
-If the venv is not at `./.pdfmm-venv`, point the converter at it:
+If the venv is not at `./work/pdfmm-venv`, point the converter at it:
 
 ```bash
 PDFMM_PYTHON=~/.pdfmm/bin/python ./pdf2mmd.sh book.pdf
@@ -154,8 +154,8 @@ no path outside the folder is read unless you name one.
 
 | path | |
 |---|---|
-| `.pdfmm-venv/` | the patched pdfminer and its dependencies |
-| `.pdfmm-build/` | scratch during the venv build; removed on exit |
+| `work/pdfmm-venv/` | the patched pdfminer and its dependencies |
+| `work/pdfmm-build/` | scratch during the venv build; removed on exit |
 | `mmd-out/` | conversion output, unless you pass another folder |
 | `mmd-out/inspect/pages/` | 250-dpi page images |
 
@@ -164,7 +164,7 @@ The only thing read from elsewhere is the PDF you name on the command line.
 ## Tests
 
 ```bash
-./.pdfmm-venv/bin/python -m pytest -q
+./work/pdfmm-venv/bin/python -m pytest -q
 ```
 
 Tests that need a real PDF skip themselves, so a clean install reports
@@ -175,7 +175,7 @@ into `./testdata/` (`corpus.pdf`, `corpus.lines.json`, `pages/`,
 ```bash
 PDF2MMD_TEST_PDF=~/books/some-maths-book.pdf \
 PDF2MMD_TEST_LINES=~/books/some-maths-book.lines.json \
-./.pdfmm-venv/bin/python -m pytest -q
+./work/pdfmm-venv/bin/python -m pytest -q
 ```
 
 `testpaths.py` holds the resolution rules. No absolute path from whoever built

@@ -34,10 +34,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-#: Directories a tree walk must not descend into. `vendor/.pdfmm-venv` holds an
-#: installed numpy and scipy, each with thousands of their own test files.
-SKIP_DIRS = {".git", "vendor", "node_modules", "__pycache__", ".venv",
-             "build", "dist", ".mypy_cache", ".pytest_cache"}
+#: Directories a tree walk must not descend into. The patched-pdfminer venv
+#: holds an installed numpy and scipy, each with thousands of their own test
+#: files; since T-0113 it lives under `work/`, which is skipped whole.
+SKIP_DIRS = {".git", "vendor", "work", "node_modules", "__pycache__",
+             ".venv", "build", "dist", ".mypy_cache", ".pytest_cache"}
 
 
 def _ini_options() -> str:

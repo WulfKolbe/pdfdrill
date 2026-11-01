@@ -30,7 +30,7 @@ Requirements: `python3` (3.10+), `git`, `ghostscript`
 ## Tests
 
 ```bash
-.pdfmm-venv/bin/python -m pytest -q
+work/pdfmm-venv/bin/python -m pytest -q
 ```
 
 Tests needing real PDFs skip themselves (62 passed, 49 skipped in clean install).
@@ -39,7 +39,7 @@ Full test suite with fixtures:
 ```bash
 PDF2MMD_TEST_PDF=/path/to/book.pdf \
 PDF2MMD_TEST_LINES=/path/to/book.lines.json \
-.pdfmm-venv/bin/python -m pytest -q
+work/pdfmm-venv/bin/python -m pytest -q
 ```
 
 ## Key Files
@@ -58,7 +58,7 @@ PDF2MMD_TEST_LINES=/path/to/book.lines.json \
 
 ## Architecture
 
-- Venv at `.pdfmm-venv/` (patched pdfminer.six)
+- Venv at `work/pdfmm-venv/` (patched pdfminer.six)
 - Output goes to `mmd-out/` unless specified
 - Requires Ghostscript for crop/render tools
 - All files must be in one folder (they import each other by name)

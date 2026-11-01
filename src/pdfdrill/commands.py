@@ -16292,7 +16292,7 @@ def cmd_profile(pdf: Path, json_only: bool = False) -> str:
     in `src/pdfreader/`, absorbed by 834. Nothing to install.
     """
     # 834 — ONE READER, IN THIS TREE. This used to spawn
-    # `$PDF2MMD_HOME/.pdfmm-venv/bin/python` because the glyph model lived on a
+    # `$PDF2MMD_HOME/work/pdfmm-venv/bin/python` because the glyph model lived on a
     # patched pdfminer that "is not importable here". It is importable here:
     # the patch is purely additive (+461/-0, gated by
     # tests/test_pdfminer_fork_is_additive.py), it is the pdfminer this

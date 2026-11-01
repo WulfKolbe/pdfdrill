@@ -16,7 +16,7 @@
 set -eu
 
 HERE=$(cd "$(dirname "$0")" && pwd)
-PY="$HERE/.pdfmm-venv/bin/python"
+PY="$HERE/work/pdfmm-venv/bin/python"
 [ -x "$PY" ] || PY=python3
 
 COMPILE=0

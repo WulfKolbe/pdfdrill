@@ -17,7 +17,7 @@ drops, each of which cost psred a defect:
       - `scaling` is ALREADY `Tz / 100` when `render_char` receives it, so
         dividing again gives x extents 100x too narrow (featjudge F10).
 
-These run against the BUILT fork in `vendor/.pdfmm-venv`, not the interpreter
+These run against the BUILT fork (see `tests/forkvenv.py`), not the interpreter
 running the suite: the live pdfminer is deliberately left alone while a corpus
 pass is using it. They skip when the venv is absent.
 """
@@ -29,7 +29,10 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-VENV_PY = ROOT / "vendor" / ".pdfmm-venv" / "bin" / "python"
+from tests.forkvenv import fork_python, have_fork_venv, skip_reason  # noqa: E402
+
+#: T-0113 — resolved in one place, honouring PDFMM_PYTHON.
+VENV_PY = fork_python()
 PSRED = Path.home() / "psred"
 T1 = PSRED / "fixtures" / "t1.pdf"
 PSEUDO = PSRED / "fixtures" / "lang" / "text_t1.pdf"
@@ -88,8 +91,8 @@ print(json.dumps(out))
 
 
 def _probe(pdf: Path) -> dict:
-    if not VENV_PY.exists():
-        pytest.skip(f"fork venv not built: {VENV_PY} (run vendor/install-pdfminer-fork.sh)")
+    if not have_fork_venv():
+        pytest.skip(skip_reason())
     if not pdf.exists():
         pytest.skip(f"psred fixture not checked out: {pdf}")
     r = subprocess.run([str(VENV_PY), "-c", PROBE, str(pdf)],

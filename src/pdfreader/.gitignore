@@ -29,6 +29,9 @@ wheels/
 # No trailing slash: a SYMLINK to a venv elsewhere is not a directory, and
 # `.pdfmm-venv/` does not match one. One was committed that way -- a link to
 # a path in another user's home, broken for everyone who clones.
+work/
+# The hidden names this subtree used before T-0113. Kept so a stale copy
+# on someone's machine does not suddenly show up as untracked.
 .pdfmm-venv
 .pdfmm-build
 .pdfmm-venv/

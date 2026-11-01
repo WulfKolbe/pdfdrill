@@ -24,7 +24,7 @@ from pathlib import Path
 
 LIB = Path(os.environ.get("PDF2MMD_LIBRARY", Path.home() / "pdfdrill-library"))
 CODE = Path(os.environ.get("PDF2MMD_CODE", Path(__file__).resolve().parent.parent))
-PY = CODE / ".pdfmm-venv" / "bin" / "python"
+PY = CODE / "work" / "pdfmm-venv" / "bin" / "python"
 if not PY.is_file():
     PY = Path(sys.executable)
 

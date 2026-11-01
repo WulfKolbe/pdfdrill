@@ -32,12 +32,17 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# T-0113 — the venv and the build directory are VISIBLE, under the
+# repository's own git-ignored work/ tree. They used to be $HERE/.pdfmm-venv
+# and $HERE/.pdfmm-build, two dot-named directories in a tracked folder,
+# against the owner's house rule of 2026-10-30 ("NO HIDDEN FILES").
+REPO="$(cd "$HERE/.." && pwd)"
 PATCH="$HERE/pdfminer-glyph-identity.patch"
 UPSTREAM="https://github.com/pdfminer/pdfminer.six.git"
 # The commit the patch was made against. It also applies to the tip as of
 # writing; pinning keeps the build reproducible if upstream moves.
 PIN="a18de2a"
-VENV="$HERE/.pdfmm-venv"
+VENV="$REPO/work/pdfmm-venv"
 MODE="venv"
 REBUILD=0
 # EXTRAS — pdf2mmd's own runtime/test deps, NOT the fork's.
@@ -205,7 +210,8 @@ command -v python3 >/dev/null || { echo "missing dependency: python3" >&2; exit 
 # small or noexec /tmp makes this fail for no good reason, and everything this
 # script touches should be visible in the folder you ran it from. It is
 # removed on exit, success or failure.
-BUILD="$HERE/.pdfmm-build"
+BUILD="$REPO/work/run-files/pdfmm-build"
+mkdir -p "$REPO/work/run-files"
 rm -rf "$BUILD"
 mkdir -p "$BUILD" || { echo "cannot write to $HERE" >&2; exit 3; }
 trap 'rm -rf "$BUILD"' EXIT
@@ -332,7 +338,7 @@ EOF
 elif [ "$MODE" = "venv" ]; then
     cat <<EOF
 Done. pdf2mmd.sh finds this venv automatically when it sits at
-  $HERE/.pdfmm-venv
+  $VENV
 
 If you put it elsewhere, point pdf2mmd at it:
   PDFMM_PYTHON="$PY" ./pdf2mmd.sh book.pdf 1-20

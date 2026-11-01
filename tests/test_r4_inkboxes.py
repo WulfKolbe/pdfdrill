@@ -18,7 +18,10 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-VENV_PY = ROOT / "vendor" / ".pdfmm-venv" / "bin" / "python"
+from tests.forkvenv import fork_python, have_fork_venv, skip_reason  # noqa: E402
+
+#: T-0113 — resolved in one place, honouring PDFMM_PYTHON.
+VENV_PY = fork_python()
 MODULE = ROOT / "src" / "pdfreader" / "inkboxes.py"
 PSRED = Path.home() / "psred"
 T1 = PSRED / "fixtures" / "t1.pdf"
@@ -35,8 +38,8 @@ print(json.dumps([{k: r[k] for k in
 
 
 def _run(pdf: Path):
-    if not VENV_PY.exists():
-        pytest.skip("fork venv not built (vendor/install-pdfminer-fork.sh)")
+    if not have_fork_venv():
+        pytest.skip(skip_reason())
     if not pdf.exists():
         pytest.skip(f"psred fixture not checked out: {pdf}")
     env = {"PYTHONPATH": str(ROOT / "src" / "pdfreader"), "PATH": "/usr/bin:/bin"}

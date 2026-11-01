@@ -1,7 +1,7 @@
 # pdf2mmd — running it on your own PDFs
 
 Everything is in this folder. Nothing needs installing: the interpreter and
-its patched pdfminer live in `.pdfmm-venv/`, and the launcher finds them.
+its patched pdfminer live in `work/pdfmm-venv/`, and the launcher finds them.
 
 ## Run it
 
