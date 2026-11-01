@@ -253,7 +253,30 @@ def titles_by_id(doc, bibkey: str) -> dict:
     third numbering.
 
     Cheap: `_assign_titles` sorts, it does not render.
+
+    AND IT REFUSES A BIBKEY THE DOCUMENT DOES NOT CARRY (516). A row id IS a
+    tiddler title, so every consumer joins on these strings — and a wrong
+    bibkey is not a wrong-looking argument, it is a well-formed one. Asked for
+    titles under a folder name, this returned a COMPLETE map under the wrong
+    prefix: same ids, same count, same shape, not one title matching a row id.
+    The caller got zero rows and exited 0. `report_tex.resolve_bibkey` is the
+    answer and already carried the history (404 inferred the key from
+    `blob_dir.name`, 463 from the tiddlers FILENAME, 462 renamed nine bibkeys
+    without renaming their folders) — written down, and re-derived as a bug by
+    the next caller anyway. So the refusal lives where the mistake is made.
+
+    A Document that names no bibkey cannot contradict one and is unaffected:
+    `resolve_transclusions` is called module-level with no Document at all.
     """
+    own = str(doc.meta.get("bibkey") or "") if getattr(doc, "meta", None) else ""
+    if own and bibkey != own:
+        raise ValueError(
+            "titles_by_id: asked for titles under %r, but this document is "
+            "%r (516 — THE BIBKEY IS RESOLVED, NOT THE FOLDER NAME). A row id "
+            "is the tiddler title, so joining on the wrong prefix matches "
+            "nothing and raises nothing. Take the key from "
+            "report_tex.resolve_bibkey, or from doc.meta['bibkey']."
+            % (bibkey, own))
     from docops.base import OperatorConfig
     proj = TiddlyWikiProjector(
         OperatorConfig(op="projector", classname="TiddlyWikiProjector"))
