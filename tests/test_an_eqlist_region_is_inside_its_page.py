@@ -13,15 +13,29 @@ MEASURED CAUSE (this session, 2026-11-01), because the fix depends on it:
   `\\int` glyph, the same font -- sits at (7043, -6459). The glyph record
   underneath it gives `rect_pt` [2028.372, 2121.442, ...]: y = 2121 pt on a
   272 pt page.
-* pdfminer ITSELF produces that. `extract_pages` reports the page's own bbox
-  as (0, 0, 362.83, 272.13) and then hands back glyphs with x1 up to 2336.63
-  and y1 up to 2147.10. The additive glyph-identity patch is not involved --
-  it carries `cid`, `glyphname` and `render_mode`, not geometry.
-* poppler disagrees, on every document sampled. `pdftotext -bbox` on the same
-  Raab page 8 puts every glyph at y <= 270.3 and x <= 339.5, inside the page;
-  likewise 2307.13528v2 p1, Science of Yoga p78, Solar Hybrid p164, Week_14
-  p12, Florence Lin p218. So the PDFs are not carrying off-page content: our
-  reading is misplacing it.
+* pdfminer ITSELF produces that, AND IT IS RIGHT. `extract_pages` reports the
+  page's own bbox as (0, 0, 362.83, 272.13) and then hands back glyphs with x1
+  up to 2336.63 and y1 up to 2147.10, and the content stream says exactly why:
+  2,322 matched pairs of `1 0 0 1 2000.02579 2000.02579 cm` and its negative,
+  at q-depth 0 (JarmoHietarinta 1,064 pairs, tacl-2024 856). That is beamer
+  parking the material an overlay does not reveal 2,000 bp off the page rather
+  than omitting it, so the glyphs are where pdfminer puts them. The additive
+  glyph-identity patch is not involved either way -- it carries `cid`,
+  `glyphname` and `render_mode`, not geometry.
+* AN EARLIER VERSION OF THIS FILE SAID POPPLER DISAGREED AND THEREFORE OUR
+  READING MISPLACED THE CONTENT. That was wrong, and the error is worth
+  keeping written down because the measurement looked conclusive: `pdftotext
+  -bbox` put every glyph it reported inside the page on all six documents
+  sampled. It does that because it DISCARDS off-page glyphs. Minimal A4 PDF,
+  one glyph at y=700 and one at y=2700: pdftotext prints only the first,
+  pdfminer prints both at the right coordinates. So poppler can confirm that a
+  glyph lies outside the page and can never say where a glyph is, and the two
+  readers were never in disagreement. The glyph counts had been saying so --
+  poppler's word count matched the INSIDE glyph count on both documents where
+  I checked it (Raab 21 words against 116 inside; 1511.08771 633 against
+  3,454).
+* So this gate does not correct a misreading. It refuses a region that is
+  faithfully recorded and still cannot be cropped.
 * It is NOT the page-size fallback that `page_size_for` was written for: on
   all 164 rows the page size the list recorded equals the PDF's own.
 * It is NOT a rotation. `pdfinfo` reports rot 0, and MediaBox == CropBox on
@@ -35,8 +49,17 @@ MEASURED CAUSE (this session, 2026-11-01), because the fix depends on it:
   swapping those 20 would move 20 correct-as-recorded rows to a second wrong
   place.
 
-Hence what this file pins: the list cannot repair the reading, and it must not
-pass the damage on as an identity. It refuses the row and says why.
+Hence what this file pins: a region that is not on the page it names is not an
+identity, however faithfully it was read. It refuses the row and says why.
+
+By magnitude, over the library's 3,976 such regions: 1,398 in four beamer
+decks are the 2,000 bp parking idiom and every one of them is more than 200 pt
+out; 789 are under 10 pt out, which is the BOX CONVENTION rather than any
+displacement (pdfminer's rectangle is the font line box by height and the
+ADVANCE width, so a glyph at a margin legitimately reaches past the edge); the
+remaining 1,789 are other off-page material in 88 documents -- 1511.08771, an
+11,232-page dvips+Ghostscript build, runs ordinary CMR10 text to y0 = -50.63
+pt below its own page bottom on page 7213.
 
 AND THE EXISTING CHECK HAS NO LOWER BOUND, which is how the first row in
 gemma4-ba's list survived it. `validate()` tested only `top_left_x + width >

@@ -504,14 +504,28 @@ def build(library: Path, *, name: str = "eqlist", kind: str | None = None,
         for no, eq in enumerate(chosen, 1):
             # T-0088 -- A REGION OUTSIDE ITS PAGE IS NOT AN IDENTITY.
             #
-            # The list cannot repair the reading and must not pass the damage
-            # on. Measured 2026-11-01: on Raab page 8 (362.835 x 272.126 pt)
-            # the reading puts EQ0002 at (487, 221) px and the next row,
-            # EQ0003, at (7043, -6459); pdfminer itself reports that page's
-            # bbox as (0, 0, 362.83, 272.13) and then hands back glyphs at y
-            # up to 2147 pt, while poppler places every glyph on the page
-            # inside it. The fault is in the reading's placement, upstream of
-            # here; what belongs here is a refusal that names it.
+            # The CONTENT IS GENUINELY OFF THE PAGE, and the reading is
+            # right about it. Measured 2026-11-01 (T-0118): on Raab page 8
+            # (362.835 x 272.126 pt) the reading puts EQ0002 at (487, 221) px
+            # and EQ0003 at (7043, -6459), and the content stream explains it
+            # exactly -- 2,322 matched pairs of `1 0 0 1 2000.02579 2000.02579
+            # cm` and its negative, at q-depth 0. That is beamer parking the
+            # material an overlay does not reveal 2,000 bp off the page
+            # instead of omitting it. The glyphs are where pdfminer says.
+            #
+            # An earlier version of this comment said poppler disagreed and
+            # therefore our reading misplaced the content. THAT WAS WRONG, and
+            # wrong by an invalid comparison: poppler DISCARDS off-page glyphs
+            # (minimal A4 PDF, one glyph at y=700 and one at y=2700 --
+            # pdftotext prints only the first, pdfminer prints both at the
+            # right coordinates), so it can confirm that a glyph is outside
+            # the page and can never adjudicate where a glyph is. The counts
+            # had been saying so all along: poppler's word count matched the
+            # INSIDE glyph count on both documents sampled.
+            #
+            # So this gate is not correcting a misreading. It refuses a region
+            # that is faithfully recorded and still cannot be cropped, and it
+            # says which edge it crossed.
             _w, _h = page_size_from(_pmap, _dw, _dh, eq.get("page"))
             _why = region_fault(eq.get("region") or {}, _w, _h)
             if _why:
