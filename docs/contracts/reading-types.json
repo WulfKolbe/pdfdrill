@@ -8,13 +8,56 @@
    "files": 1392,
    "pages": 65172,
    "lines": 3664533,
-   "types": 37
+   "types": 37,
+   "always_present_line_fields": [
+    "cnt",
+    "region",
+    "line",
+    "column",
+    "font_size",
+    "is_printed",
+    "is_handwritten",
+    "id",
+    "type",
+    "conversion_output",
+    "text",
+    "text_display"
+   ],
+   "always_present_page_fields": [
+    "image_id",
+    "page",
+    "page_height",
+    "page_width"
+   ]
   },
   "mathpix-newer": {
    "files": 49,
    "pages": 3437,
    "lines": 155836,
-   "types": 32
+   "types": 32,
+   "always_present_line_fields": [
+    "cnt",
+    "region",
+    "line",
+    "column",
+    "font_size",
+    "is_printed",
+    "is_handwritten",
+    "id",
+    "type",
+    "conversion_output",
+    "text",
+    "text_display",
+    "confidence",
+    "text_confidence",
+    "layout_confidence"
+   ],
+   "always_present_page_fields": [
+    "image_id",
+    "page",
+    "page_height",
+    "page_width"
+   ]
   }
  },
  "pdfdrill_only_types": [

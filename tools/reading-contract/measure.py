@@ -84,76 +84,14 @@ by_rule_pages = Counter()
 by_rule_lines = Counter()
 by_rule_files = defaultdict(list)
 
-#: Page-level keys only OUR writers emit, and the writer that emits them.
-#: Established by reading the writers on 2026-11-02, not by assumption:
-#: docmodel_six.to_lines_json lines 4444-4455.
-OURS_PAGE = {"px_per_pt": "pdfminer-docmodel", "diagrams": "pdfminer-docmodel",
-             "fills": "pdfminer-docmodel", "links": "pdfminer-docmodel"}
-#: Line-level keys only our writers emit (docmodel_six 4485-4524).
-OURS_LINE = {"gaps": "pdfminer-docmodel", "rules": "pdfminer-docmodel",
-             "deferred_glyphs": "pdfminer-docmodel",
-             "complete": "pdfminer-docmodel", "_i": "pdfminer-docmodel"}
-
-
-
-def rel(path) -> str:
-    """The library-relative path, safe to put in JSON.
-
-    Some library folder names carry bytes that are not valid UTF-8; Python
-    surfaces them as lone surrogates, which `json.dumps` accepts and
-    `write_text(encoding="utf-8")` then refuses -- leaving a 0-byte
-    measured.json and a coverage run that dies on it. Replacing them here
-    keeps the name readable and the file writable.
-    """
-    return (str(path.relative_to(LIB))
-            .encode("utf-8", "replace").decode("utf-8"))
-
-
-def producer_of(doc, pages):
-    """Return the producer class, and the evidence that decided it."""
-    # 1. the top-level declaration (defect 846 put it there)
-    src = doc.get("source") if isinstance(doc, dict) else None
-    if src:
-        return "reader:%s" % src, "top-level source"
-    # 2. a page-level declaration: our pre-846 shape, and the only place a
-    #    merged reading can say it carries pages from two readers
-    page_srcs = {pg.get("source") for pg in pages
-                 if isinstance(pg, dict) and pg.get("source")}
-    if len(page_srcs) == 1:
-        return "reader:%s" % page_srcs.pop(), "page-level source"
-    if len(page_srcs) > 1:
-        return "merged:%s" % "+".join(sorted(page_srcs)), "page-level source (several)"
-    # 3./4. signatures, page then line
-    gemma = False
-    for pg in pages:
-        if not isinstance(pg, dict):
-            continue
-        if "furniture_retyped" in pg or pg.get("image_id") == "":
-            gemma = True
-        for k, owner in OURS_PAGE.items():
-            if k in pg:
-                return "reader:%s" % owner, "page field %s" % k
-        for ln in (pg.get("lines") or [])[:200]:
-            if not isinstance(ln, dict):
-                continue
-            for k, owner in OURS_LINE.items():
-                if k in ln:
-                    return "reader:%s" % owner, "line field %s" % k
-    if gemma:
-        return "reader:gemma", 'image_id "" / furniture_retyped'
-    # 5. MathPix proper — split by API vintage, because the newer one carries
-    #    fields the contract must not attribute to the classic export
-    newer = any(isinstance(pg, dict) and isinstance(pg.get("page_confidence"), dict)
-                for pg in pages)
-    marked = any(("is_printed" in ln or "confidence" in ln)
-                 for pg in pages[:3] if isinstance(pg, dict)
-                 for ln in (pg.get("lines") or [])[:50] if isinstance(ln, dict))
-    if newer:
-        return "mathpix-newer", "page_confidence dict"
-    if marked:
-        return "mathpix-classic", "is_printed/confidence, no reader signature"
-    # 6. nothing declared, nothing recognisable
-    return "unknown-shape", "no declaration, no marker"
+#: THE CLASSIFIER LIVES IN src/, NOT HERE. `pdfdrill lines-check` (T-0109)
+#: calls the same function, and two copies of a producer rule is how this
+#: contract's first version came to report our own output as MathPix. The
+#: rule, its order and the evidence it returns are documented there and in
+#: contracts/reading.md §1.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+from docmodel.reading_contract import (                     # noqa: E402
+    OURS_LINE, OURS_PAGE, producer_of)
 
 def main() -> None:
     global t0, paths, i, p, doc, pages, prod, why, doc_name, by_id, result

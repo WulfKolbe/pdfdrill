@@ -1887,6 +1887,16 @@ def _do_visionocr(args):
                          pages=pages, force=force)
 
 
+def _do_linescheck(args):
+    """pdfdrill linescheck <pdf|lines.json> [--limit N]  — hold a reading to the contract"""
+    from .commands import cmd_lines_check
+    lim, rest = _opt(args, "--limit")
+    if not rest:
+        raise ValueError("No file specified.")
+    return cmd_lines_check(Path(rest[0]).expanduser(),
+                           limit=int(lim) if lim else 20)
+
+
 def _do_mathcheck(args):
     """pdfdrill mathcheck <pdf|md> [--limit N]  — flag flattened (non-LaTeX) formulas"""
     from .commands import cmd_mathcheck
@@ -3154,6 +3164,7 @@ HANDLERS = {
         "gaps": _do_gaps,
         "conserve": _do_conserve,
         "llmtext": _do_llmtext,
+        "linescheck": _do_linescheck,
         "mathcheck": _do_mathcheck,
         "quantities": _do_quantities,
         "ask": _do_ask,

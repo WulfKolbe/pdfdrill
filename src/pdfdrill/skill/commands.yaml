@@ -3895,6 +3895,41 @@ commands:
     type: flag
     help: fetch the weights once if they are not in the local Hugging Face cache
   typed: true
+- name: linescheck
+  section: Introspection (fast, no extraction)
+  summary: 'RUNG 0 of the reader ladder, cheaper than `mdcheck`: does this `lines.json`
+    keep the READING CONTRACT (contracts/reading.md, reading/1)? No reference, no key,
+    no render — only the file. Three questions in order. WHO WROTE IT, taken from the
+    file and never from its shape: our own readers write MathPix''s keys on purpose, so
+    a shape test calls our output MathPix and then holds it to MathPix''s fields — the
+    defect the T-0107 review found in the contract''s own measurement, where 34 files of
+    ours were counted as MathPix because `source` was read at the top level only and
+    they declare it per page. ARE THE TYPES IN THE CONTRACT: an unknown type is a reader
+    inventing a name or MathPix adding one, and must reach a human; a declared-only type
+    is NOT unknown, because the contract says in writing that nothing reads it. DOES
+    EVERY LINE CARRY WHAT ITS VINTAGE ALWAYS CARRIES: the two MathPix API vintages differ
+    (contract §4a) — classic always has 12 line fields, newer 15 — and the list is
+    MEASURED over 3.8M lines, not declared by MathPix, so a gap means "unlike every other
+    reading we hold" rather than a spec violation. Refusals NAME the page, the line and
+    the field, and exit 1; a checker that says "invalid" without saying where sends the
+    reader back to grepping the file by hand. NO `requires:` — the reading is the
+    ARGUMENT, and the commands that write one (`glyphlines` free, `model`, `mathpix`
+    paid) declare `file:{stem}.lines.json` rather than a fact, so no manifest prereq
+    can name them (`test_requires_closure_every_prereq_command_produces_facts`
+    requires a fact-producing command). When the file is absent the command names all
+    three instead of planning one, which is also right for a paid producer.'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: a .lines.json, or a PDF/arXiv id with one beside it
+  typed: true
+  flags:
+  - name: limit
+    flag: --limit
+    type: int
+    default: 20
 - name: linescmp
   section: Introspection (fast, no extraction)
   summary: 'Score this document''s lines.json against ANOTHER reading of the same

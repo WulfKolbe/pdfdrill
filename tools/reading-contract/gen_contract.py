@@ -243,11 +243,25 @@ types_json = {
  # MathPix is one producer measured in two API vintages; `classes` records
  # them so a consumer can tell which shape it is holding (§4a).
  "classes": {
-   "mathpix-classic": {"files": CLASSIC["files_n"], "pages": CLASSIC["pages"],
-                       "lines": CLASSIC["lines"],
-                       "types": len(CLASSIC["types"])},
-   "mathpix-newer": {"files": NEWER["files_n"], "pages": NEWER["pages"],
-                     "lines": NEWER["lines"], "types": len(NEWER["types"])},
+   cls_name: {
+     "files": rec["files_n"], "pages": rec["pages"], "lines": rec["lines"],
+     "types": len(rec["types"]),
+     # Fields present on EVERY line / page of the class. Computed from the
+     # counts, never from the rounded share: a field on 99.96% of lines
+     # rounds to 100.0% and is not always present, and `lines-check` would
+     # then refuse the 0.04% as broken.
+     #
+     # MEASURED, NOT DECLARED. MathPix publishes no required-field list, so
+     # this is "no counter-example in the library", which is what makes it
+     # usable as a check and also what limits it: a field that is simply
+     # never absent here may still be optional in their API.
+     "always_present_line_fields":
+         [k for k, n, _ in rec["line_fields"] if n == rec["lines"]],
+     "always_present_page_fields":
+         [k for k, n, _ in rec["page_fields"] if n == rec["pages"]],
+   }
+   for cls_name, rec in (("mathpix-classic", CLASSIC),
+                         ("mathpix-newer", NEWER))
  },
  # Types pdfdrill declares that NO MathPix file carries. The contract covers
  # two vocabularies and this is the boundary between them; without it the

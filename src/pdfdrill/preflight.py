@@ -52,6 +52,13 @@ EXEMPT = frozenset({
     "preflight", "doctor", "help", "--help", "-h", "config", "skill",
     "size", "pdfinfo", "steps", "plan", "status", "corpusstatus", "artifacts",
     "ls", "links", "dests", "urls", "fonts", "fonts_layer", "images", "route",
+    # T-0109 — `linescheck` holds a lines.json to the reading contract. It
+    # opens ONE json, returns prose, writes nothing and can reach no paid
+    # lane, so gating it would only mean a reader cannot ask "is this file
+    # sound?" without first attesting the SKILL -- and the answer it gives is
+    # the cheapest rung of the ladder, the thing you run BEFORE deciding to
+    # read the SKILL at all. Keep it unable to write, or move it out of here.
+    "linescheck",
 })
 
 

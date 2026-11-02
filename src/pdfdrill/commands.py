@@ -22608,3 +22608,206 @@ def cmd_unpack(pdf: Path, match: "str | None" = None, out_dir: "str | None" = No
         lines.append(f"  Next: pdfdrill route {done[0]['bibkey']}  "
                      f"(each member is now its own document)")
     return "\n".join(lines)
+
+
+def cmd_lines_check(target: Path, limit: int = 20):
+    """RUNG 0 of the reader ladder: does this `lines.json` keep the reading
+    contract? No reference, no key, no render — only the file.
+
+    Three questions, in the order that matters:
+
+    1. WHO WROTE IT. Taken from the file by `reading_contract.producer_of`,
+       never from its shape: our own readers write MathPix's keys on purpose
+       (`to_lines_json`'s comment: "MathPix's own page keys first, so a
+       consumer written against their export reads ours unchanged"), so a
+       shape test calls our output MathPix and then holds it to MathPix's
+       fields. That is the defect the T-0107 review found in the contract's
+       own measurement, where 34 files of ours were counted as MathPix.
+
+    2. ARE THE TYPES IN THE CONTRACT. An unknown type is the case that must
+       reach a human — a reader inventing a name, or MathPix adding one.
+       Declared-only types are NOT unknown: the contract says in writing that
+       nothing reads them.
+
+    3. DOES EVERY LINE CARRY WHAT ITS VINTAGE ALWAYS CARRIES. The two MathPix
+       API vintages differ (contract §4a): classic always has 12 line fields,
+       newer 15. The list is MEASURED (no counter-example in 3.8M lines), not
+       declared by MathPix, so a missing field means "unlike every other
+       reading we hold", which is worth refusing but is not a spec violation.
+
+    Refusals NAME the page, the line and the field. A checker that says
+    "invalid" without saying where sends the reader back to grepping by hand.
+    """
+    import json as _json
+
+    from docmodel import reading_contract as RC
+    from .cli import Report
+
+    path = Path(target)
+    if path.is_dir():
+        return Report("lines-check: %s is a directory; name a .lines.json "
+                      "file or a PDF beside one." % path.name, 2)
+    if not path.exists():
+        return Report("lines-check: no such file: %s" % path, 2)
+    # a PDF (or any other path) resolves to the reading beside it
+    if path.suffix.lower() != ".json":
+        sc = Sidecar(path)
+        cand = _lines_json_path(path) if "_lines_json_path" in globals() else None
+        if cand is None or not Path(cand).exists():
+            cand = path.with_suffix("").with_suffix(".lines.json")
+        if not Path(cand).exists():
+            return Report(
+                "lines-check: no lines.json beside %s. The readings this "
+                "checks are written by `pdfdrill model`, `glyphlines` or "
+                "`mathpix`; none has run here." % path.name, 2)
+        path = Path(cand)
+        del sc
+
+    try:
+        doc = _json.loads(path.read_text(encoding="utf-8", errors="replace"))
+    except Exception as e:                                   # noqa: BLE001
+        return Report("lines-check %s: REFUSED — the file is not JSON (%s: %s)"
+                      % (path.name, type(e).__name__, e), 1)
+
+    pages = doc.get("pages") if isinstance(doc, dict) else doc
+    if not isinstance(pages, list):
+        return Report("lines-check %s: REFUSED — no `pages` list. A reading is "
+                      "`{\"pages\": [...]}` or a bare list of pages."
+                      % path.name, 1)
+
+    try:
+        contract = RC.load_contract()
+    except RC.ContractMissing as e:
+        return Report("lines-check %s: NOT RUN — %s" % (path.name, e), 2)
+
+    producer, why = RC.producer_of(doc if isinstance(doc, dict) else {}, pages)
+    cls = contract.get("classes", {}).get(producer, {})
+    always_line = cls.get("always_present_line_fields")
+    always_page = cls.get("always_present_page_fields")
+    is_mathpix = producer.startswith("mathpix")
+
+    n_pages = sum(1 for pg in pages if isinstance(pg, dict))
+    n_lines = sum(len(pg.get("lines") or [])
+                  for pg in pages if isinstance(pg, dict))
+
+    # ---- the walk -------------------------------------------------------- #
+    problems, observed = [], []
+    for pg in pages:
+        if not isinstance(pg, dict):
+            problems.append("a page is not an object (%r)" % type(pg).__name__)
+            continue
+        pno = pg.get("page", "?")
+        for field in (always_page or []):
+            if field not in pg:
+                problems.append(
+                    'page %s: missing page field "%s" — every %s page in the '
+                    'library carries it' % (pno, field, producer))
+        for i, ln in enumerate(pg.get("lines") or [], 1):
+            if not isinstance(ln, dict):
+                problems.append("page %s line %d: not an object" % (pno, i))
+                continue
+            where = "page %s line %s" % (pno, ln.get("id", "#%d" % i))
+            t = ln.get("type")
+            observed.append(t)
+            for field in (always_line or []):
+                if field not in ln:
+                    problems.append(
+                        '%s: missing field "%s" — every %s line in the library '
+                        'carries it (%d lines, no exception)'
+                        % (where, field, producer, cls.get("lines", 0)))
+            if t is None:
+                problems.append('%s: no `type`' % where)
+
+    unknown = RC.unknown_types([t for t in observed if t])
+    first_seen = {}
+    if unknown:
+        for pg in pages:
+            if not isinstance(pg, dict):
+                continue
+            for i, ln in enumerate(pg.get("lines") or [], 1):
+                if not isinstance(ln, dict):
+                    continue
+                t = ln.get("type")
+                if t in unknown and t not in first_seen:
+                    first_seen[t] = "page %s line %s" % (
+                        pg.get("page", "?"), ln.get("id", "#%d" % i))
+        for t in unknown:
+            problems.append('%s: type "%s" is not in contract %s'
+                            % (first_seen.get(t, "page ? line ?"), t,
+                               contract.get("contract", "reading/1")))
+
+    n_types = len({t for t in observed if t})
+    head = ("lines-check %s: %s (%s) — %d page(s), %d line(s)."
+            % (path.name, producer, why, n_pages, n_lines))
+
+    if producer == "unknown-shape":
+        return Report(
+            head + "\n\nREFUSED — the file names no producer and carries no "
+            "marker, so there is nothing to check it against. Contract §10: a "
+            "file carrying neither is counted and listed, never assigned. "
+            "Every reader records its producer (T-0045 rule 5); this one did "
+            "not, so it predates that rule or was hand-made.", 1)
+
+    if problems:
+        shown = problems[:limit]
+        more = len(problems) - len(shown)
+        out = [head.rstrip(".") + ". REFUSED: %d problem(s)." % len(problems),
+               ""]
+        out += ["  " + p for p in shown]
+        if more:
+            out.append("  ... and %d more" % more)
+        out += ["",
+                "A reading that breaks the contract is not one the twenty "
+                "modules downstream can use: each reads a type or a field by "
+                "name, and a missing one is read as absent content rather "
+                "than as a broken file. Fix the reader, or record the "
+                "difference in contracts/reading.md so it stops being a "
+                "surprise."]
+        return Report("\n".join(out), 1)
+
+    out = [head, "  types: %d known, 0 unknown" % n_types]
+    if always_line:
+        out.append("  fields: every line carries the %d field(s) always "
+                   "present in %s" % (len(always_line), producer))
+        out.append("Clean against contract %s (%d type(s) in its vocabulary)."
+                   % (contract.get("contract", "reading/1"),
+                      len(contract.get("types", []))))
+        return Report("\n".join(out), 0)
+
+    if is_mathpix:
+        # A CHECK THAT COULD NOT RUN IS NOT A PASS. This command exited 0 and
+        # printed "Clean" over a reading with a field removed, because the
+        # contract copy in use predates `always_present_line_fields` and the
+        # field check silently did not happen. The hermetic tests pinned the
+        # in-repo contract and passed; the installed command loaded
+        # ~/drillgroup's and did not. That is this project's standing failure
+        # shape -- the thing that verifies does not verify the thing that runs
+        # -- and the house rule for it is "a test that can't run is NOT RUN",
+        # which has to apply to the checker itself.
+        out.append("  fields: NOT CHECKED — the contract in use records no "
+                   "always-present field list for %s." % producer)
+        out += [
+            "",
+            "INCOMPLETE: the type check passed, the field check DID NOT RUN. "
+            "This is not a clean verdict.",
+            "  contract in use: %s" % contract.get("path", "?"),
+            "  fix: regenerate it so it carries the field lists —",
+            "    python3 tools/reading-contract/measure.py <measurement-dir>",
+            "    python3 tools/reading-contract/gen_contract.py "
+            "<out-dir> <measurement-dir>",
+            "  or point PDFDRILL_READING_CONTRACT at a copy that has them.",
+        ]
+        return Report("\n".join(out), 2)
+
+    # A READER is different: the contract defines always-present fields for
+    # the two MathPix vintages ONLY, and never claimed to for our own readers.
+    # Nothing is missing here, so the type check IS the whole available check
+    # and the verdict stands -- but it says what it did not look at.
+    out.append("  fields: not applicable — the contract records an "
+               "always-present field list for the two MathPix API vintages "
+               "only, and states none for this reader.")
+    out.append("Clean against contract %s (%d type(s) in its vocabulary): "
+               "every type is known. No field claim is made."
+               % (contract.get("contract", "reading/1"),
+                  len(contract.get("types", []))))
+    return Report("\n".join(out), 0)
