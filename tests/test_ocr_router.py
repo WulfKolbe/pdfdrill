@@ -219,3 +219,61 @@ if __name__ == "__main__":
     if failed:
         print(f"\n{len(failed)} of {len(tests)} failed"); sys.exit(1)
     print(f"\nAll {len(tests)} tests passed.")
+
+
+# ── an OCR underlay must not be reported as "no text layer" ─────────────────
+# 2026-11-02: `size` prints "has a text layer" for an ABBYY-OCR'd scan, and
+# `route` printed "a scan with no text layer" for the same document one line
+# later. The LANE was always right — `is_scanned_page_images` has keyed on the
+# page-image geometry for months — but the sentence was false, and two sessions
+# read it, concluded the scan test was missing, and started to build one that
+# already existed. A lane that is right and says something false about why is a
+# defect: the contract (docs/LANES.md) is that route/size/drill/doctor describe
+# one document in the same words.
+
+_UNDERLAY = dict(text_layer=True, scanned_images=True, needs_ocr=None,
+                 page_count=377, arxiv_source=False)
+_PLAIN_SCAN = dict(text_layer=False, scanned_images=False, needs_ocr=True,
+                   page_count=377, arxiv_source=False)
+
+# every scanned lane, by the thing that selects it
+_LANES = [
+    ("gemma",    dict(keys=GEMMA)),
+    ("mathpix",  dict(keys=MPX)),
+    ("geometry", dict(keys=frozenset(), ink=False)),                # no ink
+    ("geometry", dict(keys=frozenset(), ink=True, detector=False)),  # no types
+    ("geometry", dict(keys=frozenset(), ink=True, detector=True)),   # typed
+]
+
+
+def test_every_scanned_lane_reports_the_underlay_instead_of_denying_the_text():
+    for lane, extra in _LANES:
+        dec = R.choose_route(**_UNDERLAY, **extra)
+        assert dec.lane == lane, f"{extra} picked {dec.lane}, expected {lane}"
+        assert "no text layer" not in dec.reason, (
+            f"{lane} {extra}: still denies the text layer — `size` says it has one:\n"
+            f"  {dec.reason}")
+        assert "UNDERLAY" in dec.reason, (
+            f"{lane} {extra}: does not say the text is an OCR underlay:\n  {dec.reason}")
+        assert "ignored" in dec.reason, (
+            f"{lane} {extra}: does not say the underlay is ignored:\n  {dec.reason}")
+
+
+def test_a_plain_scan_still_says_it_has_no_text_layer():
+    """The underlay wording must not leak onto a scan that really has no text."""
+    for lane, extra in _LANES:
+        dec = R.choose_route(**_PLAIN_SCAN, **extra)
+        assert dec.lane == lane
+        assert "a scan with no text layer" in dec.reason, (
+            f"{lane} {extra}: a textless scan should say so:\n  {dec.reason}")
+        assert "UNDERLAY" not in dec.reason, (
+            f"{lane} {extra}: invented an underlay on a textless scan:\n  {dec.reason}")
+
+
+def test_the_underlay_still_takes_the_scanned_lane_not_born_digital():
+    """The behaviour this message describes, asserted separately from the words:
+    the page-image test overrides the text layer and the document is a scan."""
+    dec = R.choose_route(**_UNDERLAY, keys=frozenset(), ink=True,
+                                  detector=True)
+    assert dec.lane == "geometry", dec.lane
+    assert dec.cost == "free", dec.cost

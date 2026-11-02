@@ -151,6 +151,20 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
     if underlay:
         needs_ocr, text_layer = True, False
 
+    # HOW THE DOCUMENT'S OWN TEXT IS DESCRIBED, said once for the five OCR
+    # lanes below. With an underlay they must NOT say "no text layer": `size`
+    # prints "has a text layer" for the same document, and that contradiction
+    # cost two sessions a morning on 2026-11-02 — both read `route` saying "a
+    # scan with no text layer" about an ABBYY file, concluded the page-image
+    # test was missing, and set out to add one that has been here for months
+    # (`is_scanned_page_images`, _PAGE_IMAGE_COVER 0.85 of the page area on
+    # _SCAN_PAGE_SHARE 0.8 of the pages). The layer is real. It is somebody
+    # else's reading, and the lane ignores it on purpose; saying so is the
+    # whole point, because it is also the most useful fact about the document.
+    scan_text = ("a scan whose only text is an OCR UNDERLAY, which is ignored "
+                 "(it re-serves somebody else's reading and never recovers the "
+                 "maths)" if underlay else "a scan with no text layer")
+
     # 0 — not classified yet. `size` is free and cheap and decides everything
     # below, so it is never guessed around.
     if text_layer is None and not needs_ocr:
@@ -197,7 +211,7 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
         if GEMMA_KEY in keys:
             return RouteDecision(
                 lane="gemma",
-                reason=f"a scan with no text layer and no author's source, "
+                reason=f"{scan_text} and no author's source, "
                        f"{pc or '?'} sheets — the model lane reads it at a "
                        f"measured 0.000718 EUR per printed page, and refuses "
                        f"against PDFDRILL_OCR_BUDGET_EUR before the first call",
@@ -207,7 +221,7 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
         if MATHPIX_KEY in keys:
             return RouteDecision(
                 lane="mathpix",
-                reason=f"a scan with no text layer, no author's source and no "
+                reason=f"{scan_text}, no author's source and no "
                        f"MAKORA_API_KEY, {pc or '?'} pages — MathPix is the "
                        f"reading that is left, and it is the richest one",
                 command="pdfdrill mathpix <pdf>   (PAID)",
@@ -228,7 +242,7 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
         if (ink_available() if ink is None else ink) is False:
             return RouteDecision(
                 lane="geometry",
-                reason=f"a scan with no text layer, no author's source and no "
+                reason=f"{scan_text}, no author's source and no "
                        f"reading key, {pc or '?'} pages — and no NumPy, which "
                        f"is the geometry lane's ink half (it FINDS the lines; "
                        f"the detector only types them), so there is no free "
@@ -249,7 +263,7 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
             # missing.
             return RouteDecision(
                 lane="geometry",
-                reason=f"a scan with no text layer, no author's source and no "
+                reason=f"{scan_text}, no author's source and no "
                        f"reading key, {pc or '?'} pages — and no layout detector "
                        f"either, so the page's own INK gives the lane: every "
                        f"printed line gets a box and NO type (a figure arrives "
@@ -261,7 +275,7 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
                 cost="free")
         return RouteDecision(
             lane="geometry",
-            reason=f"a scan with no text layer, no author's source and no "
+            reason=f"{scan_text}, no author's source and no "
                    f"reading key, {pc or '?'} pages — so the words cannot be had "
                    f"for free, but the STRUCTURE can: the layout detector is "
                    f"offline and free, and gives a lines.json in which every "
