@@ -99,8 +99,35 @@ def blob_dir_for(pdf_path: str | Path) -> tuple[Path, Path]:
     self_json = parent / f"{p.stem}.drill.json"
     legacy_json = parent / f"{p.name}.drill.json"
     legacy_dir = parent / f"{p.name}.drill"
-    if parent.name == p.stem and (
-            self_json.exists() or not (legacy_json.exists() or legacy_dir.exists())):
+    no_legacy = not (legacy_json.exists() or legacy_dir.exists())
+    if parent.name == p.stem:
+        # the library layout. A stray `<name>.pdf.drill/` does not flip it.
+        if self_json.exists() or no_legacy:
+            return parent, self_json
+    elif self_json.exists() and no_legacy:
+        # T-0122 — AND THE SIDECAR IS PROOF, WHATEVER THE FOLDER IS CALLED.
+        # The gate used to be `parent.name == p.stem` alone, so the same two
+        # files were read two ways: `0707.4470/` self-contained, and
+        # `anything-else/` holding the identical `0707.4470.pdf` and
+        # `0707.4470.drill.json` legacy. That contradicted this docstring's own
+        # "ALWAYS wins", and it cost a measured refusal: a document folder
+        # copied into a working directory under another name sent
+        # `inkreport`'s preflight to `<stem>.pdf.drill/`, which no copy
+        # creates, so it answered "no model.docmodel.json — run `pdfdrill
+        # model` first" with a complete 472-object model sitting at the top
+        # level, refused, and rebuilt the model twice (T-0116 phase 2,
+        # 2026-11-01 19:53). A self-contained sidecar exists only because some
+        # earlier run already treated this folder as the document's own, so it
+        # is evidence and not a coincidence of naming.
+        #
+        # The name test stays FIRST and stays load-bearing: without it, every
+        # PDF in a multi-document directory would resolve its blob_dir to the
+        # shared directory, where `model.docmodel.json`, `residuals.pdf` and
+        # `evidence-*.pdf` carry the same name for every document — the
+        # collision `doclock.ensure_doc_folder` exists to prevent, which 854
+        # measured as 2,667 nested folders. This branch only fires where a
+        # sidecar is already present AND no legacy artifact is, so it cannot
+        # promote a folder nothing has drilled.
         return parent, self_json
     return legacy_dir, legacy_json
 
