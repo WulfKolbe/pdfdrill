@@ -1041,6 +1041,12 @@ def _do_linescmp(args):
     return cmd_linescmp(_pdf(args), reference=ref or "")
 
 
+def _do_mdcheck(args):
+    """pdfdrill mdcheck <pdf> — the free structure gate on the md projection."""
+    from .commands import cmd_mdcheck
+    return cmd_mdcheck(_pdf(args))
+
+
 def _do_spend(args):
     """pdfdrill spend <pdf>"""
     from .commands import cmd_spend
@@ -3130,6 +3136,7 @@ HANDLERS = {
         "gemmaocr": _do_gemmaocr,
         "yololayout": _do_yololayout,
         "linescmp": _do_linescmp,
+        "mdcheck": _do_mdcheck,
         "spend": _do_spend,
         "ocr": _do_ocr,
         "continuity": _do_continuity,

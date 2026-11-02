@@ -446,6 +446,50 @@ def cmd_yololayout(pdf: Path, force: bool = False, pages: str = "",
             f"  classes: {top}\n"
             f"Next: pdfdrill gemmaocr <pdf> uses these as alignment anchors.")
 
+def cmd_mdcheck(pdf: Path, pages: str = "") -> str:
+    """The FREE structure gate on this document's Markdown projection.
+
+    Rung 1 of the ladder the owner set (2026-11-02): this check must come in
+    under 1 error/page before a Gemma4 page comparison is worth running, and
+    that before a page-by-page MathPix comparison. It needs no reference, no
+    key and no render — only the `.md` and the reading — which is why running
+    it last is how a 514-page document came to be audited by hand.
+    """
+    from . import mdstructure, pagelines, probes
+    sc = Sidecar(pdf)
+    md = sc.blob_dir / _md_filename(pdf, sc)
+    if not md.is_file():
+        return (f"No Markdown projection for {pdf.name} — the gate reads the "
+                f"projection, not the PDF. Run `pdfdrill md {pdf.name}` first.")
+    lines_json = pagelines.lines_json(pdf)
+    reading = None
+    if lines_json.is_file():
+        try:
+            reading = json.loads(lines_json.read_text())
+        except (OSError, ValueError):
+            reading = None
+    findings = mdstructure.check(md.read_text(errors="replace"))
+    n_pages = probes.page_count(sc) or 0
+    out = [mdstructure.summary(findings, n_pages, reading)]
+    if findings and reading is not None:
+        page, _ = mdstructure.worst_page(findings, reading)
+        placed = mdstructure.attribute(findings, reading).get(page) or []
+        if placed:
+            out.append("")
+            out.append(f"The worst page ({page}), line by line:")
+            for f in placed[:20]:
+                out.append(f"  L{f.line:<6} {f.kind:<24} {'#' * f.level} {f.text}")
+        unplaced = len(mdstructure.attribute(findings, reading).get(None, []))
+        if unplaced:
+            out.append("")
+            out.append(f"  ({unplaced} finding(s) could not be attributed to a "
+                       f"page: the projection rewrites text — dehyphenation, "
+                       f"joins — so a heading need not match a reading line "
+                       f"verbatim. They are counted in the total and NOT in the "
+                       f"worst-page number.)")
+    return "\n".join(out)
+
+
 
 def cmd_linescmp(pdf: Path, reference: str = "") -> str:
     """Score this document's lines.json against ANOTHER reading of it.

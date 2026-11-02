@@ -404,6 +404,8 @@ commands:
     flag: --image-base
     help: 'origin serving MathPix-shaped crops (http://localhost:8791)'
   typed: true
+  requires:
+  - model
   done_when: file:{bibkey}.md
 - name: structmd
   section: Extraction
@@ -3894,6 +3896,31 @@ commands:
     flag: --allow-download
     type: flag
     help: fetch the weights once if they are not in the local Hugging Face cache
+  typed: true
+- name: mdcheck
+  section: Introspection (fast, no extraction)
+  summary: 'RUNG 1 of the reader ladder, and the cheapest check there is: does this document''s
+    Markdown projection make structural sense? No reference, no key, no render — only the `.md`
+    and the reading. Four classes, each measured on d09 section 1.1: E3 a display equation emitted
+    as a heading (`## p = p + e E(tau)dtau, (1.5)`), so the maths is neither isolated nor
+    delimited; E1 a heading one level SHALLOWER than the heading it continues (`### 1.1 Classical
+    Dynamics ...` then `## of Strong Plane ...`), which is a hierarchy that cannot be read; E4 a
+    heading opening with a lowercase connective, which is a wrapped line and not a heading; E2 a
+    second heading at the same level with no prose between, which is one title broken across
+    lines. ONE LINE ONE ERROR (the classes overlap; strongest wins) so the rate means something.
+    THE VERDICT TURNS ON THE WORST PAGE, never the document mean — d09 scored 0.494/page over 514
+    pages and 7 errors on page 1, and the mean would have passed the projection the owner had just
+    condemned. The ladder (owner, 2026-11-02): this under 1 error/page, THEN a Gemma4 single-page
+    comparison, THEN page-by-page MathPix (`linescmp`). Running the last one first is how a
+    514-page book came to be audited by hand.'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  requires:
+  - md
   typed: true
 - name: linescmp
   section: Introspection (fast, no extraction)
