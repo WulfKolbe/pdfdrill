@@ -398,6 +398,55 @@ def _pdf(args: list[str]) -> Path:
     # resolves exactly like `/home/me/x.pdf`. A no-op on URLs / bare arXiv ids.
     if not sources.is_url(arg):
         arg = str(Path(arg).expanduser())
+        # A READING, HANDED IN DIRECTLY. 896 taught the resolver about a
+        # FOLDER that holds a reading and no PDF; it never learned about the
+        # reading FILE itself. So `pdfdrill md <path>/d09.lines.json` — which
+        # is what drillui's `add` passes when you give it a pdf2mmd2 output —
+        # fell through every branch below, became the "document", got a
+        # `d09.lines.json.drill/` sidecar of its own, and `md` then reported
+        # "d09.lines.json is a SCANNED PDF (no text layer)". That sentence is
+        # wrong three times over: it is not a PDF, it is not scanned, and the
+        # file is a READING — the one thing in the tree that already holds the
+        # text. Measured on the owner's case: 514 pages, `title` and
+        # `section_header` types on page 1, and `d09.pdf` sitting one directory
+        # up the whole time.
+        #
+        # A reading is not a document, so the answer is to find the document it
+        # is a reading OF and carry on with that: the projectors then pick the
+        # reading up by name exactly as they do for a MathPix lines.json.
+        _r = Path(arg)
+        if _r.is_file() and _r.name.endswith(".lines.json"):
+            # RESOLVE FIRST. `Path("d09.lines.json").parent` is `.` and its
+            # `.parent` is `.` again — a relative argument collapses instead of
+            # walking up, so the one-level-up candidate silently became the cwd
+            # and the document one directory away was reported as missing. It
+            # cost one acceptance run to see; the unit test had passed because
+            # it built absolute paths in a tmpdir.
+            _r = _r.resolve()
+            _stem = _r.name[: -len(".lines.json")]
+            # beside it; one level up (pdf2mmd2 writes `<run>/<name>/<name>.lines.json`
+            # with the document at `<run>/<name>.pdf`); inside a doc folder; the library.
+            _cands = [_r.parent / f"{_stem}.pdf",
+                      _r.parent.parent / f"{_stem}.pdf",
+                      _r.parent / _stem / f"{_stem}.pdf"]
+            for _c in _cands:
+                if _c.is_file():
+                    return _probe_on_acquire(_c)
+            try:
+                from . import config as cfg
+                _lib = sources.library_pdf_for(_stem, cfg.library_root())
+            except Exception:                                      # noqa: BLE001
+                _lib = None
+            if _lib is not None:
+                return _probe_on_acquire(_lib)
+            raise FileNotFoundError(
+                f"{_r.name} is a READING, not a document — it is the text, and "
+                f"pdfdrill needs the PDF it was read from.\n"
+                f"  Looked for {_stem}.pdf beside it, one directory up, in "
+                f"{_stem}/, and in the library.\n"
+                f"  Put the PDF next to the reading (or pass the PDF instead) "
+                f"and every projection finds this lines.json by name.")
+
         # REOPEN by FOLDER: a self-contained doc folder (`<stem>/`) → the PDF
         # inside it, so `pdfdrill <cmd> <stem>/` works like the full path.
         folder_pdf = sources.pdf_in_folder(Path(arg))
