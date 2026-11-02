@@ -17,6 +17,31 @@ resolves `doc = blob_dir_for(pdf)[0]` — commented "layout-aware, never
 hardcoded" — and the check correctly reports that the blob_dir it was given
 holds no model. What is wrong is which blob_dir it was given.
 
+ONE DERIVATION, NOT TWO. The task was first described as "the sidecar path is
+derived two different ways", which would mean the writer and the check disagree.
+Measured, by wrapping `inkreport.preflight` and `model_io.save_model` in the
+clean reproduction: the path tested and the path written are THE SAME path, and
+the apparent contradiction in the original log is print ORDER. `cmd_inkreport`
+accumulates its PREFLIGHT lines in a list it returns, so they appear last,
+while `[main] wrote …` goes live to stderr. The check ran at t=1.011s against a
+blob_dir that did not exist; the model was written into it at t=1.298s and
+again at t=2.587s. So:
+
+    folder                  doc_dir the check got      model?  verdict
+    0707.4470-baseline/     0707.4470.pdf.drill/       False   REFUSED
+    0707.4470/              the folder itself          True    [ok] model
+
+Byte-identical contents in both; only the folder's name differs. That is the
+controlled comparison, and it is why the name gate is the cause rather than a
+coincidence of that one run.
+
+TWO MORE DEFECTS VISIBLE IN THE SAME RUN, recorded here because they were
+measured, not fixed and not this module's subject: the model is built TWICE in
+one command (two `save_model` calls, t=1.298s and t=2.587s), and the command
+prints "REFUSED: model, geometry. Nothing was spent and nothing was written."
+while writing a 77,641-byte residuals.pdf — a refusal message that is wrong
+about both the refusal and the writing.
+
 `blob_dir_for` gates self-containment on `parent.name == p.stem`, so the SAME
 TWO FILES are read two ways:
 
@@ -120,3 +145,51 @@ def test_a_legacy_artifact_and_no_self_contained_sidecar_is_legacy(tmp_path):
     blob, js = blob_dir_for(d / f"{STEM}.pdf")
     assert blob.name == f"{STEM}.pdf.drill"
     assert js.name == f"{STEM}.pdf.drill.json"
+
+
+# ── the shape of the run that found this ─────────────────────────────────────
+
+def _copied_doc_folder(tmp_path: Path, name: str) -> Path:
+    """A self-contained document's CONTENTS, copied into a folder called `name`.
+
+    This is what the 19:53 run did: everything a built document carries —
+    the PDF, its self-contained sidecar, its reading and a complete model at
+    the top level — in a directory that is not named after the stem.
+    """
+    d = tmp_path / name
+    d.mkdir()
+    (d / f"{STEM}.pdf").write_bytes(_PDF)
+    (d / f"{STEM}.drill.json").write_text("{}", encoding="utf-8")
+    (d / f"{STEM}.lines.json").write_text('{"pages": []}', encoding="utf-8")
+    (d / "model.docmodel.json").write_text(
+        '{"meta": {"bibkey": "%s"}, "objects": {}}' % STEM, encoding="utf-8")
+    return d
+
+
+def test_the_model_the_folder_holds_is_where_the_name_says_to_look(tmp_path):
+    """The folder named after the stem: the check's path IS the model's path."""
+    d = _copied_doc_folder(tmp_path, STEM)
+    blob, _ = blob_dir_for((d / f"{STEM}.pdf").resolve())
+    assert (blob / "model.docmodel.json").is_file()
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "T-0122: the run's own shape. A complete model sits in the folder and the "
+    "preflight is sent to a blob_dir that does not exist, so `inkreport` "
+    "answers 'no model.docmodel.json — run `pdfdrill model` first' and "
+    "REFUSES. Same two-line cause as the unit case above; kept separate "
+    "because this is the shape that was actually refused."))
+def test_a_copied_doc_folder_does_not_hide_its_own_model(tmp_path):
+    """The refusal, as a path question rather than a 290-crop chain run.
+
+    `cmd_inkreport` tests `blob_dir_for(pdf)[0] / "model.docmodel.json"`. With
+    the folder named anything else that path is `<stem>.pdf.drill/…`, which no
+    copy ever creates — while the model the copy brought sits at the top level.
+    """
+    d = _copied_doc_folder(tmp_path, "0707.4470-baseline")
+    assert (d / "model.docmodel.json").is_file(), "the model the copy brought"
+    blob, _ = blob_dir_for((d / f"{STEM}.pdf").resolve())
+    tested = blob / "model.docmodel.json"
+    assert tested.is_file(), (
+        f"the preflight tests {tested.relative_to(d)}, which does not exist, "
+        f"while a complete model sits in {d.name}/model.docmodel.json")
