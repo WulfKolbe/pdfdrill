@@ -7,8 +7,9 @@ that list in both directions:
 
   * every type in the contract is either READ by a module or marked
     declared-only, never left without a status;
-  * every type pdfdrill's own type_contract knows is in the contract, so the
-    two lists cannot drift apart;
+  * every type pdfdrill's own type_contract knows is covered by the contract
+    -- by MathPix's list or by `pdfdrill_only_types`, the names our readers
+    use and MathPix never emits -- so the two lists cannot drift apart;
   * a type that is in neither is REPORTED, not ignored -- the planted-type
     case, which is what makes this a gate rather than a description.
 
@@ -35,6 +36,19 @@ class TestTheContractItself:
     def test_it_was_measured_over_the_library_not_recalled(self):
         d = json.loads(CONTRACT.read_text(encoding="utf-8"))
         assert d["library"].endswith("pdfdrill-library")
+        # MathPix is one producer in two API vintages (contract §4a); both
+        # must be recorded, because they carry different fields.
+        assert set(d["classes"]) == {"mathpix-classic", "mathpix-newer"}
+        assert (d["classes"]["mathpix-classic"]["lines"]
+                + d["classes"]["mathpix-newer"]["lines"] == d["lines"]), (
+            "the two classes must account for every measured line")
+        # And the four names the first draft credited to MathPix must NOT be
+        # in its vocabulary: they came from 34 files of ours (§1a).
+        names = {t["name"] for t in d["types"]}
+        for bogus in ("caption", "equation", "formula", "rotated_text"):
+            assert bogus not in names, (
+                "%s is pdfdrill's own type; no MathPix file in the library "
+                "carries it" % bogus)
         assert d["measured_at"].startswith("20")
 
     def test_every_type_has_a_status(self):
@@ -84,3 +98,28 @@ class TestTheTwoListsCannotDrift:
             "pdfdrill declares line types the contract does not list: %s. "
             "Re-measure (tools/reading-contract/measure.py) and regenerate, "
             "or the two lists have drifted." % missing)
+
+    def test_the_two_vocabularies_are_kept_apart(self):
+        """MathPix's list and pdfdrill's own are DIFFERENT lists.
+
+        The first version of this gate compared pdfdrill's 38 declared types
+        against MathPix's and would have failed for ever on `rotated_text`,
+        which our reader emits and MathPix does not. A gate that cannot be
+        satisfied gets switched off, so the contract records the boundary and
+        this test holds it: the two lists must not overlap, and the union
+        must cover what pdfdrill declares.
+        """
+        mathpix = set(RC.type_names())
+        ours = {t["name"] if isinstance(t, dict) else t
+                for t in RC.pdfdrill_only_types()}
+        assert ours, "the contract must name the types MathPix does not emit"
+        assert not (mathpix & ours), (
+            "a type cannot be both MathPix's and pdfdrill-only: %s"
+            % sorted(mathpix & ours))
+
+    def test_a_pdfdrill_only_type_is_known_not_unknown(self):
+        """`rotated_text` is correct, declared, and absent from MathPix. It
+        must not reach a human as an unknown type."""
+        ours = [t["name"] if isinstance(t, dict) else t
+                for t in RC.pdfdrill_only_types()]
+        assert RC.unknown_types(ours) == []

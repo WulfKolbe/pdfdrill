@@ -1,17 +1,39 @@
 {
  "contract": "reading/1",
- "measured_at": "2026-11-02T15:08:30+0100",
+ "measured_at": "2026-11-02T17:54:23+0100",
  "library": "/home/wkolbe/pdfdrill-library",
  "producer": "mathpix",
- "files": 1475,
- "pages": 69412,
- "lines": 3853360,
+ "classes": {
+  "mathpix-classic": {
+   "files": 1392,
+   "pages": 65172,
+   "lines": 3664533,
+   "types": 37
+  },
+  "mathpix-newer": {
+   "files": 49,
+   "pages": 3437,
+   "lines": 155836,
+   "types": 32
+  }
+ },
+ "pdfdrill_only_types": [
+  {
+   "name": "rotated_text",
+   "measured_lines": 414,
+   "seen_in": "reader:pdfminer-docmodel",
+   "meaning": "sideways text in pdfdrill's own reader; `rotation` gives the angle. MathPix has `rotated_container` but emits no `rotated_text` line in any file in the library."
+  }
+ ],
+ "files": 1441,
+ "pages": 68609,
+ "lines": 3820369,
  "types": [
   {
    "name": "text",
    "meaning": "a run of prose on one baseline; the workhorse type",
-   "measured_lines": 2178196,
-   "measured_docs": 1459,
+   "measured_lines": 2153705,
+   "measured_docs": 1425,
    "parents": [
     "abstract",
     "authors",
@@ -237,8 +259,8 @@
   {
    "name": "page_info",
    "meaning": "running head, folio, arXiv stamp -- page furniture, not content",
-   "measured_lines": 130890,
-   "measured_docs": 1378,
+   "measured_lines": 130402,
+   "measured_docs": 1349,
    "parents": [
     "column",
     "diagram",
@@ -269,8 +291,8 @@
   {
    "name": "math",
    "meaning": "a display or inline equation, text carrying the LaTeX in the dialect below",
-   "measured_lines": 122616,
-   "measured_docs": 1157,
+   "measured_lines": 117039,
+   "measured_docs": 1128,
    "parents": [
     "abstract",
     "column",
@@ -366,8 +388,8 @@
   {
    "name": "code",
    "meaning": "a line of a verbatim/listing environment",
-   "measured_lines": 51162,
-   "measured_docs": 252,
+   "measured_lines": 51160,
+   "measured_docs": 251,
    "parents": [
     "chart",
     "column",
@@ -466,8 +488,8 @@
   {
    "name": "section_header",
    "meaning": "a heading at any level; level, when present, says which",
-   "measured_lines": 48392,
-   "measured_docs": 1351,
+   "measured_lines": 47960,
+   "measured_docs": 1323,
    "parents": [
     "abstract",
     "column",
@@ -564,8 +586,8 @@
   {
    "name": "figure_label",
    "meaning": "the 'Figure 3' label of a figure, separate from its caption",
-   "measured_lines": 24874,
-   "measured_docs": 1017,
+   "measured_lines": 24769,
+   "measured_docs": 1002,
    "parents": [
     "chart",
     "column",
@@ -642,8 +664,8 @@
   {
    "name": "column",
    "meaning": "a page-column container",
-   "measured_lines": 18041,
-   "measured_docs": 762,
+   "measured_lines": 17234,
+   "measured_docs": 731,
    "parents": [
     "abstract",
     "authors",
@@ -679,8 +701,8 @@
   {
    "name": "table",
    "meaning": "the table container; children are rows and columns",
-   "measured_lines": 12361,
-   "measured_docs": 801,
+   "measured_lines": 12340,
+   "measured_docs": 799,
    "parents": [
     "column",
     "complex_cell",
@@ -786,8 +808,8 @@
   {
    "name": "footnote",
    "meaning": "a footnote body at the foot of the page",
-   "measured_lines": 5813,
-   "measured_docs": 841,
+   "measured_lines": 5520,
+   "measured_docs": 813,
    "parents": [
     "column",
     "figure_label",
@@ -812,38 +834,6 @@
     "pdfdrill/sanitize.py",
     "pdfreader/project_mmd.py",
     "pdfreader/texpackages.py",
-    "streamreader/compare.py"
-   ],
-   "status": "read"
-  },
-  {
-   "name": "authors",
-   "meaning": "the author block container; its children carry the names",
-   "measured_lines": 2495,
-   "measured_docs": 1093,
-   "parents": [
-    "authors",
-    "column",
-    "diagram"
-   ],
-   "readers": [
-    "docmodel/modules/page.py",
-    "docops/projectors/beamer.py",
-    "docops/projectors/latex.py",
-    "docops/projectors/llm_compact.py",
-    "docops/projectors/scikgtex.py",
-    "docops/projectors/tiddlywiki.py",
-    "passes/builtin.py",
-    "pdfdrill/commands.py",
-    "pdfdrill/figurejoin.py",
-    "pdfdrill/identifiers.py",
-    "pdfdrill/latex_source.py",
-    "pdfdrill/linescmp.py",
-    "pdfdrill/readme.py",
-    "pdfdrill/sanitize.py",
-    "pdfdrill/sources.py",
-    "pdfreader/project_mmd.py",
-    "semantic/frontend/cells/frontmatter_docmodel.py",
     "streamreader/compare.py"
    ],
    "status": "read"
@@ -877,10 +867,42 @@
    "status": "read"
   },
   {
+   "name": "authors",
+   "meaning": "the author block container; its children carry the names",
+   "measured_lines": 2165,
+   "measured_docs": 1071,
+   "parents": [
+    "authors",
+    "column",
+    "diagram"
+   ],
+   "readers": [
+    "docmodel/modules/page.py",
+    "docops/projectors/beamer.py",
+    "docops/projectors/latex.py",
+    "docops/projectors/llm_compact.py",
+    "docops/projectors/scikgtex.py",
+    "docops/projectors/tiddlywiki.py",
+    "passes/builtin.py",
+    "pdfdrill/commands.py",
+    "pdfdrill/figurejoin.py",
+    "pdfdrill/identifiers.py",
+    "pdfdrill/latex_source.py",
+    "pdfdrill/linescmp.py",
+    "pdfdrill/readme.py",
+    "pdfdrill/sanitize.py",
+    "pdfdrill/sources.py",
+    "pdfreader/project_mmd.py",
+    "semantic/frontend/cells/frontmatter_docmodel.py",
+    "streamreader/compare.py"
+   ],
+   "status": "read"
+  },
+  {
    "name": "title",
    "meaning": "the document title",
-   "measured_lines": 1941,
-   "measured_docs": 1123,
+   "measured_lines": 1890,
+   "measured_docs": 1093,
    "parents": [
     "column"
    ],
@@ -1064,39 +1086,6 @@
    "status": "declared-only"
   },
   {
-   "name": "formula",
-   "meaning": "a chemical formula region (NOT mathematics -- see the note below)",
-   "measured_lines": 166,
-   "measured_docs": 3,
-   "parents": [],
-   "readers": [
-    "docops/projectors/compressed_tiddlers.py",
-    "docops/projectors/okf.py",
-    "pdfdrill/commands.py",
-    "pdfdrill/crossref.py",
-    "pdfdrill/docinspect.py",
-    "pdfdrill/la2speech/tiddlerpipe.py",
-    "pdfdrill/layoutgeom.py",
-    "pdfdrill/mathqc.py",
-    "pdfdrill/projection.py",
-    "pdfdrill/report_tex.py",
-    "pdfdrill/reports/__init__.py",
-    "pdfdrill/reports/budget.py",
-    "pdfdrill/reports/evidence.py",
-    "pdfdrill/reports/from_document.py",
-    "pdfdrill/reports/html.py",
-    "pdfdrill/reports/marks.py",
-    "pdfdrill/reports/residuals.py",
-    "pdfdrill/reports/rows.py",
-    "pdfdrill/reports/tex.py",
-    "pdfreader/docmodel_six.py",
-    "pdfreader/project_mmd.py",
-    "semantic/entity.py",
-    "semantic/rulebook.py"
-   ],
-   "status": "read"
-  },
-  {
    "name": "rotated_container",
    "meaning": "a container for sideways material",
    "measured_lines": 161,
@@ -1121,21 +1110,6 @@
    "status": "declared-only"
   },
   {
-   "name": "rotated_text",
-   "meaning": "sideways text; rotation gives the angle",
-   "measured_lines": 118,
-   "measured_docs": 8,
-   "parents": [
-    "column"
-   ],
-   "readers": [
-    "docmodel/modules/paragraph.py",
-    "docmodel/modules/rotated_text.py",
-    "pdfreader/project_mmd.py"
-   ],
-   "status": "read"
-  },
-  {
    "name": "icon",
    "meaning": "a small pictogram",
    "measured_lines": 108,
@@ -1147,52 +1121,6 @@
    ],
    "readers": [],
    "status": "declared-only"
-  },
-  {
-   "name": "equation",
-   "meaning": "a numbered display equation; rare, 105 lines in 2 documents",
-   "measured_lines": 105,
-   "measured_docs": 2,
-   "parents": [
-    "column"
-   ],
-   "readers": [
-    "docmodel/modules/equation.py",
-    "docmodel/modules/formula.py",
-    "docmodel/modules/paragraph.py",
-    "docops/projectors/compressed_tiddlers.py",
-    "docops/projectors/okf.py",
-    "pdfdrill/commands.py",
-    "pdfdrill/docinspect.py",
-    "pdfdrill/eqcrop.py",
-    "pdfdrill/la2speech/latex2speech.py",
-    "pdfdrill/la2speech/latexproject.py",
-    "pdfdrill/la2speech/projections.py",
-    "pdfdrill/latex_source.py",
-    "pdfdrill/llm_delegate.py",
-    "pdfdrill/markdown_source.py",
-    "pdfdrill/mathqc.py",
-    "pdfdrill/ocr_lines.py",
-    "pdfdrill/pdfinfo_layers.py",
-    "pdfdrill/projection.py",
-    "pdfdrill/report_tex.py",
-    "pdfdrill/reports/__init__.py",
-    "pdfdrill/reports/evidence.py",
-    "pdfdrill/reports/from_document.py",
-    "pdfdrill/reports/html.py",
-    "pdfdrill/reports/residuals.py",
-    "pdfdrill/reports/rows.py",
-    "pdfdrill/reports/tex.py",
-    "pdfdrill/volume.py",
-    "pdfreader/docmodel_six.py",
-    "pdfreader/equations.py",
-    "pdfreader/out/eqtable_716.py",
-    "pdfreader/pageprofile.py",
-    "pdfreader/project_mmd.py",
-    "semantic/build.py",
-    "semantic/frontend/contract.py"
-   ],
-   "status": "read"
   },
   {
    "name": "table_split_cell",
@@ -1232,71 +1160,6 @@
    ],
    "readers": [],
    "status": "declared-only"
-  },
-  {
-   "name": "caption",
-   "meaning": "a caption line; MathPix types most captions plain text instead, which is why caption_anchors() exists in line_types",
-   "measured_lines": 5,
-   "measured_docs": 2,
-   "parents": [
-    "column"
-   ],
-   "readers": [
-    "docmodel/algorithm.py",
-    "docmodel/codelisting.py",
-    "docmodel/core.py",
-    "docmodel/modules/_captions.py",
-    "docmodel/modules/diagram.py",
-    "docmodel/modules/header.py",
-    "docmodel/modules/paragraph.py",
-    "docmodel/modules/picture.py",
-    "docmodel/modules/table.py",
-    "docops/conserve.py",
-    "docops/nlp_stanza.py",
-    "docops/projectors/beamer.py",
-    "docops/projectors/compressed_tiddlers.py",
-    "docops/projectors/distill_reader.py",
-    "docops/projectors/formula_report.py",
-    "docops/projectors/latex.py",
-    "docops/projectors/latex_pipeline.py",
-    "docops/projectors/llm_compact.py",
-    "docops/projectors/llm_text.py",
-    "docops/projectors/markdown.py",
-    "docops/projectors/okf.py",
-    "docops/projectors/plaintext.py",
-    "docops/projectors/scikgtex.py",
-    "docops/projectors/tiddlywiki.py",
-    "pdfdrill/bibliography.py",
-    "pdfdrill/booktoc.py",
-    "pdfdrill/classify.py",
-    "pdfdrill/commands.py",
-    "pdfdrill/conclusion.py",
-    "pdfdrill/docgraph.py",
-    "pdfdrill/docinspect.py",
-    "pdfdrill/docpack.py",
-    "pdfdrill/heading_cleanup.py",
-    "pdfdrill/identifiers.py",
-    "pdfdrill/inkmeasure.py",
-    "pdfdrill/latex_source.py",
-    "pdfdrill/markdown_source.py",
-    "pdfdrill/pdfminer_layer.py",
-    "pdfdrill/projection.py",
-    "pdfdrill/reccontext.py",
-    "pdfdrill/report_tex.py",
-    "pdfdrill/reports/from_document.py",
-    "pdfdrill/retrieve.py",
-    "pdfdrill/texgraphics.py",
-    "pdfreader/docmodel_six.py",
-    "pdfreader/project_mmd.py",
-    "pdfreader/texpackages.py",
-    "semantic/build.py",
-    "semantic/concepts.py",
-    "semantic/gaps.py",
-    "semantic/genre.py",
-    "semantic/measurements.py",
-    "semantic/stex.py"
-   ],
-   "status": "read"
   },
   {
    "name": "x_axis_tick_label",

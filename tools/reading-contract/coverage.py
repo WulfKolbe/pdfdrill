@@ -16,7 +16,14 @@ import sys
 ROOT = Path.cwd()
 OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "work/run-files/t0107")
 m = json.loads((OUT / "measured.json").read_text(encoding="utf-8"))
-types = [t for t, n, d in m["per_producer"]["mathpix"]["types"]]
+#: MathPix is measured in two API-vintage classes; coverage is about the
+#: VOCABULARY, so it runs over their union. (It read a single "mathpix" class
+#: until the coordinator's review of 7a6dc1dc showed that class held 34 files
+#: of ours -- which is also why `caption`, `equation`, `formula` and
+#: `rotated_text` are no longer in this list: no MathPix file carries them.)
+_pp = m["per_producer"]
+types = sorted({t for cls in ("mathpix-classic", "mathpix-newer")
+                for t, n, d in _pp.get(cls, {}).get("types", [])})
 
 rows = []
 for t in types:

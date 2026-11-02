@@ -70,6 +70,27 @@ def status_of(name: str) -> "str | None":
     return None
 
 
+def pdfdrill_only_types() -> list:
+    """Line types pdfdrill DECLARES but MathPix never emits.
+
+    The contract describes two vocabularies, not one. `type_names()` is
+    MathPix's; this is the remainder pdfdrill's own readers use. Measured, not
+    asserted: a name is here only if `type_contract` declares it and no
+    MathPix file in the library carries it.
+
+    The distinction exists because the drift gate conflated the two lists in
+    its first version. It compared pdfdrill's 38 declared types against
+    MathPix's and would have failed for ever on `rotated_text`, which is
+    pdfdrill's and correct. A gate that cannot be satisfied gets deleted.
+
+    Returns NAMES, like `type_names()`, so the two are usable together. The
+    full records -- measured line count, where they were seen, meaning -- are
+    in `load_contract()["pdfdrill_only_types"]`.
+    """
+    return [t["name"] if isinstance(t, dict) else t
+            for t in (load_contract().get("pdfdrill_only_types") or [])]
+
+
 def unknown_types(observed) -> list:
     """The observed type names the contract does not list, in the order seen.
 
@@ -83,7 +104,9 @@ def unknown_types(observed) -> list:
     Duplicates collapse to the first occurrence so a 3,000-line file does
     not report the same new type 3,000 times.
     """
-    known = set(type_names())
+    # BOTH vocabularies count as known: MathPix's types and the ones pdfdrill
+    # declares for its own readers (see pdfdrill_only_types).
+    known = set(type_names()) | set(pdfdrill_only_types())
     out, seen = [], set()
     for name in observed:
         if name in known or name in seen:
