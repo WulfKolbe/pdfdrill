@@ -3676,11 +3676,37 @@ def narrow_glyph_refusal(ink_path, log_path, rows: dict, blob_dir=None):
         data = _json.loads(ink_path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         return ink_path, "could not annotate %s: %s" % (ink_path.name, exc)
+    # The UNATTRIBUTED residue gets a ROW-LEVEL mark, not only a document note
+    # (coordinator's review, 2026-11-03, and the argument is right). Rows are
+    # what gets consumed: the cascade pools per-row verdicts and filters the
+    # confirmed set on `distance == 0`. An unattributed loss INFLATES a
+    # distance, so an affected row is LESS likely to reach 0 -- it leaves the
+    # confirmed set silently and the loss reads as a reader failure instead of
+    # a font gap. A document-level note cannot be seen by a consumer reading
+    # rows.
+    #
+    # It is NOT a quarantine, and the distinction is the point: which rows
+    # carry the fault is genuinely unknown, and charging a row for a fault it
+    # may not carry is what the narrowing exists to stop. The mark says only
+    # that this row's distance is not KNOWN to be clean.
+    taint = ""
+    if summary["unattributed"]:
+        losses = glyph_losses(log_path)
+        taint = ("%d dropped character(s) in this document could not be "
+                 "attributed to a row (%s); this row's distance is not known "
+                 "to be clean"
+                 % (summary["unattributed"],
+                    ", ".join(sorted({"U+%04X in %s" % (l["code_point"],
+                                                        l["font"] or "an unnamed font")
+                                      for l in losses}))))
     for row in data.get("rows") or []:
         why = summary["rows"].get(row.get("id"))
         if why:
             row["quarantined"] = True
             row["quarantine_reason"] = why
+        if taint:
+            row["glyph_loss_unattributed"] = True
+            row["glyph_loss_taint"] = taint
     data["quarantine"] = {k: summary[k] for k in
                           ("dropped", "quarantined", "unattributed", "note")}
     tmp = ink_path.with_name(ink_path.name + ".narrow.tmp")

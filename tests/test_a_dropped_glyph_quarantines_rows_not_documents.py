@@ -211,3 +211,52 @@ def test_the_text_tested_is_the_text_that_was_typeset(tmp_path):
     # and the consequence for the quarantine
     assert set(rt.quarantine_rows(BENGALI_ONE, plain)) == {"d_EQ0001"}
     assert set(rt.quarantine_rows(BENGALI_ONE, withprov)) == {"d_EQ0002"}
+
+
+# --- the row-level taint (coordinator's review, 2026-11-03) -----------------
+
+def test_an_unattributed_loss_marks_every_row_of_the_document(tmp_path):
+    """A document note is not enough, because rows are what gets consumed.
+
+    The cascade pools PER-ROW verdicts and the confirmed set is filtered on
+    `distance == 0`. An unattributed loss INFLATES a distance, so an affected
+    row is LESS likely to reach 0 — it drops out of the confirmed set silently
+    and the drop looks like a reader failure instead of a font gap. A false
+    negative in the costume of a measurement.
+
+    This is NOT a quarantine: which rows carry the fault is genuinely unknown,
+    and charging a row for a fault it may not carry is the thing the narrowing
+    exists to stop. It is a statement that the row's distance is not KNOWN to
+    be clean, so a row-level consumer can segregate it without re-reading the
+    document.
+    """
+    log = tmp_path / "report.log"
+    log.write_text(BENGALI_ONE, encoding="utf-8")        # in no row below
+    ink = _ink(tmp_path, [{"id": "D_EQ0001", "distance": 0},
+                          {"id": "D_EQ0002", "distance": 7}])
+    kept, note = rt.narrow_glyph_refusal(ink, log, {"D_EQ0001": "a = 1",
+                                                    "D_EQ0002": "b = 2"})
+    data = json.loads(kept.read_text(encoding="utf-8"))
+    assert data["quarantine"]["unattributed"] == 1
+    for row in data["rows"]:
+        assert row["glyph_loss_unattributed"] is True
+        assert "U+09E7" in row["glyph_loss_taint"]
+        assert "quarantined" not in row, "a taint is not a quarantine"
+    assert data["rows"][0]["distance"] == 0, "the verdict itself is untouched"
+
+
+def test_a_fully_attributed_loss_taints_no_row(tmp_path):
+    """Where every loss is charged to a row, the rest of the document is clean
+    and must not be marked — otherwise the taint means nothing."""
+    log = tmp_path / "report.log"
+    log.write_text(BENGALI_ONE, encoding="utf-8")
+    ink = _ink(tmp_path, [{"id": "D_EQ0001", "distance": 99},
+                          {"id": "D_EQ0002", "distance": 7}])
+    kept, _ = rt.narrow_glyph_refusal(ink, log, {"D_EQ0001": "a = ১",
+                                                 "D_EQ0002": "b = 2"})
+    data = json.loads(kept.read_text(encoding="utf-8"))
+    assert data["quarantine"]["unattributed"] == 0
+    by_id = {r["id"]: r for r in data["rows"]}
+    assert by_id["D_EQ0001"]["quarantined"] is True
+    assert "glyph_loss_unattributed" not in by_id["D_EQ0002"]
+    assert "glyph_loss_unattributed" not in by_id["D_EQ0001"]
