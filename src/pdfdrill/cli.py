@@ -384,9 +384,43 @@ def _probe_on_acquire(p: Path) -> Path:
     return p
 
 
+def _reject_unknown_flags(args: list[str], cmd: str = "") -> None:
+    """Raise on a flag no handler recognised. One place, 169 commands.
+
+    MEASURED 2026-11-03: nothing in pdfdrill rejected an unknown flag.
+    `pdfdrill size f.pdf --nonsense-flag` exited 0 and printed the normal
+    answer, because every handler strips the flags it knows and `_pdf` reads
+    only `args[0]` — so a typo, or a flag that was never implemented, was
+    silently discarded.
+
+    That is not a usability wart. `pdfdrill inkreport --render-provenance`
+    accepted the flag, ignored it, exited 0 and measured the model's OWN LaTeX
+    instead of the competing provenance, across 929 documents and 85,688
+    readings on four machines: a plausible number for the wrong question. A
+    command that cannot say "I do not know that flag" cannot be trusted to have
+    done what its command line says.
+
+    A handler that deliberately accepts a RETIRED flag strips it before calling
+    `_pdf` (`_do_tsv` with `--ocr`, `_do_ocr` with its old flags), so anything
+    still present starting with `-` was understood by nobody. `-` and `--` pass:
+    conventional separators, not flags.
+    """
+    bad = [a for a in args if a.startswith("-") and a not in ("-", "--")]
+    if not bad:
+        return
+    where = f"`pdfdrill {cmd}`" if cmd else "this command"
+    raise ValueError(
+        f"{where} does not know {', '.join(bad)}.\n"
+        f"  Nothing was run, on purpose: a flag accepted and ignored gives a "
+        f"confident answer to a different question.\n"
+        f"  `pdfdrill help` lists the flags each command takes.")
+
+
 def _pdf(args: list[str]) -> Path:
     if not args:
         raise ValueError("No PDF file specified.")
+    # Anything the handler did not strip and did not want is unknown.
+    _reject_unknown_flags(args[1:])
     arg = args[0]
     from . import sources
     # a file:// URI (from a browser / file manager) is a local file — decode it
@@ -704,6 +738,7 @@ def _do_make(args):
         goal = rest.pop()                       # `make <pdf> <goal>` form
     if not goal:
         return "usage: pdfdrill make <pdf> --goal <capability>   (e.g. SEMANTIC_BUILT)"
+    _reject_unknown_flags(rest[1:])
     pdf = _pdf(rest[:1])
     from .sidecar import Sidecar
     from . import capability_planner as cp
@@ -2218,6 +2253,7 @@ def _do_ingest(args):
             pos.append(args[i]); i += 1
     if len(pos) < 2:
         raise ValueError("Usage: pdfdrill ingest <pdf> <candidates.json> [--provider P] [--force]")
+    _reject_unknown_flags(pos[2:])
     return cmd_ingest(_pdf(pos[:1]), pos[1], provider=provider, force=force)
 
 
@@ -2286,6 +2322,7 @@ def _do_plan(args):
             goal = a.split("=", 1)[1]; i += 1; continue
         rest.append(a); i += 1
     if goal:
+        _reject_unknown_flags(rest[1:])
         pdf = _pdf(rest[:1])
         from .sidecar import Sidecar
         from . import capability_planner as cp
@@ -2294,6 +2331,7 @@ def _do_plan(args):
         invalid = frozenset(f for f in held if not sc.capability_valid(f))
         return cp.describe(goal, held=held, invalid=invalid)
 
+    _reject_unknown_flags(args[1:])
     pdf = _pdf(args[:1])
     question = " ".join(args[1:]) if len(args) > 1 else ""
 
@@ -2382,6 +2420,7 @@ def _do_drill(args):
     reaches one. `--full` wipes the sidecar and re-runs from cold.
     """
     pdf_args: list[str] = []
+    unknown: list[str] = []
     full = False
     no_inspect = False
     for a in args:
@@ -2391,6 +2430,12 @@ def _do_drill(args):
             no_inspect = True
         elif not a.startswith("--"):
             pdf_args.append(a)
+        else:
+            # NOT dropped on the floor. `--render-provenance` reached here,
+            # was discarded by this branch, and `drill` ran as if the flag had
+            # never been typed.
+            unknown.append(a)
+    _reject_unknown_flags(unknown + pdf_args[1:])
     pdf = _pdf(pdf_args[:1])
 
     from .commands import (
