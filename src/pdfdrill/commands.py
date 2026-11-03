@@ -20681,27 +20681,29 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
         if default_ink.is_file():
             ink_path = default_ink
             adopted = f"residuals: adopted {default_ink.name} (no --ink needed)"
-    # 221 — REFUSE a residual measured against a report that dropped glyphs.
-    # This is the writer for `report.ink.json.REFUSED`, a state reporttex has
-    # recognised since 180 and nothing has ever produced. The measurement is
-    # not discarded: it is renamed, so the refusal is on disk and reversible
-    # once the report is rebuilt with the missing characters.
+    # 221 NARROWED, 2026-11-03. The owner's decision, verbatim: "my anser s
+    # clear, never reject a whole document but indicate the errors found and go
+    # on." So the refusal above is gone: the measurement stays adopted, the
+    # rows a dropped glyph actually reaches are marked `quarantined` with their
+    # reason, and the document carries a `quarantine` summary so a reader can
+    # tell "no verdict here" from "verdict zero". A `report.ink.json.REFUSED`
+    # left by the old behaviour is REVIVED and annotated rather than rebuilt --
+    # 12 documents and 1,651 rows, two of them 300 MB+ books whose rebuild is
+    # the reason 221 was expensive.
+    #
+    # The log is the PREVIOUS build's, beside report.tex — derived the same way
+    # build_report derives its destination, not assumed to be blob_dir. The
+    # text tested is the text that was TYPESET, which for a measure build
+    # rendering a provenance is `latex_<prov>` and not the model's own LaTeX.
     refused = ""
-    if ink_path is not None:
-        # the log of the PREVIOUS build, beside report.tex — derived the same
-        # way build_report derives its destination, not assumed to be blob_dir
-        ok, why = rt.ink_measurable(Path(tid).parent / "report.log")
-        if not ok:
-            if ink_path.name == "report.ink.json":
-                dest = ink_path.with_name("report.ink.json.REFUSED")
-                ink_path.replace(dest)
-                refused = ("residuals REFUSED: %s Quarantined as %s; rebuild "
-                           "this report, then re-measure." % (why, dest.name))
-            else:
-                refused = ("residuals REFUSED: %s Rebuild this report, then "
-                           "re-measure." % why)
-            ink_path = None
-            adopted = ""          # it was not adopted; it was refused
+    ink_path, narrowed = rt.narrow_glyph_refusal(
+        ink_path, Path(tid).parent / "report.log",
+        rt.typeset_rows(tid, render_provenance, prefer_refined),
+        blob_dir=sc.blob_dir)
+    if narrowed:
+        print("GLYPHS DROPPED, NARROWED: " + narrowed)
+        if ink_path is not None and not adopted:
+            adopted = "residuals: adopted %s" % ink_path.name
     ink_map = rt.load_ink(ink_path) if ink_path else None
     # 237c — can this join succeed at all? Computed BEFORE the report is built,
     # so a measurement that cannot land on these rows is named as a join

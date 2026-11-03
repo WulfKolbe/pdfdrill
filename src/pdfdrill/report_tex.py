@@ -3487,6 +3487,212 @@ def glyphs_dropped(log_path):
     return len(hits), m.group()[:120]
 
 
+#: 221 narrowed — the LaTeX command that selects each TeX math alphabet. A
+#: glyph missing from one of these is a missing LETTER OF AN ALPHABET, not a
+#: Unicode coverage gap, so the code point alone cannot say which row dropped
+#: it: `g` absent from rsfs10 is ASCII, present in most rows, and selected by
+#: `\mathscr` in very few. Where an alphabet has no selecting command (cmmi is
+#: the DEFAULT math italic; cmsy, cmex, cmr carry no command either) the loss
+#: cannot be attributed to a row at all, and is reported as unattributed rather
+#: than charged to a row that may not carry it.
+_ALPHABET_CMD = {"rsfs": "mathscr", "eufm": "mathfrak", "eufb": "mathfrak",
+                 "msbm": "mathbb"}
+
+
+def glyph_losses(log) -> list:
+    """Every character the engine threw away, parsed.
+
+    `glyphs_dropped` answers "how many, and what did the first one say" — the
+    question a refusal needs. Narrowing needs every loss WITH its font, because
+    the font decides whether a code point or an alphabet command locates the
+    row. Accepts a path or the log text itself.
+    """
+    text = log
+    if not isinstance(log, str) or "\n" not in log:
+        try:
+            text = Path(log).read_text(errors="replace")
+        except (OSError, ValueError, TypeError):
+            text = log if isinstance(log, str) else ""
+    out = []
+    for m in _GLYPH_LOST_PARTS.finditer(text or ""):
+        ch, u, hexc, font = m.group(1), m.group(2), m.group(3), (m.group(4) or "")
+        font = font.strip().rstrip("!")
+        try:
+            cp = int(u or hexc or "0", 16)
+        except ValueError:
+            cp = 0
+        fam = next((f for f in _TEX_MATH_FONTS if f in font), "")
+        out.append({"char": ch, "code_point": cp, "font": font,
+                    "alphabet": bool(fam), "family": fam,
+                    "command": _ALPHABET_CMD.get(fam, ""),
+                    "message": m.group()[:160]})
+    return out
+
+
+def _row_carries(latex: str, loss: dict) -> bool:
+    """Could THIS row have dropped THIS glyph?
+
+    A glyph can only be discarded from text that contains it, so containment is
+    necessary. For a TeX math alphabet it is not sufficient — the row must also
+    select that alphabet — and for an alphabet with no selecting command there
+    is nothing further to test, so the row is not implicated here and the loss
+    is reported as unattributed instead.
+    """
+    text = latex or ""
+    if loss["char"] and loss["char"] not in text:
+        return False
+    if not loss["alphabet"]:
+        return bool(loss["char"])
+    cmd = loss["command"]
+    return bool(cmd) and ("\\" + cmd) in text
+
+
+def quarantine_rows(log, rows: dict) -> dict:
+    """{row_id: reason} for the rows a dropped glyph actually reaches.
+
+    221's answer until 2026-11-03 was the whole document: the measurement was
+    renamed `report.ink.json.REFUSED` and every row in it lost, 1,651 sound
+    rows over 12 documents, 6 of them for one character. The owner's decision:
+    "never reject a whole document but indicate the errors found and go on".
+    """
+    out: dict = {}
+    for loss in glyph_losses(log):
+        for rid, latex in (rows or {}).items():
+            if not _row_carries(latex, loss):
+                continue
+            where = ("%s is missing the letter %r of the TeX math alphabet %s "
+                     "(selected by \\%s)"
+                     % (loss["font"] or "the font", loss["char"],
+                        loss["family"], loss["command"])
+                     if loss["alphabet"] else
+                     "U+%04X (%r) is not in %s"
+                     % (loss["code_point"], loss["char"],
+                        loss["font"] or "the font"))
+            prior = out.get(rid)
+            out[rid] = (prior + "; " + where) if prior else where
+    return out
+
+
+def glyph_loss_summary(log, rows: dict) -> dict:
+    """What the document must carry so a reader can tell "no verdict here"
+    from "verdict zero" — the other half of the owner's instruction.
+
+    `unattributed` is the honest residue: a character dropped from a running
+    header, a caption, or an alphabet with no selecting command belongs to no
+    row this rule can name. Those rows are MEASURED, so a document with an
+    unattributed loss can carry a distance inflated by a font gap — which is
+    exactly what 221 was protecting against, and is now stated per document
+    instead of costing one.
+    """
+    losses = glyph_losses(log)
+    q = quarantine_rows(log, rows)
+    unattributed = sum(
+        1 for loss in losses
+        if not any(_row_carries(l, loss) for l in (rows or {}).values()))
+    note = ""
+    if losses:
+        note = ("xelatex discarded %d character(s): %s. %d row(s) carry the "
+                "fault and are quarantined with their reason; %d loss(es) "
+                "could not be attributed to a measured row%s."
+                % (len(losses),
+                   ", ".join(sorted({("U+%04X" % l["code_point"]) for l in losses})),
+                   len(q), unattributed,
+                   " — rows measured in this document may carry a distance "
+                   "inflated by the font gap" if unattributed else ""))
+    return {"dropped": len(losses), "quarantined": len(q),
+            "unattributed": unattributed, "rows": q, "note": note}
+
+
+def typeset_rows(tiddlers, render_provenance=None, prefer_refined=False) -> dict:
+    """{title: the LaTeX this row was TYPESET from}.
+
+    Not the model's `latex` unconditionally: a measure build rendering a named
+    provenance substitutes `latex_<prov>` for every row that has one and leaves
+    the rest on the model's own text. Testing the wrong field quarantines the
+    wrong rows -- the dropped glyph may be in the reading and not in the model,
+    or the other way about.
+    """
+    import json as _json
+    data = tiddlers
+    if not isinstance(tiddlers, (list, dict)):
+        try:
+            data = _json.loads(Path(tiddlers).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+    items = data if isinstance(data, list) else (data.get("tiddlers") or [])
+    out = {}
+    for it in items:
+        title = it.get("title") or ""
+        if not TYPED_TITLE.search(title):
+            continue
+        text = ""
+        if render_provenance:
+            text = it.get("latex_%s" % render_provenance) or ""
+        if not text and prefer_refined:
+            text = it.get("latex_refined") or ""
+        out[title] = text or it.get("latex") or ""
+    return out
+
+
+def narrow_glyph_refusal(ink_path, log_path, rows: dict, blob_dir=None):
+    """Annotate a measurement for dropped glyphs instead of refusing it.
+
+    Returns `(ink_path_to_use, note)`. The note is "" when nothing dropped.
+
+    This replaces 221's whole-document refusal at the one place that performed
+    it. Three things happen here, and the second is the one that pays for the
+    change immediately:
+
+      * the measurement STAYS adopted; the rows a dropped glyph actually
+        reaches are marked `quarantined` with their reason, and the document
+        carries `quarantine` = {dropped, quarantined, unattributed, note} so a
+        reader can tell "no verdict here" from "verdict zero";
+      * a `report.ink.json.REFUSED` already on disk is REVIVED and annotated.
+        The quarantined file is the measurement -- it was only ever renamed --
+        so the 12 documents refused before this change give their 1,651 rows
+        back without rebuilding a report, and two of those documents are
+        300 MB+ books whose rebuild is the reason 221 was expensive;
+      * nothing is written when the log is clean.
+    """
+    import json as _json
+    blob = Path(blob_dir) if blob_dir is not None else (
+        Path(ink_path).parent if ink_path is not None else None)
+    revived = False
+    if ink_path is None and blob is not None:
+        dead = blob / "report.ink.json.REFUSED"
+        if dead.is_file():
+            ink_path = dead.with_name("report.ink.json")
+            dead.replace(ink_path)
+            revived = True
+    if ink_path is None:
+        return None, ""
+    ink_path = Path(ink_path)
+    summary = glyph_loss_summary(log_path, rows)
+    if not summary["dropped"]:
+        return ink_path, ("revived %s: its refusal predates the narrowing and "
+                          "its log shows no dropped character."
+                          % ink_path.name) if revived else ""
+    try:
+        data = _json.loads(ink_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return ink_path, "could not annotate %s: %s" % (ink_path.name, exc)
+    for row in data.get("rows") or []:
+        why = summary["rows"].get(row.get("id"))
+        if why:
+            row["quarantined"] = True
+            row["quarantine_reason"] = why
+    data["quarantine"] = {k: summary[k] for k in
+                          ("dropped", "quarantined", "unattributed", "note")}
+    tmp = ink_path.with_name(ink_path.name + ".narrow.tmp")
+    tmp.write_text(_json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    import os as _os
+    _os.replace(tmp, ink_path)
+    return ink_path, ("%s%d row(s) quarantined for a dropped glyph, the rest "
+                      "measured. %s"
+                      % ("revived %s and " % ink_path.name if revived else "",
+                         summary["quarantined"], summary["note"]))
+
+
 def ink_measurable(log_path) -> "tuple[bool, str]":
     """(ok, reason) — may a residual measurement of this report be trusted?
 
