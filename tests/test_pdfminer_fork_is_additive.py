@@ -111,9 +111,30 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _repo_files(name: str) -> list:
-    return [p for p in ROOT.rglob(name)
-            if ".git" not in p.parts and ".pdfmm-build" not in p.parts
-            and ".pdfmm-venv" not in p.parts]
+    """Every TRACKED file of this name. "In the repo" is what git tracks.
+
+    This walked the whole tree with a hand-kept exclusion list, which could not
+    know about the owner's scratch and worktree roots (house rules 2026-10-30:
+    scratch in `work/run-files/`, worktrees in `worktrees/<branch>/`). A
+    worktree is a full checkout, so each of nine carried its own
+    `vendor/pdfminer-glyph-identity.patch` and this test failed on every run —
+    for environmental reasons, which made a GENUINE second copy in the repo
+    indistinguishable from the noise. That is the failure the test exists to
+    catch, so it was blind precisely where it was meant to see.
+
+    `git ls-files` cannot drift: a new scratch location is ignored by
+    construction, and a copy that is actually committed is still caught.
+    """
+    import subprocess
+    try:
+        out = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z"],
+                             capture_output=True, text=True, timeout=60)
+    except (subprocess.SubprocessError, OSError):      # pragma: no cover
+        pytest.skip("no git here; 'in the repo' cannot be determined")
+    if out.returncode != 0:                            # pragma: no cover
+        pytest.skip("git ls-files failed; 'in the repo' cannot be determined")
+    return [ROOT / r for r in out.stdout.split("\0")
+            if r and Path(r).name == name]
 
 
 def test_exactly_one_patch_in_the_repo():

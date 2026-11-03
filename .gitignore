@@ -111,3 +111,9 @@ dist/
 # are products of a run, never sources, so neither is committed.
 work/
 .worktrees/
+# …and the VISIBLE location the no-hidden-folders rule moved them to
+# (owner, 2026-10-30: "no hidden files, no temp files, no files outside
+# the project folder"; worktrees live in `<project>/worktrees/<branch>`).
+# Only `.worktrees/` was listed, so nine full checkouts sat untracked but
+# NOT ignored — one `git add -A` from committing the repo into itself.
+worktrees/

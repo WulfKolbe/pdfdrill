@@ -73,8 +73,18 @@ def test_the_canonical_ui_satisfies_it():
 def test_no_other_copy_of_the_ui_is_reachable_from_the_repo():
     """DRILLUI.md's "exactly ONE canonical copy", as an assertion. A second copy
     inside the repo is the next stale UI someone launches."""
-    copies = [p for p in ROOT.rglob("drillui_term.html")
-              if ".git" not in p.parts and p != UI]
+    # TRACKED files only. "Inside the repo" is what git tracks: the tree walk
+    # also found every copy under `work/run-files/` and `worktrees/<branch>/`,
+    # which the owner's house rules mandate for scratch and worktrees, so this
+    # failed on every run for environmental reasons — and a real second copy
+    # would have looked exactly the same.
+    import subprocess
+    out = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z"],
+                         capture_output=True, text=True, timeout=60)
+    if out.returncode != 0:                            # pragma: no cover
+        pytest.skip("no git here; 'inside the repo' cannot be determined")
+    copies = [ROOT / r for r in out.stdout.split("\0")
+              if r and Path(r).name == "drillui_term.html" and ROOT / r != UI]
     assert not copies, (
         "a second drillui_term.html inside the repo: "
         + ", ".join(str(p.relative_to(ROOT)) for p in copies))

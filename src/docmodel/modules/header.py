@@ -225,7 +225,49 @@ class HeaderProcessor(BaseModule):
             cmd, caption = self._parse_header(child_text, child_display)
             stated = _CMD_ONLY_RE.search(child_display) or _CMD_RE.search(child_display)
             size = payload.get("font_size")
-            if stated:
+            # THE PRINTED NUMBER OUTRANKS THE FONT SIZE, and this file already
+            # knew it: `promotable_headings` derives a level from
+            # `num.count(".") + 1` and that rule was never applied to a line
+            # MathPix typed `section_header`.
+            #
+            # The owner's case (2026-11-02): `12.2 The flavour symmetry SU(2)f`
+            # and `12.2.1 The nucleon isospin doublet and the group SU(2)` are
+            # set in the SAME font at the SAME size, so a size-ranked level
+            # cannot separate them at all — but the dots state the depth
+            # exactly. Measured over 40 MathPix readings, 224 numbered
+            # headings: the size-derived level DISAGREES with the stated number
+            # in 94 of them (42%), and 9 font sizes each cover several depths.
+            # The disagreement is usually a uniform offset rather than a wrong
+            # order — a document's title takes size-level 1, so `1
+            # Introduction` comes out level 2 — which is exactly what a
+            # relative ranking cannot fix and an absolute number does not have.
+            #
+            # MathPix flattens the hierarchy (it emits `section_header` and
+            # leaves the depth to the reader), so deciding it here is pdfdrill's
+            # job, not a correction of MathPix.
+            # …AND A BARE `\\section` IS NOT A DEPTH STATEMENT. Measured on
+            # d09 after the first attempt at this: 267 of 279 Sections came out
+            # `level_basis: latex_command`, every one of them level 1, because
+            # the producer emits `\\section{...}` for EVERY heading — including
+            # `1.4 Nonlinear Radiation Effects…`, which is plainly a
+            # subsection. That is the owner's observation exactly: "Mathpix is
+            # mostly using \\section and not \\chapter and \\section /
+            # \\subsections", and pdf2mmd2's reader does the same.
+            #
+            # So `\\subsection`/`\\subsubsection` ARE honoured — a producer that
+            # names a depth has stated one — while a bare `\\section` yields to
+            # the printed number, which is the only depth the document itself
+            # asserts. Without this the rule below is dead code on exactly the
+            # documents it was written for.
+            num = _heading_number(caption)
+            explicit_depth = bool(stated) and cmd in _LEVEL and cmd != "section"
+            if explicit_depth:
+                level, basis = _LEVEL[cmd], "latex_command"
+            elif num:
+                level = min(num.count(".") + 1, _MAX_SIZE_LEVEL)
+                basis = "section_number"
+                self.bump("levels_from_section_number")
+            elif stated:
                 level, basis = _LEVEL.get(cmd, 1), "latex_command"
             elif size in by_size:
                 level, basis = by_size[size], "font_size"
