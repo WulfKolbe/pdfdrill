@@ -3073,6 +3073,55 @@ def crop_sha256(crops_dir: "Path | None", title: str,
 CROP_GEOMETRY_FILE = "crops.geometry.json"
 
 
+def _region_px(t: dict):
+    """(page, x, y, width, height) as ints, or None if the row has no region.
+
+    THE REGION IS WRITTEN AS A DECIMAL STRING BY EVERY `pdfminer-chars`
+    READING, and `int()` on one raises. 1609.03457 page 007, verbatim:
+
+        {"page": "007", "top_left_x": "89.56", "top_left_y": "232.73",
+         "width": "450.44", "height": "11.95"}
+
+    `int("89.56")` is a ValueError, and the caller's `except` branch was
+    written for a row carrying NO geometry: it trusts a file that exists and
+    counts a missing one as `skipped`. So these rows silently never got a
+    crop and the counter called it skipped, not failed -- 11,200 cuttable
+    rows in 53 documents, 5.7% of the library's 196,378, with no CDN uri and
+    therefore no route to a crop at all.
+
+    The frame is NOT part of the defect: 1609.03457 records page_width 612.0
+    x page_height 792.0 -- points -- and `refine.mathpix_page_dims` reports
+    that same frame, which is what the caller scales by. Parsing the decimals
+    puts the crop where the row says it is.
+
+    THE TOP-LEFT FLOORS AND THE EXTENT CEILINGS. `int()` truncates, pulling
+    the left edge inward and shrinking the width; at 400 dpi one point is
+    5.56 raster pixels, so 0.56 pt off a left edge clips 3 pixels off a
+    glyph. Rounding the corners apart instead means a fractional region never
+    loses ink. For an integral region floor and ceil are identities, so the
+    numbers are exactly what `int()` gave -- which matters because they are
+    the `crops.geometry.json` cache key (671): had they moved, every crop in
+    the library would compare unequal to its recorded geometry and re-render.
+
+    None, never an exception, so the caller's fallback path is unchanged.
+    """
+    import math
+    try:
+        # float(...) first: a page can arrive as 3.0 or "3.0", and
+        # int("3.0") raises exactly as int("89.56") did.
+        page = int(float(str(t.get("page")).strip()))
+        x = float(str(t["top_left_x"]).strip())
+        y = float(str(t["top_left_y"]).strip())
+        w = float(str(t["width"]).strip())
+        h = float(str(t["height"]).strip())
+    except (TypeError, ValueError, KeyError, AttributeError):
+        return None
+    if not all(math.isfinite(v) for v in (x, y, w, h)):
+        return None
+    left, top = math.floor(x), math.floor(y)
+    return page, left, top, math.ceil(x + w) - left, math.ceil(y + h) - top
+
+
 def _load_crop_geometry(path: Path) -> dict:
     """{title: [page, top_left_x, top_left_y, width, height]}, or {} if the
     sidecar is absent, unreadable, or not valid JSON — an unreadable
@@ -3197,19 +3246,20 @@ def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,
         # ended up with no crop at all, when its region was on the tiddler the
         # whole time and the PDF was right there. The true condition is whether
         # the FILE is missing, so this is now the fallback the CDN needs.
-        try:
-            page = int(t.get("page"))
-            box = (int(t["top_left_x"]), int(t["top_left_y"]),
-                   int(t["width"]), int(t["height"]))
-        except (TypeError, ValueError, KeyError):
+        region = _region_px(t)
+        if region is None:
             # 671 — no CURRENT geometry to compare a cached file against;
             # unchanged pre-671 behaviour (trust what is on disk, skip what
-            # is not) rather than guessing at a row this thin.
+            # is not) rather than guessing at a row this thin. A DECIMAL
+            # region no longer lands here: `_region_px` parses it, where
+            # `int("89.56")` used to raise and send 11,200 cuttable rows down
+            # this path to be counted as skipped.
             if have:
                 cached += 1
             else:
                 skipped += 1
             continue
+        page, box = region[0], region[1:]
         key = [page, box[0], box[1], box[2], box[3]]
         recorded = geom.get(title)
         if have and recorded is None:
