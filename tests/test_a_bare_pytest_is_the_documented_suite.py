@@ -37,7 +37,17 @@ ROOT = Path(__file__).resolve().parents[1]
 #: Directories a tree walk must not descend into. `vendor/.pdfmm-venv` holds an
 #: installed numpy and scipy, each with thousands of their own test files.
 SKIP_DIRS = {".git", "vendor", "node_modules", "__pycache__", ".venv",
-             "build", "dist", ".mypy_cache", ".pytest_cache"}
+             "build", "dist", ".mypy_cache", ".pytest_cache",
+             # `work` and `venv`: the house rules of 2026-10-30 put scratch,
+             # acceptance runs and virtualenvs in `<project>/work/`, and
+             # CLAUDE.md documents a venv in the checkout. A venv ships other
+             # people's test files -- pip vendors certifi, which carries
+             # `tests/test_certify.py` -- so this gate failed on a tree that
+             # followed the project's own rules, naming a file nobody here
+             # wrote. The gate's purpose is unaffected: it exists to catch a
+             # HAND-WRITTEN test outside `tests/`, which is never inside a
+             # venv, and `testpaths` keeps pytest from collecting there.
+             "work", "venv"}
 
 
 def _ini_options() -> str:
