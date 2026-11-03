@@ -567,6 +567,37 @@ Each of these cost real time or real data in this project.
     the rule it was breaking ("a formula is rendered where it stands"), which is
     the second half of the lesson: a stated intention is not a test either.
 
+46. **A source-inspection test is a contract test, and it is only meaningful on
+    a quiescent tree.** `tests/test_image_regions.py` asserts on the TEXT of a
+    function — `src = inspect.getsource(report_tex.build_report)`, then
+    `assert "no tex.zip" in src`. There is no xelatex and no subprocess in it.
+    So when a suite reported it failing, the session that ran it reasoned from
+    the subject matter rather than the code — "both of those tests build
+    reports, i.e. they compile LaTeX" — and blamed CPU contention at load 9-10
+    with twelve measurement workers running. Load cannot make `"no tex.zip" in
+    src` false, and the refutation was already in their own report: a LATER run
+    under the SAME load came back clean. They noticed that and explained it away
+    instead of treating it as the thing that killed the hypothesis.
+
+    `inspect.getsource` reads the file from disk through `linecache`, so the
+    real cause is the tree moving under the run. Measured, conclusively: the
+    dirty run was launched 18:52:53 and last wrote 19:05:28; the commit that
+    added `glyph_losses`, `quarantine_rows`, `typeset_rows` and
+    `narrow_glyph_refusal` to `report_tex.py` landed at 18:57:00 — inside that
+    window. `PYTHONDONTWRITEBYTECODE=1` was set, so rule 4's stale-`.pyc` path
+    is excluded and only the edit remains. All four observations fall out of it
+    at once, including the clean run the contention story could not hold.
+
+    Two rules, then. **Do not run the suite in a worktree you are editing** —
+    a contract test cannot distinguish "the contract is broken" from "the file
+    changed while I read it". And when a hypothesis cannot account for one of
+    your own observations, that observation is the finding; the cheapest next
+    move is `git log -1 --format=%cd <file>` against the run's timestamp, not a
+    741-second suite repeated under load. Three of the four failures are
+    explained this way. The fourth is still unknown — its name was lost to a
+    `tail -4` — and it stays on the record as unknown rather than being
+    retrofitted into a story that fits the others.
+
 ---
 
 ## 2. Environment facts that are not obvious
