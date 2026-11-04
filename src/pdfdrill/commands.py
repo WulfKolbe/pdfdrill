@@ -20973,8 +20973,15 @@ def rt_unicode_preamble(latex: str) -> str:
     return ("\\usepackage{fontspec}\n"
             "\\setmainfont{DejaVu Serif}\n"
             "\\setmonofont{DejaVu Sans Mono}\n"
-            "\\newfontfamily\\fbmath{Noto Sans Math}\n"
-            "\\newfontfamily\\fbcjk{Noto Sans CJK JP}\n"
+            # Guarded for the same reason as the report preamble
+            # (221): an unguarded \newfontfamily for an absent font
+            # aborts the compile and produces NO pdf.
+            "\\IfFontExistsTF{Noto Sans Math}"
+            "{\\newfontfamily\\fbmath{Noto Sans Math}}"
+            "{\\newcommand{\\fbmath}{}}\n"
+            "\\IfFontExistsTF{Noto Sans CJK JP}"
+            "{\\newfontfamily\\fbcjk{Noto Sans CJK JP}}"
+            "{\\newcommand{\\fbcjk}{}}\n"
             "\\usepackage{newunicodechar}\n" + decls + "\n")
 
 
