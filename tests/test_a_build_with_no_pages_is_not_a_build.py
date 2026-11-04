@@ -139,7 +139,23 @@ def test_the_refusal_quotes_the_line_that_names_the_cause(tmp_path):
     joined = "\n".join(cmds.no_pages_refusal(
         d, {"phase": "measure", "pages": None}))
     assert "Cannot proceed without" in joined
-    assert "report.compile.err" in joined
+
+
+def test_the_refusal_does_not_send_a_reader_to_a_file_it_will_delete(tmp_path):
+    """Caught by the acceptance run, not by the unit tests above.
+
+    The refusal is returned through `_bail`, which RESTORES the reading build
+    -- a build that produces pages, which by `_keep_stderr`'s own rule removes
+    `report.compile.err`. So the command printed "report.compile.err: <line>"
+    and then deleted that file before returning. The line itself survives in
+    the message; the file does not, and naming it sends the next reader
+    looking for something that is not there.
+    """
+    d = _doc(tmp_path, None, log="! something\n", compile_err=FATAL + "\n")
+    joined = "\n".join(cmds.no_pages_refusal(
+        d, {"phase": "measure", "pages": None}))
+    assert "Cannot proceed without" in joined, "the line must still be quoted"
+    assert "report.compile.err" not in joined
 
 
 def test_a_refusal_without_a_log_still_says_what_happened(tmp_path):

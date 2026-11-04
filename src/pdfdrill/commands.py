@@ -4140,7 +4140,11 @@ def no_pages_refusal(doc, stamp: dict):
                                 errors="replace").splitlines():
             t = ln.strip()
             if t and not t.startswith("#"):
-                lines.append("  report.compile.err: %s" % t[:200])
+                # NOT NAMED AS A FILE: `_bail` restores the reading
+                # build, that build produces pages, and `_keep_stderr`
+                # removes report.compile.err when a build does. The line
+                # survives here; the file does not.
+                lines.append("  the engine said: %s" % t[:200])
                 break
     return lines
 
