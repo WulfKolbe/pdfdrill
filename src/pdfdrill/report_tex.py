@@ -4855,8 +4855,21 @@ def compile_fixpoint(tex_path: Path, max_iter: int = 40):
                "-output-directory", str(work), str(src_tex)]
         demoted: set[int] = set()
         pages = nerr = 0
+        # 1012 — THE ONE PROCESS THAT KNOWS IS THE ONE WE WERE SILENCING.
+        # xelatex pipes its output to xdvipdfmx, so when xdvipdfmx refuses a
+        # font it cannot realize, xelatex dies of SIGPIPE (exit=141) with
+        # nothing to say and its log ends mid-word. The whole explanation is
+        # one line on xdvipdfmx's stderr --
+        #     xdvipdfmx:fatal: Cannot proceed without .vf or "physical" font
+        # -- and `capture_output=True` captured it only to drop it. Measured
+        # 2026-11-04 on nopi: 17 documents / 4,106 rows refused, and what the
+        # fleet saw four layers later was a ghostscript message about a
+        # missing PDF Catalog. Keep the last stderr; `_keep_stderr` writes it
+        # beside the document when the build produced no pages.
+        err_text = ""
         for _ in range(max_iter):
-            subprocess.run(cmd, cwd=d, capture_output=True, timeout=1800)
+            _p = subprocess.run(cmd, cwd=d, capture_output=True, timeout=1800)
+            err_text = _decode(_p.stderr) or err_text
             text = log.read_text(errors="replace") if log.is_file() else ""
             nerr = len(_re.findall(r"^! ", text, _re.M))
             # 884 — TeX WRAPS ITS OWN LOG AT ~79 COLUMNS, and the page count
@@ -4896,7 +4909,8 @@ def compile_fixpoint(tex_path: Path, max_iter: int = 40):
                 break
             src_tex.write_text("\n".join(src))
         # final pass for longtable column alignment
-        subprocess.run(cmd, cwd=d, capture_output=True, timeout=1800)
+        _p = subprocess.run(cmd, cwd=d, capture_output=True, timeout=1800)
+        err_text = _decode(_p.stderr) or err_text
         text = log.read_text(errors="replace") if log.is_file() else ""
         nerr = len(_re.findall(r"^! ", text, _re.M))
         m = _re.search(r"Output written on .*\((\d+) pages?", text)
@@ -4910,9 +4924,44 @@ def compile_fixpoint(tex_path: Path, max_iter: int = 40):
             _CELLRECT["rects"] = cellrect_from_aux(
                 src_tex.with_suffix(".aux"), 0.0)
         _publish(src_tex, tex_path, demoted)
+        _keep_stderr(tex_path, pages, err_text)
         return pages, nerr, len(demoted)
     finally:
         shutil.rmtree(work, ignore_errors=True)
+
+
+def _decode(raw) -> str:
+    """Bytes or str from `subprocess`, as text, never raising on bad bytes."""
+    if raw is None:
+        return ""
+    if isinstance(raw, bytes):
+        return raw.decode("utf-8", "replace")
+    return str(raw)
+
+
+def _keep_stderr(tex_path: Path, pages: int, err_text: str) -> None:
+    """Write `<stem>.compile.err` when a build produced no pages.
+
+    The file's PRESENCE is the claim "the last build of this report produced
+    no pages", so a build that produced pages removes it. A stale one beside a
+    good report reads as this build's failure, which is the same shape as the
+    stale ink.json that once made a comparison agree with itself (396).
+
+    Nothing is written when the engine said nothing: an empty file would
+    assert that the cause is unknown, when in fact it was never asked for.
+    """
+    dest = tex_path.parent / (tex_path.stem + ".compile.err")
+    if pages:
+        if dest.is_file():
+            dest.unlink()
+        return
+    body = (err_text or "").strip()
+    if not body:
+        return
+    dest.write_text(
+        "# stderr of the xelatex run that produced no pages, kept because\n"
+        "# the line that names the cause is here and in no other file.\n"
+        + body + "\n", encoding="utf-8")
 
 
 def _publish(src_tex: Path, tex_path: Path, demoted: set) -> None:

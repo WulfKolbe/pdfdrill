@@ -3962,6 +3962,11 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
                 "", "STOPPED at step 2 (build/measure): the build stamped "
                 "phase=%s, not measure. Nothing was measured."
                 % got.get("phase")])
+        # 1012 — ask whether the build produced anything, BEFORE `_bail`
+        # recompiles and overwrites the log that says why it did not.
+        _nop = no_pages_refusal(doc, got)
+        if _nop:
+            return _bail(_nop)
         out.append("")
         out.append("2 build/measure  phase=%s, %s pages, sha %s"
                    % (got.get("phase"), got.get("pages"),
@@ -4090,6 +4095,55 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
 
 
 @_writes("inkreport")
+
+def no_pages_refusal(doc, stamp: dict):
+    """Lines refusing a measure build that produced no pages, else None.
+
+    1012. inkreport step 2 verified that the build STAMPED `phase=measure` and
+    never looked at how many pages it had produced. A compile that reports
+    "0 pages, 4 error(s)" is still stamped, so a 95,879-byte report.pdf with
+    no trailer went to the rasterizer and came back as
+
+        RegionInkRefused: ghostscript wrote no raster for page 1 of report.pdf
+        at 300 dpi: Catalog dictionary not located in file
+
+    -- a ghostscript message about a PDF, for a Metafont source that was not
+    installed. 17 documents, 4,106 rows, measured on nopi 2026-11-04.
+
+    THE LOG IS READ HERE, WHICH IS THE ONLY PLACE IT STILL EXISTS. `_bail`
+    restores the reading build, and that recompile overwrites report.log with
+    a successful one -- which is why the failing log was never there to read
+    by the time anybody looked.
+    """
+    try:
+        n = int(float(str(stamp.get("pages")).strip()))
+    except (TypeError, ValueError):
+        n = 0
+    if n > 0:
+        return None
+    doc = Path(doc)
+    said = "no" if stamp.get("pages") in (None, "") else str(stamp.get("pages"))
+    lines = ["", "STOPPED at step 2 (build/measure): the build is stamped "
+                 "phase=measure and %s pages. A build that produced no pages "
+                 "is not a build, and the PDF beside it is not a report."
+                 % said]
+    log = doc / "report.log"
+    if log.is_file():
+        for ln in log.read_text(encoding="utf-8",
+                                errors="replace").splitlines():
+            if ln.startswith("! "):
+                lines.append("  first LaTeX error: %s" % ln.strip()[:200])
+                break
+    err = doc / "report.compile.err"
+    if err.is_file():
+        for ln in err.read_text(encoding="utf-8",
+                                errors="replace").splitlines():
+            t = ln.strip()
+            if t and not t.startswith("#"):
+                lines.append("  report.compile.err: %s" % t[:200])
+                break
+    return lines
+
 def cmd_inkreport(pdf: Path, preflight_only: bool = False,
                   findings: "bool | None" = None,
                   prefer_refined: bool = False,
