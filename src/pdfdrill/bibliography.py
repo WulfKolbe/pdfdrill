@@ -1050,6 +1050,23 @@ _EM = re.compile(r"\{\\(?:em|it|bf)\s+([^{}]*)\}")
 _TEXCMD = re.compile(r"\\[a-zA-Z]+\b")
 
 
+def _unfilled_cited(doc, cited: set) -> bool:
+    """Is any cited key still without a GOLD Reference?
+
+    The question `build_bibliography_from_source` asks before opening a shared
+    `.bib`. A citation stub (010) counts as unfilled — it is the placeholder the
+    `.bib` exists to turn into gold. With no `\\cite` found at all the answer is
+    yes, so a document whose citations were not detected still gets its
+    bibliography read, exactly as before this check existed.
+    """
+    if not cited:
+        return True
+    gold = {(r.props.get("citekey") or "").strip()
+            for r in doc.objects.values()
+            if r.type == "Reference" and not r.props.get("stub")}
+    return bool(cited - gold)
+
+
 def build_bibliography_from_source(doc, source_dir) -> dict:
     """Discover the bib the LaTeX source NAMES (\\bibliography{}/\\addbibresource{})
     in `source_dir`, ingest THIS paper's bibliography (the CITED subset of a
@@ -1078,7 +1095,24 @@ def build_bibliography_from_source(doc, source_dir) -> dict:
     created = 0
     if res["bbl"]:
         created += ingest_bbl(doc, Path(res["bbl"][0]).read_text(errors="replace"))
-    if res["bib"]:
+
+    # D2 -- THE .bbl IS ALREADY THE CITED SET, so the shared .bib is read only
+    # for what the .bbl did NOT supply.
+    #
+    # These were two independent `if`s, and `\bibliography{anthology,custom}` on
+    # an ACL paper makes `res["bib"][0]` the entire ACL Anthology: 41.9 MB read
+    # into memory and parsed in full AFTER main.bbl had already given all 46
+    # references. `restrict=` limits which entries are CREATED; it cannot stop
+    # the file being read. Measured on arxiv.2209.02970, 2026-11-10:
+    # `md` 476.78 s against `model` 0.16 s and `bibliography` 0.15 s -- the whole
+    # of `md`'s cost was that one file, and nothing in the result came from it.
+    #
+    # NOT a bare `elif`, and not a size threshold: a stale or truncated .bbl
+    # need not cover every `\cite`, so the condition is the measured one -- is
+    # any cited key still without a filled Reference. A database that is
+    # genuinely needed is still read, whatever its size; one that is not needed
+    # is not read, however small.
+    if res["bib"] and _unfilled_cited(doc, cited):
         created += load_bibtex_file(
             doc, Path(res["bib"][0]).read_text(errors="replace"),
             restrict=(cited or None))["created"]
