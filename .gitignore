@@ -78,6 +78,12 @@ dist/
 # R1 — the patched pdfminer is BUILT, never committed. One patch and one
 # installer live in vendor/; these are their scratch and output dirs.
 .pdfmm-venv/
+# ...and the SYMLINK form. The pattern above ends in a slash, so it
+# matches a DIRECTORY only: in a worktree the venv is a symlink to the
+# main checkout's, which slipped past this rule and was committed in
+# 298a1720 as a link naming an absolute path in the owner's home. This
+# repository is public.
+.pdfmm-venv
 .pdfmm-build/
 
 # ------------------------------------------------------------------

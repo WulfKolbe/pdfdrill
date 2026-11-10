@@ -230,14 +230,33 @@ def test_no_third_call_site_for_the_row_marking_sequence():
 # 670 review, finding 3 — a repeat of 665 (PREAMBLE font metrics)
 # ---------------------------------------------------------------------------
 
-def test_font_metrics_preamble_extracts_the_five_665_lines():
+def test_font_metrics_preamble_extracts_every_font_declaration():
+    """Was `..._the_five_665_lines`, and the rename is the point.
+
+    2026-11-04: `\\fbmath` and `\\fbcjk` were wrapped in `\\IfFontExistsTF`
+    because an unguarded `\\newfontfamily` for an absent font aborts the
+    compile and leaves a truncated pdf (the nopi incident -- see
+    `tests/test_a_missing_fallback_font_drops_a_glyph_not_the_pdf.py`).
+    The old pattern anchored `\\newfontfamily` to the START of the line, so
+    guarding those two SILENTLY DROPPED THEM from the hash: this test is
+    what caught it, falling from five lines to three. A font-metrics
+    signature blind to two of its four font declarations is the 665 defect
+    with the detector switched off.
+
+    The pattern now matches `\\newfontfamily` anywhere on a non-comment
+    line, so the count is SIX: the Bengali fallback -- previously a named
+    limit, excluded only because of where its backslash sat -- joins the
+    other three on the same argument.
+    """
     extracted = rt.font_metrics_preamble()
     assert r"\usepackage[no-math]{fontspec}" in extracted
     assert r"\setmainfont{DejaVu Serif}" in extracted
     assert r"\setmonofont{DejaVu Sans Mono}[Scale=MatchLowercase]" in extracted
-    assert r"\newfontfamily\fbmath{Noto Sans Math}" in extracted
-    assert r"\newfontfamily\fbcjk{Noto Sans CJK JP}" in extracted
-    assert len(extracted.splitlines()) == 5
+    for font in ("Noto Sans Math", "Noto Sans CJK JP", "Noto Sans Bengali"):
+        assert ("\\newfontfamily" in extracted and font in extracted), font
+    assert len(extracted.splitlines()) == 6
+    assert not [ln for ln in extracted.splitlines() if ln.lstrip().startswith("%")], (
+        "a comment reached the hash; rewording prose would force a remeasure")
 
 
 def test_a_665_style_preamble_edit_moves_the_signature(monkeypatch):

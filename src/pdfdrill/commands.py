@@ -3762,6 +3762,8 @@ INKREPORT_FINDINGS = {
 
 
 def _inkreport_chain(pdf: Path, preflight_only: bool = False,
+                     prefer_refined: bool = False,
+                     render_provenance: "str | None" = None,
                      findings: "bool | None" = None,
                      profile: str = INKREPORT_PROFILE_DEFAULT,
                      timeout: int = 900,
@@ -3913,6 +3915,8 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
                 _s.replace(_h)
             try:
                 cmd_reporttex(pdf, compile_pdf=True, legend=True,
+                              prefer_refined=prefer_refined,
+                              render_provenance=render_provenance,
                               formulas=rule, findings=findings)
                 lines = lines + [
                     "", "The reading build was restored — a failed measurement "
@@ -3955,10 +3959,28 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
         # 613 — cellrect=True: the measure build must emit pdfdrill-rows.json,
         # because inkmeasure now claims each lattice row by the rectangle that
         # contains it. Without the manifest every document refuses.
+        # T-0116 — RENDER THE COLUMN THE CALLER ASKED FOR. This call used to
+        # omit `prefer_refined`, so it fell to its default False and the chain
+        # always re-rendered the STORED reading. That is not a missing feature
+        # but a wrong answer: build a refined report by hand, run `inkreport`,
+        # and step 2 replaces your build with an unrefined one and hands back
+        # distances for the stored LaTeX while the caller believes they are
+        # reading distances for the competing column. It is also why T-0116
+        # recorded pix2text as "not integrated" — the readings join the
+        # report's rows by string (the row identifier IS the tiddler title,
+        # report_tex.py:2933) and nothing could ask the measure build to
+        # render them.
+        #
+        # THREADED, NEVER HARD-CODED: the ink OF RECORD measures the
+        # document's own reading, and `build_stamp` writes `prefer_refined`
+        # into `measured_against`, so two measurements of the same report that
+        # rendered different columns cannot be confused on disk.
         cmd_reporttex(pdf, compile_pdf=True, legend=False,
                       formulas=MEASURE_FORMULA_RULE,
                       findings=MEASURE_FINDINGS,
                       pages=MEASURE_PAGES_BOUND, ink_bullets=False,
+                      prefer_refined=prefer_refined,
+                      render_provenance=render_provenance,
                       cellrect=True)                                  # unbounded
         # 2b — 557. NOW the manifest describes the report that exists, so
         # this is where an unmeasurable one is refused. Before the build
@@ -3984,6 +4006,11 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
                 "", "STOPPED at step 2 (build/measure): the build stamped "
                 "phase=%s, not measure. Nothing was measured."
                 % got.get("phase")])
+        # 1012 — ask whether the build produced anything, BEFORE `_bail`
+        # recompiles and overwrites the log that says why it did not.
+        _nop = no_pages_refusal(doc, got)
+        if _nop:
+            return _bail(_nop)
         out.append("")
         out.append("2 build/measure  phase=%s, %s pages, sha %s"
                    % (got.get("phase"), got.get("pages"),
@@ -4017,7 +4044,20 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
         out.append("4 convert        %s" % _lines[0][:150])
 
     # 5 — the READING build, adopting.
+    #
+    # T-0116 — IT MUST RENDER THE SAME COLUMN THE MEASUREMENT DID. 557's rule
+    # is that phase 1 and phase 2 may differ only by the legend, and the first
+    # version of this change broke it in the widest possible way: the measure
+    # build rendered the competing provenance (12 rows on 0707.4470) and this
+    # build rendered the stored reading, so the ink in `measured_against`
+    # described a report whose entire maths column differed from the published
+    # one. That is defect 539's shape — an ink describing a 276-page listing
+    # while the reader opened a 19-page findings report — with the column in
+    # place of the shape. Caught by the gate check, not by a test, which is
+    # why there is now a test.
     cmd_reporttex(pdf, compile_pdf=True, legend=True, formulas=rule,
+                  prefer_refined=prefer_refined,
+                  render_provenance=render_provenance,
                   findings=findings)                # 557 — same shape as phase 1
     stamp = doc / "report.build.json"
     got = json.loads(stamp.read_text(encoding="utf-8")) if stamp.is_file() else {}
@@ -4099,8 +4139,63 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
 
 
 @_writes("inkreport")
+
+def no_pages_refusal(doc, stamp: dict):
+    """Lines refusing a measure build that produced no pages, else None.
+
+    1012. inkreport step 2 verified that the build STAMPED `phase=measure` and
+    never looked at how many pages it had produced. A compile that reports
+    "0 pages, 4 error(s)" is still stamped, so a 95,879-byte report.pdf with
+    no trailer went to the rasterizer and came back as
+
+        RegionInkRefused: ghostscript wrote no raster for page 1 of report.pdf
+        at 300 dpi: Catalog dictionary not located in file
+
+    -- a ghostscript message about a PDF, for a Metafont source that was not
+    installed. 17 documents, 4,106 rows, measured on nopi 2026-11-04.
+
+    THE LOG IS READ HERE, WHICH IS THE ONLY PLACE IT STILL EXISTS. `_bail`
+    restores the reading build, and that recompile overwrites report.log with
+    a successful one -- which is why the failing log was never there to read
+    by the time anybody looked.
+    """
+    try:
+        n = int(float(str(stamp.get("pages")).strip()))
+    except (TypeError, ValueError):
+        n = 0
+    if n > 0:
+        return None
+    doc = Path(doc)
+    said = "no" if stamp.get("pages") in (None, "") else str(stamp.get("pages"))
+    lines = ["", "STOPPED at step 2 (build/measure): the build is stamped "
+                 "phase=measure and %s pages. A build that produced no pages "
+                 "is not a build, and the PDF beside it is not a report."
+                 % said]
+    log = doc / "report.log"
+    if log.is_file():
+        for ln in log.read_text(encoding="utf-8",
+                                errors="replace").splitlines():
+            if ln.startswith("! "):
+                lines.append("  first LaTeX error: %s" % ln.strip()[:200])
+                break
+    err = doc / "report.compile.err"
+    if err.is_file():
+        for ln in err.read_text(encoding="utf-8",
+                                errors="replace").splitlines():
+            t = ln.strip()
+            if t and not t.startswith("#"):
+                # NOT NAMED AS A FILE: `_bail` restores the reading
+                # build, that build produces pages, and `_keep_stderr`
+                # removes report.compile.err when a build does. The line
+                # survives here; the file does not.
+                lines.append("  the engine said: %s" % t[:200])
+                break
+    return lines
+
 def cmd_inkreport(pdf: Path, preflight_only: bool = False,
                   findings: "bool | None" = None,
+                  prefer_refined: bool = False,
+                  render_provenance: "str | None" = None,
                   profile: str = INKREPORT_PROFILE_DEFAULT,
                   timeout: int = 900,
                   pages: "int | None" = None,
@@ -4119,9 +4214,17 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
             or profile != INKREPORT_PROFILE_DEFAULT or pages is not None):
         return _inkreport_chain(pdf, preflight_only=preflight_only,
                                 findings=findings, profile=profile,
+                                prefer_refined=prefer_refined,
+                                render_provenance=render_provenance,
                                 timeout=timeout, pages=pages,
                                 accept_stale_geometry=accept_stale_geometry)
+    # The plain path routes through `residuals --measure --pdf`, so the flag
+    # has to travel here too; otherwise `inkreport --prefer-refined` would be
+    # honoured only on the special-argument path and silently ignored on the
+    # one a plain call takes.
     out = cmd_residuals(pdf, pdf_out=True, measure=True, timeout=timeout,
+                        prefer_refined=prefer_refined,
+                        render_provenance=render_provenance,
                         accept_stale_geometry=accept_stale_geometry)
     return out + "\n" + alias_note("inkreport")
 
@@ -7188,6 +7291,8 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
 
 @_writes("residuals")
 def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
+                  prefer_refined: bool = False,
+                  render_provenance: "str | None" = None,
                   conf: "float | None" = None, pages: "int | None" = None,
                   images: bool = True, paper: str = "a3",
                   landscape: bool = True, compile_pdf: bool = True,
@@ -7220,6 +7325,8 @@ def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
     out = []
     if measure:
         out.append(_inkreport_chain(pdf, timeout=timeout, profile="internal",
+                                    prefer_refined=prefer_refined,
+                                    render_provenance=render_provenance,
                                     findings=False,
                                     accept_stale_geometry=accept_stale_geometry))
     sc = Sidecar(pdf)
@@ -20492,6 +20599,7 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                   ink: str | None = None, legend: bool = True,
                   refined: bool = False,
                   prefer_refined: bool = False,
+                  render_provenance: str | None = None,
                   formulas: str = "unresolved",
                   findings: bool = False,
                   pages: "int | None" = None,
@@ -20520,6 +20628,19 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
     changes.json. It needs no tiddlers and no crops, so it is not gated on the
     projection chain the formula report needs.
     """
+    # T-0116 — THE TWO SELECTORS MAY NOT BE COMBINED. `--prefer-refined`
+    # shows the VERIFIED correction and asserts something; `--render-provenance`
+    # renders a competing reading so it can be MEASURED and asserts nothing. A
+    # row carrying both has no defined answer, and silently preferring one is
+    # how a measurement comes to describe a column nobody chose. Refusing is
+    # the whole of the precedence rule.
+    if prefer_refined and render_provenance:
+        import sys as _sys
+        print("pdfdrill reporttex: --prefer-refined and --render-provenance "
+              "cannot be combined. The first shows a verified correction, the "
+              "second renders a competing reading for measurement; a row with "
+              "both has no defined answer. Pick one.", file=_sys.stderr)
+        raise SystemExit(2)
     from . import report_tex as rt
     sc = Sidecar(pdf)
 
@@ -20662,27 +20783,29 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
         if default_ink.is_file():
             ink_path = default_ink
             adopted = f"residuals: adopted {default_ink.name} (no --ink needed)"
-    # 221 — REFUSE a residual measured against a report that dropped glyphs.
-    # This is the writer for `report.ink.json.REFUSED`, a state reporttex has
-    # recognised since 180 and nothing has ever produced. The measurement is
-    # not discarded: it is renamed, so the refusal is on disk and reversible
-    # once the report is rebuilt with the missing characters.
+    # 221 NARROWED, 2026-11-03. The owner's decision, verbatim: "my anser s
+    # clear, never reject a whole document but indicate the errors found and go
+    # on." So the refusal above is gone: the measurement stays adopted, the
+    # rows a dropped glyph actually reaches are marked `quarantined` with their
+    # reason, and the document carries a `quarantine` summary so a reader can
+    # tell "no verdict here" from "verdict zero". A `report.ink.json.REFUSED`
+    # left by the old behaviour is REVIVED and annotated rather than rebuilt --
+    # 12 documents and 1,651 rows, two of them 300 MB+ books whose rebuild is
+    # the reason 221 was expensive.
+    #
+    # The log is the PREVIOUS build's, beside report.tex — derived the same way
+    # build_report derives its destination, not assumed to be blob_dir. The
+    # text tested is the text that was TYPESET, which for a measure build
+    # rendering a provenance is `latex_<prov>` and not the model's own LaTeX.
     refused = ""
-    if ink_path is not None:
-        # the log of the PREVIOUS build, beside report.tex — derived the same
-        # way build_report derives its destination, not assumed to be blob_dir
-        ok, why = rt.ink_measurable(Path(tid).parent / "report.log")
-        if not ok:
-            if ink_path.name == "report.ink.json":
-                dest = ink_path.with_name("report.ink.json.REFUSED")
-                ink_path.replace(dest)
-                refused = ("residuals REFUSED: %s Quarantined as %s; rebuild "
-                           "this report, then re-measure." % (why, dest.name))
-            else:
-                refused = ("residuals REFUSED: %s Rebuild this report, then "
-                           "re-measure." % why)
-            ink_path = None
-            adopted = ""          # it was not adopted; it was refused
+    ink_path, narrowed = rt.narrow_glyph_refusal(
+        ink_path, Path(tid).parent / "report.log",
+        rt.typeset_rows(tid, render_provenance, prefer_refined),
+        blob_dir=sc.blob_dir)
+    if narrowed:
+        print("GLYPHS DROPPED, NARROWED: " + narrowed)
+        if ink_path is not None and not adopted:
+            adopted = "residuals: adopted %s" % ink_path.name
     ink_map = rt.load_ink(ink_path) if ink_path else None
     # 237c — can this join succeed at all? Computed BEFORE the report is built,
     # so a measurement that cannot land on these rows is named as a join
@@ -20740,6 +20863,7 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                         pages=0,          # 593 — never bounded; see above
                         render_regions=render_regions,
                         bullets=ink_bullets,
+                        render_provenance=render_provenance,
                         cellrect=cellrect)
     # 460 — the formulas rule, stated where the build is reported. A section
     # that shrank from 4,061 rows to 1 has to say so; a reader who sees only
@@ -20908,6 +21032,9 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                 legend=legend, ink_adopted=bool(ink_map),
                 bullets=bool(ink_map) and ink_bullets,
                 prefer_refined=prefer_refined,
+                render_provenance=r.get("render_provenance") or None,
+                rendered_ids=r.get("prov_rendered_ids") or [],
+                no_candidate_ids=r.get("prov_absent_ids") or [],
                 filters={"min_conf": min_conf, "max_conf": max_conf,
                          "types": types},
                 glyphs_dropped_count=(lost[0] if lost else 0),
@@ -20948,8 +21075,15 @@ def rt_unicode_preamble(latex: str) -> str:
     return ("\\usepackage{fontspec}\n"
             "\\setmainfont{DejaVu Serif}\n"
             "\\setmonofont{DejaVu Sans Mono}\n"
-            "\\newfontfamily\\fbmath{Noto Sans Math}\n"
-            "\\newfontfamily\\fbcjk{Noto Sans CJK JP}\n"
+            # Guarded for the same reason as the report preamble
+            # (221): an unguarded \newfontfamily for an absent font
+            # aborts the compile and produces NO pdf.
+            "\\IfFontExistsTF{Noto Sans Math}"
+            "{\\newfontfamily\\fbmath{Noto Sans Math}}"
+            "{\\newcommand{\\fbmath}{}}\n"
+            "\\IfFontExistsTF{Noto Sans CJK JP}"
+            "{\\newfontfamily\\fbcjk{Noto Sans CJK JP}}"
+            "{\\newcommand{\\fbcjk}{}}\n"
             "\\usepackage{newunicodechar}\n" + decls + "\n")
 
 

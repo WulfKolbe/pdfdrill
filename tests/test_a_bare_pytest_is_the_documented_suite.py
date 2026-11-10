@@ -36,16 +36,19 @@ ROOT = Path(__file__).resolve().parents[1]
 
 #: Directories a tree walk must not descend into. `vendor/.pdfmm-venv` holds an
 #: installed numpy and scipy, each with thousands of their own test files.
-#: `work` and `worktrees` are the owner's mandated scratch and worktree roots
-#: (house rules 2026-10-30). This test keeps the TREE WALK rather than asking
-#: git, because pytest collects untracked files too — but a worktree is a full
-#: checkout of this repo, so it always contains `tests/test_*.py`, and nine of
-#: them made this fail on every run. `testpaths` is pinned to `tests/` and
-#: `test_a_bare_pytest_collects_nothing_outside_the_tests_directory` asserts
-#: that behaviourally, which is the half that actually protects collection.
 SKIP_DIRS = {".git", "vendor", "node_modules", "__pycache__", ".venv",
              "build", "dist", ".mypy_cache", ".pytest_cache",
-             "work", "worktrees", ".worktrees"}
+             # `work`, `worktrees`, `.worktrees`: main's a31be905 added these,
+             # for the same reason found here independently -- the house rules
+             # of 2026-10-30 put scratch, acceptance runs and venvs under
+             # `work/`, and this gate walked into them.
+             "work", "worktrees", ".worktrees",
+             # `venv` is the one main lacks. CLAUDE.md documents a venv IN the
+             # checkout, and a venv ships other projects' test files: pip
+             # vendors certifi, which carries `tests/test_certify.py`. This
+             # gate failed on a tree that followed the project's own rules,
+             # naming a file nobody here wrote.
+             "venv"}
 
 
 def _ini_options() -> str:

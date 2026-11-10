@@ -99,6 +99,12 @@ def test_build_report_writes_all_sections(tmp_path):
                  # select sections has no section counts, which is a different
                  # fact from four zeroes.
                  "findings": None,
+                 # T-0116 — the OUTCOME of `render_provenance`, empty here
+                 # because this build asked for no competing column. The
+                 # exact-equality assertion is what caught the three keys
+                 # being added, which is what it is for.
+                 "render_provenance": "", "prov_rendered_ids": [],
+                 "prov_absent_ids": [],
                  "unrecovered": 1, "out": tmp_path / "report.tex"}
     assert "a3paper,landscape" in tex
     # identifiers carry break opportunities after . and _ (P16 mechanism 3)

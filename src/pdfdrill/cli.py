@@ -1630,7 +1630,7 @@ def _do_inkconvert(args):
 def _do_inkreport(args):
     """pdfdrill inkreport <pdf> [--preflight-only] [--timeout N]
     [--profile internal|published] [--full] [--pages N]
-    [--accept-stale-geometry]
+    [--accept-stale-geometry] [--prefer-refined]
 
     561 — the PROFILE decides the shape: published builds the findings
     shape, internal the full listing, and BOTH phases build the same one.
@@ -1641,9 +1641,19 @@ def _do_inkreport(args):
     to, args = _opt(args, "--timeout")
     profile, args = _opt(args, "--profile")
     npages, args = _opt(args, "--pages")
+    # T-0116 — a VALUE option, so it comes off with _opt. An unstripped
+    # switch falls into the path list and is silently ignored; that is how
+    # --prefer-refined did nothing until the gate run cost 108 s to find out.
+    rprov, args = _opt(args, "--render-provenance")
+    # T-0116 — `--prefer-refined` must be STRIPPED as well as passed. A switch
+    # this handler understands but does not strip falls through into the path
+    # list and `_pdf()` ignores it, so the flag does nothing and says nothing.
     pdf_args = [a for a in args if a not in ("--preflight-only", "--full",
-                                             "--accept-stale-geometry")]
+                                             "--accept-stale-geometry",
+                                             "--prefer-refined")]
     return cmd_inkreport(_pdf(pdf_args),
+                         render_provenance=rprov,
+                         prefer_refined="--prefer-refined" in args,
                          preflight_only="--preflight-only" in args,
                          findings=(False if "--full" in args else None),
                          profile=profile or INKREPORT_PROFILE_DEFAULT,
@@ -1699,11 +1709,16 @@ def _do_reporttex(args):
     ink, args = _opt(args, "--ink")
     formulas, args = _opt(args, "--formulas")
     npages, args = _opt(args, "--pages")
+    # T-0116 — a VALUE option, so it comes off with _opt. An unstripped
+    # switch falls into the path list and is silently ignored; that is how
+    # --prefer-refined did nothing until the gate run cost 108 s to find out.
+    rprov, args = _opt(args, "--render-provenance")
     pdf_args = [a for a in args if a not in ("--compile", "--no-images",
                                              "--portrait", "--form",
                                              "--no-legend", "--refined", "--render-regions",
                                              "--prefer-refined", "--findings")]
-    return cmd_reporttex(_pdf(pdf_args), paper=paper or "a3",
+    return cmd_reporttex(_pdf(pdf_args), render_provenance=rprov,
+                         paper=paper or "a3",
                          landscape="--portrait" not in args,
                          compile_pdf="--compile" in args,
                          images="--no-images" not in args,
@@ -1772,7 +1787,7 @@ def _do_evidence(args):
 def _do_residuals(args):
     """pdfdrill residuals <pdf> [--pdf] [--measure] [--conf F] [--pages N]
     [--no-images] [--paper a4|a3] [--portrait] [--no-compile] [--timeout S]
-    [--budget-mb F] [--accept-stale-geometry]
+    [--budget-mb F] [--accept-stale-geometry] [--prefer-refined]
     — 655: crop size budget per built PDF, default 20; 670: with --measure,
     resume even though the stamp does not prove which code measured the
     report's geometry"""
@@ -1782,11 +1797,18 @@ def _do_residuals(args):
     paper, args = _opt(args, "--paper")
     timeout, args = _opt(args, "--timeout")
     budget, args = _opt(args, "--budget-mb")
+    # T-0116 — a VALUE option, so it comes off with _opt. An unstripped
+    # switch falls into the path list and is silently ignored; that is how
+    # --prefer-refined did nothing until the gate run cost 108 s to find out.
+    rprov, args = _opt(args, "--render-provenance")
     pdf_args = [a for a in args if a not in ("--pdf", "--measure", "--no-images",
                                              "--portrait", "--no-compile",
-                                             "--accept-stale-geometry")]
-    return cmd_residuals(_pdf(pdf_args), pdf_out="--pdf" in args,
+                                             "--accept-stale-geometry",
+                                             "--prefer-refined")]
+    return cmd_residuals(_pdf(pdf_args), render_provenance=rprov,
+                         pdf_out="--pdf" in args,
                          measure="--measure" in args,
+                         prefer_refined="--prefer-refined" in args,
                          conf=float(conf) if conf is not None else None,
                          pages=int(npages) if npages is not None else None,
                          images="--no-images" not in args,
