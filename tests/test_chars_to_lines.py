@@ -127,3 +127,76 @@ if __name__ == "__main__":
     if failed:
         print(f"\n{len(failed)} of {len(tests)} failed"); sys.exit(1)
     print(f"\nAll {len(tests)} tests passed.")
+
+
+def _mixed_page(width=600.0, height=800.0, full_rows=6, col_rows=8):
+    """A FULL-WIDTH band above a TWO-COLUMN body — a journal paper's first page.
+
+    This is the layout `_column_split` used to give up on. It looks for a
+    low-density valley in the middle of the char-x histogram, and the
+    full-width abstract puts characters right across the gutter, filling the
+    valley. The detector then returned None for the WHOLE page, so the
+    two-column body below fell back to y-major ordering: the columns
+    interleaved, and the line clusterer welded a left-column line to a
+    right-column line as one line object.
+
+    Measured on the owner's arxiv.2602.06992 (2026-11-10): pages 3 and 7, which
+    are two-column throughout, were detected (split_x 303.9 / 291.5); pages 1
+    and 2, which carry a full-width abstract above the columns, returned None.
+    Restricting the histogram to the y-band below the abstract found the gutter
+    on page 2 at the same 303.9, which is what named the cause.
+    """
+    chars = []
+    y = 760.0
+    for r in range(full_rows):                 # full-width lines, no gutter gap
+        y1, y0, x = y, y - 10, 50.0
+        for ch in f"AbstractLine{r:02d}SpanningAcrossTheMiddleOfThePage":
+            chars.append((x, y0, x + 8, y1, ch)); x += 8
+        y -= 20
+    y -= 30                                    # the gap below the abstract
+    for r in range(col_rows):                  # two-column body
+        y1, y0 = y, y - 10
+        lx = 50.0
+        for ch in f"LeftLine{r:02d}":
+            chars.append((lx, y0, lx + 8, y1, ch)); lx += 8
+        rx = 360.0
+        for ch in f"RightLine{r:02d}":
+            chars.append((rx, y0, rx + 8, y1, ch)); rx += 8
+        y -= 20
+    return {"page_number": 1, "width": width, "height": height,
+            "chars": _chars(*chars)}
+
+
+def test_a_full_width_abstract_does_not_hide_the_gutter_below_it():
+    lines = c2l.chars_to_lines_json({"pages": [_mixed_page()]})["pages"][0]["lines"]
+    texts = [l["text"] for l in lines]
+
+    # 1. no line object may hold BOTH columns' text
+    assert not any("Left" in t and "Right" in t for t in texts), texts
+
+    # 2. each column comes out whole and in order
+    left = [t for t in texts if "Left" in t]
+    right = [t for t in texts if "Right" in t]
+    assert left == [f"LeftLine{r:02d}" for r in range(8)], left
+    assert right == [f"RightLine{r:02d}" for r in range(8)], right
+
+    # 3. the full-width band is NOT torn in two, and is read before the columns
+    abstract = [t for t in texts if t.startswith("AbstractLine")]
+    assert len(abstract) == 6, abstract
+    assert texts.index(abstract[-1]) < texts.index(left[0]), texts
+
+
+def test_the_gutter_is_found_on_a_mixed_page_and_still_refused_on_one_column():
+    page = _mixed_page()
+    ph = page["height"]
+    items = [{"x0": c["x0"], "x1": c["x1"],
+              "top": ph - c["y1"], "bottom": ph - c["y0"]}
+             for c in page["chars"]]
+    # the mixed page HAS a gutter, in the middle of the page
+    split = c2l._column_split_for_lines(items, page["width"])
+    assert split is not None, "mixed page: gutter not found"
+    assert 200 < split < 400, split
+
+    # a page that is ONLY full-width lines has no gutter and must stay one column
+    only_full = [i for i in items if i["top"] < 100]
+    assert c2l._column_split_for_lines(only_full, page["width"]) is None

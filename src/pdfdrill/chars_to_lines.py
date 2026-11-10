@@ -86,6 +86,68 @@ def _column_split(items: list[dict], page_width: float) -> "float | None":
     return split_x
 
 
+def _spans_gutter(line: list[dict], page_width: float) -> bool:
+    """True when this y-line is ONE continuous run of text across the page
+    middle -- a full-width title, abstract, caption or footer -- rather than a
+    two-column line.
+
+    EXTENT ALONE CANNOT TELL THE TWO APART: a two-column line runs from the
+    left column's first glyph to the right column's last and is just as wide as
+    a full-width one. The internal GAP is what separates them, which is the
+    same test `_line_columns` applies further down.
+    """
+    xs = sorted(line, key=lambda i: i["x0"])
+    if len(xs) < 2:
+        return False
+    if xs[-1]["x1"] - xs[0]["x0"] < 0.5 * page_width:
+        return False                       # too narrow to hide a gutter
+    gutter_min = max(6.0, 0.015 * page_width)
+    lo, hi = 0.30 * page_width, 0.70 * page_width
+    reach = xs[0]["x1"]
+    for it in xs[1:]:
+        if it["x0"] - reach > gutter_min and lo <= (reach + it["x0"]) / 2 <= hi:
+            return False                   # a real gutter gap -> two columns
+        reach = max(reach, it["x1"])
+    return True
+
+
+def _column_split_for_lines(items: list[dict], page_width: float) -> "float | None":
+    """`_column_split`, but blind to full-width lines.
+
+    A full-width line puts glyphs right across the page middle and so FILLS the
+    density valley the gutter is found by. On a page that is full-width at the
+    top and two-column below -- a paper's first page, an abstract or a spanning
+    figure above the body -- that defeated detection for the WHOLE page: the
+    columns below were then read y-major, which interleaves them, and the line
+    clusterer welded a left-column line to a right-column line as one line.
+
+    Measured on the owner's arxiv.2602.06992 (2026-11-10). Pages 3 and 7, two
+    columns throughout, were detected at split_x 303.9 and 291.5. Pages 1 and 2,
+    which carry a full-width abstract above the body, returned None -- and
+    restricting the histogram to the y-band BELOW the abstract found page 2's
+    gutter at the same 303.9. That is what named the cause.
+
+    So the valley is measured over the non-full-width lines only. The full-width
+    lines are not discarded: `_line_columns` still keeps each of them whole,
+    because it finds no gutter gap inside them.
+    """
+    if page_width <= 0 or not items:
+        return None
+    heights = [i["bottom"] - i["top"] for i in items
+               if i.get("bottom") is not None and i["bottom"] > i["top"]]
+    tol = (statistics.median(heights) * 0.6) if heights else 3.0
+    rows: dict[int, list[dict]] = {}
+    for i in items:
+        rows.setdefault(round(i["top"] / max(tol, 0.1)), []).append(i)
+    narrow = [i for ln in rows.values()
+              if not _spans_gutter(ln, page_width) for i in ln]
+    split = _column_split(narrow, page_width)
+    if split is not None:
+        return split
+    # Not enough non-full-width text to measure: answer exactly as the
+    # whole-page detector did before this function existed.
+    return _column_split(items, page_width)
+
 def _line_columns(line: list[dict], split_x: float, gutter_min: float):
     """Split one y-line into per-column fragments. Yields (col, items): col 0/1
     for a genuine two-column line (a real gap at the gutter), or col 0 for a line
@@ -167,7 +229,7 @@ def _page_words(page: dict[str, Any]) -> list[dict[str, Any]]:
 
     # COLUMN-AWARE ordering: split each y-line into column fragments, then read
     # left column (top→bottom) before right column instead of interleaving them.
-    split_x = _column_split(items, pw)
+    split_x = _column_split_for_lines(items, pw)
     if split_x is None:
         frags = [(0, ln[0]["top"], ln) for ln in lines]      # single column
     else:
