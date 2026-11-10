@@ -185,7 +185,16 @@ def run(args=()) -> str:
     out += ["", f"{n_pass} passed, {n_fail} failed, {n_skip} NOT RUN "
                 f"(a NOT RUN is not a pass — see OWNER-TESTS.md §D)"]
     text = "\n".join(out)
+    # A NOT RUN IS NOT A PASS, AND THE EXIT CODE HAS TO SAY SO (rule 11, and
+    # CLAUDE.md rule 6). The report said "2 NOT RUN" in prose while exiting 0,
+    # so any script or CI step reading only the status read it as success —
+    # which is the precise shape of the failure this whole task exists to end:
+    # a green signal over work that was never done. 1 = a line FAILED,
+    # 3 = every line that ran passed but some could not run.
     if n_fail:
         from .cli import Report
         return Report(text, exit_code=1)
+    if n_skip:
+        from .cli import Report
+        return Report(text, exit_code=3)
     return text

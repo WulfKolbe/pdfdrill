@@ -156,10 +156,25 @@ def test_upstream_says_when_the_commit_is_not_on_origin_main(monkeypatch):
     # ONLY that. `_git` must keep answering so `is_checkout` stays true —
     # stubbing it to "" tests a tree with no git, which is a different case.
     monkeypatch.setattr(ci, "_git", lambda root, *a: "x")
-    monkeypatch.setattr(ci, "_git_ok",
-                        lambda root, *a: a[:2] != ("merge-base", "--is-ancestor"))
+
+    # The stub has to be PRECISE about each predicate, not "True for
+    # everything": `is_checkout` now also asks `check-ignore -q`, where exit 0
+    # means IGNORED. A blanket True therefore said "this directory is ignored",
+    # `is_checkout` went False, and this test failed with "(unknown)" — my own
+    # fix caught by my own suite, through a stub that was answering a question
+    # it had not been asked.
+    def ok(not_ancestor: bool):
+        def _ok(root, *a):
+            if a[:1] == ("check-ignore",):
+                return False                      # not ignored
+            if a[:2] == ("merge-base", "--is-ancestor"):
+                return not not_ancestor
+            return True
+        return _ok
+
+    monkeypatch.setattr(ci, "_git_ok", ok(not_ancestor=True))
     assert ci.upstream_state(REPO, "deadbeef") == "not on origin/main"
-    monkeypatch.setattr(ci, "_git_ok", lambda root, *a: True)
+    monkeypatch.setattr(ci, "_git_ok", ok(not_ancestor=False))
     assert ci.upstream_state(REPO, "deadbeef") == "on origin/main"
 
 
@@ -286,3 +301,48 @@ def test_every_command_prints_it_not_just_doctor(tmp_path):
                            cwd=str(tmp_path), timeout=120)
         assert r.stderr.startswith("pdfdrill "), (
             f"`pdfdrill {' '.join(argv)}` printed no banner: {r.stderr[:160]!r}")
+
+
+def test_a_folder_the_repo_IGNORES_is_not_described_by_that_repo():
+    """Found by the coordinator, 2026-11-10, and it is a real defect.
+
+    `is_checkout` asked `git rev-parse --git-dir`, which CLIMBS to the enclosing
+    checkout. So `identity()` of any directory under the repo reported the
+    repo's own branch and commit — and the test above only passed because that
+    run's TMPDIR happened to sit outside the repo. Under the house rule
+    (`TMPDIR=<project>/work/run-files`, owner 2026-10-30) it failed:
+    `assert 'main' == '(not a git checkout)'`. A test that passes for an
+    environmental reason is the same class of defect as a suite number quoted
+    without the install it came from.
+
+    THIS TEST CANNOT PASS BY ACCIDENT: the directory is explicitly inside the
+    checkout, whatever TMPDIR says.
+
+    The fix is NOT `--show-toplevel == root`, which was the first suggestion:
+    `code_root()` is `<repo>/src/pdfdrill` and `--show-toplevel` is `<repo>`, so
+    that comparison is False for the real editable install and would report
+    "(not a git checkout)" for every genuine run — breaking the feature it was
+    meant to repair. The question is not "is this the repo root" but "does this
+    repo's HEAD describe the code here", and git already answers it: a directory
+    the repo IGNORES is not described by its HEAD.
+
+    That also closes a case nobody had tested. CLAUDE.md documents a venv INSIDE
+    the checkout, so a wheel installed there lives at
+    `<repo>/.venv/.../site-packages/pdfdrill` — ignored. Before this fix such an
+    install reported the repo's branch and commit while running entirely
+    different code: a confident, wrong answer to the one question this module
+    exists to answer.
+    """
+    probe = REPO / "work" / "run-files" / "codeidentity-inside-the-checkout"
+    probe.mkdir(parents=True, exist_ok=True)
+    assert (REPO / ".git").exists(), "this test needs the real checkout"
+    ident = ci.identity(root=probe)
+    assert ident["branch"] == "(not a git checkout)", (
+        f"a git-ignored folder inside the repo reported {ident['branch']!r}")
+    assert ident["commit"] == "(unknown)"
+    assert ident["tree"] == "(unknown)"
+    assert ident["upstream"] == "(unknown)"
+    assert not ci.is_checkout(probe)
+    # and the real code directory is still described, which the rejected fix
+    # would have broken
+    assert ci.is_checkout(ci.code_root())

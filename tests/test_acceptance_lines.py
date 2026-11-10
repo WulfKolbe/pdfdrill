@@ -99,3 +99,25 @@ def test_the_owner_lines_pass():
     passed, failed, not_run = (int(g) for g in m.groups())
     assert failed == 0, f"owner lines failed:\n{out}"
     assert passed >= 6, f"too few lines ran:\n{out}"
+
+
+def test_a_not_run_line_makes_the_exit_code_non_zero():
+    """Rule 11 / CLAUDE.md rule 6, in the one place a script can see it.
+
+    The runner printed "2 NOT RUN" in prose and exited 0, so anything reading
+    only the status — a CI step, a shell `&&`, drillui — read it as success.
+    A green signal over work that was never done is the exact failure this task
+    exists to end, so it must not be reintroduced by the tool that reports on
+    it. 1 = a line failed, 3 = all that ran passed but some could not run.
+    """
+    out = acceptance.run()
+    code = getattr(out, "exit_code", 0)
+    m = re.search(r"(\d+) passed, (\d+) failed, (\d+) NOT RUN", str(out))
+    assert m, f"no summary line in:\n{out}"
+    _passed, failed, not_run = (int(g) for g in m.groups())
+    if failed:
+        assert code == 1, f"{failed} failed but exit={code}"
+    elif not_run:
+        assert code == 3, f"{not_run} NOT RUN but exit={code}"
+    else:
+        assert code == 0

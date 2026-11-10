@@ -98,7 +98,30 @@ def code_root(entry: str | None = None) -> Path:
 
 
 def is_checkout(root: Path) -> bool:
-    return bool(_git(root, "rev-parse", "--git-dir"))
+    """Does an enclosing repository's HEAD DESCRIBE the code at `root`?
+
+    Not "is there a repo above this". `git rev-parse --git-dir` CLIMBS, so the
+    first version answered yes for any directory under the checkout and reported
+    the repo's branch and commit for all of them (found by the coordinator,
+    2026-11-10; it only passed review because that run's TMPDIR sat outside the
+    repo, while the house rule puts it at `<project>/work/run-files`).
+
+    NOR is it `--show-toplevel == root`, the first proposed fix: `code_root()` is
+    `<repo>/src/pdfdrill` and `--show-toplevel` is `<repo>`, so that comparison
+    is False for the real editable install and would have reported "(not a git
+    checkout)" for every genuine run — breaking the feature to fix its test.
+
+    Git already answers the real question. A directory the repository IGNORES is
+    not described by that repository's HEAD. That covers the scratch folders
+    under `work/` AND a case nobody had tested: CLAUDE.md documents a venv
+    inside the checkout, so a wheel installed at
+    `<repo>/.venv/.../site-packages/pdfdrill` is ignored — and before this it
+    reported the repo's branch and commit while running entirely different code.
+    """
+    if not _git(root, "rev-parse", "--git-dir"):
+        return False
+    # `check-ignore -q` exits 0 when the path IS ignored.
+    return not _git_ok(root, "check-ignore", "-q", str(root))
 
 
 def tree_state(root: Path) -> str:
