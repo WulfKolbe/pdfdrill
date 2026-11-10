@@ -47,6 +47,10 @@ DEFAULT_REGISTRY: dict[str, str] = {
     "FormulaProcessor":            "docmodel.modules.formula",
     "ParagraphProcessor":          "docmodel.modules.paragraph",
     "DehyphenationProcessor":      "docmodel.modules.dehyphenation",
+    # 998: everything in the reading reaches the model (owner 2026-11-10).
+    # Last before the flow pass, so these objects take their place in the
+    # reading order like any other.
+    "UnclaimedLineProcessor":      "docmodel.modules.unclaimed",
     "DocumentFlowProcessor":       "docmodel.modules.document_flow",
     "DocumentStructureProcessor":  "docmodel.modules.document_structure",
 }

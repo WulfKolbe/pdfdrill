@@ -103,6 +103,12 @@
     "procOrder": 14
   },
   {
+    "title": "UnclaimedLineProcessor",
+    "type": "application/python",
+    "classname": "UnclaimedLineProcessor",
+    "procOrder": 998
+  },
+  {
     "title": "DocumentFlowProcessor",
     "type": "application/python",
     "classname": "DocumentFlowProcessor",
