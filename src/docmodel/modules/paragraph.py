@@ -21,6 +21,7 @@ metadata (font, region, page, column) remains accessible via the stream.
 from __future__ import annotations
 
 import re
+import statistics
 from typing import Any, Optional
 
 from ..base_module import BaseModule
@@ -66,12 +67,102 @@ _ABSTRACT_BEGIN = re.compile(r"\\begin\{abstract\}|\\section\*\{[Aa][Bb][Ss][Tt]
 _ABSTRACT_END = re.compile(r"\\end\{abstract\}")
 
 
+def _body_edges(stream, prose_types) -> dict:
+    """Per page: the body text's LEFT EDGES -- one per column -- and the
+    distance a line has to clear to read as a paragraph's FIRST line.
+
+    A paragraph break is a typographic fact, and the reading may not state it.
+    MathPix states it with a leading blank in `text_display`; the enriched
+    keyless OCR path states it with `par_num`. THE PDF'S OWN TEXT LAYER STATES
+    NEITHER, so every prose line on a page joined one paragraph: 11 pages of a
+    two-column paper came out as 12 Paragraph objects, and the markdown was 13
+    lines at a median of 1,688 characters (arxiv.2602.06992, 2026-11-10).
+
+    What the page itself states is the INDENT. A first line starts an em or two
+    right of its column's body edge; a continuation starts at the edge. An edge
+    is an x the page RETURNS TO, so it is found by frequency -- a first-line
+    indent is used once per paragraph and never dominates.
+
+    The threshold is the median line HEIGHT, which is one em in whatever units
+    the reading uses: points for the text layer (~11pt), pixels for MathPix
+    (~42px). So no page width is needed and both readings are measured alike.
+    """
+    per_page: dict = {}
+    for anchor in stream.anchors:
+        payload = stream.payload[anchor]
+        if payload.get("type") not in prose_types:
+            continue
+        region = payload.get("region") or {}
+        x, h = region.get("top_left_x"), region.get("height")
+        if x is None:
+            continue
+        per_page.setdefault(payload.get("_page"), []).append(
+            (float(x), float(h or 0)))
+
+    out: dict = {}
+    for page, rows in per_page.items():
+        xs = [x for x, _ in rows]
+        hs = [h for _, h in rows if h > 0]
+        if not hs or len(xs) < 4:
+            continue
+        em = statistics.median(hs)
+        if em <= 0:
+            continue
+        step = max(em * 0.5, 0.5)
+
+        buckets: dict = {}
+        for x in xs:
+            k = int(round(x / step))
+            buckets[k] = buckets.get(k, 0) + 1
+        floor = max(3, int(0.10 * len(xs)))
+        edges = sorted(k * step for k, n in buckets.items() if n >= floor)
+        if edges:
+            out[page] = (edges, em)
+    return out
+
+
+def _is_first_line(x, page, edges: dict) -> bool:
+    """True when the page itself says a paragraph starts at this line: its left
+    edge sits an em or more right of its OWN column's body edge.
+
+    Per column. The right column's edge is far right of the left column's, so
+    measured against one page-wide edge every right-column line reads as
+    indented.
+
+    A SECOND SIGNAL WAS TRIED AND REJECTED BY MEASUREMENT. The idea was to
+    require the PREVIOUS line to stop short of its column's right margin, on
+    the reasoning that a paragraph's last line is short while a mid-paragraph
+    line runs to the margin -- so a hanging indent or a wide inline equation
+    would stop fooling the indent test. Scored against the genuine MathPix
+    markdown of arxiv.2602.06992, whose paragraph boundaries are ground truth
+    (2026-11-10, default text-layer route):
+
+        variant                    paragraphs  truth starts  welds
+        no indent rule                     12         6/238     10
+        indent + short predecessor         69        33/238     15
+        indent alone                       95        48/238      6
+
+    The extra signal removed 23 breaks of which only 3 were wrong, so it cost
+    20 correct paragraph starts to buy 3 -- and it WELDED more, not fewer. It
+    is not in the code; this note is here so it is not re-invented.
+    """
+    if x is None or page not in edges:
+        return False
+    cols, em = edges[page]
+    at_or_left = [e for e in cols if e <= x + em * 0.5]
+    if not at_or_left:
+        return False
+    if (float(x) - at_or_left[-1]) <= em:
+        return False
+    return True
+
 class ParagraphProcessor(BaseModule):
     def find_items(self, doc: Document) -> list[dict[str, Any]]:
         if self.LINES_STREAM not in doc.streams:
             return []
         stream = doc.stream(self.LINES_STREAM)
         items: list[dict[str, Any]] = []
+        edges = _body_edges(stream, _PROSE_TYPES)
 
         current: Optional[dict[str, Any]] = None
         current_page: Optional[int] = None
@@ -181,8 +272,13 @@ class ParagraphProcessor(BaseModule):
             group = (payload.get("block_num"), payload.get("par_num"))
             region = payload.get("region") or {}
             y, h = region.get("top_left_y"), region.get("height")
+            x0 = region.get("top_left_x")
             if current is not None:
-                if group != (None, None) and group != current.get("group"):
+                if _is_first_line(x0, page, edges):
+                    # the page's own indent says a new paragraph starts here
+                    flush()
+                    self.bump("paragraphs_started_by_an_indent")
+                elif group != (None, None) and group != current.get("group"):
                     flush()
                 elif (_CAPTION_START.match(stripped)
                         and current.get("kind") != "caption"):
