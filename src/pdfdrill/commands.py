@@ -2251,7 +2251,15 @@ def cmd_doctor() -> str:
         ("dvisvgm", "dvisvgm", "DVI -> SVG (pdfdrill svg, latexbook)"),
         ("scanimage", "sane-utils", "scanner ADF acquisition (pdfdrill scan)"),
     ]
-    lines = ["pdfdrill requirement check", "=" * 27, "", "System tools:"]
+    # WHICH PROGRAM IS THIS? First, because every line below it describes the
+    # tools this code would call, and the owner's 2026-11-10 report was that
+    # the one thing never reported is which code that is: `pdfdrill` is an
+    # editable install, so it runs whatever is checked out in the shared
+    # directory, and a session switching branch there changes it silently.
+    from . import codeidentity
+    lines = ["pdfdrill requirement check", "=" * 27, ""]
+    lines += codeidentity.identity_report()
+    lines += ["", "System tools:"]
     missing_pkgs: list[str] = []
     for tool, pkg, route in tools:
         ok = shutil.which(tool) is not None
