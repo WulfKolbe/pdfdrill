@@ -79,16 +79,24 @@ def test_the_default_manifest_path_does_not_climb_out_of_the_package():
         f"the manifest is not inside the docmodel package: {p} vs {pkg}")
 
 
-def test_the_manifest_still_loads_all_nineteen_modules():
-    """The count a `model` run prints. 24 entries, 19 of them
+def test_the_manifest_still_loads_every_module():
+    """The count a `model` run prints. 25 entries, 20 of them
     `application/python` — the rest are disabled by type, which is how a module
-    is switched off here. A manifest that loaded 18 would still build a model,
-    and the only visible difference would be missing content."""
+    is switched off here. A manifest that loaded one fewer would still build a
+    model, and the only visible difference would be missing content.
+
+    WHY THESE NUMBERS MOVE, and why the test is not loosened to `>=`: a module
+    arriving or leaving is a deliberate act, so the count is a LEDGER, not a
+    constant to maintain. 24/19 held until 2026-11-10, when
+    UnclaimedLineProcessor (procOrder 998) was added — everything in the
+    reading reaches the model, after 5,455 of 70,985 records across 13 library
+    models were measured as silently dropped. A `>=` here would have let the
+    same addition pass unremarked, and the next accidental one with it."""
     from docmodel.loader import load_config, load_modules
     from docmodel.main import DEFAULT_CONFIG_PATH
     entries = load_config(DEFAULT_CONFIG_PATH)
-    assert len(entries) == 24, f"manifest has {len(entries)} entries, expected 24"
-    assert len(load_modules(entries, "T0078")) == 19
+    assert len(entries) == 25, f"manifest has {len(entries)} entries, expected 25"
+    assert len(load_modules(entries, "T0078")) == 20
 
 
 # ---------------------------------------------------------------------------
