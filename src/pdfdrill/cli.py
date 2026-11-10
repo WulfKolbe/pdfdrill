@@ -852,6 +852,16 @@ def _do_relocate(args):
     return cmd_relocate(rest, library=library, apply=apply, no_prefix=no_prefix)
 
 
+def _do_acceptance(args):
+    """T-0136: run the owner's own one-line commands (OWNER-TESTS.md).
+
+    Named `acceptance`, not `selftest`: that verb already ships a diagnostic
+    grid over a given PDF, and redefining it would break it.
+    """
+    from .acceptance import run
+    return run(args)
+
+
 def _do_doctor(args):
     """pdfdrill doctor — check system tools / Python deps / API keys."""
     from .commands import cmd_doctor
@@ -3197,6 +3207,7 @@ def _do_chatlog(args):
 # `pdfdrill skill --check` and the skill-sync drift gate (manifest <-> HANDLERS).
 HANDLERS = {
         "doctor": _do_doctor,
+        "acceptance": _do_acceptance,
         "config": _do_config,
         "preflight": _do_preflight,
         "make": _do_make,

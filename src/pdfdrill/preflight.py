@@ -52,6 +52,11 @@ EXEMPT = frozenset({
     "preflight", "doctor", "help", "--help", "-h", "config", "skill",
     "size", "pdfinfo", "steps", "plan", "status", "corpusstatus", "artifacts",
     "ls", "links", "dests", "urls", "fonts", "fonts_layer", "images", "route",
+    # `acceptance` runs other commands and extracts nothing itself. It was
+    # gated by omission, so the runner could not start — and a runner that
+    # cannot start reports nothing, which is the failure it exists to catch.
+    # The lines it runs are still gated individually and reported NOT RUN.
+    "acceptance",
 })
 
 

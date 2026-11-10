@@ -464,6 +464,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 
 | Command | Returns |
 |---|---|
+| `pdfdrill acceptance` | Run the OWNER-TESTS.md one-line commands and check them: bare commands, bare document ids, no paths and no flags, each with what must appear plus a time budget where the defect was slowness rather than a wrong answer (md was 476 s and byte-correct). A gated line is reported NOT RUN with its reason, never omitted. Proves the PROGRAM, where pytest proves the code. Give a line id (A1, B3) or a group letter to run a subset. |
 | `pdfdrill doctor` | Requirement check: system tools (poppler/ghostscript/LaTeX+dvisvgm), Python deps, API keys, the free layout detector, plus the apt-get fix line. No OCR engine is checked for, because none is installed or wanted (docs/LANES.md). |
 | `pdfdrill preflight <token> [--ack]` | MANDATORY first step. Prints the critical usage rules + an env check; build/extract commands are hard-blocked until you attest you read the SKILL via `preflight --ack <TOKEN>` (the token is the `DRILL-…` line at the very END of the SKILL — the LAST line that is not an HTML comment. `tail -1` returns the closing comment marker, so the token is the line above it, and `tail -2 \| head -1` is it. Read-only commands stay open. Automation may set PDFDRILL_NO_PREFLIGHT=1. |
 | `pdfdrill config [--init] [--json] [--download-dir] [--library-root]` | Show / init / set the config FILE (not CLI flags): download_dir (where URL/arXiv downloads land) + library_root (the git folder holding one self-contained folder per drilled doc). --init; --json; --download-dir [DIR]; --library-root DIR |
@@ -692,6 +693,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the line directly below, and the last line of this SKILL that is not an HTML comment (one closing comment follows it, so `tail -1` gives that comment and `tail -2 | head -1` gives the token). If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-373a5a48` before any build/extract command.
-DRILL-373a5a48
+Attestation token — the line directly below, and the last line of this SKILL that is not an HTML comment (one closing comment follows it, so `tail -1` gives that comment and `tail -2 | head -1` gives the token). If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-4bc5bb58` before any build/extract command.
+DRILL-4bc5bb58
 <!-- PREFLIGHT-TOKEN:END -->

@@ -9,6 +9,15 @@ version: 1
 tool: pdfdrill
 invocation: PYTHONPATH=src python3 -m pdfdrill
 commands:
+- name: acceptance
+  section: Introspection (fast, no extraction)
+  summary: 'Run the OWNER-TESTS.md one-line commands and check them: bare commands, bare document
+    ids, no paths and no flags, each with what must appear plus a time budget where the defect was
+    slowness rather than a wrong answer (md was 476 s and byte-correct). A gated line is reported
+    NOT RUN with its reason, never omitted. Proves the PROGRAM, where pytest proves the code. Give
+    a line id (A1, B3) or a group letter to run a subset.'
+  offline_ok: true
+  typed: true
 - name: doctor
   section: Introspection (fast, no extraction)
   summary: 'Requirement check: system tools (poppler/ghostscript/LaTeX+dvisvgm), Python deps, API
