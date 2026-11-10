@@ -597,6 +597,45 @@ Each of these cost real time or real data in this project.
     explained this way. The fourth is still unknown — its name was lost to a
     `tail -4` — and it stays on the record as unknown rather than being
     retrofitted into a story that fits the others.
+47. **An all-or-nothing page-level decision fails the page that is BOTH.**
+    `chars_to_lines._column_split` found the two-column gutter as a low-density
+    valley in the middle of the char-x histogram, once per page. On a journal
+    paper's first page -- full-width abstract above a two-column body -- the
+    full-width text puts glyphs right across the gutter and fills the valley,
+    so the detector answered "one column" for the WHOLE page. Everything below
+    was then read y-major: the columns interleaved AND the line clusterer
+    welded a left-column line to a right-column line inside one line object.
+    Measured on arxiv.2602.06992 (2026-11-10): pages 3 and 7, two columns
+    throughout, detected at split_x 303.9 and 291.5; pages 1 and 2, which carry
+    the abstract, returned None -- and the same histogram restricted to the
+    y-band BELOW the abstract found page 2's gutter at the same 303.9. The
+    detector was not wrong about the page, it was asked one question about two
+    layouts. Fix: measure the valley over the non-full-width lines only
+    (`_column_split_for_lines`). Extent cannot identify a full-width line --
+    a two-column line spans the same width -- so the test is the internal GAP,
+    which is what `_line_columns` already used.
+48. **A paragraph break is a fact the reading may not state, and then the page
+    itself has to be read.** MathPix states a block with a leading blank in
+    `text_display`, the enriched OCR path with `par_num`. THE PDF'S OWN TEXT
+    LAYER STATES NEITHER, and `ParagraphProcessor` had no fallback, so every
+    prose line on a page joined one Paragraph: 11 pages of arxiv.2602.06992
+    became 12 Paragraph objects and the markdown was 13 lines at a median of
+    1,688 characters. What the page states is the first-line INDENT, measured
+    against each column's body edge -- per column, because one page-wide edge
+    reads every right-column line as indented. The threshold is the median line
+    HEIGHT, so it is one em in whatever units the reading uses (~11pt for the
+    text layer, ~42px for MathPix) and no page width is needed.
+49. **Score a segmentation against a reading you already trust, not against its
+    own plausibility.** The indent rule was nearly shipped with a second signal
+    -- require the previous line to stop short of the right margin, so a
+    hanging indent stops fooling the test. It sounded right. Scored against the
+    genuine MathPix markdown of arxiv.2602.06992, whose paragraph boundaries
+    are ground truth: no rule 12 paragraphs / 6 of 238 truth starts / 10 welds;
+    indent+predecessor 69 / 33 / 15; indent alone 95 / 48 / 6. The extra signal
+    removed 23 breaks of which only 3 were wrong and WELDED more, not fewer, so
+    it cost 20 correct paragraph starts to buy 3. Counting paragraphs, or
+    reading a few, would have preferred it. The rejected variant is recorded in
+    `_is_first_line`'s docstring so it is not re-invented.
 
 ---
 
