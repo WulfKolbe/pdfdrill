@@ -74,6 +74,26 @@ class Report(str):
 def main():
     args = sys.argv[1:]
 
+    # WHICH CODE IS THIS? — printed first, by every command, before anything it
+    # says can be trusted. `pdfdrill` is an editable install resolving to a
+    # working checkout, so the program is whatever is checked out; on
+    # 2026-11-10 the owner's terminal ran a branch another session had made
+    # forty minutes earlier and nothing said so. `doctor` already reported it
+    # and the owner does not run `doctor` before every command, which is why
+    # this is in the dispatch path instead.
+    #
+    # ON STDERR, NOT STDOUT, and that is not a detail. MEASURED: 8 test files in
+    # this suite call `json.loads` on a pdfdrill command's stdout and 23
+    # commands take `--json`, so a line printed there would break every one of
+    # them. Both streams reach a person at a terminal, so they see it; a parser
+    # reading stdout still gets a document. A banner that corrupted machine
+    # output would be a new silent defect in a change made to end one.
+    try:
+        from . import codeidentity
+        print(codeidentity.banner(), file=sys.stderr, flush=True)
+    except Exception:                       # noqa: BLE001
+        pass                                # never let the banner break the CLI
+
     if not args or args[0] in ("-h", "--help", "help"):
         _print_help()
         return 0

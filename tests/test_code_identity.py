@@ -39,6 +39,8 @@ the identity still names the entry point — which is always knowable. A field
 that is unknown says so; it never silently reads as its reassuring value.
 """
 import importlib.util
+import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -201,3 +203,86 @@ def test_identity_line_is_short_enough_for_a_banner():
 def test_commit_is_a_hex_sha_or_the_unknown_marker():
     c = ci.identity()["commit"]
     assert c == "(unknown)" or re.fullmatch(r"[0-9a-f]{7,40}", c), c
+
+
+# ---------------------------------------------------------------------------
+# T-0136 item 2 — the one-line banner every command prints
+# ---------------------------------------------------------------------------
+
+def test_the_banner_names_branch_commit_and_date_and_no_path():
+    """The owner's form: `pdfdrill main 588aeb8c 2026-11-03`.
+
+    No path, because the owner asked for lines with "no paths, prefixes, or
+    complex command lines" and this is the line they read first. The resolved
+    entry point stays in `doctor`'s block, where it answers the editable-install
+    question in full.
+    """
+    b = ci.banner()
+    assert "\n" not in b
+    assert b.startswith("pdfdrill ")
+    assert "/" not in b, f"the banner carries a path: {b}"
+    if _in_checkout():
+        parts = b.split()
+        assert parts[1] == (_git("branch", "--show-current") or "(detached)")
+        assert _git("rev-parse", "--short=12", "HEAD").startswith(parts[2])
+        assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", parts[3]), parts
+
+
+def test_modified_and_not_on_main_appear_only_when_true(monkeypatch):
+    """Two words that must never be decoration. `MODIFIED` means the commit is
+    not what is on disk; `NOT ON MAIN` is the one that would have told the owner
+    at 10:35 that their test was running a branch."""
+    monkeypatch.setattr(ci, "identity", lambda root=None: {
+        "entry_point": "/x/pdfdrill/__init__.py", "branch": "main",
+        "commit": "abc123abc123", "tree": "clean", "upstream": "on origin/main"})
+    clean = ci.banner()
+    assert "MODIFIED" not in clean and "NOT ON MAIN" not in clean
+
+    monkeypatch.setattr(ci, "identity", lambda root=None: {
+        "entry_point": "/x/pdfdrill/__init__.py", "branch": "t-something",
+        "commit": "abc123abc123", "tree": "dirty",
+        "upstream": "not on origin/main"})
+    both = ci.banner()
+    assert "MODIFIED" in both and "NOT ON MAIN" in both
+
+
+def test_the_banner_goes_to_stderr_so_stdout_stays_machine_readable(tmp_path):
+    """MEASURED, and the reason this is not on stdout: 8 test files in this
+    suite call `json.loads` on a pdfdrill command's stdout, and 23 commands take
+    `--json`. A banner line printed there would break every one of them, so a
+    "first line of every command" on stdout is not available. stderr reaches the
+    person at the terminal — both streams land there — and leaves stdout a
+    parseable document.
+    """
+    import subprocess
+    import sys as _sys
+    env = {"HOME": os.environ.get("HOME", str(tmp_path)),
+           "PATH": os.environ.get("PATH", ""),
+           "PYTHONPATH": str(REPO / "src"),
+           "PDFDRILL_SANDBOX": "1",
+           "PYTHONDONTWRITEBYTECODE": "1"}
+    r = subprocess.run([_sys.executable, "-m", "pdfdrill", "config", "--json"],
+                       capture_output=True, text=True, env=env,
+                       cwd=str(tmp_path), timeout=120)
+    assert "pdfdrill " in r.stderr, f"no banner on stderr: {r.stderr[:200]!r}"
+    # stdout must still be exactly a JSON document
+    json.loads(r.stdout)
+
+
+def test_every_command_prints_it_not_just_doctor(tmp_path):
+    """`doctor` already reported the five fields; the defect was that the owner
+    does not run `doctor` before every command. So the banner is in the dispatch
+    path, and a cheap read-only command must carry it too."""
+    import subprocess
+    import sys as _sys
+    env = {"HOME": os.environ.get("HOME", str(tmp_path)),
+           "PATH": os.environ.get("PATH", ""),
+           "PYTHONPATH": str(REPO / "src"),
+           "PDFDRILL_SANDBOX": "1",
+           "PYTHONDONTWRITEBYTECODE": "1"}
+    for argv in (["config"], ["help"]):
+        r = subprocess.run([_sys.executable, "-m", "pdfdrill", *argv],
+                           capture_output=True, text=True, env=env,
+                           cwd=str(tmp_path), timeout=120)
+        assert r.stderr.startswith("pdfdrill "), (
+            f"`pdfdrill {' '.join(argv)}` printed no banner: {r.stderr[:160]!r}")

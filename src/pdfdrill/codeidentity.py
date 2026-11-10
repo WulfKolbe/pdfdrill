@@ -156,8 +156,47 @@ def identity(root: Path | None = None) -> dict:
             "tree": tree_state(r), "upstream": upstream_state(r, commit)}
 
 
+def commit_date(root: Path | None = None) -> str:
+    """HEAD's commit date as YYYY-MM-DD, or `(unknown)`.
+
+    The DATE is in the banner because a commit hash does not tell a person
+    whether they are running this morning's code or last week's, and that was
+    the owner's question. Author date would describe when the change was
+    written; `%cd` describes the commit as it sits on this branch, which is what
+    "which code is this" means.
+    """
+    r = Path(root) if root is not None else code_root()
+    return _git(r, "log", "-1", "--format=%cd", "--date=short") or _UNKNOWN
+
+
+def banner(root: Path | None = None) -> str:
+    """The one line every command prints first: `pdfdrill main 588aeb8c 2026-11-03`.
+
+    NO PATH. The owner asked for output with "no paths, prefixes, or complex
+    command lines", and this is the line they read before trusting anything
+    else; the resolved entry point stays in `doctor`'s block, where the
+    editable-install question is answered in full.
+
+    `MODIFIED` and `NOT ON MAIN` are appended ONLY when true, so neither is
+    decoration. `MODIFIED` says the commit named is not what is on disk.
+    `NOT ON MAIN` is the one that was missing at 10:35 on 2026-11-10: the
+    owner's terminal was running a branch another session had created, and
+    nothing said so.
+    """
+    i = identity(root)
+    if i["commit"] == _UNKNOWN:
+        return "pdfdrill (no commit recorded — not a git checkout)"
+    out = f"pdfdrill {i['branch']} {i['commit'][:8]} {commit_date(root)}"
+    if i["tree"] == "dirty":
+        out += " MODIFIED"
+    if i["upstream"] == "not on origin/main":
+        out += " NOT ON MAIN"
+    return out
+
+
 def identity_line(root: Path | None = None) -> str:
-    """One line, for a banner (drillui prints a banner, not a report)."""
+    """One line with the entry point too, for a caller that wants the full
+    answer on one line (drillui's startup prints a banner, not a report)."""
     i = identity(root)
     return (f"{i['branch']} {i['commit']} ({i['tree']}, {i['upstream']}) "
             f"— {i['entry_point']}")[:200]
