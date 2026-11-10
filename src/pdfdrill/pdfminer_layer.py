@@ -178,7 +178,8 @@ def iter_page_records(pdf_path: str):
         return
     import gc
     from pdfminer.high_level import extract_pages
-    from pdfminer.layout import LTChar, LTTextContainer, LTTextLine
+    from pdfminer.layout import (LTChar, LTFigure, LTTextContainer,
+                                  LTTextLine)
 
     for idx, layout in _iter_layouts_chunked(extract_pages, pdf_path):
         page_h = layout.height
@@ -203,9 +204,35 @@ def iter_page_records(pdf_path: str):
                 })
 
         def walk(obj):
-            if isinstance(obj, LTTextLine):
+            # A GLYPH INSIDE A FIGURE IS STILL TEXT THE DOCUMENT CONTAINS.
+            #
+            # This descended only into LTTextContainer, and LTFigure is NOT one
+            # — so every glyph drawn inside a figure was never visited. An
+            # included vector figure (`\includegraphics` of a PDF) becomes an
+            # LTFigure, and its axis labels, diagram labels and captions-in-art
+            # live there.
+            #
+            # MEASURED on page 1 of arxiv.2209.02970 (2026-11-10, owner's
+            # report): 216 glyphs skipped — 203 BCDEEE+MicrosoftYaHei and 13
+            # BCDFEE+MicrosoftYaHei — including ALL 11 Chinese characters on
+            # that page (二郎神 闻仲 燃灯 太乙 余元) and the labels
+            # "Fengshenbang Model" and "Erlangshen". pdfplumber's pdfminer, which
+            # flattens figures, yields 3,438 chars for that page; this route
+            # yielded 3,222. pdftotext finds them too. Page 10 of the same
+            # document lost 184 of 316 latin characters the same way.
+            #
+            # It was SILENT because the glyphs never reached `_resolve_glyph`:
+            # nothing counted them as dropped, so not even the unmapped-glyph
+            # note at the end of `model` could mention them.
+            #
+            # An LTChar can sit DIRECTLY in an LTFigure, with no line container
+            # around it, so that case is handled first — descending alone would
+            # walk past it.
+            if isinstance(obj, LTChar):
+                walk_line([obj])
+            elif isinstance(obj, LTTextLine):
                 walk_line(obj)
-            elif isinstance(obj, LTTextContainer):
+            elif isinstance(obj, (LTTextContainer, LTFigure)):
                 for child in obj:
                     walk(child)
 
