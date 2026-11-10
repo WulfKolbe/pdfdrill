@@ -311,6 +311,21 @@ def plan_target(pdf_arg: str) -> Path:
     branch `_pdf` goes on to use: planning must not acquire anything, and a
     URL or a bare arXiv id has no plan to compute until it has been fetched.
     Falls back to the token itself, so an unresolvable one plans as before.
+
+    896 LEFT ONE SPELLING, and it was the one drillui stores. `add <url>` keeps
+    the URL as the document's identity, so every later command in that session
+    carried it — and `Path("https://arxiv.org/pdf/2209.02970")` collapses to
+    `https:/arxiv.org/pdf/2209.02970`, which exists nowhere. Measured
+    2026-11-10: the URL planned `[model, md]` while the same document's file
+    planned `[md]`, so `--ensure` re-ran `model` on a model sixty seconds old,
+    and `pdfdrill steps md <url>` said "prerequisites satisfied" about that
+    same document in that same minute. Two planners, one document, two answers.
+
+    An ALREADY-FETCHED archive document is a local lookup like any other: the
+    URL names an id, the id names the folder the document is already in
+    (`archive_stem`), and the library answers. A URL for a document not yet
+    fetched still returns the token — there is no plan to compute until it is
+    there, and finding out would mean acquiring it, which this must not do.
     """
     tok = Path(pdf_arg).expanduser()
     try:
@@ -318,6 +333,14 @@ def plan_target(pdf_arg: str) -> Path:
         hit = _s.pdf_in_folder(tok)
         if hit is None and not tok.exists():
             hit = _s.library_pdf_for(pdf_arg, _c.library_root())
+        if hit is None and not tok.exists():
+            # A URL / `arXiv:` token / bare id, mapped to the name the document
+            # carries ON DISK. `parse_arxiv_id` already refuses a non-arXiv
+            # host (806), so another provider's URL cannot land here.
+            aid = _s.parse_arxiv_id(pdf_arg)
+            if aid:
+                hit = _s.library_pdf_for(_s.archive_stem("arxiv", aid),
+                                         _c.library_root())
         if hit is not None:
             return hit
     except Exception:                       # noqa: BLE001
