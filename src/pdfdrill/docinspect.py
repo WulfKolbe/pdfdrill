@@ -390,7 +390,7 @@ def reading_order(objects: list[dict]) -> list[dict]:
 # Assemble the client-side element records
 # ---------------------------------------------------------------------------
 
-def _short_label(obj: dict, preview: str) -> str:
+def _short_label(obj: dict, preview: str, shown: str | None = None) -> str:
     t = obj["type"]
     pr = obj.get("props", {})
     if t == "Section":
@@ -422,7 +422,7 @@ def _short_label(obj: dict, preview: str) -> str:
     # labelling from it left the tree in German in both modes, so the language
     # selector visibly did nothing even though it was working.
     body = pr.get("text") or pr.get("content") or preview or ""
-    return " ".join(str(body).split())[:60] or t.lower()
+    return " ".join(str(body).split())[:60] or (shown or t).lower()
 
 
 def collect_elements(model: dict, sidx: dict, *, with_blobs: bool = False):
@@ -444,9 +444,26 @@ def collect_elements(model: dict, sidx: dict, *, with_blobs: bool = False):
             continue
         page, bbox, preview = object_geometry(obj, sidx)
         pr = obj.get("props", {})
+        # THE READING'S OWN WORD FOR IT, on the box and in the tree.
+        #
+        # A record no module recognised is kept as a `ReadingRecord`
+        # (docmodel.modules.unclaimed) because `DocObject.type` is a closed
+        # vocabulary five readers enforce. That is a storage decision, and the
+        # owner saw it leak onto the page: rectangles labelled "ReadingRecord"
+        # where the reading says `column`, `gd3_block`, `gd3_white`. The label
+        # named OUR container instead of THEIR stage, which is the one thing a
+        # view for adjusting that stage must get right.
+        #
+        # `lines_type` is passed through verbatim — not prettified, not
+        # title-cased, not mapped to a type this repo knows. `obj["type"]` is
+        # untouched below, so `cat`, `is_structure`, `not_printed` and the
+        # renderer registry all still see the object they were written for.
+        shown_type = obj["type"]
+        if obj["type"] == "ReadingRecord":
+            shown_type = str(pr.get("lines_type") or "").strip() or "ReadingRecord"
         rec: dict[str, Any] = {
             "id": obj["id"],
-            "type": obj["type"],
+            "type": shown_type,
             "page": page,
             "bbox": bbox,  # MathPix points
             # How that rectangle was arrived at. Absent means MEASURED — the
@@ -456,7 +473,7 @@ def collect_elements(model: dict, sidx: dict, *, with_blobs: bool = False):
             # it dashed, because a reader deciding whether a box is wrong needs
             # to know which of the two kinds it is looking at.
             "via": pr.get("region_via"),
-            "label": _short_label(obj, preview),
+            "label": _short_label(obj, preview, shown_type),
             "flow": flow_rank.get(obj["id"]),
             "realizations": [
                 {"stream": r.get("stream"), "role": r.get("role")}
