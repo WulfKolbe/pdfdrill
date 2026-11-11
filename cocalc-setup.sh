@@ -74,6 +74,20 @@ fi
 
 echo
 echo "== 4/5  Shared Python + system deps (bootstrap.sh) =="
+# CoCalc.ai VM template (2026-11: Ubuntu, Python 3.14) — two pip traps, handled here
+# and only here, because they belong to this image and not to pdfdrill:
+#  1. ~/.local/bin/pip and pip3 are left over from an older miniforge image; their
+#     interpreter /ext/miniforge2023/bin/python3.10 no longer exists ("bad
+#     interpreter"), and ~/.local/bin is first on PATH, so bare `pip`/`pip3` fail.
+#  2. The system Python is externally managed (PEP 668): a plain install is refused,
+#     and tools/imageserver/install.sh passes no --break-system-packages.
+# So for the child scripts below `pip` means `python3 -m pip` (always the python3 that
+# runs pdfdrill), and pip itself reads PIP_BREAK_SYSTEM_PACKAGES=1.
+pip() { python3 -m pip "$@"; }
+export -f pip
+export PIP_BREAK_SYSTEM_PACKAGES=1
+echo "  pip = python3 -m pip ($(python3 -m pip --version 2>&1 | cut -d" " -f1-2,5-))"
+
 # bootstrap.sh installs the Python deps via pip and the remaining apt packages
 # (ghostscript, libvips), then runs `pdfdrill doctor`.
 bash "$ROOT/bootstrap.sh"
