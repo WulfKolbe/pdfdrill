@@ -31,6 +31,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sys
 import time
 from pathlib import Path
 
@@ -249,9 +250,52 @@ def is_gated(cmd: str, args=()) -> bool:
     return cmd not in EXEMPT and not is_read_only_form(cmd, args)
 
 
+def interactive() -> bool:
+    """Is a PERSON typing this command?
+
+    `stdin.isatty()`, and stdin only. `pdfdrill md 2209.02970 | less` is still a
+    person at a terminal, so requiring stdout to be a tty would re-gate the
+    owner the moment they piped the output.
+
+    FAILS CLOSED. If `isatty` raises — a detached process, a closed handle —
+    the answer is "not a person" and the gate stays on. A guard that opens on
+    an error is not a guard.
+    """
+    try:
+        return bool(sys.stdin.isatty())
+    except Exception:                       # noqa: BLE001
+        return False
+
+
 def blocks(cmd: str, args=()) -> bool:
-    """The hard-stop decision: this command must be refused right now."""
-    return enforced() and is_gated(cmd, args) and not is_attested()
+    """The hard-stop decision: this command must be refused right now.
+
+    OWNER'S DECISION, 2026-11-10: "Gate only non-interactive callers."
+
+    The gate exists because "pdfdrill output looks authoritative, so using it
+    without the usage rules produces silently-WRONG results" — which is the risk
+    of an LLM or a script driving 170 commands from a half-read SKILL, not of a
+    person who typed one command and is about to read the answer themselves. The
+    attestation is per working directory, so the owner had to re-ack in every new
+    folder, against their own requirement of "no path, prefixes, or complex
+    command lines": `pdfdrill md 2209.02970` exited 2 for them.
+
+    MEASURED, so the discriminator is not a guess:
+      the owner in a shell       stdin IS a tty      -> open
+      an agent/LLM subprocess    stdin is NOT a tty  -> gated
+      drillui                    already exempt      -> drillui_chat.py:81 sets
+                                                       PDFDRILL_NO_PREFLIGHT=1
+    That third line is why a tty test works at all: drillui pipes both streams,
+    so had it relied on this gate, a tty test would have locked the owner out of
+    the front end they actually use.
+
+    THE HOLE, STATED: an automated caller running under a pty is not gated. It
+    is far narrower than what the owner was living with, the attestation and
+    `PDFDRILL_NO_PREFLIGHT=1` both still exist, and it is written down rather
+    than discovered later.
+    """
+    return (enforced() and is_gated(cmd, args)
+            and not is_attested() and not interactive())
 
 
 # ── prose ────────────────────────────────────────────────────────────────────
