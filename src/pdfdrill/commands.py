@@ -8178,7 +8178,12 @@ def cmd_clean(pdf: Path) -> str:
     mt = heading_cleanup.materialize_transclusions(doc)
     fm = heading_cleanup.clean_frontmatter(doc)
     sp = heading_cleanup.repair_section_pages(doc)
-    if fn or nh or mt or fm or sp:
+    # A display wrapper or an unmatched \end{...} inside `props['latex']` is a
+    # MathPix LaTeX residual like the others here, and this is the only verb
+    # that can remove one from a model a rebuild would damage (BH2's rebuild is
+    # refused because it is translated, and that refusal is right).
+    eq = heading_cleanup.renormalize_math_latex(doc)
+    if fn or nh or mt or fm or sp or eq:
         save_model(model_path, doc)
     ad = int(doc.meta.get("footnote_adopted") or 0)
     return (f"Cleaned: {fn} footnote(s) lifted into Footnote objects"
@@ -8191,9 +8196,11 @@ def cmd_clean(pdf: Path) -> str:
             f"object(s) with front-matter commands unwrapped "
             f"(\\title{{..}}/\\author{{..}}/\\maketitle - markup, not prose), {sp} "
             f"section(s) moved to the page their content starts on (they had the "
-            f"table-of-contents page). "
+            f"table-of-contents page), {eq} math latex value(s) unwrapped "
+            f"(a \\[ … \\] or an unmatched \\end{{...}} inside a field every "
+            f"consumer wraps itself; latex_raw/latex_original untouched). "
             + ("Re-run tiddlers/report/semantic/llmtext to refresh."
-               if (fn or nh or mt or fm or sp) else "Nothing to clean.")) 
+               if (fn or nh or mt or fm or sp or eq) else "Nothing to clean.")) 
 
 
 @_writes("llmtext")

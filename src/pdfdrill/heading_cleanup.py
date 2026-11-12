@@ -866,3 +866,64 @@ def repair_section_pages(doc) -> int:
         sec.props["page"] = content_page
         n += 1
     return n
+
+def renormalize_math_latex(doc) -> int:
+    r"""`props['latex']` holds math-mode CONTENT. Strip a wrapper that got in.
+
+    OWNER, 2026-11-12, reading the inspector's KaTeX panel on BH2:
+    "your translation or bilingual version is defect".
+
+    It was not the translation — `latex` carries no language twin and
+    `translate` never touches it — but one of the three refused forms was a
+    real stored defect:
+
+        latex      \[ \left(s_{(k)}\right)_1^4 \hat= ... \] \end{itemize}
+        latex_raw  \n\[\n\left(s_{(k)}\right)_1^4 \hat= ...\n\]\n\end{itemize}
+
+    Every consumer wraps this field itself — `$…$`, `$$…$$`, a KaTeX render, a
+    `<$latex>` widget — so a `\[` INSIDE it is math inside math, and a trailing
+    `\end{itemize}` is an environment closer with no opener. It renders nowhere:
+    KaTeX says "Undefined control sequence: \[" and xelatex "Bad math
+    environment delimiter".
+
+    `docmodel.modules.equation._normalize_latex` has removed both since
+    f7d69aee (2026-08-25, "1,840 structural failures become 6"). This repairs
+    the models BUILT BEFORE IT, in place, from what is already on disk — which
+    is the only route available for a model a rebuild would damage: BH2's rebuild
+    is refused because it is translated, and that refusal is correct.
+
+    MEASURED over the 40 most recent library models carrying an ingested author
+    LaTeX: 16,260 `latex` props, of which 15 carry a display wrapper and 10 an
+    unmatched `\end{...}`, in 7 of the 40 documents.
+
+    CONSERVATIVE BY CONSTRUCTION:
+      * it normalizes the STORED value rather than re-deriving it from
+        `latex_raw` — re-deriving would overwrite an author's gold LaTeX
+        (promoted from a `tex` realization) with MathPix's reading of the same
+        equation, which is a worse model for a better-formed field;
+      * `latex_raw`, `latex_original` and `latex_author` are never touched:
+        they are the verbatim record of what the producer said (docs/layers/
+        PROPS.md), and a repair that edits the evidence is not a repair;
+      * whitespace alone never counts as a change, so a clean model is left
+        byte-identical and the pass is idempotent;
+      * a value that normalizes to NOTHING is left alone — an empty `latex` is
+        a worse defect than a wrapped one, and that case wants a human.
+    """
+    import re as _re
+    from docmodel.modules.equation import _normalize_latex
+
+    n = 0
+    for obj in doc.objects.values():
+        s = obj.props.get("latex")
+        if not isinstance(s, str) or not s.strip():
+            continue
+        fixed = _normalize_latex(s)
+        if not fixed:
+            continue
+        # Compare against the value with its whitespace collapsed the same way,
+        # so only a STRUCTURAL strip (a wrapper, an unmatched closer) counts.
+        if fixed == _re.sub(r"\s+", " ", s).strip():
+            continue
+        obj.props["latex"] = fixed
+        n += 1
+    return n
