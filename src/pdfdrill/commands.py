@@ -6464,6 +6464,46 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
     if model_path.exists() and not stale:
         from . import buildstamp
         stale = not buildstamp.builder_is_current(model_path)
+
+    # A LAZY REBUILD IS STILL A REBUILD, and the guard above only covered
+    # --force.
+    #
+    # OWNER, 2026-11-12: `add BH2.pdf` printed "reuses an existing drill; only
+    # builds if new" and rebuilt the model under it — 69,125,067 bytes to
+    # 58,354,019 — discarding the 818 bilingual paragraphs of a 400-page German
+    # book, while the sidecar went on reporting `translated_count: 818`,
+    # `source_lang: DE`. Nothing asked for a rebuild and nothing said one had
+    # happened. The owner's question was "why does pdfdrill never work as
+    # expected?", and this is the answer.
+    #
+    # WHY IT WAS REACHED. `builder_key` marks a model stale when the
+    # model-BUILDING code changes (the owner's 2026-10-30 lazy-rebuild
+    # decision), so commit 36932e05 — a new docmodel module — made every model
+    # in a 3,235-folder library builder-stale at once. `add` runs `model` on
+    # every document in context. The first touch of a translated document after
+    # that commit destroyed its translation.
+    #
+    # `model_rebuild_blocked`'s own docstring already said this had happened
+    # three times in one week, "each time recovered only because a backup
+    # happened to exist" — and it was wired to `force` alone, so the one door it
+    # did not watch was the one that opens by itself.
+    #
+    # THE RULE: a rebuild that would REPLACE an existing model consults the
+    # guard, whoever asked for it. A first build destroys nothing and is never
+    # blocked. The refusal names the automatic trigger, because a refusal out of
+    # nowhere on a command that was not asked to rebuild is its own confusion.
+    if stale and not force and model_path.exists():
+        from . import buildstamp
+        why = buildstamp.builder_change_note(model_path) or "its inputs changed"
+        auto = (f"\n  • NOTHING ASKED FOR THIS REBUILD — it was automatic "
+                f"({why}). The model on disk is untouched and still in use.")
+        if blocked:
+            return blocked + auto
+        _blk = model_rebuild_blocked_by_enrichment(
+            model_enrichments(Path(model_path)), force_discard_enrichments)
+        if _blk:
+            return _blk + auto
+
     if sc.has(MODEL_BUILT) and model_path.exists() and not force and not stale:
         return _format_model(sc, built=False)      # 576 — say it was a no-op
 
