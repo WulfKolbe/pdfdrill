@@ -123,7 +123,44 @@ _DEFAULT_PREAMBLE = (
     # package does not render badly, it FAILS TO COMPILE, and the preamble
     # is already unconditional for every other type.
     "\\usepackage{listings}\n"
+    # MEASURED on BH2's German projection, 2026-11-12: of the 21 xelatex errors
+    # left once the cascade was cut, 16 were `Undefined control sequence` for
+    # symbols THIS PROJECTOR EMITS and this preamble did not define --
+    # \\llbracket/\\rrbracket 14 times (stmaryrd) and \\xlongequal twice
+    # (extarrows). They arrive from the reading; a symbol the projection can
+    # write and the preamble cannot resolve is not a rendering problem, it is a
+    # compile failure. Same reason `listings` above is unconditional.
+    #
+    # AFTER amssymb on purpose: stmaryrd redefines a few of its glyphs, and the
+    # later load is the one that wins.
+    "\\usepackage{stmaryrd}\n"
+    "\\usepackage{extarrows}\n"
 )
+
+
+def _author_list(authors) -> list[str]:
+    """The authors as a LIST OF NAMES, whatever the model holds.
+
+    MEASURED on BH2, 2026-11-12: `meta["authors"]` there is the STRING
+    "Burkhard Heim", and this projector did `for a in authors`. Iterating a
+    string yields CHARACTERS, so every projection of that document carried
+
+        \author{B \and u \and r \and k \and h \and a \and r \and d \and
+                \and H \and e \and i \and m}
+
+    — thirteen authors of one letter each on the title page. A string is one
+    author; a list is a list; anything else is read as one name if it has a
+    useful str() and dropped if it is blank.
+    """
+    if authors is None:
+        return []
+    if isinstance(authors, str):
+        one = authors.strip()
+        return [one] if one else []
+    if isinstance(authors, (list, tuple, set)):
+        return [str(a).strip() for a in authors if str(a).strip()]
+    one = str(authors).strip()
+    return [one] if one else []
 
 
 def _escape_text(s: str) -> str:
@@ -275,11 +312,11 @@ class LaTeXProjector(BaseProjector):
                     self._formula_preamble, ""]
 
         title = meta.get("title") or self._leaked_title(doc)
-        authors = meta.get("authors") or []
+        authors = _author_list(meta.get("authors"))
         if title:
             out.append(f"\\title{{{_escape_text(str(title))}}}")
         if authors:
-            names = " \\and ".join(_escape_text(str(a)) for a in authors)
+            names = " \\and ".join(_escape_text(a) for a in authors)
             out.append(f"\\author{{{names}}}")
         out.append("\\begin{document}")
         if title:
@@ -1424,6 +1461,9 @@ class LaTeXProjector(BaseProjector):
         # contain any runaway inline math (a dropped `\)`/`$`) to THIS block, so
         # it can't swallow the next \section ("Not allowed in LR mode").
         text = _pipe.balance_math(text)
+        # `^`/`_` inside a `\text{…}` in an INLINE SPAN. Measured on BH2: one
+        # such span at line 133 held xelatex to 4 pages out of 455.
+        text = _pipe.fix_text_mode_in_math_spans(text)
         text = _balance_braces(text)                  # and a runaway brace
         # headings FIRST (so a leaked `## X` still matches — escaping `#` would
         # break it), THEN escape prose specials (`#`/`%`/`&` outside math).

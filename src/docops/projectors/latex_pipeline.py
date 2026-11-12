@@ -104,9 +104,44 @@ def sanitize_math(latex: str) -> str:
     latex = _LEAKED_MATH_ENV.sub(" ", latex)      # drop leaked list/float envs
     latex = _strip_math_delimiters(latex)         # unwrap \[…\] / $…$ / …
     latex = _drop_dangling_backslash(latex)
+    latex = _fix_text_mode_specials(latex)
     if latex.lstrip().startswith("["):
         latex = "{}" + latex
     return latex
+
+
+#: `\text{...}` with a brace-free body — the shape the measured artifact has.
+_TEXT_GROUP_RE = re.compile(r"\\text\s*\{([^{}]*)\}")
+
+
+def _fix_text_mode_specials(latex: str) -> str:
+    r"""`^` and `_` inside `\text{...}` are text-mode errors; make them valid.
+
+    MEASURED on BH2's German projection, 2026-11-12. TWO occurrences of
+    `\text {^ }` — at source lines 132 and 144 of a 15,008-line file — held
+    xelatex to 4 PAGES with 189 errors. Patching those two characters gave 468
+    pages with 21. The same shape as `_drop_dangling_backslash` above: one
+    character, and it takes the rest of the document with it, because TeX's
+    recovery from a mode error derails everything after it.
+
+    `{ }^{\text {^ }}` is what MathPix read — it saw the circumflex printed
+    over a C as a caret character. That reading is the producer's record and is
+    NOT edited: `props['latex']` keeps it verbatim, and the projection, which
+    has to emit something that compiles, substitutes the text-mode spelling of
+    the same glyph.
+
+    A brace-free body only. `\text{\textbf{x} ^}` needs a brace matcher this
+    does not have, so it is left alone and reports as a compile error — which
+    is visible, where a wrong guess would be silent.
+    """
+    def fix(m: "re.Match[str]") -> str:
+        body = m.group(1)
+        if "^" not in body and "_" not in body:
+            return m.group(0)
+        body = re.sub(r"(?<!\\)\^", r"\\textasciicircum{}", body)
+        body = re.sub(r"(?<!\\)_", r"\\textunderscore{}", body)
+        return "\\text{" + body + "}"
+    return _TEXT_GROUP_RE.sub(fix, latex)
 
 
 def _drop_dangling_backslash(latex: str) -> str:
@@ -517,6 +552,40 @@ def clean_prose(text: str) -> str:
     text = _STRUCT_CMD.sub("", text)          # leaked \maketitle/\begin{document}/…
     text = normalize_cite_commands(text)      # \citep/\citet/… → \cite
     return text
+
+
+#: inline math spans in prose: `\(…\)` and `$…$`
+_MATH_SPAN_RE = re.compile(r"\\\((.*?)\\\)|(?<!\\)\$(.+?)(?<!\\)\$", re.S)
+
+
+def fix_text_mode_in_math_spans(text: str) -> str:
+    r"""Apply the text-mode repair INSIDE the inline math spans of prose.
+
+    MEASURED on BH2, and it is why repairing `props['latex']` alone was not
+    enough. After `sanitize_math` learned the fix, the real projection still
+    stopped at line 133 on
+
+        \(C\) durch das Zeichen \({ }^{\text {^ }}\) in der Form \(\hat{C}\)
+
+    Exactly ONE model object carries this artifact in `props['latex']`, which
+    `sanitize_math` covers. The one that broke the document carries it in a
+    PARAGRAPH'S PROSE, inside an inline span — a different emission path.
+
+    Only inside the spans. A `^` in running prose belongs to
+    `escape_prose_specials`, and two passes escaping one character would
+    double it.
+    """
+    if "\\text" not in text:
+        return text
+
+    def fix(m: "re.Match[str]") -> str:
+        body = m.group(1) if m.group(1) is not None else m.group(2)
+        fixed = _fix_text_mode_specials(body)
+        if fixed == body:
+            return m.group(0)
+        return ("\\(" + fixed + "\\)") if m.group(1) is not None \
+            else ("$" + fixed + "$")
+    return _MATH_SPAN_RE.sub(fix, text)
 
 
 def balance_math(text: str) -> str:
