@@ -55,6 +55,10 @@ _QUIT = {"quit", "exit", "stop", "q", "bye", "qui", ":quit", ":exit", ":stop",
 # drift behind pdfdrill's actual capabilities.
 _COMBINED_OK = {"bibtex"}
 
+#: Commands that spend a key (`network: true` in commands.yaml), filled by
+#: `load_commands`. A fuzzy or phonetic guess never runs one.
+_PAID: set = set()
+
 
 # This script lives at <repo>/tools/drillui_chat.py, so pdfdrill is ALWAYS
 # right here: <repo>/src/pdfdrill (import root) and <repo>/pdfdrill (the wrapper
@@ -178,9 +182,16 @@ def load_commands(base, env, timeout: float) -> dict:
     cmds = (obj or {}).get("commands") or []
     table = {}
     combined_ok = set()
+    paid = set()
     for c in cmds:
         pos = c.get("positionals") or []
         table[c["name"]] = (pos[0].get("type") if pos else None)
+        # WHICH COMMANDS COST MONEY is a per-command fact in commands.yaml
+        # (`network: true`), read here for the same reason `accepts_combined`
+        # is: a hand-kept copy rots the moment pdfdrill gains a paid lane.
+        # `classify_line` uses it to refuse to GUESS its way into a paid call.
+        if c.get("network"):
+            paid.add(c["name"])
         # Which commands understand a COMBINED session store is a per-command
         # FACT and therefore belongs in commands.yaml, not in a set maintained
         # here: a hand-kept copy silently rots the moment pdfdrill gains a
@@ -193,6 +204,8 @@ def load_commands(base, env, timeout: float) -> dict:
     if combined_ok:
         _COMBINED_OK.clear()
         _COMBINED_OK.update(combined_ok)
+    _PAID.clear()
+    _PAID.update(paid)
     return table
 
 
@@ -315,6 +328,190 @@ def session_members(store_path: str) -> list:
     return out
 
 
+#: Spelling pairs that SOUND the same, applied longest-first. German-first
+#: spellings of English command names are the case the owner asked for
+#: (`inspekt`, `fonts`/`phonts`, `doktor`, `mathpiks`), so the classes are the
+#: ones that separate those two orthographies, not a general metaphone.
+_PHON_PAIRS = (("sch", "sh"), ("tsch", "ch"), ("ph", "f"), ("ck", "k"),
+               ("qu", "kv"), ("th", "t"), ("ch", "k"), ("ce", "se"),
+               ("ci", "si"), ("cy", "si"), ("c", "k"), ("x", "ks"),
+               ("z", "s"), ("v", "f"), ("w", "v"), ("y", "i"), ("j", "i"))
+
+
+def _phon_norm(word: str) -> str:
+    """The word with the sound-equivalence classes applied, vowels still in."""
+    w = "".join(ch for ch in word.lower() if ch.isalpha())
+    for a, b in _PHON_PAIRS:
+        w = w.replace(a, b)
+    return w
+
+
+def phonetic_key(word: str) -> str:
+    """A key two spellings of the same SOUND share.
+
+    OWNER, 2026-11-12: "a phonem search would by helpful for users like me."
+
+    `difflib` compares letters, so it catches a transposition (`inspcet`) and a
+    dropped letter (`inpsect`) but not a different spelling of the same word:
+    `inspekt`, `doktor`, `phonts`, `mathpiks` are each a long way from the
+    command by edit distance and identical to it by sound. A German-speaking
+    reader types those, and the letter metric calls them unknown words.
+
+    The key keeps the first sound, drops every later vowel (vowels are what
+    differ most between the two orthographies) and collapses doubles:
+
+        inspect, inspekt        -> inspkt
+        fonts, phonts           -> fnts
+        doctor, doktor          -> dktr
+        mathpix, mathpicks      -> mtpks
+        tiddlers, tidlers       -> tdlrs
+
+    Deliberately NOT soundex: soundex truncates to four characters, which makes
+    `model` and `mathpix` the same key (M340 both) — a collision between a free
+    local build and a paid API call is the one this must not make.
+    """
+    w = _phon_norm(word)
+    if not w:
+        return ""
+    out = [w[0]]
+    for ch in w[1:]:
+        if ch in "aeiou" or ch == out[-1]:
+            continue
+        out.append(ch)
+    return "".join(out)
+
+
+#: Shortest key a phonetic match is allowed to rest on. MEASURED: `size`
+#: reduces to `s` (s · i dropped · z→s collapsed into it · e dropped) and so
+#: does `zzzz`, so a 1-char key made a nonsense word "sound like" a real
+#: command. Two consonants are not enough either — `md`, `toc`, `ls` would
+#: collect every three-letter slip. Below this, `difflib` is the better judge,
+#: and it already handles short names well because a short word's edit
+#: distance is small.
+_PHON_MIN = 3
+
+
+def phonetic_matches(cmds, word: str) -> list:
+    """Every command whose name sounds like `word`. Sorted, so it is stable."""
+    key = phonetic_key(word)
+    if len(key) < _PHON_MIN:
+        return []
+    # The key drops vowels, which is what lets `sitse` (a German respelling of
+    # `size`) collide with `status` — both reduce to `sts`. MEASURED over
+    # German-style respellings of all 170 commands, that was the one wrong hit
+    # of 20. Requiring the first two sounds to agree removes it and keeps the
+    # other 19, because a respelling changes how a word is WRITTEN, not where
+    # it starts.
+    head = _phon_norm(word)[:2]
+    return sorted(c for c in cmds
+                  if len(phonetic_key(c)) >= _PHON_MIN
+                  and phonetic_key(c) == key
+                  and _phon_norm(c)[:2] == head)
+
+
+def looks_invoked(line: str) -> bool:
+    """Does this line carry a pdfdrill FLAG, i.e. is it an invocation?
+
+    `inpsect --pages 20-60` is a command with arguments. Prose is not: a
+    question almost never contains a `--` token, while every pdfdrill flag does.
+    A SINGLE dash is not enough — "why -3 dB?" is a real question.
+    """
+    return any(tok.startswith("--") for tok in line.split()[1:])
+
+
+def classify_line(cmds: dict, line: str,
+                  paid: "frozenset[str] | set[str]" = frozenset()
+                  ) -> tuple[str, str, list[str]]:
+    """Decide what one REPL line IS: ("command"|"question"|"reject", line, notes).
+
+    OWNER, 2026-11-12, having typed `inpsect --pages 20-60` on the open
+    document: "please explain what I am doing wrong and why pdfdrill never works
+    as expected?"
+
+    WHAT WAS WRONG. The typo guard was gated on `len(line.split()) == 1`. A
+    misspelled verb ALONE was caught ("no command `inpsect` — did you mean…"); a
+    misspelled verb WITH ARGUMENTS fell through every branch and was sent to the
+    LLM as a question. The LLM is a `claude -p` subprocess with its own tools, so
+    it did not say "that is not a command" — it went looking, read the SIBLING
+    sidecar `BH2.compressed.drill.json`, reported the long original filename
+    recorded there as missing from disk, invented a page count, and the answer
+    was logged as a knowledge item with 0 cited units. Three false statements
+    about a 170 MB PDF that was sitting in the folder it named.
+
+    The word count was never the signal. An INVOCATION is: `--pages` is a flag,
+    and prose does not carry flags. So prefix resolution, closest-match and
+    outright rejection now all apply to a flagged line exactly as they do to a
+    lone word, and the LLM is reached only by something that looks like prose
+    (or `?…`, which forces it).
+
+    Pure and total, so `tests/test_a_mistyped_command_is_not_a_question.py` can
+    put every shape through it without a document, a model or an LLM — the logic
+    used to live inside `main()`'s loop, where nothing could reach it.
+    """
+    notes: list[str] = []
+    if line.startswith("?"):                       # forced question
+        rest = line[1:].lstrip()
+        if not rest:
+            return "reject", line, ["usage: ?<question>   (forces the LLM "
+                                    "instead of a command)"]
+        return "question", rest, notes
+    if line.startswith("!"):                       # forced command
+        return "command", line, notes
+    parts = line.split()
+    first = parts[0] if parts else ""
+    if not first:
+        return "question", line, notes
+    if first in cmds:
+        return "command", line, notes
+    # PREFIX resolution, before any fuzzy matching: `sta` → `status`, `tidd` →
+    # `tiddlers`. Unambiguous prefixes are what makes a 125-command shell usable
+    # without tab completion; an AMBIGUOUS one lists the candidates instead of
+    # guessing (`bib` → bibfetch/bibliography/…).
+    pre = sorted(c for c in cmds if c.startswith(first.lower()))
+    if len(pre) == 1:
+        notes.append(f"(`{first}` → `{pre[0]}`)")
+        return "command", pre[0] + line[len(first):], notes
+    invoked = len(parts) == 1 or looks_invoked(line)
+    if len(pre) > 1 and invoked:
+        notes.append(f"`{first}` is ambiguous: {', '.join(pre[:8])}"
+                     + (" …" if len(pre) > 8 else ""))
+        return "reject", line, notes
+    if invoked:
+        # Typo / singular tolerance: `tiddler` → `tiddlers`, `inpsect` →
+        # `inspect`. Running the closest match beats a multi-second LLM round
+        # trip that answers nothing.
+        near = difflib.get_close_matches(first.lower(), list(cmds), n=1, cutoff=0.8)
+        # SOUND, when letters fail: `inspekt`, `doktor`, `phonts`. A reader who
+        # spells an English verb the German way is not asking a question.
+        phon = [] if near else phonetic_matches(cmds, first)
+        hit = near[0] if near else (phon[0] if len(phon) == 1 else "")
+        if hit:
+            how = "closest match" if near else "same-sounding command"
+            # A GUESS NEVER SPENDS MONEY. `mathpicks` → `mathpix` is a paid
+            # MathPix conversion, `translaet` → `translate` a paid DeepL call;
+            # auto-running either off a misspelling bills the owner for a typo.
+            # A PREFIX is an abbreviation and still runs (above) — that is
+            # deliberate; a fuzzy or phonetic hit is inference and must be
+            # confirmed by typing it.
+            if hit in paid:
+                notes.append(f"`{first}` looks like `{hit}`, which COSTS MONEY "
+                             f"(network/paid) — type it out to run it.")
+                return "reject", line, notes
+            notes.append(f"(no command `{first}` — running {how} `{hit}`)")
+            return "command", hit + line[len(first):], notes
+        if len(phon) > 1:
+            notes.append(f"`{first}` sounds like: {', '.join(phon[:8])}"
+                         + (" …" if len(phon) > 8 else ""))
+            return "reject", line, notes
+        sugg = difflib.get_close_matches(first.lower(), list(cmds), n=3, cutoff=0.5)
+        notes.append(f"no command `{first}`."
+                     + (f" Did you mean: {', '.join(sugg)}?" if sugg else "")
+                     + "\n  `:commands` lists them all · `?<word>` asks it as a"
+                       " question instead.")
+        return "reject", line, notes
+    return "question", line, notes
+
+
 def run_command(base, env, cmds: dict, doc: str, line: str, timeout: float) -> str:
     """Run `<cmd> [args]` (with or without a leading '!') as a pdfdrill subcommand
     on the open doc. Heavy commands get their _HEAVY_TIMEOUT floor so a long
@@ -349,7 +546,14 @@ def do_add(base, env, newdoc: str, docs: list, combined: str | None,
     drilled: list[str] = []
     for d in docs:
         try:
-            _run(base + ["model", d], env, timeout=max(timeout, 600.0))
+            msg = _run(base + ["model", d], env, timeout=max(timeout, 600.0))
+            # A REFUSAL MUST NOT BE SWALLOWED. This output was discarded, and
+            # the line above promises "reuses an existing drill; only builds if
+            # new" whatever happened underneath — so when `model` declined to
+            # rebuild over a translation (or any enrichment), the reader was
+            # told the document had been added and nothing else. Say it.
+            if "Refusing to rebuild" in msg:
+                print("  " + msg.strip().replace("\n", "\n  "))
             drilled.append(d)
         except Exception as e:                            # noqa: BLE001
             print(f"  could not drill {d}: {e}", file=sys.stderr)
@@ -881,53 +1085,19 @@ def main() -> int:
                   "(feed the ADF) to bring one in.")
             continue
         # A pdfdrill command — forced with '!' or recognised by name — runs on the
-        # CURRENT target. Everything else is a question.
-        # `?…` forces the LLM path — the escape hatch for a genuine ONE-WORD
-        # question, which is otherwise treated as a mistyped command (below).
-        forced_question = line.startswith("?")
-        if forced_question:
-            line = line[1:].lstrip()
-            if not line:
-                print("  usage: ?<question>   (forces the LLM instead of a command)")
-                continue
+        # CURRENT target. Everything else is a question. `?…` forces the LLM
+        # path, the escape hatch for a genuine one-word question.
+        #
+        # ONE decision, in ONE place, and a pure function: this lived inline
+        # here, which is how a misspelled verb WITH ARGUMENTS came to be sent to
+        # the LLM for a year — nothing could test the branch it fell through.
+        kind, line, notes = classify_line(cmds, line, _PAID)
+        for note in notes:
+            print(f"  {note}")
+        if kind == "reject":
+            continue
+        is_cmd = kind == "command"
         first = line.lstrip("!").split(maxsplit=1)[0] if line.lstrip("!") else ""
-        is_cmd = (not forced_question) and (line.startswith("!") or first in cmds)
-        # PREFIX resolution, before any fuzzy matching: `sta` → `status`,
-        # `tidd` → `tiddlers`. Unambiguous prefixes are what makes a 117-command
-        # shell usable without tab completion; an AMBIGUOUS one lists the
-        # candidates instead of guessing (`bib` → bibfetch/bibliography/…).
-        if not is_cmd and not forced_question and first and not line.startswith("!"):
-            pre = sorted(c for c in cmds if c.startswith(first.lower()))
-            if len(pre) == 1:
-                print(f"  (`{first}` → `{pre[0]}`)")
-                line = pre[0] + line[len(first):]
-                first, is_cmd = pre[0], True
-            elif len(pre) > 1 and len(line.split()) == 1:
-                print(f"  `{first}` is ambiguous: {', '.join(pre[:8])}"
-                      + (" …" if len(pre) > 8 else ""))
-                continue
-        # Typo / singular tolerance: a lone word that closely matches a command
-        # (e.g. `tiddler` → `tiddlers`) runs the command instead of being sent to
-        # the LLM as a question (which wastes a slow call and answers nothing).
-        if not is_cmd and not forced_question and len(line.split()) == 1 and first:
-            near = difflib.get_close_matches(first.lower(), list(cmds), n=1, cutoff=0.8)
-            if near:
-                print(f"  (no command `{first}` — running closest match `{near[0]}`)")
-                line = first = near[0]
-                is_cmd = True
-            else:
-                # A single WORD that is not a command and matches nothing is a
-                # TYPO, not a question — answering it costs a multi-second LLM
-                # round trip and returns "no units cited". Reject it instantly
-                # and locally. (A real one-word question still works: prefix `?`
-                # or add a second word.)
-                sugg = difflib.get_close_matches(first.lower(), list(cmds), n=3,
-                                                 cutoff=0.5)
-                print(f"  no command `{first}`."
-                      + (f" Did you mean: {', '.join(sugg)}?" if sugg else "")
-                      + "\n  `:commands` lists them all · `?<word>` asks it as a"
-                        " question instead.")
-                continue
         if is_cmd:
             # Multi-document: a pdfdrill command runs on EVERY loaded document
             # (fan-out). The combined store is a RETRIEVAL artifact, not a PDF, so
