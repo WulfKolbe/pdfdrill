@@ -1002,6 +1002,12 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .insphead{padding:8px 12px;border-bottom:1px solid var(--line);display:flex;
   align-items:center;gap:8px}
 .insphead .t{font-weight:700}
+.ihlang{font:10px/1.6 var(--sans);letter-spacing:.06em;padding:1px 7px;border-radius:10px;
+  border:1px solid var(--line);color:var(--dim);white-space:nowrap;flex:0 0 auto}
+.otherlang{margin:12px 0 0;padding:6px 8px;border:1px dashed var(--line);border-radius:4px}
+.otherlang>summary{cursor:pointer;font:10px/1.6 var(--sans);letter-spacing:.06em;
+  color:var(--dim);text-transform:uppercase}
+.otherlang .sec{margin-top:8px}
 .inspbody{overflow:auto;padding:10px 12px;font-size:12.5px}
 .empty{color:var(--faint);padding:24px 12px;text-align:center}
 .kv{display:grid;grid-template-columns:96px 1fr;gap:2px 10px;margin:2px 0}
@@ -1078,6 +1084,8 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     <div class="inspector">
       <div class="insphead"><span class="badge" id="ihBadge">—</span>
         <span class="t" id="ihTitle">Inspector</span>
+        <span class="ihlang" id="ihLang" style="display:none"
+              title="The language of the TEXT below. The page picture is the printed original and cannot change."></span>
         <button class="jump" id="jumpBtn" style="display:none">reveal ▸</button>
       </div>
       <div class="inspbody" id="inspBody"><div class="empty">Select an element to inspect it.</div></div>
@@ -1188,6 +1196,30 @@ function labelOf(e){
   }
   const alt = e.alt.caption != null ? e.alt.caption : e.alt.text;
   return alt != null ? oneLine(alt, 60) : (e.label || '');
+}
+
+/* WHICH LANGUAGE THE PANEL IS SPEAKING, in the reader's own terms.
+ *
+ * OWNER, 2026-11-12: "Please try to show on the right side bar the selected
+ * language while the image with the original is shown."
+ *
+ * The inspector already read in the chosen language -- every renderer goes
+ * through `L` above -- and that was the defect: the photograph cannot change,
+ * so a language choice had no visible effect anywhere and the control read as
+ * dead. The panel now names its language every time it is drawn.
+ *
+ * An element with NO twin gets "same in both languages", not a language name:
+ * a Formula is one string in both, and stamping it "EN . translation" would be
+ * a claim about text nobody translated. */
+function langChip(role){
+  const l = LANGS.find(x => x.role === role) || {};
+  const word = role === 'original' ? 'original' : 'translation';
+  return (l.flag ? l.flag + ' ' : '') + (l.label || word) + ' · ' + word;
+}
+function inspectorLangTag(e){
+  if (LANGS.length < 2) return '';
+  if (!e || !e.alt || !Object.keys(e.alt).length) return 'same in both languages';
+  return langChip(curRole);
 }
 
 /* THE VIEW NEVER MOVES UNDER THE READER.
@@ -1933,9 +1965,37 @@ window.docinspect = {
 };
 
 /* ---------- INSPECTOR (detail delegated to the type's module) ---------- */
+
+/* BOTH LANGUAGES IN ONE PLACE, which is only possible here.
+ *
+ * The page view is a photograph and shows one language -- whichever the printer
+ * set. Reflow shows one language -- whichever is chosen. The sidebar is the
+ * only surface that can hold the pair, so it carries the OTHER language's text
+ * under its own name, folded away so it never competes with the chosen one.
+ *
+ * The value comes from the opposite side every time: `e.alt[k]` holds the
+ * ORIGINAL, `e[k]` the translation, so a block that always read `alt` would
+ * show the original twice as soon as the original was the chosen language. */
+const _ALT_SEC = {text: 'text', caption: 'caption', raw_text: 'raw text'};
+function otherLanguage(e){
+  if (LANGS.length < 2 || !e || !e.alt) return '';
+  const otherRole = curRole === 'original' ? 'translated' : 'original';
+  let inner = '';
+  Object.keys(e.alt).forEach(k => {
+    const v = otherRole === 'original' ? e.alt[k] : e[k];
+    if (v == null || !String(v).trim()) return;
+    inner += sec(_ALT_SEC[k] || k) + txt(v);
+  });
+  if (!inner) return '';
+  return '<details class="otherlang"><summary>' + esc(langChip(otherRole))
+       + '</summary>' + inner + '</details>';
+}
+
 function renderInspector(e){
   const badge=document.getElementById('ihBadge'); badge.textContent=e.type; badge.className='badge b-'+e.type;
   document.getElementById('ihTitle').textContent=labelOf(e)||e.type;
+  const lt=document.getElementById('ihLang');
+  if(lt){ const tag=inspectorLangTag(e); lt.textContent=tag; lt.style.display=tag?'':'none'; }
   const jb=document.getElementById('jumpBtn'); jb.style.display='';
   jb.onclick=()=>{ if(curView!=='page') setView('page'); curPage=e.page; syncPageSel(); refreshStage(); setTimeout(()=>select(e.id),0); };
   const b=e.bbox, pm=PMETA[e.page]||{}, g=pageScale(e.page);
@@ -1943,7 +2003,7 @@ function renderInspector(e){
   let h=kv('id',e.id)+kv('type',e.type)+kv('page',e.page);
   if(b) h+='<div class="kv"><span class="k">region pt</span><span class="v">x '+b.x+' · y '+b.y+' · w '+b.w+' · h '+b.h+px+'</span></div>';
   const body=document.getElementById('inspBody');
-  body.innerHTML=h+rendererFor(e.type).detail(e)+provenance(e);
+  body.innerHTML=h+rendererFor(e.type).detail(e)+otherLanguage(e)+provenance(e);
   fillDeferred(body, e);
 }
 function provenance(e){
