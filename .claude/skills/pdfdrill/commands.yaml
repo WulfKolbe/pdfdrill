@@ -412,6 +412,12 @@ commands:
     type: str
     flag: --image-base
     help: 'origin serving MathPix-shaped crops (http://localhost:8791)'
+  - name: lang
+    type: str
+    flag: --lang
+    help: 'original|translated - project ONE language of a translated model (translate keeps the original
+      under <field>_source). Writes <bibkey>.<code>.md / <bibkey>.<code>.tex and NEVER the canonical
+      file; refuses, writing nothing, on a document that has only one language'
   typed: true
   requires:
   - model
@@ -2567,6 +2573,12 @@ commands:
     flag: --dump-stages
     help: 'write the inspectable generation stages (transclusion lookup / citations / bibliography / footnote
       + citation resolution) to <drill>/latex/stages/'
+  - name: lang
+    type: str
+    flag: --lang
+    help: 'original|translated - project ONE language of a translated model (translate keeps the original
+      under <field>_source). Writes <bibkey>.<code>.md / <bibkey>.<code>.tex and NEVER the canonical
+      file; refuses, writing nothing, on a document that has only one language'
   typed: true
   done_when: file:{bibkey}.tex
 - name: beamer

@@ -2210,14 +2210,16 @@ def _do_latexbook(args):
 
 def _do_latex(args):
     """pdfdrill latex <pdf> [--force] [--compile] [--dump-stages]
-    [--no-transclude]"""
+    [--no-transclude] [--lang original|translated]"""
     from .commands import cmd_latex
+    lang, args = _opt(args, "--lang")
     flags = ("--force", "--compile", "--dump-stages", "--no-transclude")
     pdf_args = [a for a in args if a not in flags]
     return cmd_latex(_pdf(pdf_args), force="--force" in args,
                      compile="--compile" in args,
                      dump_stages="--dump-stages" in args,
-                     transclude="--no-transclude" not in args)
+                     transclude="--no-transclude" not in args,
+                     lang=lang)
 
 
 def _do_beamer(args):
@@ -2344,6 +2346,7 @@ def _do_structmd(args):
 
 def _do_md(args):
     """pdfdrill md <pdf> [--pages N|N-M|all] [--image-base URL]
+    [--lang original|translated]
 
     819d — `--image-base` was added to the manifest and to `cmd_md` and this
     handler still parsed only `--pages`, so the flag fell into `pdf_args` and was
@@ -2353,7 +2356,8 @@ def _do_md(args):
     from .commands import cmd_md
     pages, args = _opt(args, "--pages")
     image_base, args = _opt(args, "--image-base")
-    return cmd_md(_pdf(args), pages, image_base=image_base)
+    lang, args = _opt(args, "--lang")
+    return cmd_md(_pdf(args), pages, image_base=image_base, lang=lang)
 
 
 def _do_page(args):

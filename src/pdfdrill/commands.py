@@ -12389,7 +12389,8 @@ def _auto_bibliography(pdf: Path, sc, doc):
 
 @_writes("latex")
 def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
-              dump_stages: bool = False, transclude: bool = True) -> str:
+              dump_stages: bool = False, transclude: bool = True,
+              lang: str | None = None) -> str:
     """PROJECT the drilled document to a self-contained, COMPILABLE LaTeX
     ENVIRONMENT folder — the LaTeX analog of `md`. OUTPUT direction.
 
@@ -12424,7 +12425,23 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
         return ("No docmodel to project. Build one first (`pdfdrill model`), "
                 "then re-run `pdfdrill latex`.")
 
-    doc = _prefer_arxiv_source(pdf, sc, key, doc, model_path)   # arXiv .tex → improve it
+    # ONE LANGUAGE, ASKED FOR BY NAME. The author's arXiv source is in the
+    # PRINTED language, so preferring it under a translated projection would
+    # put the original back: `--lang` takes the model as `translate` left it
+    # and switches the prose fields itself. The tagged key gives
+    # `<bibkey>.<code>.tex`, so a language run never overwrites the canonical
+    # `<bibkey>.tex`.
+    lang_note = ""
+    if lang is not None:
+        ldoc, tag, code, swapped, refusal = _language_view(pdf, sc, lang)
+        if refusal:
+            return refusal
+        doc, key = ldoc, f"{key}.{tag}"
+        lang_note = (f"  language: {code or tag} — {swapped} prose field(s) "
+                     f"differ between the two languages; the canonical `.tex` "
+                     f"was not touched.")
+    else:
+        doc = _prefer_arxiv_source(pdf, sc, key, doc, model_path)   # arXiv .tex → improve it
     doc = _auto_bibliography(pdf, sc, doc)
 
     from docops.base import OperatorConfig
@@ -12469,6 +12486,8 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
         f"  NOTE: use xelatex (or lualatex), NOT pdflatex — the model can carry "
         f"raw Unicode (≥ ✓ → ℃) that inputenc/pdflatex reject.",
     ]
+    if lang_note:
+        lines.append(lang_note)
     # 638 — the footnote resolution, said out loud. A marker the projector
     # cannot pair with a body is LEFT as it stands and counted; a count nothing
     # prints is a count nobody reads.
@@ -18930,6 +18949,44 @@ def _md_from_latex_source(pdf: Path, sc: "Sidecar") -> "str | None":
             + _write_md(pdf, sc, md, source="latex"))
 
 
+def _md_in_language(pdf: Path, sc: "Sidecar", lang: str,
+                    image_base: str | None = None) -> str:
+    """`pdfdrill md --lang original|translated` — the model in ONE language.
+
+    Writes `<bibkey>.<code>.md` (e.g. `BH2.de.md`) and never `<bibkey>.md`:
+    that is the one filename a bought MathPix download owns, and 41 of them in
+    the library are gone to a projection that wrote it.
+    """
+    doc, tag, code, swapped, refusal = _language_view(pdf, sc, lang)
+    if refusal:
+        return refusal
+    key = resolve_bibkey(pdf, None, sc)
+    md = _project_markdown(sc, doc, image_base)
+    if not md.strip():
+        return (f"The {code or tag} projection came out empty — the model has "
+                f"no prose to project. Nothing was written.")
+    name = f"{key}.{tag}.md"
+    sc.write_blob(name, md)
+    import hashlib as _hashlib
+    langs = dict(sc.get_layer("md_langs") or {})
+    langs[tag] = {"blob": name, "code": code, "role": str(lang).lower(),
+                  "words": len(md.split()),
+                  "fields_switched": swapped,
+                  "sha256": _hashlib.sha256(md.encode("utf-8")).hexdigest(),
+                  "built_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    sc.set_layer("md_langs", langs)
+    sc.save()
+    import re as _re
+    imgs = len(_re.findall(r"!\[[^\]]*\]\([^)]+\)", md))
+    rows = len(_re.findall(r"^\s*\|.*\|\s*$", md, _re.M))
+    return (f"Markdown in {code or tag} ({len(md.split())} words, {imgs} image "
+            f"link(s), {rows} table row(s)) — {swapped} prose field(s) differ "
+            f"between the two languages.\n"
+            f"  wrote {_artref(sc, sc.blob_dir / name)}\n"
+            f"  `{key}.md` was NOT touched: a language-tagged projection never "
+            f"writes the document's one markdown file.")
+
+
 def _project_markdown(sc: "Sidecar", doc, image_base: str | None = None) -> str:
     """The docmodel as Markdown — headings, prose, IMAGES and TABLES.
 
@@ -19058,12 +19115,76 @@ def cmd_structmd(pdf: Path, pages: str | None = None) -> str:
             f"beside the PDF.")
 
 
+def _language_view(pdf: Path, sc: "Sidecar", lang: str):
+    """(doc, tag, code, swapped, refusal) for a `--lang` projection.
+
+    OWNER, 2026-11-12: "I need the original German version."
+
+    `translate` writes the target language IN PLACE and keeps the original under
+    `<field>_source`, so a translated model holds both languages on every prose
+    object — and until this, nothing but the HTML inspector could reach the
+    second one. This is the one place that turns "which language" into a
+    Document to project from.
+
+    `refusal` is a sentence when there is nothing to project (no model, an
+    unknown role, or a monolingual document asked for its other language). A
+    projection must NOT write a language-tagged file in that case: a file named
+    `<bibkey>.de.md` is a claim that its contents are German.
+
+    NO AUTOMATIC REBUILD HERE. The three lazy-rebuild doors in this module call
+    `cmd_model(force=True)` by themselves; on a translated model that call
+    refuses, and a fourth such door would be a fourth place where nothing asked
+    for the rebuild (29f5ec99).
+    """
+    from docops import language
+    role = str(lang or "").strip().lower()
+    if role in ("source", "orig"):
+        role = "original"
+    if role in ("target", "trans", "translation"):
+        role = "translated"
+    if role not in ("original", "translated"):
+        return None, "", None, 0, (
+            f"Unknown --lang {lang!r}. Use `--lang original` for the language "
+            f"the document was printed in, or `--lang translated` for what "
+            f"`pdfdrill translate` produced.")
+    model_path = _model_path(sc)
+    if not (sc.has(MODEL_BUILT) and model_path.exists()):
+        return None, "", None, 0, (
+            "No docmodel to project a language from. Build one first "
+            "(`pdfdrill model`), then re-run with --lang.")
+    doc = load_model(model_path)
+    src_code, tgt_code = language.codes(doc.meta)
+    if not language.is_translated(doc):
+        one = src_code or tgt_code or "its one"
+        return None, "", None, 0, (
+            f"This document is in one language ({one}) — nothing to choose. "
+            f"`translate` keeps the original under `<field>_source`, and this "
+            f"model carries no such twin on any object, so no "
+            f"language-tagged file was written.")
+    # the size of the difference between the two files, reported either way
+    swapped = sum(len(language.twins(o.props or {}))
+                  for o in doc.objects.values())
+    if role == "original":
+        language.original_in_place(doc)
+    code = src_code if role == "original" else tgt_code
+    return doc, language.file_tag(code, role), code, swapped, ""
+
+
 @_writes("md")
 def cmd_md(pdf: Path, pages: str | None = None,
-           image_base: str | None = None) -> str:
+           image_base: str | None = None, lang: str | None = None) -> str:
     """Build Markdown. Prefers the author's LaTeX (arXiv/source) — clean, no
     hyphenation, isolated abstract, bibliography — else the PDF text-layer."""
     sc = Sidecar(pdf)
+
+    # A LANGUAGE IS A PROJECTION OF THE MODEL, and only of the model: the
+    # author's LaTeX, the PDF's own text layer and a bought MathPix `.md` are
+    # each already in the printed language and have no second one to choose.
+    # So `--lang` takes the model route directly and writes a language-tagged
+    # file; `<bibkey>.md` — the filename a bought download also owns — is never
+    # touched by it.
+    if lang is not None:
+        return _md_in_language(pdf, sc, lang, image_base)
 
     # RULE: if the LaTeX source is available, use it (not the lossy text-layer).
     if pages is None:

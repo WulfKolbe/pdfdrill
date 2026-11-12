@@ -73,6 +73,10 @@ _IMAGEY = {"Picture", "Diagram", "Chart"}
 # object and the inspector can offer either. The props name is not always the
 # rec key the renderers read (a Footnote's prose lives in `content` but renders
 # from `text`), so the map is explicit.
+#: model field -> the key the inspector RECORD carries it under. The set of
+#: fields and the rule for what counts as a twin live in `docops.language`,
+#: which the Markdown and LaTeX projections read too — two surfaces must not
+#: hold two opinions about what a second language IS.
 _ALT_FIELDS = {"text": "text", "caption": "caption",
                "content": "text", "raw_text": "raw_text"}
 
@@ -144,15 +148,10 @@ def element_translations(props: dict) -> dict[str, str]:
     writes `text_source`, and treating that as a second language would put a
     language switch on every materialised paragraph in the library.
     """
+    from docops import language
     out: dict[str, str] = {}
-    for field, key in _ALT_FIELDS.items():
-        src = props.get(field + "_source")
-        cur = props.get(field)
-        if not isinstance(src, str) or not src.strip():
-            continue
-        if not isinstance(cur, str) or cur == src:
-            continue
-        out[key] = src
+    for field, original in language.twins(props).items():
+        out[_ALT_FIELDS.get(field, field)] = original
     return out
 
 
