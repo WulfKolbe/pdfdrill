@@ -2210,15 +2210,24 @@ def _do_latexbook(args):
 
 def _do_latex(args):
     """pdfdrill latex <pdf> [--force] [--compile] [--dump-stages]
-    [--no-transclude] [--lang original|translated]"""
+    [--transclude] [--no-transclude] [--lang original|translated]
+
+    Formulas are written WHERE THEY STAND by default (owner, 2026-11-12: "there
+    is no need to have transclusions in the LaTeX code"); `--transclude` builds
+    the `\\Expr` array instead. `--no-transclude` names the default explicitly
+    and is kept so existing scripts keep working -- it is not a silent no-op,
+    it states the behaviour it gets.
+    """
     from .commands import cmd_latex
     lang, args = _opt(args, "--lang")
-    flags = ("--force", "--compile", "--dump-stages", "--no-transclude")
+    flags = ("--force", "--compile", "--dump-stages", "--transclude",
+             "--no-transclude")
     pdf_args = [a for a in args if a not in flags]
     return cmd_latex(_pdf(pdf_args), force="--force" in args,
                      compile="--compile" in args,
                      dump_stages="--dump-stages" in args,
-                     transclude="--no-transclude" not in args,
+                     transclude=("--transclude" in args
+                                 and "--no-transclude" not in args),
                      lang=lang)
 
 
@@ -2235,6 +2244,18 @@ def _do_bracketrepair(args):
     from .commands import cmd_bracketrepair
     pos = [a for a in args if a != "--apply"]
     return cmd_bracketrepair(_pdf(pos), apply="--apply" in args)
+
+
+def _do_injecttiddlers(args):
+    """pdfdrill injecttiddlers <pdf> [--source <tiddlers.json>] [--apply]
+
+    Pull hand corrections from TiddlyWiki INTO the docmodel. Dry run unless
+    `--apply` is given."""
+    from .commands import cmd_injecttiddlers
+    source, args = _opt(args, "--source")
+    pdf_args = [a for a in args if a != "--apply"]
+    return cmd_injecttiddlers(_pdf(pdf_args), source=source,
+                              apply="--apply" in args)
 
 
 def _do_injectlatex(args):
@@ -3328,6 +3349,7 @@ HANDLERS = {
         "beamer": _do_beamer,
         "bracketrepair": _do_bracketrepair,
         "injectlatex": _do_injectlatex,
+        "injecttiddlers": _do_injecttiddlers,
         "latexbook": _do_latexbook,
         "markdown": _do_markdown,
         "identifiers": _do_identifiers,

@@ -2555,10 +2555,14 @@ commands:
     required: true
     help: PDF path, https URL, or bare arXiv id
   flags:
+  - name: transclude
+    flag: --transclude
+    type: flag
+    help: 'build the \Expr transclusion array instead of writing each formula where it stands. NOT the default (owner, 2026-11-12: "there is no need to have transclusions in the LaTeX code") and readarray is QUADRATIC in the formula count - measured on BH2''s preamble alone, 500 rows 2.0s, 1500 rows 23.5s, 5202 rows >300s with no page produced. Transclusion INSIDE the docmodel is a different thing and is unaffected'
   - name: no_transclude
     flag: --no-transclude
     type: flag
-    help: write every formula out where it stands, instead of transcluding it from the \Expr array (transclusion is MANDATORY in TiddlyWiki, NEVER applied in Markdown, and an option here)
+    help: write every formula out where it stands. This is now the DEFAULT; the flag is kept so existing scripts keep working and states the behaviour it gets (transclusion is MANDATORY in TiddlyWiki and NEVER applied in Markdown)
   - name: force
     type: flag
     flag: --force
@@ -2630,6 +2634,28 @@ commands:
     flag: --apply
     help: record the repairs (without it, say what would change)
   typed: true
+- name: injecttiddlers
+  section: Extraction
+  summary: 'PULL hand corrections from a TiddlyWiki tiddlers.json INTO the docmodel - INPUT direction, like injectlatex. The wiki is the editing surface ("to change formulas and correct errors I would always prefer Tiddlywiki", owner 2026-11-12) and the model is what every projection reads; `tiddlers --update` already merged wiki hand-work onto a fresh projection and stopped at <bibkey>.update.json, and this is the step that was missing. A field is imported ONLY where the correspondence can be PROVED: the model is re-projected and a tiddler field is written back to a prop only when the fresh projection reproduces that prop''s value verbatim - measured on BH2, that admits 5,212 formula/equation `latex` fields and refuses 651 of 656 Paragraph `text` fields, because a paragraph''s text is rebuilt from the reading stream rather than taken from props. Everything refused is reported WITH ITS REASON. DRY RUN unless --apply. Never creates or deletes an object, never writes latex_raw/latex_original/latex_author or a <field>_source twin, and NEVER REBUILDS (a rebuild regenerates object ids and would throw away the title mapping it works through)'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: source
+    type: str
+    flag: --source
+    help: 'the edited tiddlers.json (default: the document''s own <bibkey>.tiddlers.json)'
+  - name: apply
+    type: flag
+    flag: --apply
+    help: write the proved changes into the model; without it nothing is written and the plan is only reported
+  typed: true
+  requires:
+  - model
+
 - name: injectlatex
   requires:
   - mathpix

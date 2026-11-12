@@ -6251,8 +6251,15 @@ def model_rebuild_blocked(translated: bool, lang, allow: bool) -> str:
 #: ids survive (1 of 2,196 on 1510.06699), so anything keyed on an object id
 #: dangles as well. The model is rebuilt from lines.json, which never held any
 #: of this.
+#: `wiki_edit` is here because an imported correction is EXACTLY what this
+#: guard exists for, and it was learned the hard way: the first end-to-end
+#: round trip of `injecttiddlers` wrote `{}^{1, 2}` into the model, and the
+#: next `pdfdrill latex --force` ran the lazy rebuild
+#: (`_stale_or_absent` -> `cmd_model`), regenerated every object id and put
+#: `^{1, 2}` back. lines.json does not hold a hand correction, so a rebuild
+#: cannot reproduce it -- which is the definition of an enrichment.
 ENRICHMENT_MARKERS = ("latex_refined", "latex_pretail", "latex_prepunct",
-                      "trailing_punct", "edit_source")
+                      "trailing_punct", "edit_source", "wiki_edit")
 
 
 def model_enrichments(model_path: Path) -> dict:
@@ -12383,6 +12390,35 @@ def _prefer_arxiv_source(pdf: Path, sc, key: str, doc, model_path: Path):
         return doc
     if not _arxiv_id_for(pdf, sc):                  # not an arXiv doc
         return doc
+    # AN AUTOMATIC IMPROVEMENT DOES NOT OUTRANK A PERSON'S CORRECTION.
+    #
+    # MEASURED 2026-11-12 on the first round trip of `injecttiddlers`
+    # (1911.02782, an arXiv document): the import wrote `{}^{1, 2}` into a
+    # 277-object model, and `pdfdrill latex --force` came back with 270
+    # objects, every id regenerated and `^{1, 2}` restored. It was not the
+    # lazy rebuild -- `_stale_or_absent` was False and `builder_is_current`
+    # True. It was THIS branch: it rebuilds from the author's `.tex` and
+    # PERSISTS the result, and it consulted no guard, so it replaced a model
+    # carrying enrichments with one built from scratch and said nothing. The
+    # fifth automatic-rebuild door in this module, and the one no guard
+    # covered.
+    #
+    # The author's source IS better than the PDF text layer. It is not better
+    # than a value someone fixed by hand, and it cannot contain one -- nor a
+    # translation, nor a refinement. So the model on disk wins, and the reason
+    # is recorded where the caller can report it.
+    _enr = model_enrichments(Path(model_path)) if Path(model_path).is_file() else {}
+    _translated = any(
+        isinstance(v, str) and v.strip()
+        for o in doc.objects.values()
+        for k, v in (o.props or {}).items() if k.endswith("_source"))
+    if _enr or _translated:
+        what = ", ".join(f"{v} {k}" for k, v in sorted(_enr.items()))             or "a translation"
+        doc.meta["arxiv_source_refused"] = (
+            f"the author's arXiv LaTeX was NOT used to improve this model: it "
+            f"carries enrichments a rebuild cannot reproduce ({what}). The "
+            f"model on disk is unchanged and still in use.")
+        return doc
     try:
         built = _build_arxiv_source_model(pdf, sc, key, model_path)
     except Exception:                                 # noqa: BLE001
@@ -12431,7 +12467,7 @@ def _auto_bibliography(pdf: Path, sc, doc):
 
 @_writes("latex")
 def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
-              dump_stages: bool = False, transclude: bool = True,
+              dump_stages: bool = False, transclude: bool = False,
               lang: str | None = None) -> str:
     """PROJECT the drilled document to a self-contained, COMPILABLE LaTeX
     ENVIRONMENT folder — the LaTeX analog of `md`. OUTPUT direction.
@@ -12448,6 +12484,19 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
     BibTeX). **Compile with `xelatex`** (not pdflatex): the model can carry raw
     Unicode (`≥ ✓ → ℃`) that inputenc/pdflatex reject. `--compile` runs it;
     `--dump-stages` writes the generation stages for inspection.
+
+    EACH FORMULA IS WRITTEN WHERE IT STANDS. Owner, 2026-11-12: the `\\Expr`
+    transclusion array "was an example from my first days working with
+    transclusions (3 years ago). There is no need to have transclusions in the
+    LaTeX code." It was also what stopped the output compiling: `readarray` is
+    QUADRATIC in the number of formulas (measured on BH2's preamble alone --
+    100 rows 0.7 s, 500 rows 2.0 s, 1,500 rows 23.5 s, 5,202 rows > 300 s with
+    no page produced), so any document past roughly 1,500 formulas could not
+    reach page one. `--transclude` keeps the old behaviour reachable.
+
+    TRANSCLUSION INSIDE THE DOCMODEL IS UNAFFECTED and is not the same thing:
+    it keeps formulas out of the prose stream, which is what lets `translate`
+    send prose to DeepL and get it back with the mathematics intact.
 
     Distinct from `injectlatex` (pull an author/MathPix source INTO the model as
     provenance). For enriched LaTeX (glossary/index, ORKG) see `stex`/`scikgtex`.
@@ -12530,6 +12579,12 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
     ]
     if lang_note:
         lines.append(lang_note)
+    # The arXiv-source refusal, said out loud. A projection that quietly
+    # declined to improve the model is the same silence as one that quietly
+    # replaced it.
+    _refused = str(doc.meta.get("arxiv_source_refused") or "")
+    if _refused:
+        lines.append("  " + _refused)
     # 638 — the footnote resolution, said out loud. A marker the projector
     # cannot pair with a body is LEFT as it stands and counted; a count nothing
     # prints is a count nobody reads.
@@ -12761,6 +12816,76 @@ def cmd_bracketrepair(pdf: Path, apply: bool = False) -> str:
             f"refinement verified by the author's {src_file}. The original "
             f"`latex` is untouched. Re-run `pdfdrill residuals --measure --pdf "
             f"{pdf.name}` — the model has changed.")
+
+
+@_writes("injecttiddlers")
+def cmd_injecttiddlers(pdf: Path, source: str | None = None,
+                       apply: bool = False) -> str:
+    """PULL hand corrections from a TiddlyWiki tiddlers.json INTO the docmodel.
+
+    OWNER, 2026-11-12: "To change formulas and correct errors I would always
+    prefer Tiddlywiki. Therefore we need an importer that is able to update
+    existing docmodel data by Tiddlywiki."
+
+    INPUT direction, like `injectlatex` -- the wiki is the editing surface and
+    the model is what every projection reads. `tiddlers --update` already
+    merged wiki hand-work onto a fresh projection and stopped at
+    `<bibkey>.update.json`; this is the step that was missing.
+
+    A field is imported ONLY where the correspondence can be PROVED: the
+    current model is re-projected, and a tiddler field may be written back to a
+    prop only when the fresh projection reproduces that prop's value verbatim.
+    Everything else is refused WITH ITS REASON -- on BH2 that admits 5,212
+    formula/equation `latex` fields and refuses 651 of 656 Paragraph `text`
+    fields, because the projector rebuilds a paragraph's text from the reading
+    stream rather than from `props['text']`.
+
+    DRY RUN BY DEFAULT: it reports and writes nothing until `--apply`. It never
+    creates or deletes an object, never writes `latex_raw`/`latex_original`/
+    `latex_author` or a `<field>_source` twin, and NEVER REBUILDS -- a rebuild
+    regenerates object ids and would throw away the title mapping this works
+    through. `--source` defaults to the document's own `<bibkey>.tiddlers.json`.
+    """
+    from docops import tiddler_import
+
+    sc = Sidecar(pdf)
+    key = resolve_bibkey(pdf, None, sc)
+    model_path = _model_path(sc)
+    if not (sc.has(MODEL_BUILT) and Path(model_path).is_file()):
+        return ("No docmodel to update. Build one first (`pdfdrill model`), "
+                "then re-run `pdfdrill injecttiddlers`.")
+    src_path = Path(source) if source else (sc.blob_dir / f"{key}.tiddlers.json")
+    if not src_path.is_file():
+        return (f"No tiddlers file at {src_path}. Project one with `pdfdrill "
+                f"tiddlers {pdf.name}`, edit it in TiddlyWiki, then re-run "
+                f"this with --source pointing at the saved file.")
+    try:
+        edited = json.loads(src_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        return f"Could not read {src_path} as JSON ({e}). Nothing was changed."
+    if not isinstance(edited, list):
+        return (f"{src_path} is not a tiddler LIST (got "
+                f"{type(edited).__name__}). A TiddlyWiki export is a JSON "
+                f"array of tiddlers. Nothing was changed.")
+
+    doc = load_model(Path(model_path))
+    result = tiddler_import.plan(doc, key, edited)
+    if apply and result["changes"]:
+        n = tiddler_import.apply(doc, result["changes"])
+        save_model(Path(model_path), doc)
+        sc.set_evidence("tiddler_import_last", {
+            "source": str(src_path.name), "fields_written": n,
+            "refused": len(result["refused"]),
+            "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
+        sc.save()
+    note = tiddler_import.report(result, key, applied=bool(apply)
+                                 and bool(result["changes"]))
+    if apply and result["changes"]:
+        note += (f"\n  wrote {_artref(sc, Path(model_path))}"
+                 f"\n  NO REBUILD: the model was updated in place, so every "
+                 f"object id and every tiddler title still means what it did. "
+                 f"Re-run `md` / `latex` / `inspect` to see the corrections.")
+    return note
 
 
 @_writes("injectlatex")
