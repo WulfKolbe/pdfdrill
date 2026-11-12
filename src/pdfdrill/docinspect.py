@@ -879,6 +879,10 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .seg button{padding:6px 12px;color:var(--dim);font-size:12px}
 .seg button.on{background:var(--panel2);color:var(--accent)}
 .tool{display:flex;align-items:center;gap:7px;color:var(--dim);font-size:12px}
+/* WHAT AM I LOOKING AT. Beside the controls that change it, because that is
+   where a reader looks when the screen changes under them. */
+.stagesay{color:var(--dim);font-size:11.5px;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;max-width:46ch}
 .tool select{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
   border-radius:6px;padding:4px 6px;font:inherit}
 .inspectbtn{border:1px solid var(--line);border-radius:7px;padding:6px 10px;color:var(--dim);
@@ -1048,6 +1052,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     <button data-v="page" class="on">Page</button>
     <button data-v="reflow">Reflow</button>
   </div>
+  <span class="stagesay" id="stageSay"></span>
   <div class="tool inktool" id="inkTool" style="display:none">
     <label title="Only elements with a measured QC signal — the default"><input
       type="checkbox" id="suspOnly" checked> suspicious only</label>
@@ -1055,7 +1060,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     <span class="inkcount" id="inkCount"></span>
   </div>
   <div class="tool langtool" id="langTool" style="display:none">
-    <select id="langSel" title="Show this document in"></select>
+    <select id="langSel" title="Language of the TEXT — the tree, the inspector and Reflow. The page picture is the printed original and cannot change."></select>
   </div>
   <div class="tool" id="pageTool">Page
     <select id="pageSel"></select>
@@ -1185,15 +1190,28 @@ function labelOf(e){
   return alt != null ? oneLine(alt, 60) : (e.label || '');
 }
 
-/* The PAGE view is a bitmap of the printed original with boxes drawn over it —
- * there is no prose in it to re-render, so a language change cannot show there
- * at all. Choosing a language and seeing nothing happen reads as a broken
- * control, so the choice takes us to the one view that can honour it. */
+/* THE VIEW NEVER MOVES UNDER THE READER.
+ *
+ * OWNER, 2026-11-12: "first shows the images with text, selection of English
+ * select German text but showing not the image and toggle a few times switches
+ * to G. For as user it remain unclear when I see a rendered page and when I see
+ * the image."
+ *
+ * This used to jump from Page to Reflow on the first language change, because
+ * the page view is a bitmap of the printed original and a language change
+ * cannot show in it — "choosing a language and seeing nothing happen reads as a
+ * broken control". True, and the cure was worse: the reader asks for a language
+ * and the whole stage turns into something else, once, while a second ask does
+ * nothing (already on Reflow). Two controls, one of them invisible, and no way
+ * to tell a re-rendering from a photograph of the page.
+ *
+ * So: the language changes the TEXT — tree, inspector, Reflow — and the stage
+ * caption (`stageSaying`) states what is on screen and in which language,
+ * every time either one changes. Nothing is silent, and nothing moves. */
 function setLang(role){
   curRole = role;
   try { localStorage.setItem(LANG_KEY, role); } catch (_) {}
-  if (curView === 'page' && LANGS.length > 1) setView('reflow');
-  else refreshStage();
+  refreshStage();
   buildTree((document.getElementById('filter')||{}).value || '');
   if (selId && byId[selId]) renderInspector(byId[selId]);
 }
@@ -1949,10 +1967,44 @@ function setView(v){ curView=v;
   document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
   refreshStage();
 }
+
+/* ONE SENTENCE SAYING WHAT THE STAGE IS, in the reader's terms: a photograph of
+ * the printed page, or text this program laid out again. The owner could not
+ * tell which they were looking at, and the two views differ in exactly the way
+ * that matters — one is EVIDENCE, the other is OUR READING of it.
+ *
+ * It also answers the question the language control raises in the page view,
+ * where the picture cannot change: the choice still governs the tree and the
+ * inspector, so the caption says so instead of leaving a dead-looking control
+ * or yanking the view (see `setLang`). */
+function stageSaying(){
+  const l = LANGS.length > 1 ? (LANGS.find(x => x.role === curRole) || {}) : null;
+  const tag = l ? ((l.flag ? l.flag + ' ' : '') + (l.label || '')) : '';
+  if (curView === 'page'){
+    const say = 'photograph of page ' + curPage + ', model boxes drawn over it';
+    if (!l) return say;
+    // Reading the ORIGINAL is the one case where picture and text agree, and
+    // saying "the print is DE; DE applies to the tree" twice over reads as a
+    // machine talking to itself.
+    if (curRole === 'original') return say + ' — ' + tag + ', as printed';
+    const orig = (LANGS.find(x => x.role === 'original') || {}).label || 'the original';
+    return say + ' — the print is ' + orig + '; ' + tag
+           + ' applies to the tree and inspector';
+  }
+  return 'text re-rendered from the model'
+         + (l ? ' · ' + tag + (curRole === 'original' ? ' original' : ' translation')
+              : '');
+}
+function updateStageSay(){
+  const el = document.getElementById('stageSay');
+  if (el) el.textContent = stageSaying();
+}
+
 function refreshStage(){
   // drop stage nodes from the hook index before re-rendering (tree persists)
   for(const id in NODES){ NODES[id]=NODES[id].filter(n=>!n.classList.contains('box')&&!n.classList.contains('reflow-el')); }
   curView==='page'?renderPage():renderReflow();
+  updateStageSay();
 }
 function updateInkCount(){
   const el0 = document.getElementById('inkCount');

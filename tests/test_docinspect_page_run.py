@@ -529,3 +529,81 @@ def test_a_document_with_no_blobs_hides_the_ink_controls():
       OUT.hidden = document.getElementById('inkTool').style.display;
     """)
     assert out == {"blobs": 0, "hidden": "none"}
+
+
+# ── what am I looking at ────────────────────────────────────────────────────
+#
+# OWNER, 2026-11-12: "first shows the images with text, selection of English
+# select German text but showing not the image and toggle a few times switches
+# to G. For as user it remain unclear when I see a rendered page and when I see
+# the image."
+#
+# Two views that differ in the way that matters most — one is a PHOTOGRAPH of
+# the printed page, the other is OUR READING laid out again — and nothing on
+# screen said which was which. The language control made it worse by jumping
+# between them, once, silently. The caption says it, every time either changes.
+
+def _monolingual_model():
+    """The same document with no translation: every `_source` twin removed."""
+    m = _bilingual_model()
+    for o in m["objects"]:
+        for k in [k for k in o["props"] if k.endswith("_source")]:
+            del o["props"][k]
+    return m
+
+
+_SAY = "OUT.say = document.getElementById('stageSay').textContent;"
+
+
+def test_the_caption_names_the_rendering_and_the_language():
+    out = _boot(_bilingual_model(), body="setView('reflow');" + _SAY)
+    assert out["say"].startswith("text re-rendered from the model")
+    assert out["say"].endswith(" translation"), out["say"]
+
+
+def test_the_caption_names_the_photograph_and_the_page():
+    out = _boot(_bilingual_model(), body="setView('page');" + _SAY)
+    assert out["say"].startswith("photograph of page 1")
+    assert "model boxes drawn over it" in out["say"]
+
+
+def test_in_the_page_view_the_caption_says_what_the_language_governs():
+    """The picture cannot change language. Rather than leave a dead-looking
+    control — or yank the whole stage, which is what it used to do — the caption
+    states that the print is the original and the choice reaches the text."""
+    out = _boot(_bilingual_model(), body="setView('page');" + _SAY)
+    assert "the print is DE" in out["say"]
+    assert "applies to the tree and inspector" in out["say"]
+
+
+def test_choosing_the_original_in_the_page_view_keeps_the_page():
+    out = _boot(_bilingual_model(), body="""
+      setView('page');
+      document.getElementById('langSel').value = 'original';
+      document.getElementById('langSel').dispatch('change');
+      OUT.view = curView;
+      OUT.say = document.getElementById('stageSay').textContent;
+      OUT.tree = document.getElementById('tree').allText()
+                 .includes("Korrelation im Hubbard Modell");
+    """)
+    assert out["view"] == "page", "the stage moved under the reader"
+    # picture and text now agree, and the caption says so once, not twice
+    assert out["say"].endswith(", as printed"), out["say"]
+    assert "DE, as printed" in out["say"]
+    assert out["tree"] is True, "the choice must still reach the text"
+
+
+def test_a_monolingual_document_gets_no_language_clause():
+    """Nothing about languages on a document that has one."""
+    out = _boot(_monolingual_model(), body="setView('page');" + _SAY)
+    assert out["say"] == "photograph of page 1, model boxes drawn over it"
+    out = _boot(_monolingual_model(), body="setView('reflow');" + _SAY)
+    assert out["say"] == "text re-rendered from the model"
+
+
+def test_the_caption_follows_a_page_change():
+    out = _boot(_bilingual_model(), body="""
+      setView('page'); curPage = 1; gotoPage(1);
+      OUT.one = document.getElementById('stageSay').textContent;
+    """)
+    assert "page 1" in out["one"]

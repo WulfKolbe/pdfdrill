@@ -178,17 +178,39 @@ def test_labels_follow_the_selected_language():
     assert out["or"] == "Fig 3 — Gitter"          # refnum kept, caption switched
 
 
-def test_choosing_a_language_moves_to_the_view_that_can_show_it():
-    """The PAGE view is a picture of the printed original — no prose to
-    re-render — so the first language change was invisible and read as a dead
-    control. It now lands on Reflow, which is where the text lives."""
+def test_choosing_a_language_never_moves_the_view():
+    """OWNER, 2026-11-12: "first shows the images with text, selection of
+    English select German text but showing not the image and toggle a few times
+    switches to G. For as user it remain unclear when I see a rendered page and
+    when I see the image."
+
+    This used to jump Page -> Reflow on the first language change, because the
+    page view is a bitmap of the printed original and a language change cannot
+    show in it. The cure was worse than the complaint it answered: the stage
+    turned into something else once, a second change did nothing, and nothing
+    on screen said which of the two views you were in. The caption
+    (`stageSaying`) says it instead, and the view stays where the reader put
+    it."""
     out = _run("""
         curView = 'page';
         setLang('original');
         OUT.view = curView;
         OUT.role = curRole;
     """, languages=_DE_EN, elements=[_PARA])
-    assert out == {"view": "reflow", "role": "original"}
+    assert out == {"view": "page", "role": "original"}
+
+
+def test_the_text_is_still_re_read_when_the_language_changes_in_the_page_view():
+    """Not moving the view must not mean doing nothing: the tree, the inspector
+    and the stage are all re-read, which is what makes the control visibly
+    alive where the picture cannot change."""
+    out = _run("""
+        curView = 'page'; selId = 'p1';
+        RENDERS = 0;
+        setLang('original');
+        OUT.renders = RENDERS;
+    """, languages=_DE_EN, elements=[_PARA])
+    assert out["renders"] == 3        # refreshStage + buildTree + renderInspector
 
 
 def test_switching_language_while_already_reading_does_not_move_the_view():
