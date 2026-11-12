@@ -11759,6 +11759,44 @@ def _lines_image_index(pdf: Path) -> tuple:
     return ids, coord
 
 
+def _inspect_markdown(pdf: Path, sc: "Sidecar", model_path,
+                      image_base: str | None = None) -> dict:
+    """{tag: {code, role, text}} — the `md` projection in every language the
+    model carries, for the inspector's Reading view.
+
+    OWNER, 2026-11-12: "In the reflow view only rendered text is shown via
+    Markdown."
+
+    The point is that the view shows THE PROJECTION, not a second renderer: a
+    difference between the Reading view's Markdown and its HTML is then a real
+    difference in the pipeline, visible to the person fixing it, instead of two
+    renderers quietly disagreeing.
+
+    Fails SOFT and returns `{}`. A projection that cannot be built must not
+    cost the reader the inspector — the page view, the tree and the inspector
+    do not depend on it, and the format control is hidden when this is empty.
+    """
+    try:
+        from docops import language
+        doc = load_model(Path(model_path))
+        src_code, tgt_code = language.codes(doc.meta)
+        out: dict = {}
+        if language.is_translated(doc):
+            roles = (("translated", tgt_code), ("original", src_code))
+        else:
+            roles = (("translated", tgt_code or src_code),)
+        for role, code in roles:
+            if role == "original":
+                language.original_in_place(doc)
+            text = _project_markdown(sc, doc, image_base)
+            if text.strip():
+                out[language.file_tag(code, role)] = {
+                    "code": code or "", "role": role, "text": text}
+        return out
+    except Exception:                                   # noqa: BLE001
+        return {}
+
+
 @_writes("inspect")
 def cmd_inspect(pdf: Path, pages: str | None = None, embed: bool = True,
                 dpi: int = 120, src_dpi: int = 400, images: bool = True,
@@ -11820,7 +11858,11 @@ def cmd_inspect(pdf: Path, pages: str | None = None, embed: bool = True,
             # empty — "no ink found" and "inkdrill never ran" are different
             # statements and must not render the same.
             ink_tree=sc.get_evidence("ink_tree") or None,
-            ink_tables=sc.get_evidence("ink_tables") or None)
+            ink_tables=sc.get_evidence("ink_tables") or None,
+            # THE READING VIEW SHOWS WHAT WE SHIP. One `md` projection per
+            # language the model carries, so the page renders the output of
+            # `pdfdrill md` rather than a fourth renderer's idea of it.
+            markdown=_inspect_markdown(pdf, sc, model_path, image_base))
     except Exception as e:                          # noqa: BLE001
         return f"inspect failed for {pdf.name}: {e}"
 

@@ -36,8 +36,10 @@ def _script_of(html: str) -> str:
     return html[i:j]
 
 
-def _boot(model: dict, *, body: str, pre: str = "") -> dict:
-    html = docinspect.build_inspector_html(model, pages={}, title="t")
+def _boot(model: dict, *, body: str, pre: str = "", **build) -> dict:
+    """`build` is forwarded to `build_inspector_html`, so a test can boot the
+    page with an embedded Markdown projection the way `inspect` ships it."""
+    html = docinspect.build_inspector_html(model, pages={}, title="t", **build)
     # concatenated, not imported: the repo is an ESM package, so `require`
     # of a plain script fails before anything is tested.
     start = html.index("<body>") + len("<body>")

@@ -791,6 +791,7 @@ def build_inspector_html(
     page_filter: Optional[set] = None,
     ink_tree: Optional[dict] = None,
     ink_tables: Optional[dict] = None,
+    markdown: Optional[dict] = None,
 ) -> str:
     sidx = build_stream_index(model)
     elements, pages_meta, blobs = collect_elements(model, sidx, with_blobs=True)
@@ -811,6 +812,10 @@ def build_inspector_html(
         "elements": elements,
         # [] on a monolingual document — the client hides the selector entirely.
         "languages": document_languages(model),
+        # THE `md` PROJECTION ITSELF, per language, so the Reading view shows
+        # what pdfdrill SHIPS rather than a fourth renderer's idea of it.
+        # {tag: {code, role, text}} — empty when `inspect` built none.
+        "markdown": markdown or {},
         # The blob layer: one flat typed array, one canvas, no DOM node each.
         "blobs": _blob_arrays(blobs),
         # B4: the merged ink tree, if `pdfdrill inktree` has run. Absent (not
@@ -1001,6 +1006,18 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .insphead{padding:8px 12px;border-bottom:1px solid var(--line);display:flex;
   align-items:center;gap:8px}
 .insphead .t{font-weight:700}
+.cmp-row{display:flex;gap:10px;align-items:flex-start;padding:10px}
+.cmp-pane{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:6px}
+.cmp-head{font:10px/1.6 var(--sans);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--dim);border-bottom:1px solid var(--line);padding-bottom:3px}
+.cmp-pane .stage{max-width:100%}
+.cmp-reading{overflow:auto;max-height:78vh}
+.mdview{padding:18px 26px;max-width:46rem;margin:0 auto;line-height:1.55}
+.mdview h1{font-size:1.5em}.mdview h2{font-size:1.25em}.mdview img{max-width:100%}
+.mdview table{border-collapse:collapse}.mdview td,.mdview th{border:1px solid var(--line);padding:2px 6px}
+.mdnote{margin:0 0 12px;padding:6px 9px;border-left:3px solid #5b6b7a;
+  font:11.5px/1.5 var(--sans);color:var(--dim)}
+.mdraw{white-space:pre-wrap;font-family:var(--mono);font-size:11.5px}
 .ihlang{font:10px/1.6 var(--sans);letter-spacing:.06em;padding:1px 7px;border-radius:10px;
   border:1px solid var(--line);color:var(--dim);white-space:nowrap;flex:0 0 auto}
 .otherlang{margin:12px 0 0;padding:6px 8px;border:1px dashed var(--line);border-radius:4px}
@@ -1054,8 +1071,13 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     <span>⌖</span><span>Inspect</span>
   </button>
   <div class="seg" id="viewSeg">
-    <button data-v="page" class="on">Page</button>
-    <button data-v="reflow">Reflow</button>
+    <button data-v="page" class="on" title="The photograph of the printed page, with the model's boxes over it. Evidence.">Page</button>
+    <button data-v="reflow" title="Our text, laid out again, in the chosen language.">Reading</button>
+    <button data-v="compare" title="This page's photograph beside this page's reading.">Compare</button>
+  </div>
+  <div class="seg" id="fmtSeg" style="display:none">
+    <button data-f="html" class="on" title="Rendered from the model. Fast, page-by-page, and what Compare shows.">HTML</button>
+    <button data-f="md" title="The `pdfdrill md` projection itself, rendered. A difference from HTML is a real difference in the pipeline.">Markdown</button>
   </div>
   <span class="stagesay" id="stageSay"></span>
   <div class="tool inktool" id="inkTool" style="display:none">
@@ -1093,6 +1115,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 </div>
 
 __KATEX_SCRIPT__
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js" crossorigin="anonymous"></script>
 <script>
 const DATA = __DATA__;
 
@@ -1210,6 +1233,45 @@ function labelOf(e){
  * An element with NO twin gets "same in both languages", not a language name:
  * a Formula is one string in both, and stamping it "EN . translation" would be
  * a claim about text nobody translated. */
+/* THE PROJECTION, SHIPPED WITH THE PAGE, PER LANGUAGE.
+ *
+ * OWNER, 2026-11-12: "In the reflow view only rendered text is shown via
+ * Markdown. You can choose if you show Markdown, HTML or LaTeX."
+ *
+ * Reflow was a FOURTH renderer: it built DOM straight from the model and
+ * shared no code with `md`, `tiddlers` or `latex`, so it could disagree with
+ * the Markdown pdfdrill actually ships and nothing would notice. `MD` carries
+ * that projection, so the Reading view can show the output instead of a
+ * second opinion about it — and a difference between the two formats is then a
+ * real difference in the pipeline, visible to the person fixing it.
+ *
+ * LANGUAGE AND FORMAT ARE ORTHOGONAL: one control says WHICH text, the other
+ * says HOW it is rendered. Conflating them is what made one selector look
+ * broken. */
+const MD = DATA.markdown || {};
+const FMT_KEY = 'docinspect.fmt.' + (DATA.bibkey || DATA.title || '');
+let curFmt = 'html';
+try { const f = localStorage.getItem(FMT_KEY);
+      if (f === 'html' || f === 'md') curFmt = f; } catch (_) {}
+
+/* The projection for the language now chosen. Falls back to the only one there
+ * is, so a monolingual document still renders. */
+function mdForRole(){
+  const keys = Object.keys(MD);
+  if (!keys.length) return null;
+  for (const k of keys){ if ((MD[k] || {}).role === curRole) return MD[k]; }
+  return keys.length === 1 ? MD[keys[0]] : null;
+}
+
+function setFmt(f){
+  curFmt = f;
+  try { localStorage.setItem(FMT_KEY, f); } catch (_) {}
+  const seg = document.getElementById('fmtSeg');
+  if (seg) seg.querySelectorAll('button').forEach(
+    b => b.classList.toggle('on', b.dataset.f === f));
+  refreshStage();
+}
+
 function langChip(role){
   const l = LANGS.find(x => x.role === role) || {};
   const word = role === 'original' ? 'original' : 'translation';
@@ -1869,6 +1931,89 @@ function onReflowIO(entries){
   CHUNKS.forEach((ch,i)=>{ if(ch.hydrated && (i<lo||i>hi)) dehydrateChunk(i); });
 }
 
+/* ---------- STAGE: the `md` projection, rendered -------------------------- */
+/* The dollar-delimited math is lifted out before `marked` sees it (a Markdown
+ * renderer treats `_` and `*` inside a formula as emphasis) and put back as
+ * KaTeX afterwards. The dialect is MathPix's, which is what `md` emits:
+ * `$…$` inline and a `$$` fence on its own line. */
+function renderMarkdownView(){
+  const wrap=document.getElementById('stagewrap'); wrap.innerHTML='';
+  const host=el('div','mdview'); wrap.appendChild(host);
+  const entry=mdForRole();
+  if(!entry){
+    host.innerHTML='<div class="empty">No Markdown projection was built for '
+      +'this document. `pdfdrill inspect` embeds one when the model can be '
+      +'projected.</div>';
+    return;
+  }
+  const src=entry.text||'';
+  if(!window.marked || !window.marked.parse){
+    /* OFFLINE, OR A BLOCKED CDN. The projection is still the answer, so show
+     * it as text and SAY why it is not rendered — a blank stage would read as
+     * an empty document. */
+    const note=el('div','mdnote');
+    note.textContent='The Markdown renderer (marked) did not load — offline, '
+      +'or the CDN is blocked — so this is the projection as text. It is the '
+      +'same bytes `pdfdrill md --lang '+(entry.role||'')+'` writes.';
+    const pre=el('pre','mdraw'); pre.textContent=src;
+    host.appendChild(note); host.appendChild(pre);
+    return;
+  }
+  const math=[];
+  const keep=src
+    .replace(/\$\$([\s\S]+?)\$\$/g,(m,t)=>{ math.push({tex:t,display:true});
+      return '@@MDMATH'+(math.length-1)+'@@'; })
+    .replace(/\$([^\n$]+?)\$/g,(m,t)=>{ math.push({tex:t,display:false});
+      return '@@MDMATH'+(math.length-1)+'@@'; });
+  let out;
+  try { out = window.marked.parse(keep); }
+  catch(_){ const pre=el('pre','mdraw'); pre.textContent=src;
+            host.appendChild(pre); return; }
+  host.innerHTML = out.replace(/@@MDMATH(\d+)@@/g,
+    (m,i)=>'<span class="mdmath" data-i="'+i+'"></span>');
+  host.querySelectorAll('.mdmath').forEach(sp=>{
+    const f=math[+sp.dataset.i]; if(f) renderMath(f.tex, f.display, sp); });
+}
+
+/* ---------- STAGE: compare — the page beside our reading of it ------------ */
+/* OWNER, 2026-11-12: "For as user it remain unclear when I see a rendered page
+ * and when I see the image."
+ *
+ * One page, both sides, each labelled. Page-for-page rather than a scroll-
+ * locked flow, because the page is the unit the two surfaces share: the
+ * photograph has pages and so does the model. A continuous reading has no
+ * position that can be held against a bitmap. */
+function renderCompare(){
+  const wrap=document.getElementById('stagewrap'); wrap.innerHTML='';
+  const row=el('div','cmp-row');
+  const left=el('div','cmp-pane'); left.classList.add('cmp-evidence');
+  const lh=el('div','cmp-head');
+  lh.textContent='printed page '+curPage+' — photograph';
+  left.appendChild(lh);
+  const g=pageScale(curPage); const stage=el('div','stage');
+  if(g.src){ const img=el('img'); img.src=g.src; stage.appendChild(img); }
+  else stage.innerHTML='<div class="empty">No image for page '+curPage+'</div>';
+  left.appendChild(stage);
+
+  const right=el('div','cmp-pane'); right.classList.add('cmp-reading');
+  const l=LANGS.length>1?(LANGS.find(x=>x.role===curRole)||{}):null;
+  const rh=el('div','cmp-head');
+  rh.textContent='our reading of page '+curPage
+    +(l?(' — '+((l.flag?l.flag+' ':'')+(l.label||''))):'');
+  right.appendChild(rh);
+  const doc=el('div','reflow');
+  EL.filter(e=>e.page===curPage && e.flow!=null && !REFLOW_SKIP.has(e.type)
+               && e.type!=='Page')
+    .sort((a,b)=>a.flow-b.flow)
+    .forEach(e=>{ const node=rendererFor(e.type).render(e); if(!node) return;
+      node.classList.add('reflow-el'); attachHooks(node,e); doc.appendChild(node); });
+  if(!doc.children.length)
+    doc.innerHTML='<div class="empty">No model elements on page '+curPage+'</div>';
+  right.appendChild(doc);
+
+  row.appendChild(left); row.appendChild(right); wrap.appendChild(row);
+}
+
 /* ---------- TREE — lazy children, auto-collapse for long documents ---------- */
 const TREE_EAGER=20;                 // pages: below this, expand all; above, collapse
 let PAGE_NODE={};
@@ -2050,7 +2195,17 @@ function stageSaying(){
     return say + ' — the print is ' + orig + '; ' + tag
            + ' applies to the tree and inspector';
   }
-  return 'text re-rendered from the model'
+  if (curView === 'compare'){
+    const orig = (LANGS.find(x => x.role === 'original') || {}).label || '';
+    return 'LEFT: photograph of page ' + curPage + ', as printed'
+         + (orig ? ' in ' + orig : '')
+         + ' · RIGHT: our reading of the same page'
+         + (l ? ' in ' + tag : '');
+  }
+  const how = (curFmt === 'md')
+    ? 'the `md` projection, rendered — the file `pdfdrill md` writes'
+    : 'text re-rendered from the model';
+  return how
          + (l ? ' · ' + tag + (curRole === 'original' ? ' original' : ' translation')
               : '');
 }
@@ -2062,7 +2217,11 @@ function updateStageSay(){
 function refreshStage(){
   // drop stage nodes from the hook index before re-rendering (tree persists)
   for(const id in NODES){ NODES[id]=NODES[id].filter(n=>!n.classList.contains('box')&&!n.classList.contains('reflow-el')); }
-  curView==='page'?renderPage():renderReflow();
+  for(const id in NODES){ NODES[id]=NODES[id].filter(n=>!n.classList.contains('mdmath')); }
+  if(curView==='page') renderPage();
+  else if(curView==='compare') renderCompare();
+  else if(curFmt==='md') renderMarkdownView();
+  else renderReflow();
   updateStageSay();
 }
 function updateInkCount(){
@@ -2120,6 +2279,15 @@ function init(){
     ls.addEventListener('change',()=>setLang(ls.value));
   }
   document.querySelectorAll('#viewSeg button').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.v)));
+  /* The format control exists only when there is a projection to show. A
+   * button that cannot do anything is the dead-control problem again. */
+  const _fseg=document.getElementById('fmtSeg');
+  if(_fseg && Object.keys(MD).length){
+    _fseg.style.display='';
+    _fseg.querySelectorAll('button').forEach(
+      b=>{ b.classList.toggle('on', b.dataset.f===curFmt);
+           b.addEventListener('click',()=>setFmt(b.dataset.f)); });
+  }
   document.getElementById('filter').addEventListener('input',ev=>buildTree(ev.target.value));
   if (BLOBS.n){
     const tool = document.getElementById('inkTool');
@@ -2378,6 +2546,7 @@ def build_from_paths(
     page_filter: Optional[set] = None,
     ink_tree: Optional[dict] = None,
     ink_tables: Optional[dict] = None,
+    markdown: Optional[dict] = None,
 ) -> tuple[str, int, int, str, int]:
     """Reusable core behind the CLI and `pdfdrill inspect`: load the model,
     resolve the image source, and return (html, n_pages, n_elements, mode,
@@ -2416,7 +2585,8 @@ def build_from_paths(
     ttl = title or model["meta"].get("bibkey", "docinspect")
     html_doc = build_inspector_html(model, pages=pages, title=ttl, image_mode=mode,
                                     katex_inline=katex_inline, page_filter=page_filter,
-                                    ink_tree=ink_tree, ink_tables=ink_tables)
+                                    ink_tree=ink_tree, ink_tables=ink_tables,
+                                    markdown=markdown)
     if out:
         with open(out, "w", encoding="utf-8") as fh:
             fh.write(html_doc)
