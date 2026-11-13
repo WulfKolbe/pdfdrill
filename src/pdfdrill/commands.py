@@ -4237,6 +4237,291 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
     return out + "\n" + alias_note("inkreport")
 
 
+@_writes("inkjudge")
+def cmd_inkjudge(pdf: Path, candidates: "str | None" = None,
+                 out: "str | None" = None,
+                 provenance: str = "inkjudge",
+                 solo_rerun: bool = True,
+                 allow_renamed_stem: bool = False) -> str:
+    """Judge candidate LaTeX against this document's own scans, by INK.
+
+    `--candidates` is JSONL in the cascade shape — `row_id`, `latex`, and
+    optionally `crop_sha256` and `provenance`. Rows naming another document are
+    ignored, so an arm can hand the same file to every document it covers.
+
+    Each candidate is injected as a `latex_candidate` realization and the ink
+    chain is run with `--render-provenance`, so the distance is measured
+    between the CANDIDATE's rendering and the crop cut from the page. Three
+    answers: `exact` (distance 0), `differs` (the distance), and
+    `does_not_compile`.
+
+    `does_not_compile` is read from the report's own text, never from the
+    `unrendered` flag, and a build with any such row is re-judged one candidate
+    at a time. Both rules were learned by measurement; `inkjudge.py`'s module
+    docstring carries the numbers.
+
+    A candidate whose `crop_sha256` disagrees with the crop on disk is REFUSED
+    rather than scored: it was measured against a different image.
+    """
+    from . import inkjudge as _ij
+    from .eqlist import _sha256 as _eqlist_sha256
+    from docmodel.core import Realization
+    from docops.projectors.tiddlywiki import titles_by_id, _sanitize_title
+
+    sc = Sidecar(pdf)
+    if not candidates:
+        return ("inkjudge needs --candidates <file.jsonl>: one JSON object per "
+                "line with `row_id` and `latex`.")
+    cpath = Path(candidates)
+    if not cpath.is_file():
+        return f"No such candidates file: {cpath}"
+    rows_in: list[dict] = []
+    for n, line in enumerate(cpath.read_text(errors="replace").splitlines(), 1):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rows_in.append(json.loads(line))
+        except json.JSONDecodeError as e:
+            return f"{cpath}:{n} is not JSON: {e}"
+
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+    # THIS COMMAND MUST NEVER REBUILD THE MODEL, and that is the opposite of
+    # what almost every other command here does.
+    #
+    # A candidate's `row_id` names the model's nth Equation, and the crop it is
+    # judged against was cut from THAT model's regions. A rebuild produces a
+    # different object set — measured on wzlxjtu-004, 35 objects became 44 —
+    # and although the EQ ordinals still line up, the geometry no longer does:
+    # every row of the document then measures 131 to 311 instead of 0,
+    # INCLUDING rows no candidate was injected into. The numbers look like
+    # measurements and are not; nothing in them says the model moved.
+    #
+    # So a stale model is refused by name, as a stale lines.json is. The caller
+    # stages the document as it was built, crops included.
+    _why = _inkjudge_model_unusable(sc, model_path, _lines_json_path(pdf))
+    if _why:
+        return ("REFUSED: %s — and inkjudge will not rebuild it.\n"
+                "  A candidate's row_id names the model's nth Equation and its "
+                "crop was cut from that model's regions; a rebuilt model has a "
+                "different object set and different geometry, so every row "
+                "measures a large distance — including rows carrying no "
+                "candidate. That reads as a result and is not one.\n"
+                "  Judge the document as it was built (model, reading and "
+                "report-crops together), or rebuild it deliberately with "
+                "`pdfdrill model` and cut fresh crops before judging."
+                % _why)
+
+    doc0 = load_model(model_path)
+    bibkey = str(doc0.meta.get("bibkey") or pdf.parent.name)
+    mine, refused, foreign = [], [], 0
+    crops = pdf.parent / "report-crops"
+    for r in rows_in:
+        rid = str(r.get("row_id") or "")
+        if _ij.object_for_row(titles_by_id, _sanitize_title, doc0, bibkey, rid,
+                              allow_ordinal_fallback=allow_renamed_stem) is None:
+            foreign += 1
+            continue
+        if not str(r.get("latex") or "").strip():
+            refused.append(_ij.record(rid, pdf.stem, provenance, None,
+                                      demoted=False, batch_demoted=False,
+                                      batch_flagged=False, solo_rerun=False,
+                                      build_demotions=0,
+                                      extra={"verdict": "no_candidate",
+                                             "why": "the candidate LaTeX is empty"}))
+            continue
+        want = str(r.get("crop_sha256") or "")
+        if want:
+            # THE CROP IS PART OF THE COMPARISON. A candidate produced against
+            # a different image is not comparable to this one, and the arms
+            # pin the digest for exactly this check.
+            jpg = crops / f"{rid}.jpg"
+            got = (_eqlist_sha256(jpg) or "") if jpg.is_file() else ""
+            if got and got != want:
+                refused.append(_ij.record(
+                    rid, pdf.stem, provenance, None, demoted=False,
+                    batch_demoted=False, batch_flagged=False,
+                    solo_rerun=False, build_demotions=0,
+                    extra={"verdict": "refused",
+                           "why": "crop_sha256 %s… is not the %s… on disk: a "
+                                  "different image" % (want[:12], got[:12])}))
+                continue
+        mine.append(r)
+
+    if not mine:
+        lines = [f"inkjudge {pdf.name}: nothing to judge "
+                 f"({len(rows_in)} candidate row(s) read, {foreign} for other "
+                 f"documents, {len(refused)} refused)."]
+        _inkjudge_write(out, refused)
+        return "\n".join(lines + [f"  wrote {out}" if out else ""]).rstrip()
+
+    ink = pdf.parent / "report.ink.json"
+    rtex = pdf.parent / "report.tex"
+
+    def one_pass(rows: list) -> tuple[dict, set, str]:
+        d = load_model(model_path)
+        n_inj, missing, alias = _ij.inject(
+            d, bibkey, rows, provenance, titles_by_id=titles_by_id,
+            sanitize=_sanitize_title, realization_cls=Realization,
+            allow_ordinal_fallback=allow_renamed_stem)
+        save_model(model_path, d)
+        note = _inkreport_chain(pdf, render_provenance=provenance)
+        got, dem = _ij.read_pass(ink, rtex, alias)
+        if not got:
+            # NAMING A PROVENANCE IS NOT RENDERING IT. The library's models
+            # predate `meta.build.builder`, so the first chain run can rebuild
+            # the model and discard the injection; the second pass measures the
+            # now-stamped model. Measured in T-0131: without this, the report
+            # measures the model's own LaTeX against its own crop and every
+            # distance looks plausible.
+            d = load_model(model_path)
+            _ij.inject(d, bibkey, rows, provenance, titles_by_id=titles_by_id,
+                       sanitize=_sanitize_title, realization_cls=Realization,
+                       allow_ordinal_fallback=allow_renamed_stem)
+            save_model(model_path, d)
+            note = _inkreport_chain(pdf, render_provenance=provenance)
+            got, dem = _ij.read_pass(ink, rtex, alias)
+        return got, dem, note
+
+    batch, batch_dem, chain_note = one_pass(mine)
+    susp = _ij.suspects(batch, batch_dem)
+    batch_flagged = {r for r in susp if r not in batch_dem}
+
+    solo: dict = {}
+    solo_dem: set = set()
+    if susp and solo_rerun:
+        for rid in sorted(susp):
+            one = [r for r in mine if str(r.get("row_id")) == rid]
+            if not one:
+                continue
+            g, dm, _ = one_pass(one)
+            solo.update(g)
+            solo_dem |= dm
+
+    judged = list(refused)
+    for r in mine:
+        rid = str(r.get("row_id"))
+        was_solo = rid in solo
+        v = solo.get(rid) or batch.get(rid)
+        dem = (rid in solo_dem) if was_solo else (rid in batch_dem)
+        judged.append(_ij.record(
+            rid, pdf.stem, provenance, v, demoted=dem,
+            batch_demoted=rid in batch_dem,
+            batch_flagged=rid in batch_flagged,
+            solo_rerun=was_solo,
+            build_demotions=len(solo_dem) if was_solo else len(batch_dem)))
+
+    _inkjudge_write(out, judged)
+    tally: dict = {}
+    for j in judged:
+        tally[j["verdict"]] = tally.get(j["verdict"], 0) + 1
+    unproven = (not _legacy_stale()
+                and sc.capabilities.get(MODEL_BUILT) is None)
+    lines = [f"inkjudge {pdf.name} — {len(judged)} row(s) judged by ink, "
+             f"provenance {provenance!r}",
+             "  " + ", ".join(f"{k} {v}" for k, v in sorted(tally.items()))]
+    if not batch:
+        # NEVER REPORT "not measured" WITHOUT THE REASON. The chain states
+        # exactly where it stopped and why — a missing TMPDIR, a refused
+        # region, a build with no pages — and swallowing that leaves a tally of
+        # unmeasured rows with no cause, which is the failure class this
+        # project keeps relearning (the bbm10 case: a 0-page build's stderr was
+        # discarded and the rasterizer got the blame).
+        stop = [ln for ln in str(chain_note or "").splitlines()
+                if ln.strip().startswith(("STOPPED", "REFUSED", "Error"))]
+        lines.append("  the ink chain measured NOTHING from this provenance; "
+                     "it said:")
+        for ln in (stop or str(chain_note or "").strip().splitlines()[-2:]):
+            lines.append("    " + ln.strip()[:200])
+    if foreign:
+        lines.append(f"  {foreign} candidate row(s) name another document, "
+                     f"ignored")
+    if susp:
+        collateral = [j["row_id"] for j in judged
+                      if j.get("solo_rerun") and not j.get("demoted_in_report")
+                      and (j.get("batch_demoted")
+                           or j.get("batch_flag_said_unrendered"))]
+        lines.append(f"  {len(susp)} row(s) looked unrendered in the batch -> "
+                     f"re-judged alone" + (" (solo rerun OFF)" if not solo_rerun
+                                           else ""))
+        if collateral:
+            lines.append("  COLLATERAL: %s compiled alone — another row's bad "
+                         "candidate had spoiled the batch verdict: %s"
+                         % (len(collateral), ", ".join(collateral[:6])))
+    ds = sorted(j["distance"] for j in judged
+                if isinstance(j.get("distance"), int))
+    if ds:
+        lines.append("  distance (compiled rows): exact %d/%d, median %d, max %d"
+                     % (sum(1 for x in ds if x == 0), len(ds),
+                        ds[len(ds) // 2], ds[-1]))
+    if unproven:
+        lines.append("  the model carries no build proof, so it could not be "
+                     "verified as current — only that nothing beside it has "
+                     "changed since. It was NOT rebuilt.")
+    if out:
+        lines.append(f"  wrote {out}")
+    return "\n".join(lines)
+
+
+def _inkjudge_model_unusable(sc: "Sidecar", model_path: Path,
+                             lines_path: Path) -> "str | None":
+    """Why this model cannot be judged against, or None.
+
+    NOT `_stale_or_absent`, and the difference is the whole point. That
+    predicate exists to decide whether to REBUILD, so it answers True for a
+    model it merely cannot PROVE — every model in the owner's library is a
+    legacy build with no `MODEL_BUILT` proof, and its mtime and source-trap
+    tests both say nothing changed. Judging such a model is fine: the model,
+    the reading and the crops all came out of the same build and are consistent
+    with each other, which is the only property the comparison needs.
+
+    What is NOT fine is judging against a model whose INPUTS have moved, or
+    rebuilding one. Measured on wzlxjtu-004: a rebuild turned 35 objects into
+    44 and every row of the document then measured 131 to 311 instead of 0 —
+    including rows carrying no candidate at all. So this asks only for evidence
+    that the model no longer matches its reading:
+
+      * no model → nothing to judge;
+      * a content-hash proof that FAILS → the recorded inputs changed;
+      * the reading newer than the model (legacy, no proof) → it was re-read;
+      * the source→mathpix trap → a geometry-less model with a geometry-bearing
+        reading beside it, which would measure against absent boxes.
+
+    An unproven model passes, and `cmd_inkjudge` says so in its output, because
+    "I cannot prove this is current" is a different statement from "this is
+    wrong" and the reader is entitled to both.
+    """
+    if not model_path.exists():
+        return f"{model_path.name} is absent"
+    try:
+        proof = None if _legacy_stale() else sc.capabilities.get(MODEL_BUILT)
+        if proof is not None:
+            from . import proofs
+            if not proofs.verify(proof):
+                return ("the model's recorded inputs no longer hash-match: it "
+                        "was built from a different reading")
+        elif (lines_path.exists()
+                and lines_path.stat().st_mtime > model_path.stat().st_mtime):
+            return (f"{lines_path.name} is newer than the model, so the "
+                    f"document was re-read after it was built")
+        if _source_model_trap(sc, lines_path):
+            return ("the model carries no geometry while a geometry-bearing "
+                    "reading sits beside it, so there are no boxes to measure "
+                    "against")
+    except OSError as e:
+        return f"the model or its reading could not be read ({e})"
+    return None
+
+
+def _inkjudge_write(out: "str | None", rows: list) -> None:
+    if not out:
+        return
+    Path(out).write_text("\n".join(json.dumps(r, ensure_ascii=False)
+                                   for r in rows) + "\n", encoding="utf-8")
+
+
 def cmd_publishready(pdf: Path, as_json: bool = False) -> str:
     """Is this document's report fit to publish? The five-item checklist."""
     import datetime as _dt

@@ -1680,6 +1680,31 @@ def _do_inkconvert(args):
                           force="--force" in args)
 
 
+def _do_inkjudge(args):
+    """pdfdrill inkjudge <pdf> --candidates FILE [--out FILE]
+    [--provenance NAME] [--no-solo-rerun]
+
+    Judge candidate LaTeX against this document's own scans by ink.
+    `--no-solo-rerun` keeps the batch verdicts as they stand, which is only
+    for measuring the batch behaviour itself: a build with a demotion can
+    mismeasure a row whose own candidate was fine, so the solo rerun is on by
+    default.
+    """
+    from .commands import cmd_inkjudge
+    cands, args = _opt(args, "--candidates")
+    out, args = _opt(args, "--out")
+    prov, args = _opt(args, "--provenance")
+    # A switch this handler understands but does not STRIP falls through into
+    # the path list, where `_pdf()` ignores it — the flag then does nothing and
+    # says nothing (T-0116).
+    pdf_args = [a for a in args if a not in ("--no-solo-rerun",
+                                             "--allow-renamed-stem")]
+    return cmd_inkjudge(_pdf(pdf_args), candidates=cands, out=out,
+                        provenance=prov or "inkjudge",
+                        solo_rerun="--no-solo-rerun" not in args,
+                        allow_renamed_stem="--allow-renamed-stem" in args)
+
+
 def _do_inkreport(args):
     """pdfdrill inkreport <pdf> [--preflight-only] [--timeout N]
     [--profile internal|published] [--full] [--pages N]
@@ -3335,6 +3360,7 @@ HANDLERS = {
         "trailingpunct": _do_trailingpunct,
         "modeldiff": _do_modeldiff,
         "refine": _do_refine,
+        "inkjudge": _do_inkjudge,
         "inkreport": _do_inkreport,
         "publishready": _do_publishready,
         "inkconvert": _do_inkconvert,

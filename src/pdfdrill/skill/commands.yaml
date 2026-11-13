@@ -776,6 +776,77 @@ commands:
     type: bool
     help: replace an existing report.ink.json
   typed: true
+- name: inkjudge
+  section: Reporting
+  typed: true
+  summary: 'Judge candidate LaTeX against this document''s own scans, BY INK. Each
+    candidate from --candidates (JSONL in the cascade shape: row_id, latex, and
+    optionally crop_sha256 and provenance) is injected as a latex_candidate
+    realization and the ink chain is run with --render-provenance, so the distance
+    is measured between the CANDIDATE''s rendering and the crop cut from the page.
+    Three answers: exact (distance 0), differs (the distance), does_not_compile.
+    STRING EQUALITY IS NOT THE VERDICT -- measured on 300 confirmed rows, the string
+    score and the ink rank two readers oppositely (82.3/66.7 % one way, 73.7/89.9 %
+    the other), because the string score ignores \left/\right, spacing,
+    environment names, braces and \operatorname vs \mathrm. does_not_compile is
+    read from the report''s own text, NEVER from the `unrendered` flag, which errs
+    both ways: four unrelated non-compiling candidates each came back flag `weak`,
+    distance 10, rendered TRUE (the ink of the italic words "(not rendered)"), and a
+    VALID wrong answer came back flag `unrendered`, rendered FALSE, at the same
+    distance it scores alone. And one bad candidate spoils another row''s verdict in
+    the same build, so every suspect row is re-judged ALONE and the solo verdict
+    counts (rule registered 2026-11-13). Rows naming another document are ignored,
+    so one file can be handed to every document an arm covers; a candidate whose
+    crop_sha256 disagrees with the crop on disk is REFUSED, not scored.'
+  offline_ok: true
+  # Mirrors `inkreport`, which this command is built on: it reads a model and
+  # runs the ink chain ITSELF, so `model` is the whole declared chain. It does
+  # NOT require `inkreport` -- that command declares no `done_when`, so it
+  # produces no fact and can never be satisfied or detected (the ink artifact
+  # is `inkconvert`'s). And it declares no `done_when` of its own: `--out` is a
+  # path the caller chooses, so there is no fixed artifact to detect, and
+  # claiming `artifact:ink` would be claiming inkconvert's fact and letting the
+  # planner believe the ink chain was already satisfied.
+  requires:
+  - model
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  flags:
+  - name: candidates
+    flag: --candidates
+    type: str
+    help: 'JSONL, one candidate per line: row_id and latex required, crop_sha256 and
+      provenance optional. REQUIRED -- without it the command says so and does
+      nothing.'
+  - name: out
+    flag: --out
+    type: str
+    help: write the judged rows as JSONL here (cascade shape, one object per row)
+  - name: provenance
+    flag: --provenance
+    type: str
+    help: the realization provenance to inject and render under (default inkjudge).
+      Name the ARM, so two arms' verdicts can be told apart in one model.
+  - name: no_solo_rerun
+    flag: --no-solo-rerun
+    type: flag
+    help: keep the batch verdicts as they stand instead of re-judging each suspect
+      row alone. ONLY for measuring the batch behaviour itself -- a build with a
+      demotion can mismeasure a row whose own candidate was fine, which is why the
+      rerun is on by default.
+  - name: allow_renamed_stem
+    flag: --allow-renamed-stem
+    type: flag
+    help: 'also match a row_id by its `_EQnnnn` ordinal when neither spelling of the
+      name finds an object (defect 516: the model''s bibkey is the resolved key, so
+      its titles read <bibkey>_EQnnnn while the arm built <folder name>_EQnnnn). OFF
+      by default because it matches ACROSS DOCUMENTS -- `someotherdoc_EQ0001` ends in
+      _EQ0001, so it would be judged against THIS document''s first equation and
+      reported as a result (measured: distance 8). Use it only for a document known
+      to have been renamed, with a candidates file that belongs to it.'
 - name: inkreport
   section: Reporting
   summary: 'ALIAS of residuals --measure --pdf. THE ink chain, one command, and
