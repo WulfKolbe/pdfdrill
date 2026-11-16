@@ -1141,3 +1141,36 @@ partial-read record held the message and not the traceback, so locating the
 frame in a 1,200-page book meant twenty minutes of re-provoking the failure
 before the question could be asked. `LAST_READ_TRACEBACK` now keeps it. A
 recorded reason that cannot be acted on is a half-recorded reason.
+
+## 2026-11-16 — a probe that cannot fail, and a unit that nothing contradicts
+
+Two defects from T-0145's page-9 audit of `0001124`, both found by a reader who
+believed what the output said. Neither was a wrong number.
+
+**The documented probe answered 0 on a perfect page.** This file's own
+acceptance contract named `grep -c 'data-id=' x.inspect.html` as the concrete
+content probe for an inspect build. `docinspect` renders every box client-side
+from `const DATA = {…}`, so no `data-id=` is ever written: the probe answered 0
+on a correct 247 KB page and 0 on an empty one. It had been quoted as evidence
+in that state. *A probe whose failing answer and whose passing answer are the
+same string is not a probe* — and the way to notice is to run it once against
+output you have already decided is good, and check that it says so. The page
+now emits one manifest line (`<!-- pdfdrill-inspect/1 bibkey=… elements=…
+pages=… blobs=… px_per_pt=… -->`) carrying the same element count the CLI
+prints beside the file, by the same rule, so the two cannot disagree.
+
+**The unit was the only thing wrong, and it was the part a reader trusts.**
+`pages_meta` emitted `{"page": 9, "pt_w": 3400, "pt_h": 4400}` for a 612 x 792
+pt page. Every number was right: the overlay places boxes as `100*x/w` percent,
+and a ratio needs no unit, so the page drew perfectly for as long as nobody
+read the key. The coordinator read it and found a page 5.56x too large — the
+task-654 frame class again. Worse, `_PAGE_PIXEL_SOURCES` did not list the glyph
+reader, so `image_ref` appended `units=pt` to its crop URLs: a region at
+`y=897` page pixels requested as 897 points, off the bottom of a 792 pt page.
+That one WAS a wrong answer, and it had no symptom in the inspect page at all.
+
+*A frame is declared, never inferred, and a correct ratio is not evidence that
+the unit is named correctly.* The readings already declared it — `px_per_pt`
+sits beside `page_width` in every page `docmodel_six` and `glyphdrill3` write —
+and both defects are the same omission: the consumer dropped the declaration
+and substituted a belief. `pdfdrill.eqlist.FRAME` is the shape to copy.
