@@ -111,6 +111,94 @@ def _spans_gutter(line: list[dict], page_width: float) -> bool:
     return True
 
 
+def _gutter_by_gap(items: list[dict], page_width: float,
+                   y_from: "float | None" = None) -> "float | None":
+    """The gutter as the EMPTY VERTICAL BAND the ink actually shows.
+
+    `_column_split` looks for a density valley in a 48-bin histogram of glyph
+    centres and rejects it unless the emptiest bin holds under 12% of the
+    median bin. THAT CANNOT WORK WHEN THE GUTTER IS NARROWER THAN A BIN, and on
+    a normal paper it is. Measured on the owner's arxiv.2209.02970
+    (2026-11-16), an ACL two-column paper, 595.3 pt wide:
+
+        bin width                                    12.40 pt
+        the real gutter, by zero ink coverage (p2)    x 292..304, 12 pt
+        emptiest bin in the gutter band (bin 24)      34 chars
+        median non-empty bin                          98
+        threshold, 0.12 * median                      11.8
+
+    The gutter straddles bins 23 and 24 — bin 23 holds the left column's last
+    glyphs, bin 24 the right column's first — so NO BIN CAN EVER BE EMPTY: the
+    deepest achievable valley is about 65% where the test demands 88%. All 21
+    pages read as one column, and the line clusterer then welded a left-column
+    line to a right-column line as one: "1 Introduction tions, benchmarks, and
+    datase", "L Computing and Natural Language (CCNL). dat". The owner reported
+    it as "2 column design not recognized".
+
+    A band of x at which NO glyph paints is not a proxy for a gutter, it is the
+    gutter. Both sides must still carry a real share of the glyphs, so a page
+    with one narrow stray column is not split.
+
+    `y_from` restricts the measurement to the glyphs below that y, which is how
+    a page whose header block spans the full width is handled — see
+    `_column_split_for_lines`.
+    """
+    if page_width <= 0:
+        return None
+    rows = [i for i in items
+            if y_from is None or (i.get("top") is not None and i["top"] >= y_from)]
+    if len(rows) < 60:
+        return None
+    width = int(page_width) + 2
+    painted = bytearray(width)
+    for i in rows:
+        a = max(0, int(i["x0"]))
+        b = min(width - 1, int(i["x1"]))
+        for x in range(a, b + 1):
+            painted[x] = 1
+    lo, hi = int(0.30 * page_width), int(0.70 * page_width)
+    best = None
+    run = None
+    for x in range(lo, hi + 1):
+        if not painted[x]:
+            run = x if run is None else run
+            continue
+        if run is not None and (best is None or x - run > best[1] - best[0]):
+            best = (run, x)
+        run = None
+    if run is not None and (best is None or hi - run > best[1] - best[0]):
+        best = (run, hi)
+    if best is None or best[1] - best[0] < max(6.0, 0.012 * page_width):
+        return None
+    split_x = (best[0] + best[1]) / 2.0
+    left = sum(1 for i in rows if (i["x0"] + i["x1"]) / 2 < split_x)
+    if min(left, len(rows) - left) < 0.25 * len(rows):
+        return None
+    return split_x
+
+
+def _header_block_cuts(items: list[dict], page_width: float) -> list[float]:
+    """The y values below which a page's spanning header block has ended.
+
+    A title, an author list or a wide figure above the body paints right across
+    the middle at its own y, so the gutter is empty BELOW it and not over the
+    whole page. Excluding full-width ROWS is not enough and that was measured:
+    on arxiv.2209.02970 p1 the author block carries internal spaces wide enough
+    that `_spans_gutter` calls it two columns and keeps its glyphs, which fill
+    the gutter again. Cutting by y removes them whichever way they classify.
+
+    The cuts are the row bottoms in the page's top half, nearest first, so the
+    caller stops at the first cut where a gutter appears. No constant fraction
+    of the page is assumed: where the body starts is what the cut finds.
+    """
+    tops = sorted({float(i["top"]) for i in items
+                   if i.get("top") is not None}, )
+    if not tops:
+        return []
+    page_mid = tops[0] + 0.5 * (tops[-1] - tops[0])
+    return [t for t in tops if t <= page_mid]
+
+
 def _column_split_for_lines(items: list[dict], page_width: float) -> "float | None":
     """`_column_split`, but blind to full-width lines.
 
@@ -139,6 +227,19 @@ def _column_split_for_lines(items: list[dict], page_width: float) -> "float | No
     rows: dict[int, list[dict]] = {}
     for i in items:
         rows.setdefault(round(i["top"] / max(tol, 0.1)), []).append(i)
+    # THE GAP FIRST, because it is evidence and the histogram is a proxy. A
+    # band of x where no glyph paints IS the gutter; a density valley only
+    # stands in for one, and cannot be found at all when the gutter is
+    # narrower than a histogram bin (`_gutter_by_gap` carries the numbers).
+    split = _gutter_by_gap(items, page_width)
+    if split is not None:
+        return split
+    # No clean band over the whole page: a spanning header block paints across
+    # the middle. Try again below it, nearest cut first.
+    for cut in _header_block_cuts(items, page_width):
+        split = _gutter_by_gap(items, page_width, y_from=cut)
+        if split is not None:
+            return split
     narrow = [i for ln in rows.values()
               if not _spans_gutter(ln, page_width) for i in ln]
     split = _column_split(narrow, page_width)
