@@ -366,6 +366,46 @@ def number_bands(region: dict, ys: list) -> list[dict]:
     return out
 
 
+#: P9-22 — the page's geometry, from the one module that holds it. The rules
+#: are `ParagraphProcessor`'s (procOrder 13), read here at 11 so that the two
+#: modules cannot disagree about what a gutter or a body edge is.
+from ..page_edges import (  # noqa: E402
+    _body_edges, _edge_bands, _in_a_gutter, _is_not_a_sentence)
+
+#: P9-22 — prose-typed records, the same set `ParagraphProcessor` claims.
+_PROSE_TYPES = {"text", "title", "quote"}
+
+#: P9-22 — AN EQUATION NUMBER IS PRINTED IN BRACKETS. That is a typesetting
+#: convention, checkable in the ink, and not a guess about mathematics — which
+#: is the whole reason this pass is allowed to use the number as evidence.
+#:
+#: It is here because the first version had no such test and the library said
+#: so: over 120 random readings it promoted 6 rows, ALL SIX from one page
+#: (1511.08771 p65), and all six wrong — a table of tuples against counts,
+#: `(010000),` paired with `351`, `(1000),` with `5`. P9-14's fragment column
+#: found that narrow recurring numeric column and called it an equation-number
+#: gutter; its docstring says a two-column page cannot trip it, and that is
+#: true of a page of PROSE columns but not of a narrow column of bare numbers.
+#: `351` is not an equation number. `(13)` is.
+#:
+#: `C…J` is admitted because it is what a reader without the soft zone gate
+#: makes of `(13)` — measured on this very page before glyphdrill3 74f8d70.
+#: The consequence is accepted and stated: a number too badly read to show its
+#: brackets cannot serve as evidence, and its row stays a ReadingRecord.
+_EQ_NUMBER = re.compile(r"^[\(\[Cc]\s?\d{1,3}(?:[.\-]\d{1,3})?\s?[\)\]Jj]$")
+
+
+def _band(region) -> "tuple[float, float] | None":
+    y, h = (region or {}).get("top_left_y"), (region or {}).get("height")
+    if y is None:
+        return None
+    return float(y), float(y) + float(h or 0)
+
+
+def _overlap(a, b) -> bool:
+    return a is not None and b is not None and a[0] < b[1] and b[0] < a[1]
+
+
 class EquationProcessor(BaseModule):
     #: 249 — BOTH, and "equation" is not dead. It occurs ZERO times in the
     #: 3,998,456 MathPix line objects of the corpus, which is why out/245
@@ -378,6 +418,86 @@ class EquationProcessor(BaseModule):
     #: "absent from the corpus" is not "absent from the inputs", and the
     #: corpus is one producer's output.
     EQ_TYPES = {"equation", "math"}
+
+    def _promote_by_equation_number(self, anchors, stream):
+        """P9-22 — a declined row with an equation NUMBER in its band is an
+        equation, and the number is the evidence.
+
+        `EQ_TYPES` is {"equation", "math"}, so a display row the reader typed
+        `text` could never become an Equation: `ParagraphProcessor` declines it
+        (P9-21) and it ends as a `ReadingRecord`. Correct, but it leaves the
+        owner's actual question unanswered -- on 0001124 p9, 3 of 8 display
+        rows were inside an Equation box before this pass and the two misses
+        were equation 14 (one record) and equation 20 (three records on one
+        row).
+
+        WHY THIS IS NOT THE RULE THAT WAS MEASURED AND THROWN AWAY. A
+        line-local promoting test -- inset, alone in its band, few long words
+        -- was built first and abandoned: over 33 random library documents it
+        picked 500 lines of which about a third were PAGE NUMBERS (17, 18, 31,
+        244, ii). Nothing inside a line separates `17` from `2m2G`.
+
+        This pass asks a different question. Not "does this line look like
+        mathematics" but "is there a printed equation number standing beside
+        it". The numbers come from P9-14's fragment column, which is itself a
+        repetition rule: an x the page returns to where every line is narrow.
+        A page number is not in that column -- it stands alone in the header
+        or the footer with nothing beside it -- so it cannot be promoted here,
+        and page 9's `9` stays a `ReadingRecord`. That is the whole reason the
+        evidence is the neighbour and never the line.
+
+        TWO RESTRAINTS, both of them cases where the evidence is ambiguous:
+
+          * a band already holding a `math`-typed record keeps its number for
+            that record. On p9 equation 16 is `F_t(x) = …` (typed `math`, m7)
+            and `F_0(x) = x.` (typed `text`, l21) on one row: l21 is promoted,
+            and `(16)` stays with the reading's own maths.
+          * a band holding several declined rows promotes all of them and
+            numbers none. Equation 20 is three records; one number cannot
+            label three Equations, and guessing which gets it would be
+            inventing a fact.
+
+        Returns (anchors to promote, anchor -> (number text, number anchor)).
+        """
+        edges = _body_edges(stream, _PROSE_TYPES)
+        bands = _edge_bands(stream, _PROSE_TYPES)
+        numbers: dict = {}
+        cands: dict = {}
+        maths: dict = {}
+        for anchor in anchors:
+            payload = stream.payload[anchor] or {}
+            page = payload.get("_page")
+            band = _band(payload.get("region"))
+            if band is None:
+                continue
+            if payload.get("type") in self.EQ_TYPES:
+                maths.setdefault(page, []).append(band)
+                continue
+            if payload.get("type") not in _PROSE_TYPES:
+                continue
+            region = payload.get("region") or {}
+            x = region.get("top_left_x")
+            if _in_a_gutter(x, page, edges):
+                num_text = (payload.get("text") or "").strip()
+                if _EQ_NUMBER.match(num_text):
+                    numbers.setdefault(page, []).append(
+                        (anchor, band, num_text))
+            elif _is_not_a_sentence(payload.get("text"), x, region.get("top_left_y"),
+                                    region.get("height"), page, edges, bands):
+                cands.setdefault(page, []).append((anchor, band))
+
+        promote: set = set()
+        refnum_by_band: dict = {}
+        for page, nums in numbers.items():
+            for num_anchor, num_band, num_text in nums:
+                rows = [(a, b) for a, b in cands.get(page, ()) if _overlap(b, num_band)]
+                if not rows:
+                    continue
+                promote.update(a for a, _b in rows)
+                if len(rows) == 1 and not any(
+                        _overlap(mb, num_band) for mb in maths.get(page, ())):
+                    refnum_by_band[rows[0][0]] = (num_text, num_anchor)
+        return promote, refnum_by_band
 
     def find_items(self, doc: Document) -> list[dict[str, Any]]:
         if self.LINES_STREAM not in doc.streams:
@@ -399,6 +519,10 @@ class EquationProcessor(BaseModule):
         # other rows' formulae under its own label. BH3FR p108 is the shape:
         # `\begin{aligned} & r=… \\ & m=… \end{aligned}` with (25) at
         # y=327 and (26) at y=513 — (25) vanished and (26) claimed both rows.
+        # P9-22 — WHICH DECLINED ROWS ARE EQUATIONS, decided by the number
+        # standing beside them and not by anything inside the line.
+        promote, refnum_by_band = self._promote_by_equation_number(anchors, stream)
+
         splits = self._split_plan(anchors, stream)
         consumed = {na for rows in splits.values() for (_t, na, _r, _g) in rows}
         refnum_by_anchor = self._match_equation_numbers(
@@ -407,10 +531,42 @@ class EquationProcessor(BaseModule):
         items: list[dict[str, Any]] = []
         for i, anchor in enumerate(anchors):
             payload = stream.payload[anchor]
-            if payload.get("type") not in self.EQ_TYPES:
+            if payload.get("type") not in self.EQ_TYPES and anchor not in promote:
                 continue
             if anchor in splits:
                 items.extend(self._split_items(anchor, payload, splits[anchor]))
+                continue
+            if anchor in promote:
+                # P9-22 — the number from this row's gutter, or none. A
+                # promoted row never goes looking for a number elsewhere on
+                # the page: the evidence that made it an Equation is the
+                # number in its own band, and nothing else may stand in.
+                refnum, refnum_anchor = refnum_by_band.get(anchor, ("", None))
+                self.bump("equations_promoted_from_a_declined_row")
+                if refnum:
+                    self.bump("equations_promoted_with_their_number")
+                latex_raw = payload.get("text_display") or payload.get("text") or ""
+                items.append({
+                    "anchor": anchor,
+                    "page": payload.get("_page"),
+                    "image_id": payload.get("_image_id"),
+                    "region": payload.get("region"),
+                    "refnum": refnum,
+                    "refnum_anchor": refnum_anchor,
+                    "refnum_source": "gutter" if refnum else "",
+                    "latex_raw": latex_raw,
+                    "latex": _normalize_latex(latex_raw),
+                    "confidence": payload.get("confidence"),
+                    "confidence_rate": payload.get("confidence_rate"),
+                    # NO PROVENANCE PROP IS SET HERE ON PURPOSE. A consumer
+                    # that wants to know this row was never typed `math` by
+                    # the reader would need a prop, and props are a
+                    # contract-held set (`docmodel.prop_contract`,
+                    # docs/layers/PROPS.md). Inventing `promoted` here would
+                    # be silently dropped — measured: the key never reached
+                    # the object — which is worse than not claiming it.
+                    # Registering one is its own change.
+                })
                 continue
             paired = refnum_by_anchor.get(anchor)
             refnum, refnum_anchor = paired if paired else ("", None)
