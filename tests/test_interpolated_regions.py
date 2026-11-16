@@ -143,10 +143,10 @@ def test_visionocr_lines_still_take_the_merged_route():
 # --------------------------------------------------------------------------
 
 def test_a_merged_model_still_knows_its_page_size():
-    """The overlay places a box at `100 * x / pt_w` percent.
+    """The overlay places a box at `100 * x / px_w` percent.
 
     A LaTeX-source model has no `meta["pages"]`, so `pages_meta` used to fall
-    back to `pt_w: None` — and `100 * x / null` is `"Infinity%"`, which CSS
+    back to `px_w: None` — and `100 * x / null` is `"Infinity%"`, which CSS
     silently discards. Every rectangle in the model was correct and not one of
     them was drawn: a full model looked exactly like an empty one. The merged
     route adds a Page OBJECT per page carrying the real dimensions; read those.
@@ -169,7 +169,9 @@ def test_a_merged_model_still_knows_its_page_size():
     }
     _elements, pages_meta = collect_elements(model, build_stream_index(model))
     page1 = next(m for m in pages_meta if m["page"] == 1)
-    assert page1["pt_w"] == 595 and page1["pt_h"] == 842, \
+    # P9-18 renamed these: they are the reading's pixels, which is what they
+    # always held; `pt_w` was the wrong name for the right number.
+    assert page1["px_w"] == 595 and page1["px_h"] == 842, \
         "no page size means no scale, and the overlay draws nothing at all"
 
 

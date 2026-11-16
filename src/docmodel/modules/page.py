@@ -185,6 +185,13 @@ def ingest_lines_json(doc: Document, lines_json: dict) -> None:
             "image_id": page.get("image_id"),
             "page_height": page.get("page_height"),
             "page_width": page.get("page_width"),
+            # P9-18 — page_width/page_height are the READING's pixels, not
+            # points (PROPS.md says so, and `docmodel_six` writes them as
+            # `round(width_pt * k)`). The reading states k beside them; keeping
+            # it here is what lets a consumer name the unit instead of guessing
+            # it. The glyph reader reads at 400 dpi (5.5556), MathPix and the
+            # text layer at 250 (3.4722), so it is per reading and per page.
+            "px_per_pt": page.get("px_per_pt"),
             "languages_detected": page.get("languages_detected", []),
         })
         for line_index, line in enumerate(page.get("lines", [])):

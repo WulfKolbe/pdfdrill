@@ -211,6 +211,22 @@ def load_json(path: str) -> Any:
         return json.load(fh)
 
 
+def _meta_px_per_pt(model: dict, page) -> Optional[float]:
+    """The reading's px_per_pt for one page, from `meta['pages']`.
+
+    The merged route builds `pages_meta` from Page OBJECTS, whose props are a
+    contract-held set (`docmodel.prop_contract`); the factor is not one of them
+    and does not become one for this. Where the merge left a `meta['pages']`
+    entry the factor is read from there, and where it did not the frame stays
+    undeclared — None, never a constant.
+    """
+    for pm in (model.get("meta") or {}).get("pages") or []:
+        if pm.get("page") == page:
+            v = pm.get("px_per_pt")
+            return float(v) if isinstance(v, (int, float)) else None
+    return None
+
+
 def _int(v: Any) -> Optional[int]:
     try:
         return int(round(float(v)))
@@ -556,21 +572,32 @@ def collect_elements(model: dict, sidx: dict, *, with_blobs: bool = False):
     for rec in elements:
         rec["n_align"] = align_by_obj.get(rec["id"], 0)
 
+    # P9-18 — THE FRAME IS DECLARED, NEVER INFERRED (the rule `pdfdrill.eqlist`
+    # states for its own regions). These numbers are the READING's pixels: the
+    # glyph reader's 0001124 p9 is 3400 x 4400 for a 612 x 792 pt page, and
+    # calling that `pt_w`/`pt_h` had the coordinator reading a page 5.56x too
+    # large — the task-654 defect again, a wrong unit that nothing contradicts.
+    # The numbers were always right; the overlay places every box as
+    # `100*x/px_w` percent, and a ratio needs no unit. The NAME is what a
+    # reader believes, so it now says px, and the reading's own `px_per_pt`
+    # rides along so the inspector can show the points too. None when the
+    # reading does not state it: an undeclared frame is not a guessed one.
     pages_meta = []
     meta_pages = model["meta"].get("pages")
     if meta_pages:
         for pm in meta_pages:
             pages_meta.append({
                 "page": pm.get("page"),
-                "pt_w": _int(pm.get("page_width")),
-                "pt_h": _int(pm.get("page_height")),
+                "px_w": _int(pm.get("page_width")),
+                "px_h": _int(pm.get("page_height")),
+                "px_per_pt": pm.get("px_per_pt"),
             })
     else:
         # No meta['pages'] — a LaTeX-SOURCE model carries no page geometry of its
         # own. But the MERGED route adds a Page OBJECT per page holding the real
         # width/height it took from the lines.json, and those are the page
         # dimensions. Reading them is not cosmetic: the overlay places every box
-        # as `100*x/ptW` percent, so a null ptW yields "Infinity%", which CSS
+        # as `100*x/px_w` percent, so a null px_w yields "Infinity%", which CSS
         # discards — the model is full of correct rectangles and the page shows
         # not one of them. A merged model looked exactly like a broken one.
         seen: dict = {}
@@ -582,14 +609,16 @@ def collect_elements(model: dict, sidx: dict, *, with_blobs: bool = False):
             if pg is None or pg in seen:
                 continue
             seen[pg] = {"page": pg,
-                        "pt_w": _int(pr.get("page_width")),
-                        "pt_h": _int(pr.get("page_height"))}
+                        "px_w": _int(pr.get("page_width")),
+                        "px_h": _int(pr.get("page_height")),
+                        "px_per_pt": _meta_px_per_pt(model, pg)}
         # Then any page that only the elements know about (no Page object, so no
         # dimensions either) — the tree and REFLOW still want it listed.
         for e in elements:
             pg = e.get("page")
             if pg is not None and pg not in seen:
-                seen[pg] = {"page": pg, "pt_w": None, "pt_h": None}
+                seen[pg] = {"page": pg, "px_w": None, "px_h": None,
+                        "px_per_pt": None}
         pages_meta = [seen[p] for p in sorted(seen, key=lambda x: (x is None, x))]
     # Opt-in third value: 12 call sites expect the pair, and widening the
     # contract for all of them to serve one caller is how a refactor breaks
@@ -839,7 +868,27 @@ def build_inspector_html(
         katex_script = (f'<script src="{_KATEX_JS}" crossorigin="anonymous" '
                         f'onerror="window.__noKatex=1"></script>')
 
-    return _TEMPLATE.replace("__DATA__", data_json) \
+    # P9-15 — ONE GREPPABLE LINE SAYING WHAT THE PAGE HOLDS. CLAUDE.md's
+    # acceptance contract names `grep -c 'data-id=' x.inspect.html` as the
+    # concrete probe for an inspect page, and the page builds every box
+    # client-side from `const DATA`, so that grep answered 0 on a perfect
+    # 247 KB page — a probe that cannot fail. These counts are the ones the
+    # client will draw, so a page that came out short says so from the shell.
+    first = (pages_meta[0] if pages_meta else {}) or {}
+    # The same count `build_from_paths` prints beside the file, by the same
+    # rule: Page containers are the tree's furniture and not elements in it.
+    # Two different numbers for one page would reinstate the defect that note
+    # was written about — a count printed next to a file must be a count OF
+    # that file.
+    n_el = sum(1 for e in elements if e.get("type") != "Page")
+    manifest = (
+        "<!-- pdfdrill-inspect/1 bibkey=%s elements=%d pages=%d blobs=%d "
+        "px_per_pt=%s -->"
+        % (meta.get("bibkey", "") or "-", n_el, len(pages_meta),
+           len(blobs), first.get("px_per_pt") or "undeclared"))
+
+    return _TEMPLATE.replace("__MANIFEST__", manifest) \
+                    .replace("__DATA__", data_json) \
                     .replace("__TITLE__", html.escape(title)) \
                     .replace("__SUBTITLE__", html.escape(subtitle)) \
                     .replace("__KATEX_HEAD__", katex_head) \
@@ -851,6 +900,7 @@ def build_inspector_html(
 # crop server, or fully inlined.
 _TEMPLATE = r"""<!doctype html>
 <html lang="en">
+__MANIFEST__
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1360,9 +1410,12 @@ function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;'
 
 /* ---------- page geometry ---------- */
 function pageScale(pn){
-  // pixels-per-point for the DISPLAYED image; overlay uses % so we only need ratio.
+  // The page in the READING's units (px) plus the displayed image's pixel
+  // size; the overlay uses %, so only the ratio matters. pxPerPt is the
+  // reading's own declared factor, or null (P9-18).
   const pm = PMETA[pn]||{}; const im = IMG[pn]||{};
-  return {ptW: pm.pt_w, ptH: pm.pt_h, imgW: im.img_w, imgH: im.img_h, src: im.src};
+  return {pxW: pm.px_w, pxH: pm.px_h, imgW: im.img_w, imgH: im.img_h,
+          src: im.src, pxPerPt: pm.px_per_pt};
 }
 
 /* ================= element hook contract =================================
@@ -1433,7 +1486,7 @@ function fillDeferred(host, e){   // resolve data-eq / data-crop placeholders po
 function cropFromPage(el0, imgEl){          // client-side figure crop from the page image
   const g = pageScale(el0.page); if(!g.src) return;
   const im = new Image();
-  im.onload=()=>{ const sx=im.naturalWidth/g.ptW, sy=im.naturalHeight/g.ptH;
+  im.onload=()=>{ const sx=im.naturalWidth/g.pxW, sy=im.naturalHeight/g.pxH;
     const b=el0.bbox||regionOf(el0); if(!b){ imgEl.src=g.src; return; }
     const c=document.createElement('canvas'); c.width=Math.max(1,b.w*sx); c.height=Math.max(1,b.h*sy);
     c.getContext('2d').drawImage(im, b.x*sx,b.y*sy,b.w*sx,b.h*sy, 0,0,c.width,c.height);
@@ -1469,7 +1522,7 @@ function cropBlob(e){                     /* page bitmap -> PNG blob of the bbox
     const im = new Image();
     im.onerror = () => reject(new Error("page image failed to load"));
     im.onload = () => {
-      const sx = im.naturalWidth / g.ptW, sy = im.naturalHeight / g.ptH;
+      const sx = im.naturalWidth / g.pxW, sy = im.naturalHeight / g.pxH;
       const c = document.createElement("canvas");
       c.width = Math.max(1, Math.round(b.w * sx));
       c.height = Math.max(1, Math.round(b.h * sy));
@@ -1842,7 +1895,7 @@ function renderPage(){
   if(!g.src){ stage.innerHTML='<div style="padding:40px;color:#888;font:13px monospace">No image for page '+curPage+'</div>'; wrap.appendChild(stage); return; }
   const img=el('img'); img.src=g.src; stage.appendChild(img);
   const ov=el('div','overlay'); stage.appendChild(ov);
-  const W=g.ptW, H=g.ptH;
+  const W=g.pxW, H=g.pxH;
   if(!W || !H){ noScale(stage,wrap,curPage); return; }
   /* Largest FIRST: a later sibling paints on top, so a page-sized box appended
    * after a figure covered it and swallowed every click — selecting the Page
@@ -2143,9 +2196,15 @@ function renderInspector(e){
   const jb=document.getElementById('jumpBtn'); jb.style.display='';
   jb.onclick=()=>{ if(curView!=='page') setView('page'); curPage=e.page; syncPageSel(); refreshStage(); setTimeout(()=>select(e.id),0); };
   const b=e.bbox, pm=PMETA[e.page]||{}, g=pageScale(e.page);
-  let px=''; if(b && g.imgW && pm.pt_w){ const s=g.imgW/pm.pt_w; px=' → '+Math.round(b.w*s)+'×'+Math.round(b.h*s)+' px @img'; }
+  let px=''; if(b && g.imgW && pm.px_w){ const s=g.imgW/pm.px_w; px=' → '+Math.round(b.w*s)+'×'+Math.round(b.h*s)+' px @img'; }
   let h=kv('id',e.id)+kv('type',e.type)+kv('page',e.page);
-  if(b) h+='<div class="kv"><span class="k">region pt</span><span class="v">x '+b.x+' · y '+b.y+' · w '+b.w+' · h '+b.h+px+'</span></div>';
+  /* P9-18: the reading's own pixels, named as such, with the points beside
+     them when the reading declared px_per_pt (400 dpi glyph reader 5.5556,
+     250 dpi MathPix 3.4722). No factor stated -> no points shown, rather than
+     a number computed from an assumed one. */
+  if(b){ const k=pm.px_per_pt;
+    const pt = k ? ' = '+(b.w/k).toFixed(1)+'×'+(b.h/k).toFixed(1)+' pt' : '';
+    h+='<div class="kv"><span class="k">region px</span><span class="v">x '+b.x+' · y '+b.y+' · w '+b.w+' · h '+b.h+pt+px+'</span></div>'; }
   const body=document.getElementById('inspBody');
   body.innerHTML=h+rendererFor(e.type).detail(e)+otherLanguage(e)+provenance(e);
   fillDeferred(body, e);
@@ -2400,7 +2459,7 @@ function inkRender(){
        * the holes per component, so this is a projection, not a new number. */
       let summary = rtype + '  ' + n + ' blobs';
       if (s && s.n){
-        summary += ', median ' + s.median_w + '×' + s.median_h + ' pt';
+        summary += ', median ' + s.median_w + '×' + s.median_h + ' px';
         if (s.holes) summary += ', ' + s.holes + ' holes';
       }
       const tb = byRegion[rid];
@@ -2422,9 +2481,9 @@ function inkRender(){
           g.className = 'inkgrid';
           g.textContent = 'grid ' + tb.n_rows + ' rows × ' + tb.n_cols
             + ' cols' + (tb.holes != null ? '  (' + tb.holes + ' holes)' : '')
-            + (tb.col_widths && tb.col_widths.length ? '\ncolumn widths pt  '
+            + (tb.col_widths && tb.col_widths.length ? '\ncolumn widths px  '
                 + tb.col_widths.map(w => w.toFixed(1)).join(' / ') : '')
-            + (tb.row_heights && tb.row_heights.length ? '\nrow heights pt    '
+            + (tb.row_heights && tb.row_heights.length ? '\nrow heights px    '
                 + tb.row_heights.map(h => h.toFixed(1)).join(' / ') : '');
           kidbox.appendChild(g);
           return;
@@ -2433,7 +2492,7 @@ function inkRender(){
         const d = document.createElement('div');
         d.className = 'inksummary';
         d.textContent = s.n + ' blobs   median ' + s.median_w + '×' + s.median_h
-          + ' pt   largest ' + s.max_w + '×' + s.max_h + ' pt'
+          + ' px   largest ' + s.max_w + '×' + s.max_h + ' px'
           + '\n' + s.holes + ' holes   ' + s.area + ' px ink';
         kidbox.appendChild(d);
       });
