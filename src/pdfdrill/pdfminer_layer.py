@@ -181,6 +181,14 @@ def iter_page_records(pdf_path: str):
     from pdfminer.layout import (LTChar, LTFigure, LTTextContainer,
                                   LTTextLine)
 
+    def _turn_of(matrix) -> int:
+        """+90, -90 or 0, from a glyph's text matrix (a, b, c, d, e, f)."""
+        try:
+            b = float(matrix[1])
+        except (TypeError, IndexError, ValueError):
+            return 0
+        return 90 if b > 0 else (-90 if b < 0 else 0)
+
     for idx, layout in _iter_layouts_chunked(extract_pages, pdf_path):
         page_h = layout.height
         recs: list[dict] = []
@@ -200,6 +208,19 @@ def iter_page_records(pdf_path: str):
                     "x0": round(ch.x0, 2), "x1": round(ch.x1, 2),
                     "top": round(page_h - ch.y1, 2),
                     "bottom": round(page_h - ch.y0, 2),
+                    # A TURNED GLYPH IS NOT ON THE LINE THAT SHARES ITS y.
+                    # pdfminer states it per glyph, from the text matrix, and
+                    # this seam dropped it -- so the arXiv side stamp of
+                    # arxiv.2209.02970 was clustered into 31 body lines.
+                    # `chars_to_lines._turned_lines` is what needs it.
+                    "upright": bool(getattr(ch, "upright", True)),
+                    # WHICH WAY it is turned, because that is the reading
+                    # order: a 90-degree turn advances up the page (toward
+                    # smaller `top`), a -90 one advances down. Ordering a
+                    # turned run the wrong way reads it backwards --
+                    # '3202 raM 03 ]LC.sc[ 3v07920.9022:viXra' -- which is
+                    # exactly what happened before this was carried.
+                    "turn": _turn_of(getattr(ch, "matrix", None)),
                     **font_style(font),
                 })
 

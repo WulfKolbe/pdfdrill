@@ -304,6 +304,58 @@ def _emit_words(line: list[dict], pg, li: int, out: list[dict]) -> None:
     flush()
 
 
+def _turned_lines(turned: list[dict]) -> list[list[dict]]:
+    """Group the page's TURNED glyphs into their own lines, by column of x.
+
+    A GLYPH THAT IS NOT UPRIGHT IS NOT ON THE LINE THAT SHARES ITS y. pdfplumber
+    and pdfminer both state this per glyph -- `upright`, from the text matrix --
+    and this module read the flag nowhere, so a rotated glyph was clustered by
+    its `top` like any other.
+
+    Measured on the owner's arxiv.2209.02970 p1 (2026-11-16). The arXiv e-print
+    stamp `arXiv:2209.02970v3 [cs.CL] 30 Mar 2023` is printed up the left
+    margin, rotated 90 degrees: 40 glyphs, every one `upright: False`, matrix
+    (0, 1, -1, 0, 32, 232), and the only ink left of x=40 on the page. Every
+    body glyph on the same page is `upright: True`. Because each stamp glyph
+    sits at its own y, each one joined a DIFFERENT body line, and 31 of the
+    page's 58 reader lines began with a stray character:
+
+        '3 ligence, paving ways to the general intell'
+        '2 gence. However, the reality presents two u'
+        '0 gent challenges: existing foundation model'
+
+    The owner reported it as "left sidenote with bar code not separated". It is
+    worse than unseparated: it corrupts the first word of half the page's
+    prose, and no later pass can tell the stray character from the text.
+
+    A turned run reads along y, so its glyphs are grouped by x -- a new line
+    whenever x jumps by more than the run's own median glyph width -- and
+    ordered by y within the run. The text is not rotated back or reinterpreted:
+    it is kept as its own record, in reading order after the upright lines, for
+    whatever reads the model to label (a margin stamp here, a rotated table
+    header elsewhere). Nothing is discarded.
+    """
+    if not turned:
+        return []
+    widths = [i["x1"] - i["x0"] for i in turned if i["x1"] > i["x0"]]
+    tol = max((statistics.median(widths) if widths else 3.0) * 1.5, 2.0)
+    turned.sort(key=lambda i: (i["x0"], i["top"]))
+    out: list[list[dict]] = []
+    for it in turned:
+        if out and abs(it["x0"] - out[-1][-1]["x0"]) <= tol:
+            out[-1].append(it)
+        else:
+            out.append([it])
+    for run in out:
+        # A +90 turn advances UP the page, so the run reads from the largest
+        # `top` to the smallest. Getting this backwards reads the arXiv stamp
+        # as '3202 raM 03 ]LC.sc[ 3v07920.9022:viXra', which is how the
+        # direction came to be carried at all.
+        up_the_page = sum(i.get("turn", 0) for i in run) >= 0
+        run.sort(key=lambda i: -i["top"] if up_the_page else i["top"])
+    return out
+
+
 def _page_words(page: dict[str, Any]) -> list[dict[str, Any]]:
     pg = page.get("page_number")
     ph = float(page.get("height") or 0)
@@ -314,8 +366,22 @@ def _page_words(page: dict[str, Any]) -> list[dict[str, Any]]:
     # to top-left origin (y down): top = ph - y1, bottom = ph - y0
     items = [{"x0": float(c["x0"]), "x1": float(c["x1"]),
               "top": ph - float(c["y1"]), "bottom": ph - float(c["y0"]),
-              "t": c["text"], "mi": font_flags(c.get("fontname") or "")}
+              "t": c["text"], "mi": font_flags(c.get("fontname") or ""),
+              # A TURNED GLYPH IS NOT ON THIS LINE. `upright` is in the input
+              # and was being dropped here; see `_turned_lines`.
+              "up": bool(c.get("upright", True)),
+              "turn": int(c.get("turn", 0) or 0)}
              for c in chars]
+    # The turned glyphs come out BEFORE the page is measured or clustered, so
+    # they cannot join an upright line, cannot fill a column gutter, and cannot
+    # shift the median line height every threshold here is expressed in.
+    turned = [i for i in items if not i["up"]]
+    items = [i for i in items if i["up"]]
+    # NO FALLBACK INTO THE UPRIGHT PATH. Pushing the turned glyphs through it
+    # when a page has no upright ones read a sideways page BACKWARDS and one
+    # glyph per line -- 'e l t i t e g a p s y a w e d i s'. A page of only
+    # turned glyphs (a rotated plate, a landscape table) goes through
+    # `_turned_lines` like any other turned run, which is what orders it.
     heights = [i["bottom"] - i["top"] for i in items if i["bottom"] > i["top"]]
     tol = (statistics.median(heights) * 0.6) if heights else 3.0
     items.sort(key=lambda i: (round(i["top"] / max(tol, 0.1)), i["x0"]))
@@ -344,6 +410,8 @@ def _page_words(page: dict[str, Any]) -> list[dict[str, Any]]:
     words: list[dict[str, Any]] = []
     for li, (_col, _y, frag) in enumerate(frags):
         _emit_words(frag, pg, li, words)
+    for frag in _turned_lines(turned):
+        _emit_words(frag, pg, len(frags), words)
     return [w for w in words if w["text"]]
 
 

@@ -738,7 +738,12 @@ def _pdfminer_char_dump(pdf: Path) -> dict:
                   "text": _resolve_glyph(c, glyphs, _cid),
                   # The font MUST travel with the glyph: `chars_to_lines` decides
                   # what is math from it, so dropping it here made the one route
-                  # that can see mathematics blind to it.
+                  # that can see mathematics blind to it. The ROTATION travels
+                  # for the same reason — a turned glyph is not on the line that
+                  # shares its y, and dropping it clustered arxiv.2209.02970's
+                  # side stamp into 31 body lines.
+                  "upright": bool(c.get("upright", True)),
+                  "turn": int(c.get("turn", 0) or 0),
                   "fontname": c.get("font", "")}
                  for c in by_page.get(pg, [])]
         pages.append({"page_number": pg, "width": float(w), "height": float(h),
@@ -1556,6 +1561,13 @@ def _stream_born_digital_lines(pdf: Path) -> "dict | None":
                               "y0": float(h) - float(c["bottom"]),
                               "y1": float(h) - float(c["top"]),
                               "text": _resolve_glyph(c, _glyphs, _cid),
+                              # The ROTATION must travel with the glyph, for
+                              # the same reason the font must: `chars_to_lines`
+                              # decides with it, and a turned glyph is not on
+                              # the line that shares its y (arxiv.2209.02970's
+                              # side stamp, 31 body lines corrupted).
+                              "upright": bool(c.get("upright", True)),
+                              "turn": int(c.get("turn", 0) or 0),
                               "fontname": c.get("font", "")} for c in recs]}
 
     from . import cid_glyphs as _cid
