@@ -68,7 +68,22 @@ def local_crop_url(image_id: Optional[str], region: Optional[dict],
 #: declared a producer its crops were requested in the wrong unit: a region at
 #: y=1400 page pixels asked for as y=1400 points, which is off the page. The
 #: frame has to be carried per reader, or declared per reading.
-_PAGE_PIXEL_SOURCES = ("mathpix", "pdf2mmd2")
+#: P9-20 (T-0145) — `glyphdrill3` joined for the same reason, and it had been
+#: missing long enough to break every equation crop of a glyph reading. The
+#: glyph reader reads at 400 dpi: 0001124 p9 is `page_width` 3400,
+#: `page_height` 4400 and `px_per_pt` 5.555556 for a 612 x 792 pt page, and the
+#: first Equation's region (536, 897, 1855 x 182) was requested with
+#: `units=pt` — 897 pt off the bottom of a 792 pt page, 1855 pt three times its
+#: width. A crop of nothing, with nothing saying so.
+#:
+#: THE BETTER ANSWER IS THE ONE 897 ALREADY NAMED: declared per reading, not
+#: per reader. Every glyphdrill3 page states `px_per_pt` beside its
+#: `page_width`, so the frame is in the data; what is missing is a call site
+#: that has the reading when it builds the URL — `image_ref` is given only the
+#: region and the source. Naming the reader is the same answer pdf2mmd2 got,
+#: and it is a list that has to be extended for each new one, which is the
+#: cost of not reading the declaration.
+_PAGE_PIXEL_SOURCES = ("mathpix", "pdf2mmd2", "glyphdrill3")
 
 
 def _is_page_pixel_source(source: str) -> bool:
