@@ -55,6 +55,12 @@ _BREAK_TYPES = {
 # Lines that may contribute to a paragraph.
 _PROSE_TYPES = {"text", "title", "quote"}
 
+# P9-14 — a fragment column: every line at a recurring x narrower than this
+# many em, and the column standing this far along the body span. Both chosen by
+# measurement over 900 library readings; `_body_edges` carries the numbers.
+_GUTTER_EM = 4.0
+_GUTTER_FRAC = 0.5
+
 # A figure/table caption that MathPix types as plain `text` (its figure_label
 # lines are often EMPTY): same column, same font, CONTINUOUS line numbering —
 # the only separators are this lexical pattern and the vertical gap after the
@@ -68,8 +74,9 @@ _ABSTRACT_END = re.compile(r"\\end\{abstract\}")
 
 
 def _body_edges(stream, prose_types) -> dict:
-    """Per page: the body text's LEFT EDGES -- one per column -- and the
-    distance a line has to clear to read as a paragraph's FIRST line.
+    """Per page: the body text's LEFT EDGES -- one per column -- the distance a
+    line has to clear to read as a paragraph's FIRST line, and the page's
+    FRAGMENT COLUMNS.
 
     A paragraph break is a typographic fact, and the reading may not state it.
     MathPix states it with a leading blank in `text_display`; the enriched
@@ -86,6 +93,34 @@ def _body_edges(stream, prose_types) -> dict:
     The threshold is the median line HEIGHT, which is one em in whatever units
     the reading uses: points for the text layer (~11pt), pixels for MathPix
     (~42px). So no page width is needed and both readings are measured alike.
+
+    AN X THE PAGE RETURNS TO IS NOT ALWAYS A COLUMN OF TEXT (P9-14). 0001124 p9
+    prints seven display-equation numbers down the right margin, each 95 px
+    wide at x=2347, and a reader that types them `text` rather than
+    `equation_number` makes that x one the page returns to seven times -- so it
+    was admitted here as a body edge, every number then measured 0.1 em from
+    "its own column's edge", read as a continuation line, and joined the prose.
+    The owner saw a Paragraph beginning `C13J`, the reader's rendering of
+    `(13)`, welded to the sentence under the equation.
+
+    So a recurring x is split in two. It is a BODY EDGE when the lines there
+    are lines of text, and a FRAGMENT COLUMN when EVERY line there is narrower
+    than `_GUTTER_EM` and the column stands right of the middle of the body
+    span (`_GUTTER_FRAC` of the distance from the leftmost edge to the furthest
+    ink). The second kind is an equation-number gutter and holds no prose.
+
+    REPETITION IS THE SIGNAL, and single-line geometry is not. Measured over
+    300 library readings (405,890 prose lines), the single-line form of this
+    test -- more than half the column span right of the edge and under a fifth
+    of it wide -- catches 6,159 lines of which 304 are real prose: `f is
+    contained in`, `significance.`, `John Stillwell`, all of them lines of a
+    right column whose own edge fell below the frequency floor. Requiring the
+    narrowness to RECUR costs that nothing: over 900 readings (1,296,572 prose
+    lines) 128 pages of 34,939 (0.37%) declare a gutter, holding 853 lines
+    (0.066% of prose), of which 24 (2.8%) contain a word of four letters or
+    more -- and those are table-column fragments (`Drawdown`, `Stabilized`),
+    not running prose. A two-column page cannot trip it: its right column's
+    lines are wide, so the column fails the width test and stays a body edge.
     """
     per_page: dict = {}
     for anchor in stream.anchors:
@@ -97,12 +132,13 @@ def _body_edges(stream, prose_types) -> dict:
         if x is None:
             continue
         per_page.setdefault(payload.get("_page"), []).append(
-            (float(x), float(h or 0)))
+            (float(x), float(h or 0), float(region.get("width") or 0)))
 
     out: dict = {}
     for page, rows in per_page.items():
-        xs = [x for x, _ in rows]
-        hs = [h for _, h in rows if h > 0]
+        xs = [x for x, _, _ in rows]
+        hs = [h for _, h, _ in rows if h > 0]
+        rows = [(x, w) for x, _, w in rows]
         if not hs or len(xs) < 4:
             continue
         em = statistics.median(hs)
@@ -111,14 +147,41 @@ def _body_edges(stream, prose_types) -> dict:
         step = max(em * 0.5, 0.5)
 
         buckets: dict = {}
-        for x in xs:
-            k = int(round(x / step))
-            buckets[k] = buckets.get(k, 0) + 1
+        for x, w in rows:
+            buckets.setdefault(int(round(x / step)), []).append(w)
         floor = max(3, int(0.10 * len(xs)))
-        edges = sorted(k * step for k, n in buckets.items() if n >= floor)
-        if edges:
-            out[page] = (edges, em)
+        recurring = {k: ws for k, ws in buckets.items() if len(ws) >= floor}
+        edges = sorted(k * step for k, ws in recurring.items()
+                       if max(ws) > _GUTTER_EM * em)
+        if not edges:
+            # EVERY recurring column on this page is narrow, so there is no
+            # text column to measure a gutter against and the narrowness says
+            # nothing. Keep what the frequency test alone found and declare no
+            # gutter, rather than leaving the page with no edges at all: that
+            # would silently switch the indent rule off for it. 10 pages of
+            # 35,095 in the 900-reading sample reach this branch (0.03%) --
+            # narrow-column pages in two reference works and a review article.
+            out[page] = (sorted(k * step for k in recurring), em, [])
+            continue
+        # The furthest ink on the page, not the page width: the frame is the
+        # data's, and a reading states its own units (eqlist's declared frame).
+        reach = max(x + w for x, w in rows)
+        span = reach - edges[0]
+        gutters = sorted(
+            k * step for k, ws in recurring.items()
+            if max(ws) <= _GUTTER_EM * em
+            and span > 0 and (k * step - edges[0]) / span > _GUTTER_FRAC)
+        out[page] = (edges, em, gutters)
     return out
+
+
+def _in_a_gutter(x, page, edges: dict) -> bool:
+    """True when the line stands in one of its page's fragment columns -- an
+    equation-number gutter, not prose. See `_body_edges`."""
+    if x is None or page not in edges:
+        return False
+    _cols, em, gutters = edges[page]
+    return any(abs(float(x) - g) <= em * 0.5 for g in gutters)
 
 
 def _is_first_line(x, page, edges: dict) -> bool:
@@ -148,7 +211,7 @@ def _is_first_line(x, page, edges: dict) -> bool:
     """
     if x is None or page not in edges:
         return False
-    cols, em = edges[page]
+    cols, em, _gutters = edges[page]
     at_or_left = [e for e in cols if e <= x + em * 0.5]
     if not at_or_left:
         return False
@@ -273,6 +336,19 @@ class ParagraphProcessor(BaseModule):
             region = payload.get("region") or {}
             y, h = region.get("top_left_y"), region.get("height")
             x0 = region.get("top_left_x")
+
+            # P9-14 — a line standing in the page's equation-number gutter is
+            # not a sentence. It ends the paragraph above it and starts none:
+            # `flush` and `continue`, never `contribute`. Nothing is lost —
+            # UnclaimedLineProcessor (procOrder 998) gives every record no
+            # module claimed its own ReadingRecord object with its own type and
+            # region, byte for byte, so the number stays in the model and stops
+            # being prose.
+            if _in_a_gutter(x0, page, edges):
+                flush()
+                self.bump("lines_in_an_equation_number_gutter")
+                continue
+
             if current is not None:
                 if _is_first_line(x0, page, edges):
                     # the page's own indent says a new paragraph starts here
