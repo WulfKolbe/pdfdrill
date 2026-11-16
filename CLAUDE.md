@@ -1,5 +1,111 @@
 # CLAUDE.md
 
+<!-- The block between the markers is GROUP-RULES.md from drillgroup, unchanged. -->
+<!-- GROUP-RULES begin -->
+# Group rules
+
+The same text stands at the top of `CLAUDE.md` in every drill repository.
+It ranks above PROTOCOL.md, ENGINEERING.md, DESIGN.md and every task file. Where they disagree, this wins.
+
+## 1. The goal: one closed loop
+
+    PDF  ->  reading (lines.json: text, maths as LaTeX, tables, figures)  ->  rendered again  ->  compared with the original by ink
+
+A page is read when the judge finds no residual. The loop must run in the sandbox: one page per second,
+no GPU, 8 GB, free of charge. Every task serves this loop or the board that measures it.
+
+## 2. The board is the only measure of progress
+
+- One fixed page set (the board set), drawn from pdfdrill-library pages that have a MathPix lines.json.
+  It holds scans, two-column pages, maths-heavy pages, tables and German text. The owner fixes it once.
+- Per page, three columns: **MathPix, Gemma4, ours.** Four numbers each: judge residual, character error
+  rate against the reference text, formulas exact, seconds per page.
+- Progress is a changed row of this table, and nothing else.
+  "Equal to our Python", "better than our last model", "byte-identical to gd3-white" are regression
+  tests. They belong in the test suite. They are never the headline of a report.
+- A task that cannot name the board number it moves, and by about how much, is not started.
+  Exception: work the board itself needs, limited to one day.
+
+## 3. Who decides
+
+Only four things wait for the owner:
+
+1. spending money or a paid key;
+2. deleting or overwriting data the session did not create;
+3. publishing outside the group's repositories;
+4. changing the goal, the board set, or these rules.
+
+Everything else is decided at once by the session doing the work, and written into its report in one
+line (decision, reason). In particular, these are **not** owner decisions:
+
+- where a file or a program lives, what it is called, which threshold, which of two fixes;
+- whether to go on after a red result (yes);
+- a commit and a push to the project's main when its tests are green;
+- the order in which parts are built or ported.
+
+Further:
+
+- The owner's word, given in any session, holds in every session once the coordinator has written it
+  into drillgroup with the quote and the date. No session asks for it a second time.
+- A short answer from the owner ("yes", "go on") means: continue with what was proposed.
+- A question for the owner is one line in QUESTIONS.md, with the default the session is already acting
+  on. Work never stops for it.
+- Two sessions that wait on each other: the coordinator picks within the hour. The other session notes
+  its objection in one line and continues.
+
+## 4. Red means fix
+
+- An error that anyone can see in the output (wrong characters, lost words, a merged column, 0 of 6
+  formulas) is fixed by the session that owns the code, in the same session. No amendment, no question.
+  Find the cause, change the code, rerun, report before and after.
+- A failed gate does not end the work. It is a measurement. Say what it showed and start the next attempt.
+- Three failed attempts at one idea: change the idea, not the threshold. Name the alternatives (rule 6).
+- Before anything goes to the owner, the session looks at its own output: it renders one page, reads it
+  completely, and lists what is still wrong. The owner inspects results that passed the judge. His job
+  is the small error that is hard to find, not the large one that is easy to see.
+
+## 5. Gates
+
+- A gate is a test that can fail, plus its number on the board. Three lines in the task, before the run.
+- No registration commits, no hashes of gate files, no numbered amendments. A gate that turns out wrong
+  is corrected, with one line saying why.
+- Frozen in advance are only held-out test pages for a trained model. Everything else may change when
+  understanding improves.
+
+## 6. Depth before code
+
+Before building anything that takes more than a day, the task gets ten lines:
+
+- what the two best existing systems do for this step, and how good they measure (from knowledge or a
+  search; name them);
+- the idea, and the mechanism by which it should reach or beat that;
+- the cheapest experiment that could show the idea is wrong. Hours, not days. It is run first;
+- the expected change on the board.
+
+A session that cannot fill this in says so and asks the coordinator for an audit chat's input. That is
+what the daily audits are for. It does not fill the time with a port, a census or a wrapper.
+
+Ports and rewrites: port only what the loop uses now, never for completeness. An old implementation is
+an oracle only for a function the loop still needs.
+
+## 7. Visible work
+
+- Small commits on main when the project's tests are green. Push after every commit. Work that is not on
+  GitHub does not exist for the auditors.
+- A fresh clone builds and tests with the project's two commands, with no file from outside git. Model
+  and data files under 20 MB are committed; larger ones come from a fetch script with a checksum.
+- Reporting stays honest: real commands, real numbers, NOT RUN where something did not run, never "done".
+
+## 8. The report (15 lines at most)
+
+    board:      rows before -> after
+    changed:    commits
+    still wrong: what the session saw in its own output
+    decided:    one line each
+    next:       the step already started
+<!-- GROUP-RULES end -->
+
+
 Guidance for Claude Code in this repository. This file is deliberately COMPACT —
 it is loaded into every session. The full historical guidance (3,271 lines of
 per-feature notes accumulated 2026-06..07) is preserved verbatim in
