@@ -896,7 +896,31 @@ commands:
       is the 24 in "run holds 24 data rows, the manifest expects 68" (out/588).
       Truncating the manifest to match would report a measurement of ten pages
       as a measurement of the document. Use `breport --pages N` for a bounded
-      reading copy: B writes no manifest.'
+      reading copy: B writes no manifest. To measure PART of a document use
+      --only-pages / --only-rows, which narrow the MEASUREMENT and leave both
+      builds whole.'
+  - name: only_pages
+    flag: --only-pages
+    type: str
+    help: 'measure only the report rows printed from these pages OF THE DOCUMENT
+      (`3,17,42`). T-0144: step 3 is 95% of the run (248 s of 262 s on
+      j.nuclphysb.2018.09.006), so the selection narrows it and nothing else —
+      both builds stay full and unbounded, report.tables.json still names every
+      row the PDF ships, and every row renders at the geometry a whole-document
+      run gives it, so the verdicts are identical by construction. A page that
+      names no report row is reported, never dropped. The run STOPS after the
+      convert: a partial measurement is not adopted into a reading build (585 —
+      the reading build selects its sections from the ink) and nothing is
+      published from it. report.ink.json carries `measured_selection`.'
+  - name: only_rows
+    flag: --only-rows
+    type: str
+    help: 'measure only these report rows, by identifier (`doc_EQ0007,doc_EQ0012`).
+      The same mechanism as --only-pages and cheaper, because a page carries
+      rows nobody asked about: over the 57 staged T-0144 documents, report pages
+      rendered and compared were 1,163 for the whole set, 570 for the rows''
+      source pages (49%) and 246 for the rows themselves (21%). Cannot be
+      combined with --only-pages.'
   - name: full
     flag: --full
     type: flag

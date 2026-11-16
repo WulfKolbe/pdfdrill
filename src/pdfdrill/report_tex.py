@@ -2187,6 +2187,79 @@ def demoted_flags(tex_body: str) -> list:
     return out
 
 
+#: The same row pattern as `demoted_flags`, with the identifier captured.
+_DEMOTED_IDENT = re.compile(
+    r"\\ident\{([^&\n]*?EQ\d+)\}[^&\n]*& *\d+ *&")
+
+
+def demoted_by_ident(tex_body: str) -> dict:
+    """Per EQ row, BY IDENTIFIER: did it render, or is it (not rendered)?
+
+    T-0144 — `demoted_flags` answers the same question POSITIONALLY, and a
+    position is only an answer while the thing being indexed is the whole
+    table in table order. A measurement restricted to some of the rows
+    (`inkmeasure.measure(only=…)`) produces a TSV holding only those, and
+    `did_render[len(out)]` then reads the n-th row OF THE WHOLE REPORT for
+    the n-th row of the selection — a demotion attributed to a row that
+    compiled, and a row that did not compile reported as a near miss at
+    distance 10 (judge.py's `unrendered_ids` docstring measures exactly what
+    that costs). The identifier is in the cell either way, so the join is
+    free; the positional form stays for the callers that pair positionally.
+    """
+    out: dict = {}
+    for line in (tex_body or "").split("\n"):
+        m = _DEMOTED_IDENT.search(line)
+        if m:
+            ident = m.group(1).replace("\\allowbreak{}", "").replace("\\", "")
+            out[ident] = "not rendered" not in line
+    return out
+
+
+def identifiers_on_pages(tiddlers_path: Path, pages) -> dict:
+    """Which report rows sit on which pages OF THE DOCUMENT.
+
+    T-0144 — the judge holds its candidate rows' source pages, so a selection
+    stated in the document's own page numbers has to be resolvable without a
+    build. `rows_for` already carries the page as the third element of every
+    row tuple, for all four kinds, and it is the same page the report prints.
+
+    Returns {"identifiers": set, "by_page": {page: [ident, …]},
+    "empty": [page, …]} — a page that names NOTHING is reported, never
+    dropped: `--only-pages 3,17,42` with one page mistyped would otherwise
+    measure two pages and say so nowhere.
+
+    Page numbers are compared as strings with leading zeros stripped, because
+    the library writes `007` and a caller types `7`.
+    """
+    import json as _json
+
+    def _norm(p):
+        s = str(p if p is not None else "").strip()
+        return (s.lstrip("0") or "0") if s else ""
+
+    p = Path(tiddlers_path)
+    tiddlers = _json.loads(p.read_text(encoding="utf-8"))
+    bibkey = resolve_bibkey(p)
+    fo, eq, tab, dia = rows_for(tiddlers, bibkey)
+    by_page: dict = {}
+    for row in fo + eq + tab + dia:
+        key = _norm(row[2])
+        if key:
+            by_page.setdefault(key, []).append(row[0])
+    want = [_norm(x) for x in pages]
+    idents: set = set()
+    got: dict = {}
+    empty: list = []
+    for key in want:
+        here = by_page.get(key) or []
+        if here:
+            got[key] = here
+            idents.update(here)
+        else:
+            empty.append(key)
+    return {"identifiers": idents, "by_page": got, "empty": empty}
+
+
 def ink_join(tiddlers, bibkey: str, ink: "dict | None") -> dict:
     """How much of the ink map actually LANDS on rows of this report.
 

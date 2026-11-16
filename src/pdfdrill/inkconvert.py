@@ -200,12 +200,23 @@ def read_tsv(path: Path) -> tuple:
     return body, footers
 
 
-def convert(tsv: Path, tex: Path, *, stamp: dict | None = None) -> dict:
-    """The ink.json payload, or ConversionRefused. Writes nothing."""
-    from .report_tex import demoted_flags
+def convert(tsv: Path, tex: Path, *, stamp: dict | None = None,
+            selection: dict | None = None) -> dict:
+    """The ink.json payload, or ConversionRefused. Writes nothing.
+
+    `selection` records WHICH ROWS THIS MEASUREMENT COVERS when it covers
+    some of them (T-0144). It is written through to `measured_selection` so
+    that a partial measurement cannot be read as a measurement of the
+    document — the same reason the build stamp records its page bound (578).
+    """
+    from .report_tex import demoted_by_ident, demoted_flags
     body, footers = read_tsv(tsv)
     tex_body = tex.read_text(encoding="utf-8", errors="replace")
     did_render = demoted_flags(tex_body)
+    # T-0144 — BY IDENTIFIER WHERE THE TSV CARRIES ONE. `did_render` is in
+    # whole-table order, so indexing it by the position of a row within a
+    # SELECTION reads another row's demotion. See `demoted_by_ident`.
+    render_by_ident = demoted_by_ident(tex_body)
     pages = {r.get("report_page") for r in footers}
     # 614 — THE TSV CARRIES THE PAIRING when inkmeasure made it positionally.
     # Re-deriving identifiers from report.tex was the only way before, and it
@@ -213,7 +224,8 @@ def convert(tsv: Path, tex: Path, *, stamp: dict | None = None) -> dict:
     # neither side, so the tex names more identifiers than the TSV has rows
     # and zip() would pair every row with the wrong one.
     from_tsv = [r.get("identifier") or "" for r in body]
-    if body and all(from_tsv):
+    paired_by_ident = bool(body) and all(from_tsv)
+    if paired_by_ident:
         ids = from_tsv
     else:
         ids = identifiers(tex_body)
@@ -241,7 +253,10 @@ def convert(tsv: Path, tex: Path, *, stamp: dict | None = None) -> dict:
         # INDEPENDENT renders agreeing. Not to be confused with `B_stable`,
         # which is B against its own half-scale resample: one render, weaker,
         # and not what this class means.
-        rendered = did_render[len(out)] if len(out) < len(did_render) else True
+        if paired_by_ident and ident in render_by_ident:
+            rendered = render_by_ident[ident]
+        else:
+            rendered = did_render[len(out)] if len(out) < len(did_render) else True
         # 709 — absent in every TSV written before the column existed, which
         # `.get` reads as False: those files keep their current classification.
         overran = str(r.get("overrun", "")).strip().lower() in ("yes", "true", "1")
@@ -271,6 +286,8 @@ def convert(tsv: Path, tex: Path, *, stamp: dict | None = None) -> dict:
     }
     if stamp:
         payload["measured_against"] = stamp
+    if selection:
+        payload["measured_selection"] = selection
     return payload
 
 

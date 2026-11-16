@@ -355,8 +355,27 @@ def _pages_for(rows_by_page: dict, pages: list, want: int, legend: bool):
         "table" % (got, want))
 
 
-def measure(report_pdf: Path, work: Path, timeout: int = 900) -> list:
-    r"""Every Display-equations row of the report, legend rows included."""
+def measure(report_pdf: Path, work: Path, timeout: int = 900,
+            only: "set | None" = None) -> list:
+    r"""Every Display-equations row of the report, legend rows included.
+
+    T-0144 — `only` NARROWS THE MEASUREMENT, NEVER THE REPORT. It is a set of
+    identifiers; given one, this measures the report pages those rows sit on
+    and no others. The report PDF is the same full, unbounded build either
+    way, so every row renders at exactly the geometry a whole-document run
+    gives it and the verdicts are identical by construction — which is the
+    whole reason the selection lives here and not in the builder. 593 refuses
+    `--pages N` for the opposite reason: `pagesel` drops pages at SHIPOUT
+    while report.tables.json still names every selected row, so a bounded
+    BUILD ships fewer rows than its own manifest.
+
+    Measured on the 57 staged T-0144 documents, report pages rendered and
+    compared: 1,163 for the whole set, 570 for the rows' source pages (49%),
+    246 for the rows themselves (21%).
+
+    A selection that names nothing in this table REFUSES. An empty result
+    from a non-empty request is the shape that reads like a clean document.
+    """
     doc_dir = Path(report_pdf).parent
     t = equations_table(doc_dir)
     want, cols = t["rows"], t["columns"]
@@ -381,6 +400,24 @@ def measure(report_pdf: Path, work: Path, timeout: int = 900) -> list:
             "the manifest names %d rows but no identifiers, so nothing can be "
             "joined. Rebuild the report: report.tables.json predates 596."
             % want)
+
+    # T-0144 — the restriction, applied to the manifest's own identifier list
+    # so table ORDER is preserved. `want` must move with it: it is the number
+    # this run expects to measure, and the final arithmetic below balances
+    # against it. Leaving `want` at the manifest's count would refuse every
+    # restricted run with "N rows measured, M expected".
+    if only is not None:
+        asked = set(only)
+        idents = [i for i in idents if i in asked]
+        if not idents:
+            raise MeasureRefused(
+                "the selection names %d identifier(s) and none of them is in "
+                "the %s table, which holds %d (%s%s) — nothing would be "
+                "measured"
+                % (len(asked), t.get("caption"), want,
+                   ", ".join(sorted(asked)[:3]),
+                   " …" if len(asked) > 3 else ""))
+        want = len(idents)
 
     # 613 — POSITIONAL SELECTION. The rect manifest gives every row the rules
     # that bound it, so a lattice row is claimed by the identifier whose band

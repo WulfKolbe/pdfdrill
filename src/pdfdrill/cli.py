@@ -1708,7 +1708,13 @@ def _do_inkjudge(args):
 def _do_inkreport(args):
     """pdfdrill inkreport <pdf> [--preflight-only] [--timeout N]
     [--profile internal|published] [--full] [--pages N]
+    [--only-pages 3,17,42] [--only-rows <id,id>]
     [--accept-stale-geometry] [--prefer-refined]
+
+    T-0144 — `--only-pages` / `--only-rows` narrow the MEASUREMENT, not the
+    builds: both builds stay full, so every row renders at the geometry a
+    whole-document run gives it and the verdicts are identical. `--pages N`
+    is the other thing and is still refused (593).
 
     561 — the PROFILE decides the shape: published builds the findings
     shape, internal the full listing, and BOTH phases build the same one.
@@ -1719,6 +1725,9 @@ def _do_inkreport(args):
     to, args = _opt(args, "--timeout")
     profile, args = _opt(args, "--profile")
     npages, args = _opt(args, "--pages")
+    # T-0144 — VALUE options, so they come off with _opt too.
+    only_pages, args = _opt(args, "--only-pages")
+    only_rows, args = _opt(args, "--only-rows")
     # T-0116 — a VALUE option, so it comes off with _opt. An unstripped
     # switch falls into the path list and is silently ignored; that is how
     # --prefer-refined did nothing until the gate run cost 108 s to find out.
@@ -1736,7 +1745,12 @@ def _do_inkreport(args):
                          findings=(False if "--full" in args else None),
                          profile=profile or INKREPORT_PROFILE_DEFAULT,
                          timeout=int(to) if to else 900,
-                         pages=(int(npages) if npages is not None else None),
+                         # T-0144 — RAW, not int(). `--pages 3,17,42` is the
+                         # shape a caller reaches for first, and int() here
+                         # raised a ValueError traceback instead of the 593
+                         # refusal that names the flag which does that job.
+                         pages=npages,
+                         only_pages=only_pages, only_rows=only_rows,
                          accept_stale_geometry="--accept-stale-geometry" in args)
 
 

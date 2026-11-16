@@ -233,6 +233,7 @@ def _report_pages(doc_dir: Path) -> int:
 
 def fresh_ink(doc_dir: Path, *, formula_rule: str = "",
               pages_bound: "int | None" = None,
+              selection: "dict | None" = None,
               accept_stale_geometry: bool = False,
               why: "list | None" = None) -> bool:
     """True when the stored measurement describes the report ABOUT TO BE BUILT.
@@ -250,7 +251,7 @@ def fresh_ink(doc_dir: Path, *, formula_rule: str = "",
     residual measured on a document that no longer exists. It reported READY.
     Eleven of twelve documents did this before it was caught.
 
-    So the test is now six content questions, each of which can be answered
+    So the test is now seven content questions, each of which can be answered
     from what is on disk:
 
       1. the ink post-dates the measure stamp        (the original mtime test,
@@ -285,7 +286,13 @@ def fresh_ink(doc_dir: Path, *, formula_rule: str = "",
          the leniency `model_state`'s check above extends to an absent field
          is exactly the loophole 625 exploited when generalised to a field
          invented for a live incident, so this question does not repeat it.
-         `accept_stale_geometry=True` overrides ONLY this question, for an
+      7. the same MEASURE SELECTION               (T-0144) —
+         `measured_selection.identifiers`. A measurement restricted to some
+         of the report's rows covers some of its pages, so it describes
+         neither the document nor another selection. Compared as a SET, so
+         the same rows asked for by page and by identifier resume each other.
+
+         `accept_stale_geometry=True` overrides ONLY question 6, for an
          operator who has independently confirmed (by reading `git log`, not
          by hoping) that the code has not moved; it is never the default and
          nothing in this codebase sets it automatically.
@@ -336,6 +343,24 @@ def fresh_ink(doc_dir: Path, *, formula_rule: str = "",
     if _want != _had:
         say.append("the measured report was built with pages_bound=%s, this "
                    "run uses %s" % (_had, _want))
+        return False
+    # T-0144 — a SEVENTH content question, the same class as the page bound
+    # above: which rows the stored measurement covers. A measurement
+    # restricted to a selection (`--only-pages` / `--only-rows`) measures some
+    # of the report's pages, so it describes neither the document nor a
+    # different selection. The comparison is over the IDENTIFIER SET, not over
+    # the request that produced it: `--only-pages 7` and `--only-rows <the
+    # eight rows on page 7>` ask for the same measurement and must resume each
+    # other, while two page lists that merely overlap must not.
+    _want_sel = sorted((selection or {}).get("identifiers") or [])
+    _had_sel = sorted((ink_d.get("measured_selection") or {})
+                      .get("identifiers") or [])
+    if _want_sel != _had_sel:
+        say.append("the stored measurement covers %s, this run asks for %s"
+                   % ("%d selected row(s)" % len(_had_sel) if _had_sel
+                      else "the whole report",
+                      "%d selected row(s)" % len(_want_sel) if _want_sel
+                      else "the whole report"))
         return False
     from .report_tex import model_state
     cur = model_state(doc_dir).get("model_sha256")

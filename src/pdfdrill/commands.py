@@ -3636,9 +3636,14 @@ def cmd_handover(root: Path, ready_only: bool = False,
     return "\n".join(out)
 
 
-def cmd_inkconvert(pdf: Path, force: bool = False) -> str:
+def cmd_inkconvert(pdf: Path, force: bool = False,
+                   selection: "dict | None" = None) -> str:
     """inkdrill's report.compare.tsv -> report.ink.json, with the pairing
-    asserted rather than assumed."""
+    asserted rather than assumed.
+
+    `selection` is set only by the ink chain, and only when the measurement
+    covered SOME of the report's rows (T-0144): it travels into
+    `measured_selection` so the file says so itself."""
     import datetime as _dt
     from . import inkconvert as _ic
     from . import report_tex as rt
@@ -3700,7 +3705,7 @@ def cmd_inkconvert(pdf: Path, force: bool = False) -> str:
         except Exception:
             stamp = None
     try:
-        payload = _ic.convert(tsv, tex, stamp=stamp)
+        payload = _ic.convert(tsv, tex, stamp=stamp, selection=selection)
     except _ic.ConversionRefused as e:
         return "\n".join(out + ["REFUSING to convert: %s" % e, rt.stamp()])
     # 667 — record, per row, the crop this MEASUREMENT actually saw. The
@@ -3809,6 +3814,14 @@ INKREPORT_FINDINGS = {
 }
 
 
+def _page_sort_key(p):
+    """Page labels in reading order. A document's pages are mostly numbers and
+    sometimes not (`ii`, `A-3`), so a numeric sort that raises on the second
+    kind is not a sort."""
+    s = str(p)
+    return (0, int(s), "") if s.isdigit() else (1, 0, s)
+
+
 def _inkreport_chain(pdf: Path, preflight_only: bool = False,
                      prefer_refined: bool = False,
                      render_provenance: "str | None" = None,
@@ -3816,6 +3829,8 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
                      profile: str = INKREPORT_PROFILE_DEFAULT,
                      timeout: int = 900,
                      pages: "int | None" = None,
+                     only_pages: "str | None" = None,
+                     only_rows: "str | None" = None,
                      accept_stale_geometry: bool = False) -> str:
     """404 — the whole ink chain, and the only supported way to run it.
 
@@ -3857,13 +3872,32 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
         try:
             _pn = int(pages)
         except (TypeError, ValueError):
-            _pn = 0
+            # T-0144 — NOT A NUMBER IS NOT NOTHING. `_pn = 0` used to mean
+            # "unbounded, carry on", so `--pages 3,17,42` ran as if the flag
+            # had never been typed: the exact silent drop 578 is about,
+            # arriving through the value instead of through the switch.
+            return ("inkreport: --pages takes one number and bounds the BUILD, "
+                    "which this command refuses anyway (593). %r is a list — "
+                    "to measure part of a document use `--only-pages %s`, "
+                    "which narrows the measurement and leaves both builds "
+                    "whole." % (str(pages), str(pages)))
         if _pn > 0:
             return ("inkreport refuses --pages %d: both of its builds write %s, "
                     "and a bounded build ships fewer rows than its manifest "
                     "names (out/588). Use `pdfdrill breport <pdf> --pages %d` "
-                    "for a bounded reading copy."
+                    "for a bounded reading copy. To measure PART of a "
+                    "document, narrow the MEASUREMENT and not the build: "
+                    "`--only-pages 3,17,42` or `--only-rows <id,…>`."
                     % (_pn, rt.TABLES_MANIFEST, _pn))
+
+    # T-0144 — TWO SELECTORS, NO PRECEDENCE. The same rule `--prefer-refined`
+    # and `--render-provenance` already follow: a run carrying both has no
+    # defined answer, and quietly taking one is how a measurement comes to
+    # describe a set nobody chose.
+    if only_pages and only_rows:
+        return ("inkreport: --only-pages and --only-rows cannot be combined. "
+                "One names pages of the document, the other names report "
+                "rows; a run with both has no defined selection. Pick one.")
 
     # the profile decides the shape too; an explicit argument still wins, so a
     # caller can measure the other shape deliberately rather than by accident.
@@ -3871,6 +3905,40 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
         findings = INKREPORT_FINDINGS[profile]
     doc = blob_dir_for(Path(pdf).resolve())[0]   # layout-aware, never hardcoded
     out: list[str] = []
+
+    # T-0144 — THE MEASURE SELECTION, RESOLVED BEFORE ANYTHING IS BUILT. A
+    # mistyped page or an identifier this document does not have costs one
+    # read of the tiddler array, not a build.
+    sel_idents: "set | None" = None
+    sel_record: "dict | None" = None
+    if only_pages or only_rows:
+        if only_rows:
+            asked = [x.strip() for x in str(only_rows).split(",") if x.strip()]
+            sel_idents = set(asked)
+            sel_record = {"by": "rows", "asked": asked,
+                          "identifiers": sorted(sel_idents)}
+        else:
+            asked = [x.strip() for x in str(only_pages).split(",") if x.strip()]
+            tidp = _tidpath.tiddlers_in(doc)         # 560 — ask, do not glob
+            if tidp is None:
+                return ("inkreport --only-pages needs this document's tiddler "
+                        "array to turn a page number into report rows, and "
+                        "there is none beside %s. Run `pdfdrill tiddlers "
+                        "%s` first." % (doc, Path(pdf).name))
+            try:
+                got = rt.identifiers_on_pages(tidp, asked)
+            except Exception as _e:                  # noqa: BLE001
+                return ("inkreport --only-pages: could not read %s (%s: %s)"
+                        % (tidp.name, type(_e).__name__, str(_e)[:140]))
+            sel_idents = got["identifiers"]
+            sel_record = {"by": "pages", "asked": asked,
+                          "pages": sorted(got["by_page"], key=_page_sort_key),
+                          "pages_with_no_row": got["empty"],
+                          "identifiers": sorted(sel_idents)}
+            if not sel_idents:
+                return ("inkreport --only-pages %s: no report row sits on any "
+                        "of those pages of %s. Nothing would be measured."
+                        % (",".join(asked), Path(pdf).name))
 
     pre = ir.preflight(Path(pdf), doc)
     out.append("PREFLIGHT")
@@ -3900,6 +3968,18 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
                "= ~%d s. Intermediates peak at ~%d MB, one page at a time."
                % (plan.get("rows", 0), plan_pages, ir.SECONDS_PER_PAGE,
                   plan.get("seconds", 0), ir.MB_PER_PAGE_PEAK))
+    if sel_record:
+        out.append("")
+        out.append("SELECTION: %d report row(s) from %s %s — step 3 measures "
+                   "only the report pages they sit on, and only those of them "
+                   "in the measured table. Both builds stay full and "
+                   "unbounded."
+                   % (len(sel_idents), sel_record["by"],
+                      ",".join(sel_record["asked"][:12])
+                      + (" …" if len(sel_record["asked"]) > 12 else "")))
+        if sel_record.get("pages_with_no_row"):
+            out.append("  pages naming no report row: %s"
+                       % ", ".join(sel_record["pages_with_no_row"]))
     if preflight_only:
         out.append("--preflight-only: stopping before the first build.")
         return "\n".join(out)
@@ -3910,8 +3990,16 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
     # asks about ITS parameters. Phase 2's --pages and formula rule truncate
     # and filter the PUBLISHED report; they do not change which rows the ink
     # measured, so they can no longer invalidate it.
+    # T-0144 — and about ITS SELECTION, for the same reason 578 made the page
+    # bound a content question: a measurement of some rows does not describe
+    # the document, and a measurement of the document does not describe a
+    # selection's rows either (its ink holds them, but step 3 is what the
+    # resume skips). Without this the first `--only-rows` run on a measured
+    # document would resume the full measurement and report the selection as
+    # measured.
     resumed = ir.fresh_ink(doc, formula_rule=MEASURE_FORMULA_RULE,
                            pages_bound=MEASURE_PAGES_BOUND,
+                           selection=sel_record,
                            accept_stale_geometry=accept_stale_geometry, why=why)
     if resumed:
         out.append("")
@@ -4067,7 +4155,8 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
         # 3 — measure it.
         work = doc / "inkwork"
         try:
-            rows = im.measure(doc / "report.pdf", work, timeout=timeout)
+            rows = im.measure(doc / "report.pdf", work, timeout=timeout,
+                              only=sel_idents)
         except Exception as e:
             return _bail([
                 "", "STOPPED at step 3 (measure): %s: %s"
@@ -4079,17 +4168,64 @@ def _inkreport_chain(pdf: Path, preflight_only: bool = False,
         (doc / "report.compare.tsv").write_text(im.to_tsv(rows),
                                                 encoding="utf-8")
         out.append("3 measure        %d rows -> report.compare.tsv" % len(rows))
+        # T-0144 — A SELECTED ROW THAT PRODUCED NOTHING IS NAMED. `measure`
+        # refuses only when the WHOLE selection is absent from the table, and
+        # tolerates a row that straddles a page break (613/619: it bounds no
+        # rectangle on either side). Both are legitimate; neither may be
+        # silent, or `--only-rows` with ten ids and eight answers reads as ten
+        # answers.
+        if sel_idents:
+            # Against the MEASURED TABLE's identifiers, not against the raw
+            # selection. A page carries formula, table and figure rows too,
+            # and this chain measures the display-equations table — naming
+            # those as "produced no measurement" would report a gap that is
+            # the command's documented scope.
+            _measurable = sel_idents & set(_t.get("identifiers") or [])
+            _got = {r.get("identifier") for r in rows}
+            _lost = sorted(_measurable - _got)
+            out.append("  selection: %d row(s) asked, %d in the %s table, "
+                       "%d measured" % (len(sel_idents), len(_measurable),
+                                        _t.get("caption"), len(_got)))
+            if _lost:
+                out.append("  %d selected row(s) produced no measurement "
+                           "(straddling a page break, or no rectangle): "
+                           "%s%s"
+                           % (len(_lost), ", ".join(_lost[:6]),
+                              " …" if len(_lost) > 6 else ""))
 
         # 4 — convert. FORCED: inkconvert refuses to overwrite, and a stale
         # ink.json beside a fresh measurement is the shape that made a
         # comparison return 100% agreement against itself (396).
-        msg = cmd_inkconvert(pdf, force=True)
+        msg = cmd_inkconvert(pdf, force=True, selection=sel_record)
         if not (doc / "report.ink.json").is_file():
             return _bail([
                 "", "STOPPED at step 4 (convert): %s" % msg.strip()[:200]])
         _lines = [l for l in msg.strip().splitlines()
                   if "report.ink.json" in l] or msg.strip().splitlines()
         out.append("4 convert        %s" % _lines[0][:150])
+
+    # T-0144 — A PARTIAL MEASUREMENT IS NOT ADOPTED, AND NOTHING IS PUBLISHED
+    # FROM IT. Step 5 builds the reading report, and 585 established that the
+    # reading build SELECTS ITS SECTIONS FROM THE INK: a row the ink does not
+    # mention is not flagged, so adopting a selection's ink would publish a
+    # report whose findings describe the selection and whose cover describes
+    # the document. That is 539's shape. The measurement is the output here —
+    # report.compare.tsv and report.ink.json, with `measured_selection`
+    # saying what it covers — and stopping also saves the second full build,
+    # which on the T-0144 books is the larger half of the bill.
+    if sel_record:
+        out.append("")
+        out.append("STOPPING after step 4: this measurement covers a "
+                   "SELECTION of the report's rows, so it is not adopted "
+                   "into a reading build and nothing is published from it. "
+                   "report.ink.json carries `measured_selection`.")
+        out.append("")
+        out.append("OUTPUT")
+        for _p in (doc / "report.compare.tsv", doc / "report.ink.json"):
+            out.append("  %s" % _p)
+        out.append("")
+        out.append("%d s total." % int(_time.time() - t0))
+        return "\n".join(out)
 
     # 5 — the READING build, adopting.
     #
@@ -4247,10 +4383,13 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
                   profile: str = INKREPORT_PROFILE_DEFAULT,
                   timeout: int = 900,
                   pages: "int | None" = None,
+                  only_pages: "str | None" = None,
+                  only_rows: "str | None" = None,
                   accept_stale_geometry: bool = False) -> str:
     """ALIAS of `residuals --measure --pdf` (spec 2026-09-06) for a plain
     call. `cmd_residuals` cannot carry `preflight_only`, `findings`, a
-    non-default `profile`, or a page bound — its own `pages` bounds the
+    non-default `profile`, a measure selection, or a page bound — its own
+    `pages` bounds the
     RESIDUALS listing, not the ink chain (which refuses any bound at all,
     588/593), so the two cannot be the same argument. Any call that uses one
     of those goes straight to `_inkreport_chain`, exercising exactly the code
@@ -4259,12 +4398,14 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
     --measure --pdf` does.
     """
     if (preflight_only or findings is not None
-            or profile != INKREPORT_PROFILE_DEFAULT or pages is not None):
+            or profile != INKREPORT_PROFILE_DEFAULT or pages is not None
+            or only_pages or only_rows):
         return _inkreport_chain(pdf, preflight_only=preflight_only,
                                 findings=findings, profile=profile,
                                 prefer_refined=prefer_refined,
                                 render_provenance=render_provenance,
                                 timeout=timeout, pages=pages,
+                                only_pages=only_pages, only_rows=only_rows,
                                 accept_stale_geometry=accept_stale_geometry)
     # The plain path routes through `residuals --measure --pdf`, so the flag
     # has to travel here too; otherwise `inkreport --prefer-refined` would be
