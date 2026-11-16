@@ -1274,9 +1274,25 @@ def _until_paragraph_break(lines: list) -> list:
     lead = max(set(positive), key=positive.count)
     limit = 1.8 * max(lead, 1.0) if lead > 0 else 1.8 * max(
         (t[1] for t in tops), default=10.0)
+    # AND A RUN NEVER GOES BACKWARDS UP THE PAGE. Within one column reading
+    # order the tops increase; a top that jumps ABOVE its predecessor is a new
+    # column, or the page's margin furniture read after the body. The gap test
+    # alone cannot see it, because a column break is a NEGATIVE gap and
+    # `g > limit` is false for every negative number — so the allotment walked
+    # straight through the column boundary and `_union_region` boxed both
+    # columns at once.
+    #
+    # Measured on the owner's arxiv.2209.02970 p1 (2026-11-16): every one of
+    # the 7 boxed objects crossed the column gutter and 6 of 7 were wider than
+    # a whole column. One Paragraph ran x 16.3..525.8 — from the rotated arXiv
+    # margin stamp, which is read after the body and so sits far above the
+    # line before it, right across to the right column's edge.
     out = [lines[0]]
-    for g, ln in zip(gaps, lines[1:]):
+    for g, ln, (y_prev, h_prev), (y_next, _h) in zip(
+            gaps, lines[1:], tops, tops[1:]):
         if g > limit:
+            break
+        if y_next < y_prev - 0.5 * max(h_prev, 1.0):
             break
         out.append(ln)
     return out
