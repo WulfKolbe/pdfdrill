@@ -162,8 +162,12 @@ These rules apply to the acceptance run:
    - `exit=<n>`
    - the lines of stdout that prove the claim (lane chosen, files written)
    - every file the command says it wrote, with its existence checked by `ls -l` and its content
-     checked by one concrete probe (e.g. `grep -c 'data-id=' x.inspect.html`, `python3 -m
-     json.tool x.lines.json >/dev/null`)
+     checked by one concrete probe (e.g. `grep -o 'pdfdrill-inspect/1 [^>]*' x.inspect.html`,
+     `python3 -m json.tool x.lines.json >/dev/null`). **The inspect probe used to be
+     `grep -c 'data-id=' x.inspect.html` and it could not fail**: the page builds every box
+     client-side from `const DATA`, so that grep answers 0 on a perfect 247 KB page and 0 on a
+     broken one (T-0145 P9-15). The manifest line it was replaced with states the element, page
+     and blob counts the client will draw, and the reading's declared `px_per_pt`.
 5. **Real inputs only.** Use the example inputs named in the task. Don't use a PDF you generated to
    make the test pass, unless the task asks for that.
 6. **A test that can't run is NOT RUN.** If there's no network, no key or no binary, write
