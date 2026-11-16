@@ -178,7 +178,7 @@ def iter_page_records(pdf_path: str):
         return
     import gc
     from pdfminer.high_level import extract_pages
-    from pdfminer.layout import (LTChar, LTFigure, LTTextContainer,
+    from pdfminer.layout import (LTChar, LTFigure, LTImage, LTTextContainer,
                                   LTTextLine)
 
     def _turn_of(matrix) -> int:
@@ -253,6 +253,25 @@ def iter_page_records(pdf_path: str):
                 walk_line([obj])
             elif isinstance(obj, LTTextLine):
                 walk_line(obj)
+            elif isinstance(obj, LTImage):
+                # A RASTER THE PAGE PAINTS IS CONTENT, and this route reported
+                # none of it: `arxiv.2209.02970.lines.json` holds 1,555 `text`
+                # records, 1 `math`, and no image record on any of its 21
+                # pages, while the page paints 3 images on p1 and a
+                # 454 x 114 pt raster on p9. The owner reported it as "images
+                # not separated". The box is carried, never the pixels --
+                # `region` is what a crop needs.
+                #
+                # `kind` keeps the 4-tuple this function has always yielded, so
+                # no caller breaks on an arity change; a consumer that wants
+                # glyphs filters on it.
+                recs.append({
+                    "page": idx + 1, "kind": "image",
+                    "name": str(getattr(obj, "name", "") or ""),
+                    "x0": round(obj.x0, 2), "x1": round(obj.x1, 2),
+                    "top": round(page_h - obj.y1, 2),
+                    "bottom": round(page_h - obj.y0, 2),
+                })
             elif isinstance(obj, (LTTextContainer, LTFigure)):
                 for child in obj:
                     walk(child)

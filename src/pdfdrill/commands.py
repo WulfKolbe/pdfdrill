@@ -719,6 +719,10 @@ def _pdfminer_char_dump(pdf: Path) -> dict:
     if not PM.available():
         raise RuntimeError("pdfminer.six not installed")
     recs = PM.char_records(str(pdf))                 # top-left origin: top/bottom
+    # `char_records` is the whole-document dumper; it has no image branch of
+    # its own, so an image record arriving here is filtered rather than
+    # mistaken for a glyph with no text.
+    recs = [r for r in recs if r.get("kind") != "image"]
     glyphs = _font_glyph_names(pdf)                  # per-font /Differences names
     dims = PM.page_dims(str(pdf))                     # {pg: (w, h)}
     by_page: dict[int, list[dict]] = {}
@@ -1553,7 +1557,15 @@ def _stream_born_digital_lines(pdf: Path) -> "dict | None":
 
     def pages():
         for pno, w, h, recs in PM.iter_page_records(str(pdf)):
+            # The rasters the page paints travel beside the glyphs; see
+            # `pdfminer_layer`'s LTImage branch and `chars_to_lines._image_lines`.
+            imgs = [r for r in recs if r.get("kind") == "image"]
+            recs = [r for r in recs if r.get("kind") != "image"]
             yield {"page_number": pno, "width": float(w), "height": float(h),
+                   "images": [{"x0": float(r["x0"]), "x1": float(r["x1"]),
+                               "y0": float(h) - float(r["bottom"]),
+                               "y1": float(h) - float(r["top"]),
+                               "name": r.get("name", "")} for r in imgs],
                    # top-left top/bottom -> bottom-left y0/y1 (chars_to_lines
                    # re-flips), with the font carried and (cid:N) resolved at
                    # this seam exactly as the whole-document dumper does.

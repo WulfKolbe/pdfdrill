@@ -356,6 +356,43 @@ def _turned_lines(turned: list[dict]) -> list[list[dict]]:
     return out
 
 
+def _image_lines(page: dict[str, Any]) -> list[dict[str, Any]]:
+    """One record per raster the page paints, typed `figure`.
+
+    This route reported no image of any kind. Measured on the owner's
+    arxiv.2209.02970 (2026-11-16): the reading held 1,555 `text` records, 1
+    `math`, and NO image record on any of its 21 pages, while the page paints
+    three 6x6 pt images on p1 and a 454 x 114 pt raster on p9. `pdfdrill` even
+    writes `probe-pdfimages-list.txt` beside the document naming them. The
+    owner reported it as "images not separated".
+
+    `figure` is the type `PictureProcessor` claims (`diagram` is
+    `DiagramProcessor`'s and is for vector art). The record carries the BOX and
+    no pixels: a crop is taken from the page at the resolution the caller
+    wants, and inventing text for a raster would be a reading nobody made.
+    """
+    out: list[dict[str, Any]] = []
+    ph = float(page.get("height") or 0)
+    for i, im in enumerate(page.get("images") or []):
+        try:
+            x0, x1 = float(im["x0"]), float(im["x1"])
+            y0, y1 = float(im["y0"]), float(im["y1"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        top, bottom = ph - y1, ph - y0
+        if x1 <= x0 or bottom <= top:
+            continue
+        out.append({
+            "id": "%s-img%d" % (page.get("page_number"), i),
+            "type": "figure",
+            "text": "",
+            "text_display": "",
+            "region": {"top_left_x": round(x0, 2), "top_left_y": round(top, 2),
+                       "width": round(x1 - x0, 2), "height": round(bottom - top, 2)},
+        })
+    return out
+
+
 def _page_words(page: dict[str, Any]) -> list[dict[str, Any]]:
     pg = page.get("page_number")
     ph = float(page.get("height") or 0)
@@ -471,7 +508,40 @@ def chars_to_lines_json(data: dict[str, Any]) -> dict[str, Any]:
     out = ocr_lines.lines_json_from_words(
         words, dims, source=data.get("source", "pdfplumber-chars"))
     out["math_lines_typed"] = _type_math_lines(out)
+    _append_image_lines(out, data.get("pages", []))
     return out
+
+def _append_image_lines(out: dict, pages: list) -> int:
+    """Put each page's image records into the assembled lines.json.
+
+    Called by BOTH entry points, because `tests/test_chars_streaming.py`
+    asserts the streaming route is byte-identical to the whole-document one.
+    Two copies of this would be the one thing a memory optimisation must not
+    do, so there is one.
+
+    A page the assembler never emitted (all of its glyphs dropped, or a page of
+    nothing but a raster) still gets its page entry here -- otherwise a
+    full-page image would be the one thing a reading of it cannot show.
+    """
+    by_no = {p.get("page"): p for p in out.get("pages") or []}
+    added = 0
+    for page in pages:
+        lines = _image_lines(page)
+        if not lines:
+            continue
+        pg = page.get("page_number")
+        entry = by_no.get(pg)
+        if entry is None:
+            entry = {"page": pg, "image_id": "p%s" % pg,
+                     "page_width": float(page.get("width") or 0),
+                     "page_height": float(page.get("height") or 0),
+                     "lines": []}
+            out.setdefault("pages", []).append(entry)
+            by_no[pg] = entry
+        entry.setdefault("lines", []).extend(lines)
+        added += len(lines)
+    return added
+
 
 def lines_json_streaming(page_iter, *, source: str = "pdfplumber-chars") -> dict:
     """Char dump -> lines.json, processing ONE page at a time.
@@ -496,6 +566,7 @@ def lines_json_streaming(page_iter, *, source: str = "pdfplumber-chars") -> dict
         dims = {pg: (float(page.get("width") or 0), float(page.get("height") or 0))}
         one = ocr_lines.lines_json_from_words(_page_words(page), dims, source=source)
         typed += _type_math_lines(one)
+        _append_image_lines(one, [page])
         pages_out.extend(one.get("pages") or [])
         del page                                  # release this page's glyphs
     # Exactly the keys `chars_to_lines_json` emits — an extra field here would
