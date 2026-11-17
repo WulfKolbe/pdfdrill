@@ -14305,6 +14305,16 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
         sc.set_evidence("bibkey", key)
 
     t0 = time.monotonic()
+    # A READING MAY COVER PART OF THE DOCUMENT, and the projection used to hide
+    # it: one 11,232-page volume in the library has a reading of its first
+    # 5,000 pages (the provider stopped; no cap exists in this code), and its
+    # tiddlers looked like a whole book. The PDF is in hand HERE, so the count
+    # is taken from the file rather than from the model's meta -- that way the
+    # line is also right for the models already on disk, built before it.
+    from . import probes as _probes, pdf_reading as _pr
+    _total = _probes.page_count(sc) or _pr._page_count(pdf)
+    if _total:
+        doc.meta["pdf_page_count"] = int(_total)
     # The crop layer's output, so a tiddler can reference the FILE instead of a
     # CDN url MathPix has retired (every one now answers HTTP 500). Passed as a
     # directory rather than a flag: the projector checks each crop exists and

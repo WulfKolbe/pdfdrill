@@ -2038,7 +2038,8 @@ class TiddlyWikiProjector(BaseProjector):
             bibkey,
             self._root_body(bibkey, doc_caption, inv["pages"], inv["sections"],
                             inv["paragraphs"], inv["equations"], inv["formulas"],
-                            title),
+                            title,
+                            pdf_pages=int(doc.meta.get("pdf_page_count") or 0)),
             f"document bibtex {_bibtag(bibkey)}",
         )
         root["caption"] = doc_caption
@@ -2312,16 +2313,28 @@ class TiddlyWikiProjector(BaseProjector):
 
     @staticmethod
     def _root_body(bibkey, caption, pages, sections, paragraphs, equations,
-                   formulas, title) -> str:
+                   formulas, title, pdf_pages: int = 0) -> str:
         """Markdown document tiddler: `#`/`##` headings, `-` stat list, and a
         STATIC list of `<$link>` widgets to the top-level sections (the Markdown
-        plugin renders widgets; a `<$list>` filter + `<<sec>>` macro would not)."""
+        plugin renders widgets; a `<$list>` filter + `<<sec>>` macro would not).
+
+        `pdf_pages` is the PDF's own page count, so a PARTIAL reading says so.
+        A reading can cover part of a document -- one 11,232-page volume in the
+        library has a reading of its first 5,000 pages, because the provider
+        stopped there; nothing in this projection said so, and a wiki built
+        from it looked complete at 44%. The count comes from the FILE at
+        projection time, not from the model's meta, so it is also there for the
+        models already on disk, which were built before this line existed.
+        """
         heading = caption if caption and caption != bibkey else bibkey
         lines = [f"# {heading}", ""]
         if heading != bibkey:
             lines += [f"*{bibkey}*", ""]
+        read, total = len(pages), int(pdf_pages or 0)
         lines += [
-            f"- Pages: {len(pages)}",
+            f"- Pages: {read} of {total} in the PDF"
+            f" ({100.0 * read / total:.0f}% read)" if total > read
+            else f"- Pages: {read}",
             f"- Sections: {len(sections)}",
             f"- Paragraphs: {len(paragraphs)}",
             f"- Equations: {len(equations)}",
