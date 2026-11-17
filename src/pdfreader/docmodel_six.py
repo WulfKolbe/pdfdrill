@@ -1144,10 +1144,30 @@ def _covers_as_overline(rule: "RuleNode", mid: float,
     """
     if getattr(rule, "role", None) != "overline":
         return False
-    return any(rule.rect[0] >= g.rect[0] - 0.5
-               and rule.rect[2] <= g.rect[2] + 0.5
-               and -0.10 * g.size <= mid - g.rect[3] <= 0.40 * g.size
-               for g in group)
+    for g in group:
+        if not (-0.10 * g.size <= mid - g.rect[3] <= 0.40 * g.size):
+            continue
+        bw = rule.rect[2] - rule.rect[0]
+        gw = g.rect[2] - g.rect[0]
+        # AN ACCENT'S BAR IS NOT CONTAINED BY ITS BASE. Containment is right
+        # for `\overline{A}`, which TeX draws to the width of the box it
+        # covers, and wrong for `\bar{M}`, which is drawn to the width of the
+        # ACCENT and overhangs. Measured on 2103.01507 p118: the bar runs
+        # 222.83..233.63 over an `M` at 222.84..232.50, so it failed the old
+        # test by 0.63pt -- and with it all 26 of that page's overlines were
+        # found, classified `overline`, and then attached to no line at all.
+        # Across the board's accent-bearing pages, 45 rules were classified
+        # and 8 attached.
+        #
+        # Overlap instead of containment, with the bar's own width held near
+        # the glyph's: a rule much longer than the glyph it sits over is a
+        # table rule or a frame, not this glyph's accent.
+        if bw > 1.6 * gw:
+            continue
+        ov = min(rule.rect[2], g.rect[2]) - max(rule.rect[0], g.rect[0])
+        if ov >= 0.80 * min(bw, gw):
+            return True
+    return False
 
 
 def _off_row_band(grp: list, rules: list, span_pt: float) -> bool:
@@ -5136,6 +5156,34 @@ def _word_gap(glyphs: list["GlyphNode"]) -> float:
     return min(max(at, 0.08 * size), 0.30 * size)
 
 
+#: What a glyph with no identity is written as. An explicit unknown, counted
+#: in the line's `deferred_glyphs`, rather than a placeholder that reads as
+#: the four letters `cid` plus a number nobody put on the page.
+UNKNOWN_GLYPH_CHAR = "\ufffd"
+
+
+def _glyph_text(g: GlyphNode) -> str:
+    r"""One glyph as text, never as pdfminer's `(cid:N)` placeholder.
+
+    A font with no ToUnicode map makes `get_text()` return `(cid:205)`, and
+    writing that into a reading puts nine characters on the page that are not
+    there: 61 of them over 9 of the board's 24 born-digital pages, against
+    MathPix's none. Measured on 1805.01788 p3, where all 21 are `\sum`.
+
+    The identity is recovered where the font states it -- `texmap.project`
+    now answers a variant name like `summationtext.1` from its base -- and
+    what remains unidentified is written as one explicit unknown character,
+    which the line's `deferred_glyphs` already names glyph by glyph.
+    """
+    t = g.text or ""
+    #: pdfminer's placeholder for a glyph whose font states no Unicode for it
+    #: is the literal string `(cid:<number>)`. A string test, not a regex:
+    #: this module imports `re` nowhere at the top level.
+    if not (t.startswith("(cid:") and t.endswith(")") and t[5:-1].isdigit()):
+        return t
+    return g.tex.latex or UNKNOWN_GLYPH_CHAR
+
+
 def _run_text(glyphs: list[GlyphNode], word_gap: float = 0.0) -> str:
     """Text of a glyph run, with word breaks reconstructed from geometry.
 
@@ -5151,7 +5199,7 @@ def _run_text(glyphs: list[GlyphNode], word_gap: float = 0.0) -> str:
             gap = g.rect[0] - prev.rect[2]
             if gap > threshold and not out[-1].endswith(" "):
                 out.append(" ")
-        out.append(g.text)
+        out.append(_glyph_text(g))
         prev = g
     return "".join(out)
 

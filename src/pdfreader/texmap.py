@@ -923,12 +923,37 @@ def cm_glyphname(fontname: str | None, cid: int) -> str | None:
 
 def project(family: str, glyphname: str | None,
             cid: int = -1, fontname: str | None = None) -> TexToken:
-    """Map one glyph identity to a LaTeX token.
+    r"""Map one glyph identity to a LaTeX token.
 
     Returns UNKNOWN rather than a guess whenever the identity is not stated,
     not in the table, or not verified. A caller must treat `latex is None` as
     "keep the blob" — never as "emit nothing and move on".
+
+    A NAME WITH A VARIANT SUFFIX IS THE SAME GLYPH. PostScript names a font's
+    alternates `<name>.<variant>` — `summationtext.1`, `radical.alt` — and the
+    tables here are keyed by the base name, so every variant abstained.
+    Measured on 1805.01788 p3 (txfonts): 21 glyphs named `summationtext.1` and
+    `summationdisplay.1` in `ERHUAP+txexs`, every one of them a `\sum`, each
+    answered UNKNOWN and then written into the reading as pdfminer's literal
+    placeholder text `(cid:205)`. 9 of the board's 24 born-digital pages carry
+    such placeholders, 61 in all; MathPix has none.
+
+    The base name is tried only AFTER the full name abstains, so a table that
+    does know a variant keeps its own answer.
     """
+    tok = _project_name(family, glyphname, cid, fontname)
+    if tok.latex is None and glyphname and "." in glyphname:
+        base = glyphname.split(".", 1)[0]
+        if base and base != glyphname:
+            alt = _project_name(family, base, cid, fontname)
+            if alt.latex is not None:
+                return alt
+    return tok
+
+
+def _project_name(family: str, glyphname: str | None,
+                  cid: int = -1, fontname: str | None = None) -> TexToken:
+    """`project` for one spelling of the glyph's name."""
     _sym = symbol_pua_latex(glyphname, fontname)
     if _sym is not None:
         return TexToken(_sym, "atom", None, "symbol-font")
