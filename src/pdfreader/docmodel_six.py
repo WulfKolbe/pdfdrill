@@ -965,6 +965,66 @@ def _spans(line: "LineNode") -> list[Span]:
         out.append(Span(id=f"{line.id}s{n}", kind=kind, rect=rect,
                         glyphs=run, rules=mine, line_size=dominant,
                         word_gap=wg))
+    return _prose_is_not_maths(out)
+
+
+def _prose_is_not_maths(spans: "list[Span]") -> "list[Span]":
+    r"""A span that is nothing but upright letters from a TEXT font is prose.
+
+    The absorption rules above pull a short letter run into a neighbouring
+    maths span, which is right for a variable and wrong for a word. Measured
+    on lib:c57ac038ae5f p293, where the line opens "are orthogonal" and the
+    rest of it is an equation: the first span came out `math` holding
+    `a r e o`, and the remaining `rthogonal.` stayed text, so the reading
+    emitted
+
+        $\mathrm{are} \mathrm{o}$ rthogonal. Indeed, by (13.10), ...
+
+    which splits a word across two spans, leaves unbalanced maths behind it
+    ("Missing $ inserted" on two lines of that page), and cost 56 unpaired
+    glyphs on that one line.
+
+    The test is the GLYPHS, not the rendered string: every glyph from a text
+    family, every one alphabetic, and at least two of them. A span holding a
+    digit, a symbol, a script, a rule or a glyph from a maths font is left
+    exactly as it was, so a variable run, an operator name beside symbols and
+    `\mathrm{d}x` are all untouched. Board-wide this re-types 16 of 1,403
+    maths spans, on 6 of 24 pages.
+
+    A single letter stays maths: `$\mathrm{T}$` for a transpose and `$x$` are
+    both one letter, and nothing here can tell them apart.
+    """
+    for sp in spans:
+        if sp.kind != "math" or sp.rules or len(sp.glyphs) < 2:
+            continue
+        # ONE SIZE, because a script is set smaller and a script is structure.
+        # `\mathrm{Mod}_{\mathrm{Z}}^{\mathrm{cn}}` is upright letters
+        # throughout, so without this it re-typed as text and came out
+        # `ModcZn` -- the sub- and superscript flattened into the word. Prose
+        # is one size; an expression with scripts is not.
+        base = sp.glyphs[0].size
+        if any(abs(g.size - base) > 0.1 for g in sp.glyphs):
+            continue
+        if all(g.family in ("text", "text-cm") and not g.is_math
+               and len(g.text) == 1 and g.text.isalpha() for g in sp.glyphs):
+            sp.kind = "text"
+    # AND THE WORD HAS TO BE PUT BACK TOGETHER. Spans are joined with a space,
+    # so re-typing alone turned `$\mathrm{are} \mathrm{o}$ rthogonal` into
+    # `are o rthogonal` -- the maths gone and the word still broken. Two text
+    # spans closer than a word space were one word before the split.
+    out: "list[Span]" = []
+    for sp in spans:
+        if (out and sp.kind == "text" and out[-1].kind == "text"
+                and sp.glyphs and out[-1].glyphs and not sp.rules
+                and not out[-1].rules
+                and sp.glyphs[0].rect[0] - out[-1].glyphs[-1].rect[2]
+                < 0.3 * max(sp.line_size or 0.0, 1.0)):
+            prev = out[-1]
+            prev.glyphs = prev.glyphs + sp.glyphs
+            prev.rect = (min(prev.rect[0], sp.rect[0]), min(prev.rect[1], sp.rect[1]),
+                         max(prev.rect[2], sp.rect[2]), max(prev.rect[3], sp.rect[3]))
+            continue
+        out.append(sp)
     return out
 
 
@@ -2466,6 +2526,42 @@ def _merge_extenders(glyphs: list["GlyphNode"]) -> list["GlyphNode"]:
     return sorted(rest, key=lambda g: (-g.baseline, g.rect[0]))
 
 
+def _bar_by_its_spacing(glyphs: list["GlyphNode"]) -> None:
+    r"""A vertical bar is a DELIMITER unless the page gave it a relation's space.
+
+    `texmap` maps CMSY's `bar` to `\mid`, which is a class-3 relation and sets
+    a thick space on each side. The page usually prints `|x|=x`, flush: on
+    lib:4859edad9294 p1287 the reading emitted `$\mid x\mid = x$`, every glyph
+    after the first bar shifted, and 28 of that line's glyphs failed to pair
+    with the page -- while the pairs that did form had zero glyph findings.
+
+    The ink says which it is. Measured over the board's 24 pages, 122 bar
+    glyphs with a neighbour on each side, as the smaller gap in ems:
+
+        p0 .. p75   -0.404 .. 0.003     flush: a delimiter
+        p90, p100    0.278,   0.518     spaced: a relation
+        above 0.15 em                   17 of 122
+
+    So 0.15 em, in the empty middle. A bar at the end of a line, or with no
+    neighbour on one side, keeps the mapping it had -- there is nothing to
+    measure and `\mid` is the safer of the two.
+    """
+    ordered = sorted(glyphs, key=lambda g: (round(g.baseline * 4), g.rect[0]))
+    for i, g in enumerate(ordered):
+        if (g.glyphname or "") != "bar" or g.tex.latex != r"\mid":
+            continue
+        left = ordered[i - 1] if i else None
+        right = ordered[i + 1] if i + 1 < len(ordered) else None
+        if left is None or right is None:
+            continue
+        if abs(left.baseline - g.baseline) > 0.1 or abs(right.baseline - g.baseline) > 0.1:
+            continue
+        em = max(g.size, 1.0)
+        gap = min((g.rect[0] - left.rect[2]) / em, (right.rect[0] - g.rect[2]) / em)
+        if gap < 0.15:
+            g.tex = g.tex._replace(latex="|", kind="delimiter")
+
+
 def _merge_operator_names(glyphs: list["GlyphNode"]) -> list["GlyphNode"]:
     """Collapse a run of upright roman letters spelling a log-like operator.
 
@@ -3345,6 +3441,7 @@ def build(path: str, pages: Iterable[int] | None = None, *,
         upright_glyphs = _merge_operator_names(upright_glyphs)
         upright_glyphs = _merge_enclosures(upright_glyphs)
         upright_glyphs = _merge_extenders(upright_glyphs)
+        _bar_by_its_spacing(upright_glyphs)
         groups = _group_lines(upright_glyphs, rect=layout.bbox,
                               line_bands=line_bands_by_page.get(pno))
         groups = _split_local_columns(groups, layout.bbox)
@@ -5199,7 +5296,18 @@ def _run_text(glyphs: list[GlyphNode], word_gap: float = 0.0) -> str:
             gap = g.rect[0] - prev.rect[2]
             if gap > threshold and not out[-1].endswith(" "):
                 out.append(" ")
-        out.append(_glyph_text(g))
+        t = _glyph_text(g)
+        # A COMMAND MUST END. `_merge_operator_names` collapses the upright
+        # letters of `\lg` into one glyph whose text IS the command, and the
+        # letters that follow it are a separate run -- so concatenating them
+        # spelled `\lgcRn`, an undefined control sequence that breaks the line
+        # and corrupts the word. Measured on lib:c9daf79960c3 p68: `functor
+        # G : CA\lgcRn Ñ ...`, one of 6 lines on that page the judge could not
+        # set, which cost 307 of its 1,703 glyphs.
+        if (out and t[:1].isalpha() and out[-1].startswith(chr(92))
+                and out[-1][-1:].isalpha()):
+            out.append(" ")
+        out.append(t)
         prev = g
     return "".join(out)
 
