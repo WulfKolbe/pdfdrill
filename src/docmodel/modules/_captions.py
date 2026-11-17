@@ -197,3 +197,19 @@ def _body_at(stream, anchors, k: int, page) -> str:
         return ""
     body = (rec.get("text") or "").strip()
     return body if len(body) >= 3 else ""
+
+
+def stated_description(payload: Optional[dict]) -> str:
+    r"""The caption a reading states on the image line itself.
+
+    After its drift fix the Gemma reader stopped writing figure captions as
+    `![Figure 1: ...](...)` body text lines and began stating them on the
+    diagram line, in `description`. pdfdrill read neither, so on 0864 all seven
+    Diagrams came out captionless while the caption sat in the reading.
+
+    It ranks BELOW an explicit `\caption{}` the line carries -- that is the
+    more specific statement -- and ABOVE `adjacent_label_caption`, which infers
+    a caption from a neighbouring line. MathPix emits no `description`, so no
+    existing document changes.
+    """
+    return ((payload or {}).get("description") or "").strip()

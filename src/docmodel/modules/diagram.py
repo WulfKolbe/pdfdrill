@@ -26,7 +26,9 @@ from typing import Any, Optional
 
 import re
 
-from ._captions import FIGURE_KINDS, adjacent_label_caption, extract_figure_caption, parse_caption
+from ._captions import (FIGURE_KINDS, adjacent_label_caption,
+                        extract_figure_caption, parse_caption,
+                        stated_description)
 from ..base_module import BaseModule
 from ..core import Document, DocObject, Realization
 from ..mathpix import (crop_url, image_ref, crop_region, quad,
@@ -90,6 +92,10 @@ class DiagramProcessor(BaseModule):
             # label. The Markdown `![]()` form carries no caption.
             text = payload.get("text_display") or payload.get("text") or ""
             caption = extract_figure_caption(text)
+            if not caption.strip():
+                # The reading's own statement about THIS line, before any guess
+                # from a neighbouring one.
+                caption = stated_description(payload)
             if not caption.strip():
                 caption = adjacent_label_caption(stream, anchor, kinds=FIGURE_KINDS)
             latex_code = "\n".join(latex_parts).strip()
