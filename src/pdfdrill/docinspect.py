@@ -960,15 +960,14 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .overlay{position:absolute;inset:0;pointer-events:none}
 .box{position:absolute;pointer-events:auto;border:1px solid transparent;border-radius:2px}
 .box[data-via="interpolated"]{border-style:dashed}
-.box:hover{background:var(--hl);border-color:var(--accent)}
-.box.sel{background:var(--hl);border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
-.box.hl{background:var(--hl);border-color:var(--accent)}
-.box[data-cat="image"]:hover,.box[data-cat="image"].sel{border-color:var(--accent2);
+.box.sel{background:var(--hl);border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);z-index:3}
+.box.hl{background:var(--hl);border-color:var(--accent);z-index:2}
+.box[data-cat="image"].hl,.box[data-cat="image"].sel{border-color:var(--accent2);
   box-shadow:0 0 0 1px var(--accent2)}
 .tag{position:absolute;top:-18px;left:-1px;font:10px/1 var(--mono);white-space:nowrap;
   background:var(--accent);color:#04222f;padding:2px 5px;border-radius:3px 3px 3px 0;
   opacity:0;transition:opacity .08s}
-.box:hover .tag,.box.sel .tag{opacity:1}
+.box.hl .tag,.box.sel .tag{opacity:1}
 .box[data-cat="image"] .tag{background:var(--accent2);color:#3a2600}
 
 /* ---- reflow ---- */
@@ -1418,6 +1417,40 @@ function pageScale(pn){
           src: im.src, pxPerPt: pm.px_per_pt};
 }
 
+/* ---------- hit test: the smallest box wins ---------- */
+/* THE CLICK SELECTS THE SMALLEST BOX CONTAINING THE POINT, not the topmost.
+ *
+ * `renderPage` paints largest first so the smallest lands on top, which is the
+ * right answer until two boxes have the SAME area. On the owner's 0864 that is
+ * not rare: 42 near-identical pairs (23 Formula/Formula, 10 Reference/Reference,
+ * 3 Formula/Paragraph at IoU > 0.95) and 41 overlapping pairs whose areas tie
+ * within 2%. Among tied boxes the paint order decides, and it decides
+ * arbitrarily -- so the rectangle that lit up belonged to one object while the
+ * record shown belonged to another. He reported it as "Overlapping rectangle
+ * make it hard to inspect the page!".
+ *
+ * Paint order cannot say "and if they tie, always the same one", so the hit
+ * test is explicit and total: smallest area, then the more specific type, then
+ * the lower id. The same click always selects the same object. The HIGHLIGHT
+ * comes from this same pick instead of CSS :hover, which followed the overlay
+ * stack and could therefore disagree with what a click would select. */
+const PICK_RANK={Formula:0,Equation:1,Reference:2,Footnote:3,Caption:4,Link:5,
+                 Table:6,Picture:7,Figure:8,Image:9,Toc:10,Abstract:11,
+                 Section:12,Paragraph:13};
+function boxAt(els,pn,fx,fy){
+  let best=null,bA=0,bR=0,bI='';
+  for(let k=0;k<els.length;k++){
+    const e=els[k];
+    if(!e||e.page!==pn||!e.bbox||e.type==='Page') continue;
+    const b=e.bbox;
+    if(fx<b.x||fx>b.x+b.w||fy<b.y||fy>b.y+b.h) continue;
+    const a=b.w*b.h, r=(e.type in PICK_RANK)?PICK_RANK[e.type]:50, i=String(e.id);
+    if(best===null||a<bA||(a===bA&&(r<bR||(r===bR&&i<bI)))){ best=e;bA=a;bR=r;bI=i; }
+  }
+  return best;
+}
+/* ---------- hit test ends ---------- */
+
 /* ================= element hook contract =================================
    The thing an arXiv/LaTeXML render can't give us: every visible element —
    a reflow node, a page-overlay box, a tree row — carries a LIVE hook back
@@ -1427,13 +1460,19 @@ const NODES = {};                 // obj id -> [dom nodes] across all surfaces
 const LISTEN = {select:[], hover:[]};
 function emit(ev, ...a){ (LISTEN[ev]||[]).forEach(f=>{try{f(...a);}catch(_){} }); }
 function nodesOf(id){ return (NODES[id]||[]).filter(n=>n.isConnected); }
-function attachHooks(node, e){
+function attachHooks(node, e, opts){
   node.dataset.objId=e.id; node.dataset.objType=e.type; node.classList.add('hooked');
+  /* The page overlay passes {mouse:false}: its boxes overlap, so one shared hit
+   * test on the stage decides what the pointer is on, instead of each box
+   * claiming the events that land on top of it. Tree rows and reflow nodes do
+   * not overlap and keep their own handlers. */
+  if(!opts || opts.mouse!==false){
   node.addEventListener('mouseenter',()=>emit('hover',e.id,true));
   node.addEventListener('mouseleave',()=>emit('hover',e.id,false));
   node.addEventListener('click',ev=>{ev.stopPropagation();emit('select',e.id);});
   node.addEventListener('contextmenu',ev=>{ ev.preventDefault(); ev.stopPropagation();
     emit('select',e.id); openMenu(e, ev.clientX, ev.clientY); });
+  }
   (NODES[e.id]=NODES[e.id]||[]).push(node);
   if(e.id===selId) node.classList.add('sel');
   return node;
@@ -1912,8 +1951,26 @@ function renderPage(){
     d.style.left=(100*b.x/W)+'%'; d.style.top=(100*b.y/H)+'%';
     d.style.width=(100*b.w/W)+'%'; d.style.height=(100*b.h/H)+'%';
     const tag=el('div','tag'); tag.textContent=e.type+(e.refnum?(' '+e.refnum):''); d.appendChild(tag);
-    attachHooks(d,e); ov.appendChild(d);
+    attachHooks(d,e,{mouse:false}); ov.appendChild(d);
   });
+  /* ONE hit test for pointer and click, in CAPTURE so it runs before any box's
+   * own handler and the topmost box cannot claim an event that belongs to a
+   * smaller one underneath it. */
+  let hlId=null;
+  const pick=ev=>{
+    const r=img.getBoundingClientRect();
+    if(!r.width||!r.height) return null;
+    return boxAt(EL,curPage,(ev.clientX-r.left)/r.width*W,(ev.clientY-r.top)/r.height*H);
+  };
+  const setHl=id=>{ if(id===hlId) return;
+    if(hlId) emit('hover',hlId,false); hlId=id; if(id) emit('hover',id,true); };
+  stage.addEventListener('mousemove',ev=>{ const h=pick(ev); setHl(h?h.id:null); });
+  stage.addEventListener('mouseleave',()=>setHl(null));
+  stage.addEventListener('click',ev=>{ const h=pick(ev);
+    if(h){ ev.stopPropagation(); emit('select',h.id); } },true);
+  stage.addEventListener('contextmenu',ev=>{ const h=pick(ev);
+    if(h){ ev.preventDefault(); ev.stopPropagation(); emit('select',h.id);
+           openMenu(h,ev.clientX,ev.clientY); } },true);
   wrap.appendChild(stage);
 }
 

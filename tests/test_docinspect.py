@@ -407,12 +407,26 @@ def test_no_copy_buttons_in_the_chrome():
 
 
 def test_right_click_opens_a_menu_on_every_hooked_node():
-    """`attachHooks` is where a page box and a tree row both get their handlers,
-    so hooking there means the menu works from either place."""
+    """The menu must open from a tree row AND from a page box, and the two now
+    arrive by different routes.
+
+    `attachHooks` still wires the handlers for every surface whose nodes do not
+    overlap — tree rows, reflow nodes. The page overlay cannot use them: its
+    boxes overlap, so the node the event lands on is whichever paints on top,
+    and among boxes of equal area that is arbitrary (42 near-identical pairs on
+    one of the owner's pages). There the stage runs ONE hit test for the whole
+    overlay, in the capture phase, and opens the menu for the box that hit test
+    picks. So the assertion is not "attachHooks mentions contextmenu" — it is
+    that both routes exist and both suppress the browser's own menu.
+    """
     html = _html()
-    hooks = html[html.index("function attachHooks"):][:600]
-    assert "contextmenu" in hooks and "openMenu(e" in hooks
+    hooks = html[html.index("function attachHooks"):][:1400]
+    assert "contextmenu" in hooks and "openMenu(e" in hooks, "the tree row's route"
     assert "preventDefault" in hooks, "the browser menu must be suppressed"
+    stage = html[html.index("function renderPage"):][:2600]
+    assert "contextmenu" in stage and "openMenu(h" in stage, "the page box's route"
+    assert "preventDefault" in stage, "the browser menu must be suppressed there too"
+    assert "boxAt(" in stage, "the page box's menu must come from the shared hit test"
 
 
 def test_menu_entries_are_type_aware():
