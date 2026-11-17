@@ -423,7 +423,12 @@ def test_right_click_opens_a_menu_on_every_hooked_node():
     hooks = html[html.index("function attachHooks"):][:1400]
     assert "contextmenu" in hooks and "openMenu(e" in hooks, "the tree row's route"
     assert "preventDefault" in hooks, "the browser menu must be suppressed"
-    stage = html[html.index("function renderPage"):][:2600]
+    # Anchored on the handler block itself, not on a byte count after
+    # `function renderPage`: a fixed window silently stops covering the thing
+    # it checks as soon as the function grows, which is how this test failed
+    # twice while the behaviour it guards was intact.
+    i = html.index("ONE hit test for pointer and click")
+    stage = html[i:html.index("wrap.appendChild(stage)", i)]
     assert "contextmenu" in stage and "openMenu(h" in stage, "the page box's route"
     assert "preventDefault" in stage, "the browser menu must be suppressed there too"
     assert "boxAt(" in stage, "the page box's menu must come from the shared hit test"

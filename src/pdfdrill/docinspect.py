@@ -311,6 +311,59 @@ def _author_latex(obj: dict) -> dict:
     return {}
 
 
+def _boxes_from_groups(groups: list, page: Optional[int]) -> list[dict]:
+    """One box per realization, each the union of ITS OWN anchors on `page`.
+
+    Ordered as the page reads them (top, then left), so the first is a stable
+    choice for the single `bbox` every older caller still expects.
+    """
+    out: list[dict] = []
+    for group in groups:
+        box: Optional[dict] = None
+        for pg, one in group:
+            if one is None:
+                continue
+            if page is not None and pg is not None and pg != page:
+                continue
+            box = _union(box, one)
+        if box is not None:
+            out.append(box)
+    out.sort(key=lambda b: (b["y"], b["x"]))
+    return out
+
+
+def object_boxes(obj: dict, sidx: dict, page: Optional[int]) -> list[dict]:
+    """Every box this object occupies on `page` — one per realization.
+
+    The overlay draws all of them, so a formula that appears 13 times shows 13
+    rectangles instead of one meaningless hull. See the note in
+    `object_geometry` on why a realization is the unit.
+    """
+    payload_of = sidx["payload"]
+    order_of = sidx["order"]
+    anchors = order_of.get("mathpix_lines", [])
+    groups: list[list] = []
+    for rz in obj.get("realizations", []):
+        if rz.get("stream") != "mathpix_lines":
+            continue
+        start, end = rz.get("start"), rz.get("end")
+        if start is None or end is None:
+            continue
+        try:
+            i, j = anchors.index(start), anchors.index(end)
+        except ValueError:
+            continue
+        if i > j:
+            i, j = j, i
+        group = []
+        for aid in anchors[i : j + 1]:
+            pl = payload_of.get(aid, {})
+            group.append((pl.get("_page"), _region_to_box(pl.get("region") or {})))
+        if group:
+            groups.append(group)
+    return _boxes_from_groups(groups, page)
+
+
 def object_geometry(obj: dict, sidx: dict) -> tuple[Optional[int], Optional[dict], str]:
     """
     Return (page, bbox_in_mathpix_points, text_preview) for a DocObject.
@@ -332,6 +385,21 @@ def object_geometry(obj: dict, sidx: dict) -> tuple[Optional[int], Optional[dict
     texts: list[str] = []
     #: Every anchor's (page, box), so the union can be taken over ONE page.
     spans: list[tuple[Optional[int], Optional[dict]]] = []
+    #: THE SAME, GROUPED BY REALIZATION — one group per occurrence.
+    #:
+    #: `FormulaProcessor` dedupes inline maths by its latex (`_dedupe`), so one
+    #: DocObject carries one surface realization per place it appears: an inline
+    #: `Y` on 0864 has 13 of them. Unioning all of a page's anchors then draws
+    #: one rectangle round thirteen unrelated occurrences — on p1 that was
+    #: [189,1142]..[1941,1928], across both columns, and the owner saw it as
+    #: "some very large formual rectangles". MathPix's own reading of the same
+    #: PDF does it too and worse (23 boxes over 120 pt, tallest 1640, against
+    #: this reading's 27 and 1333), so it is this function, not a reader.
+    #:
+    #: A REALIZATION is the unit. Its own anchors still union, because a
+    #: paragraph wholly on one page is one box over all its lines; two
+    #: realizations never merge.
+    groups: list[list[tuple[Optional[int], Optional[dict]]]] = []
 
     for rz in obj.get("realizations", []):
         if rz.get("stream") != "mathpix_lines":
@@ -346,12 +414,17 @@ def object_geometry(obj: dict, sidx: dict) -> tuple[Optional[int], Optional[dict
             continue
         if i > j:
             i, j = j, i
+        group: list[tuple[Optional[int], Optional[dict]]] = []
         for aid in anchors[i : j + 1]:
             p = payload_of.get(aid, {})
-            spans.append((p.get("_page"), _region_to_box(p.get("region") or {})))
+            one = (p.get("_page"), _region_to_box(p.get("region") or {}))
+            spans.append(one)
+            group.append(one)
             t = p.get("text") or p.get("text_display")
             if t:
                 texts.append(t)
+        if group:
+            groups.append(group)
 
     # THE UNION IS TAKEN OVER ONE PAGE, NOT OVER THE REALIZATION.
     #
@@ -373,12 +446,10 @@ def object_geometry(obj: dict, sidx: dict) -> tuple[Optional[int], Optional[dict
     # that part was never wrong.
     if page is None:
         page = next((pg for pg, _b in spans if pg is not None), None)
-    for pg, box in spans:
-        if box is None:
-            continue
-        if page is not None and pg is not None and pg != page:
-            continue
-        bbox = _union(bbox, box)
+    boxes = _boxes_from_groups(groups, page)
+    if boxes:
+        # The first in reading order: a real rectangle round one occurrence.
+        bbox = boxes[0]
 
     if bbox is None:
         # image objects: region lives directly on props
@@ -458,6 +529,11 @@ def collect_elements(model: dict, sidx: dict, *, with_blobs: bool = False):
         if obj["type"] in ("Document", "Citation"):
             continue
         page, bbox, preview = object_geometry(obj, sidx)
+        #: Every occurrence, so the overlay draws one rectangle per place this
+        #: object actually appears. Only carried when there is more than one —
+        #: an inline formula deduped by latex has one realization per
+        #: occurrence, and their hull is a rectangle round nothing.
+        more_boxes = object_boxes(obj, sidx, page) if bbox is not None else []
         pr = obj.get("props", {})
         # THE READING'S OWN WORD FOR IT, on the box and in the tree.
         #
@@ -480,7 +556,8 @@ def collect_elements(model: dict, sidx: dict, *, with_blobs: bool = False):
             "id": obj["id"],
             "type": shown_type,
             "page": page,
-            "bbox": bbox,  # MathPix points
+            "bbox": bbox,  # MathPix points — the FIRST occurrence (see object_boxes)
+            **({"bboxes": more_boxes} if len(more_boxes) > 1 else {}),
             # How that rectangle was arrived at. Absent means MEASURED — the
             # object's own lines. "interpolated" means POSITIONED between two
             # measured neighbours, which is what gives a Formula or a Picture a
@@ -1442,10 +1519,14 @@ function boxAt(els,pn,fx,fy){
   for(let k=0;k<els.length;k++){
     const e=els[k];
     if(!e||e.page!==pn||!e.bbox||e.type==='Page') continue;
-    const b=e.bbox;
-    if(fx<b.x||fx>b.x+b.w||fy<b.y||fy>b.y+b.h) continue;
-    const a=b.w*b.h, r=(e.type in PICK_RANK)?PICK_RANK[e.type]:50, i=String(e.id);
-    if(best===null||a<bA||(a===bA&&(r<bR||(r===bR&&i<bI)))){ best=e;bA=a;bR=r;bI=i; }
+    /* every occurrence, so clicking the 7th inline `Y` selects it */
+    const bs=(e.bboxes&&e.bboxes.length)?e.bboxes:[e.bbox];
+    for(let q=0;q<bs.length;q++){
+      const b=bs[q];
+      if(fx<b.x||fx>b.x+b.w||fy<b.y||fy>b.y+b.h) continue;
+      const a=b.w*b.h, r=(e.type in PICK_RANK)?PICK_RANK[e.type]:50, i=String(e.id);
+      if(best===null||a<bA||(a===bA&&(r<bR||(r===bR&&i<bI)))){ best=e;bA=a;bR=r;bI=i; }
+    }
   }
   return best;
 }
@@ -1945,13 +2026,18 @@ function renderPage(){
     .slice()
     .sort((a,b)=>(b.bbox.w*b.bbox.h)-(a.bbox.w*a.bbox.h))
     .forEach(e=>{
-    const d=el('div','box'); d.dataset.cat=IMAGE_CATS.has(e.type)?'image':'text';
-    if(e.via) d.dataset.via=e.via;
-    const b=e.bbox;
-    d.style.left=(100*b.x/W)+'%'; d.style.top=(100*b.y/H)+'%';
-    d.style.width=(100*b.w/W)+'%'; d.style.height=(100*b.h/H)+'%';
-    const tag=el('div','tag'); tag.textContent=e.type+(e.refnum?(' '+e.refnum):''); d.appendChild(tag);
-    attachHooks(d,e,{mouse:false}); ov.appendChild(d);
+    /* One rectangle per OCCURRENCE. `bboxes` is present when this object
+     * appears more than once on the page — an inline formula deduped by its
+     * latex carries one realization per place it appears, and a box round all
+     * of them is a box round nothing. */
+    (e.bboxes && e.bboxes.length ? e.bboxes : [e.bbox]).forEach(b=>{
+      const d=el('div','box'); d.dataset.cat=IMAGE_CATS.has(e.type)?'image':'text';
+      if(e.via) d.dataset.via=e.via;
+      d.style.left=(100*b.x/W)+'%'; d.style.top=(100*b.y/H)+'%';
+      d.style.width=(100*b.w/W)+'%'; d.style.height=(100*b.h/H)+'%';
+      const tag=el('div','tag'); tag.textContent=e.type+(e.refnum?(' '+e.refnum):''); d.appendChild(tag);
+      attachHooks(d,e,{mouse:false}); ov.appendChild(d);
+    });
   });
   /* ONE hit test for pointer and click, in CAPTURE so it runs before any box's
    * own handler and the topmost box cannot claim an event that belongs to a
