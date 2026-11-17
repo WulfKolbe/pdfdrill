@@ -1031,6 +1031,15 @@ def _try_merged_build(pdf: Path, sc, key: str, model_path: Path,
         # lost.
         st = apply_document_structure(merged)
         stats = merge_page_geometry(merged, _lines_json_path(pdf))
+        # A FLOAT'S RECTANGLE COMES FROM A MEASUREMENT OR NOT AT ALL, and for
+        # the pdftex family the PDF states one: the page's top-level LTFigure.
+        # `merge_page_geometry` can only reach a float through its caption, so
+        # what it leaves behind is the caption's line -- on the owner's
+        # arxiv.2209.02970 page 9, a 9.96pt box under a figure 113.78pt tall.
+        # Narrow by construction: one float and one figure on the page, and it
+        # only replaces a caption-line box or fills a missing one.
+        from .figurebox import figure_boxes
+        stats.update(figure_boxes(merged, pdf, _lines_json_path(pdf)))
         stats.update(st)
         save_model(model_path, merged)
         sc2 = Sidecar(pdf)
