@@ -5281,7 +5281,19 @@ def _glyph_text(g: GlyphNode) -> str:
     return g.tex.latex or UNKNOWN_GLYPH_CHAR
 
 
-def _run_text(glyphs: list[GlyphNode], word_gap: float = 0.0) -> str:
+def _needs_maths(t: str) -> bool:
+    """Is this token LaTeX that only works inside maths mode?"""
+    return t.startswith(chr(92)) and t[1:2].isalpha() and t not in _TEXT_COMMANDS
+
+
+#: Commands that are legal in text mode, so they are not wrapped.
+_TEXT_COMMANDS = frozenset({chr(92) + n for n in
+                            ("textbf", "textit", "emph", "texttt", "textsc",
+                             "ldots", "dots", "%", "&", "_", "#", "$")})
+
+
+def _run_text(glyphs: list[GlyphNode], word_gap: float = 0.0,
+              maths_mode: bool = False) -> str:
     """Text of a glyph run, with word breaks reconstructed from geometry.
 
     TeX and many other producers position words rather than emitting space
@@ -5297,6 +5309,14 @@ def _run_text(glyphs: list[GlyphNode], word_gap: float = 0.0) -> str:
             if gap > threshold and not out[-1].endswith(" "):
                 out.append(" ")
         t = _glyph_text(g)
+        # A MATHS COMMAND IN A TEXT RUN NEEDS ITS MATHS MODE. The operator
+        # merge marks the collapsed glyph `math-symbol` and the span around it
+        # can still be text, so `\lg` landed outside `$...$` and pdflatex
+        # answered "Missing $ inserted" -- 13 of the board's 14 lines that do
+        # not compile, including every one on lib:c57ac038ae5f p293, whose
+        # display was typed as prose and carries `\bigl[` in text mode.
+        if not maths_mode and _needs_maths(t):
+            t = "$" + t + "$"
         # A COMMAND MUST END. `_merge_operator_names` collapses the upright
         # letters of `\lg` into one glyph whose text IS the command, and the
         # letters that follow it are a separate run -- so concatenating them
@@ -5483,7 +5503,23 @@ def span_reading_text(sp: Span) -> str:
     if sp.kind == "text":
         return _run_text(sp.glyphs)
     tex = span_latex(sp)
-    return f"${tex}$" if tex is not None else _run_text(sp.glyphs)
+    if tex is not None:
+        return f"${tex}$"
+    # The characters of a span that could not be typed, in ONE maths group.
+    #
+    # Not a text run: a maths command among them then lands in text mode and
+    # pdflatex answers "Missing $ inserted" -- 13 of the board's 14 lines that
+    # would not compile. Not one group per command either: `\bigl[` must be
+    # matched by `\bigr]` INSIDE the same group, so wrapping each token on its
+    # own turned `3\bigl[-11/2\bigr]` into `3$\bigl[$-11/2$\bigr]$` and broke
+    # the pair. One group round the whole span keeps every pair together, and a
+    # character the renderer cannot set in maths mode is dropped and counted by
+    # the judge rather than failing the line (inkdrill db1e766).
+    #
+    # Safe because a span of pure prose is no longer a maths span at all:
+    # `_prose_is_not_maths` re-types it before this is ever reached.
+    body = _run_text(sp.glyphs, maths_mode=True)
+    return ("$" + body + "$") if body.strip() else body
 
 
 def to_markdown(pages: list[PageNode]) -> str:

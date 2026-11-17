@@ -45,13 +45,23 @@ def _g(text, x0, x1, *, size=10.0, baseline=100.0, family="text-cm",
 # ---- 1. a command must end -------------------------------------------
 
 def test_a_command_glyph_is_separated_from_a_following_letter():
-    out = docmodel._run_text([_g(r"\lg", 0, 12), _g("c", 12, 17), _g("R", 17, 23)])
+    # INSIDE MATHS the command is not wrapped, so a space is what ends it.
+    out = docmodel._run_text([_g(r"\lg", 0, 12), _g("c", 12, 17), _g("R", 17, 23)],
+                             maths_mode=True)
     assert r"\lgc" not in out
     assert out.startswith(r"\lg ")
 
 
-def test_a_command_before_a_non_letter_needs_no_space():
-    out = docmodel._run_text([_g(r"\lg", 0, 12), _g("(", 12, 15)])
+def test_a_command_in_a_text_run_gets_its_maths_mode():
+    # In a TEXT run the command needs `$...$` or pdflatex answers "Missing $
+    # inserted" -- and the closing `$` ends the command, so no space is needed.
+    out = docmodel._run_text([_g(r"\lg", 0, 12), _g("c", 12, 17)])
+    assert out.startswith("$" + chr(92) + "lg$")
+    assert r"\lgc" not in out
+
+
+def test_a_command_before_a_non_letter_still_needs_no_space():
+    out = docmodel._run_text([_g(r"\lg", 0, 12), _g("(", 12, 15)], maths_mode=True)
     assert out == r"\lg("
 
 
@@ -124,3 +134,27 @@ def test_a_bar_with_no_neighbour_is_left_alone():
     gl = [_bar(5.0)]
     docmodel._bar_by_its_spacing(gl)
     assert gl[0].tex.latex == r"\mid"
+
+
+# ---- 4. a deferred maths span keeps its delimiter pairs together -------
+
+def test_an_untypeable_maths_span_is_one_maths_group():
+    r"""`\bigl[` must meet its `\bigr]` inside the SAME group.
+
+    A maths span `span_latex` cannot express falls back to its characters. In a
+    text run those land outside maths mode ("Missing $ inserted", 13 of the
+    board's 14 non-compiling lines); wrapped one command at a time,
+    `3\bigl[-11/2\bigr]` became `3$\bigl[$-11/2$\bigr]$` and the pair was
+    broken. One group round the whole span is what keeps them together.
+    """
+    glyphs = [_g("3", 0, 5, family="math-symbol"),
+              _g(r"\bigl[", 5, 11, family="math-symbol", name="bracketleftbig",
+                 latex=r"\bigl[", kind="delimiter"),
+              _g("1", 11, 16, family="math-symbol"),
+              _g(r"\bigr]", 16, 22, family="math-symbol", name="bracketrightbig",
+                 latex=r"\bigr]", kind="delimiter")]
+    sp = _span("math", glyphs)
+    out = docmodel.span_reading_text(sp)
+    assert out.startswith("$") and out.endswith("$"), out
+    assert out.count("$") == 2, out
+    assert r"\bigl[" in out and r"\bigr]" in out
