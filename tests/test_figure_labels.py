@@ -92,11 +92,34 @@ def test_no_producer_literals_are_recorded():
 def test_picture_skips_diagram_but_reads_chart_caption_inline():
     # All 1,807 captioned charts carry \caption{} inside \begin{figure}, which
     # the inline path already reads — chart needs no branch of its own.
+    #
+    # The URL here is a real MathPix crop, carrying its rectangle in the query
+    # string, because that is now what makes an inline image placeable: a
+    # Gemma reading wrote `![Figure 1: ...](https://example.com/figure1.png)`
+    # into a body text line and pdfdrill drew a "Picture" box across the
+    # sentence. The fixture used `http://cdn/c.jpg`, which no producer emits
+    # and which that rule rightly refuses. What this test is about — a chart's
+    # caption being read by the inline path — is unchanged.
     doc = _doc([
         {"id": "p1", "type": "chart",
-         "text": "\\begin{figure}![](http://cdn/c.jpg)\\caption{Figure 1: bars}\\end{figure}"},
+         "text": ("\\begin{figure}![](https://cdn.mathpix.com/cropped/abc-1.jpg"
+                  "?height=400&width=800&top_left_y=100&top_left_x=50)"
+                  "\\caption{Figure 1: bars}\\end{figure}")},
     ])
     items = _mod(PictureProcessor).find_items(doc)
     assert len(items) == 1
     assert items[0]["caption"] == "Figure 1: bars"
     assert items[0]["from_line_type"] == "chart"
+    assert items[0]["region"]["width"] == "800", "the rectangle is what placed it"
+
+
+def test_a_chart_whose_only_url_is_invented_is_not_a_picture():
+    """The same line with a URL nothing fetched: no Picture, caption kept."""
+    doc = _doc([
+        {"id": "p1", "type": "chart",
+         "text": "\\begin{figure}![Figure 1: bars](https://example.com/c.png)"
+                 "\\caption{Figure 1: bars}\\end{figure}"},
+    ])
+    mod = _mod(PictureProcessor)
+    assert mod.find_items(doc) == []
+    assert (doc.meta.get("image_caption_candidates") or [])[0]["caption"] == "bars"

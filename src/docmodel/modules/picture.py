@@ -39,15 +39,43 @@ from __future__ import annotations
 import re
 from typing import Any, Optional
 
-from ._captions import extract_figure_caption, parse_caption
+from ._captions import (FIGURE_KINDS, TABLE_KINDS, extract_figure_caption,
+                        parse_caption)
 from ..base_module import BaseModule
 from ..core import Document, DocObject, Realization
 from ..mathpix import (crop_url, image_ref, region_from_url,
                        crop_region, quad, is_axis_aligned)
 
 
-# Markdown image link (the only image-URL form we trust).
-_MD_IMG = re.compile(r"!\[[^\]]*\]\((https?://[^\s)]+)\)")
+# Markdown image link. Group 1 is the ALT text, group 2 the URL: the alt text
+# is what survives when the URL is refused below.
+_MD_IMG = re.compile(r"!\[([^\]]*)\]\((https?://[^\s)]+)\)")
+
+#: WHICH INLINE IMAGE URL THIS MODULE TRUSTS.
+#:
+#: The contract at the top of this file is a MathPix crop of a page we have:
+#: `![](<cdn>)` with `height/width/top_left_y/top_left_x` in the query string.
+#: `_MD_IMG` accepted any `http(s)` URL instead, and a Gemma reading of 0864
+#: wrote a body text line as `![Figure 1: ...](https://example.com/figure1.png)`.
+#: That became a Picture whose only anchor is the text line, so the inspector
+#: drew a box labelled "Picture" across the sentence "e.g., [Huhtala et al.,
+#: 1999; ...], ne-" -- the owner found it there -- and stored a URL nothing had
+#: ever fetched as the image.
+#:
+#: The rectangle is the test, and it is the same one the docstring states. With
+#: it the URL addresses a region of the page, so the Picture is real and
+#: placeable. Without it pdfdrill has neither the file nor anywhere to put it,
+#: and a box over body text plus an invented URL is worse than keeping nothing.
+#: What is kept is the alt text, as a caption candidate: on that document it
+#: reads "Figure 1: Dependency-by-chance. ..." while the page's real Diagram
+#: carries no caption at all.
+_CDN_HOST = re.compile(r"^https?://cdn\.mathpix\.com/")
+
+
+def _is_placeable(url: str) -> bool:
+    """True when the URL carries its own rectangle, or is a MathPix CDN crop
+    (which carries one by construction)."""
+    return bool(region_from_url(url)) or bool(_CDN_HOST.match(url))
 # Bare MathPix CDN crop URL (page image + rectangle params) embedded in text —
 # also a Markdown-style link.
 _CDN_URL = re.compile(r"(https?://cdn\.mathpix\.com/cropped/[^\s\}>\])\"]+)")
@@ -97,6 +125,8 @@ class PictureProcessor(BaseModule):
         by_id = self.build_line_index(doc)
         source = doc.meta.get("source", "mathpix")
         items: list[dict[str, Any]] = []
+        #: Alt texts of refused inline images — see `_is_placeable`.
+        cands: list[dict[str, Any]] = []
 
         for anchor in stream.anchors:
             payload = stream.payload[anchor]
@@ -106,7 +136,9 @@ class PictureProcessor(BaseModule):
             if ltype == "figure":
                 items.extend(self._from_figure_line(anchor, payload, by_id, source))
             else:
-                items.extend(self._from_inline(anchor, payload))
+                items.extend(self._from_inline(anchor, payload, cands))
+        if cands:
+            doc.meta["image_caption_candidates"] = cands
         return items
 
     @staticmethod
@@ -141,8 +173,8 @@ class PictureProcessor(BaseModule):
             "quad": _skew_quad(payload),
         }]
 
-    @staticmethod
-    def _from_inline(anchor, payload) -> list[dict[str, Any]]:
+    def _from_inline(self, anchor, payload,
+                     cands: Optional[list] = None) -> list[dict[str, Any]]:
         text = payload.get("text_display") or payload.get("text") or ""
         if not text:
             return []
@@ -154,7 +186,17 @@ class PictureProcessor(BaseModule):
         # MathPix LaTeX-escapes query `&` as `\&` inside table-cell `![]()`;
         # unescape so the stored URL is directly fetchable (no 400 downstream).
         for m in _MD_IMG.finditer(text):
-            urls.append(m.group(1).strip().replace("\\&", "&"))
+            url = m.group(2).strip().replace("\\&", "&")
+            if not _is_placeable(url):
+                # Refused. The alt text is kept; the URL is not, here or anywhere.
+                alt = " ".join((m.group(1) or "").split())
+                if alt and cands is not None:
+                    kind, refnum, body = parse_caption(alt)
+                    cands.append({"anchor": anchor, "page": payload.get("_page"),
+                                  "alt": alt, "kind": kind, "refnum": refnum,
+                                  "caption": body})
+                continue
+            urls.append(url)
         for m in _CDN_URL.finditer(text):
             urls.append(m.group(1).strip().replace("\\&", "&"))
         # De-duplicate within this line while preserving order.
@@ -185,6 +227,57 @@ class PictureProcessor(BaseModule):
                 "quad": _skew_quad(payload),
             })
         return out
+
+    #: What a refused image's alt text may caption, BY THE LABEL IT CARRIES.
+    #: Measured on 0864: page 3 holds a captionless Table AND a captionless
+    #: Diagram, and the alt text reads "Figure 2: Base transformation example".
+    #: A first version matched on the page alone and gave that figure caption to
+    #: the Table, because the Table object happens to be created first — a
+    #: caption on the wrong object, which is the class of error this whole task
+    #: is about. The label says which it belongs to.
+    _IMAGEY = ("Diagram", "Picture", "Figure", "Image", "Chart")
+    _TABLEY = ("Table",)
+
+    def process_document(self, doc: Document) -> None:
+        super().process_document(doc)
+        self._apply_caption_candidates(doc)
+
+    def _apply_caption_candidates(self, doc: Document) -> None:
+        """Give each refused image's alt text to a captionless image on its page.
+
+        Conservative on purpose: it fills an EMPTY caption only, never replaces
+        one the reading supplied, and matches on the page alone — the refused
+        line has no rectangle, so there is nothing finer to match on.
+        """
+        cands = doc.meta.get("image_caption_candidates") or []
+        if not cands:
+            return
+        used: set = set()
+        for cand in cands:
+            if not cand.get("caption") and not cand.get("alt"):
+                continue
+            kind = cand.get("kind")
+            if kind in TABLE_KINDS:
+                want = self._TABLEY
+            elif kind in FIGURE_KINDS or not kind:
+                want = self._IMAGEY
+            else:
+                continue
+            for obj in doc.objects.values():
+                if obj.type not in want or id(obj) in used:
+                    continue
+                props = obj.props or {}
+                if props.get("page") != cand.get("page"):
+                    continue
+                if (props.get("caption") or "").strip():
+                    continue
+                props["caption"] = cand.get("caption") or cand.get("alt")
+                if not props.get("kind") and cand.get("kind"):
+                    props["kind"] = cand["kind"]
+                if props.get("refnum") in (None, "") and cand.get("refnum") not in (None, ""):
+                    props["refnum"] = cand["refnum"]
+                used.add(id(obj))
+                break
 
     def create_object(self, item: dict[str, Any], doc: Document) -> Optional[DocObject]:
         kind, refnum, cap_body = parse_caption(item["caption"])
