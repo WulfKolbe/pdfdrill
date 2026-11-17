@@ -488,7 +488,13 @@ _TEXT_MATHS = {
     "dotlessi": r"\imath", "dotlessj": r"\jmath",
     "ff": "ff", "fi": "fi", "fl": "fl", "ffi": "ffi", "ffl": "ffl",
     "quoteright": "'", "quoteleft": "`", "emdash": "---", "endash": "--",
-    "hyphen": "-", "germandbls": "ss",
+    #: A HYPHEN IS NOT A MINUS. Both the maths-italic and the text-face paths
+    #: read this entry, and a bare `-` inside `$...$` is LaTeX's binary minus:
+    #: a wider glyph with its own spacing. lib:c9daf79960c3 p68 reads "p-group",
+    #: our reading typed the span as maths and emitted `$p-\mathrm{group}$`, and
+    #: 4 of that page's 10 invented rules were this one glyph. `\text{-}` is a
+    #: hyphen in either mode, so one entry still serves both paths.
+    "hyphen": r"\text{-}", "germandbls": "ss",
 }
 
 _TEXT_PUNCT = {
@@ -1516,6 +1522,15 @@ _TEX_SLOTS = {
     ("TeX-matha", 24): "notequal",
     ("TeX-matha", 80): "element",
     ("TeX-matha", 82): "notelement",
+    # Rendered out of lib:c9daf79960c3 p68 at 600 dpi and looked at, as this
+    # table requires. The strip reads  ) [ 1 / p ] ~=  which places
+    #     114 `[`   123 `/`   115 `]`
+    # SLOT 187 IS NOT HERE. mathabx.dcl lists it as `gtrless`, and the same
+    # render shows this font drawing a similar-equals there. The .dcl is a
+    # table, and a table is not evidence for what a font draws.
+    ("TeX-matha", 114): "bracketleft",
+    ("TeX-matha", 115): "bracketright",
+    ("TeX-matha", 123): "slash",
     ("TeX-matha", 112): "parenleft",     # rendered: `\pi^{*}(\omega_{0})`
     ("TeX-matha", 113): "parenright",
 }
@@ -1627,6 +1642,8 @@ _MATHABX_TEX = {
     "leq": "lessequal", "geq": "greaterequal",
     "vert": "bar", "Vert": "bardbl",
     "lbrace": "braceleft", "rbrace": "braceright",
+    # Three more the same documents use, each abstaining until now.
+    "in": "element", "rightarrow": "arrowright", "mapstochar": "mapsto",
 }
 
 

@@ -3178,6 +3178,36 @@ LAST_READ_ERROR: "tuple | None" = None
 LAST_READ_TRACEBACK: "str | None" = None
 
 
+def _cropboxes(path: str) -> dict:
+    r"""Every page's CropBox, by page number, 1-based.
+
+    THE FRAME IS THE CROPBOX, because that is what anyone renders.
+    pdfminer's `LTPage.bbox` is the MediaBox, and on lib:d68e0271bd4d p334 the
+    two differ by a scale AND an origin -- MediaBox 0 0 595 842, CropBox
+    43 87 473 747. The reading declared a 595 x 842 page and placed every
+    region at MediaBox-absolute coordinates while Ghostscript and MathPix both
+    produce 430 x 660, so no glyph could pair with its own ink: that page was
+    the board's worst ours row at residual 1.4311 against MathPix's 0.0391, and
+    nothing in either picture said why.
+
+    `PDFPage.cropbox` states it. Reading the page dictionaries is cheap -- no
+    content stream is interpreted -- and a failure here leaves the MediaBox in
+    place rather than losing the document.
+    """
+    out: dict = {}
+    try:
+        from pdfminer.pdfpage import PDFPage
+        with open(path, "rb") as fh:
+            for i, pg in enumerate(PDFPage.get_pages(fh), 1):
+                box = getattr(pg, "cropbox", None)
+                if box and len(box) == 4:
+                    out[i] = (float(box[0]), float(box[1]),
+                              float(box[2]), float(box[3]))
+    except Exception:
+        return {}
+    return out
+
+
 def build(path: str, pages: Iterable[int] | None = None, *,
           ink: "bool | None" = None) -> list[PageNode]:
     """Build the document model. One GlyphNode per LTChar, no exceptions.
@@ -3210,6 +3240,7 @@ def build(path: str, pages: Iterable[int] | None = None, *,
     # page 400 now yields 399 pages and says so, instead of yielding nothing.
     # A document that dies on page 1 still yields nothing — honestly.
     read_error = None
+    _crop = _cropboxes(path)
     _pages_iter = extract_pages(path, page_numbers=pages)
     while True:
         try:
@@ -3430,8 +3461,11 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                            for x0, y0, x1, y1 in diagrams)
             upright_glyphs = [g for g in upright_glyphs if not _in_diagram(g)]
 
+        # The CropBox when the document states one, else pdfminer's MediaBox
+        # bbox. A CropBox equal to the MediaBox changes nothing.
+        _box = _crop.get(pno)
         page = PageNode(
-            page=pno, rect=layout.bbox, diagrams=diagrams,
+            page=pno, rect=(_box if _box else layout.bbox), diagrams=diagrams,
             links=links_by_page.get(pno, []),
             fills=fills,
             invisible=bool(glyphs) and invisible == len(glyphs),
@@ -4381,8 +4415,8 @@ def line_font_size(line: "LineNode") -> float:
 
 def _contour(rect: Rect, page: "PageNode", k: float) -> list[list[int]]:
     """MathPix's four-corner contour, clockwise from the top left."""
-    x0 = round(rect[0] * k)
-    x1 = round(rect[2] * k)
+    x0 = round((rect[0] - page.rect[0]) * k)
+    x1 = round((rect[2] - page.rect[0]) * k)
     y0 = round((page.rect[3] - rect[3]) * k)
     y1 = round((page.rect[3] - rect[1]) * k)
     return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]
@@ -4480,9 +4514,13 @@ def glyph_box(g: "GlyphNode") -> Rect:
 
 
 def _px_region(rect: Rect, page: PageNode, k: float) -> dict:
-    """A PDF-point rect (y up) as a pixel region (y down from top-left)."""
+    """A PDF-point rect (y up) as a pixel region (y down from top-left).
+
+    x subtracts `page.rect[0]`; y already counts down from `page.rect[3]`, so
+    it needs nothing once that rect is the CropBox.
+    """
     return {
-        "top_left_x": round(rect[0] * k),
+        "top_left_x": round((rect[0] - page.rect[0]) * k),
         "top_left_y": round((page.rect[3] - rect[3]) * k),
         "width": max(1, round((rect[2] - rect[0]) * k)),
         "height": max(1, round((rect[3] - rect[1]) * k)),
@@ -4692,7 +4730,7 @@ def to_lines_json(pages: list[PageNode],
                         "gaps": [gp for sp in ln.spans
                                  for gp in span_gaps(sp)],
                         "region": {
-                            "top_left_x": round(ln.rect[0] * k),
+                            "top_left_x": round((ln.rect[0] - p.rect[0]) * k),
                             "top_left_y": round((p.rect[3] - ln.rect[3]) * k),
                             "width": max(1, round((ln.rect[2] - ln.rect[0]) * k)),
                             "height": max(1, round((ln.rect[3] - ln.rect[1]) * k)),
@@ -5273,6 +5311,23 @@ def _glyph_text(g: GlyphNode) -> str:
     which the line's `deferred_glyphs` already names glyph by glyph.
     """
     t = g.text or ""
+    #: A MATHS GLYPH IS WHAT THE FONT DRAWS, NOT WHAT ITS ENCODING CALLS IT.
+    #:
+    #: TeX-matha12 hands pdfminer StandardEncoding names -- `p` `q` `r` `s`
+    #: `braceleft` -- while the font draws `(` `)` `[` `]` and a brace that
+    #: must be escaped. `build` already corrects the identity through
+    #: `tex_slot`, so the glyph carries both, and returning `g.text` threw the
+    #: correction away: 67 glyphs disagree on lib:c9daf79960c3 p68 and the page
+    #: would not compile, "Missing }".
+    #:
+    #: Only a MATHS family. For a text glyph `g.text` stays the answer: the
+    #: name-keyed tables abstain on perfectly readable text -- a CID-keyed
+    #: Libertinus page states no glyph names at all and reads correctly through
+    #: `g.text` -- and preferring the field there would put a raw character
+    #: where `greek_latex` would have given a command.
+    fam = getattr(g, "family", "") or ""
+    if fam.startswith(("math", "maths", "ams")) and g.tex and g.tex.latex:
+        return g.tex.latex
     #: pdfminer's placeholder for a glyph whose font states no Unicode for it
     #: is the literal string `(cid:<number>)`. A string test, not a regex:
     #: this module imports `re` nowhere at the top level.
