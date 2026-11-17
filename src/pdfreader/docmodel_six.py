@@ -1250,7 +1250,8 @@ def _off_row_by_rule(g, rules: list, span_pt: float) -> bool:
 
 
 def _rule_role(node: RuleNode, glyphs: list[GlyphNode],
-               size: float = 10.0, others: "list[RuleNode]" = ()) -> str:
+               size: float = 10.0, others: "list[RuleNode]" = (),
+               page_width: "float | None" = None) -> str:
     """Classify a rule by what sits above and below it.
 
     A fraction bar has glyphs on both sides; an overline or a radical vinculum
@@ -1259,6 +1260,37 @@ def _rule_role(node: RuleNode, glyphs: list[GlyphNode],
     """
     x0, y0, x1, y1 = node.rect
     mid = 0.5 * (y0 + y1)
+
+    # A TABLE RULE IS NOT A FRACTION BAR, and it is not a listing border
+    # either -- 735's reach test passes for it, because a table's rows DO
+    # span their rule end to end.
+    #
+    # Calling one `fraction` does not merely build a wrong `\frac`: it
+    # destroys the page's line structure. `_off_row_by_rule` treats every
+    # glyph whose centre lies in a fraction bar's x-range as being OFF its
+    # row, so one full-width rule makes `_off_row_band` true for every row of
+    # the page, and the script-band pass then moves each glyph to whatever row
+    # the content stream emitted before it. Measured on 1511.08771 p2709: one
+    # rule at x=[72,532], `fraction`; `_off_row_band` true for 50 of 50 rows;
+    # 1,145 of the page's 2,526 glyphs moved; 52 rows collapsed into 26 lines
+    # of 17.5pt, two printed table rows each; the ink judge paired 73 of 2,526
+    # glyphs, 2.9% of the page.
+    #
+    # Measured over the board's 21 born-digital pages (drillgroup 716b4d1),
+    # the 56 rules this function called `fraction`, by width:
+    #
+    #     of the PAGE width   in ems     what they are
+    #     0.064 .. 0.089      2.8 ..  3.9    real fraction bars        (8)
+    #     0.344, 0.380        15.1,  23.2    wide display fractions    (2)
+    #     0.550 .. 0.773      42.2 .. 47.1   table rules               (4)
+    #
+    # BOTH conditions, because each alone is unsafe: a share of the page is
+    # blind to type size, and an em count is blind to page size. 735's
+    # contract bar (160.2pt in 12pt type, 13.35 em) clears neither, so it
+    # stays a fraction. `page_width` is None wherever a caller has no page --
+    # every existing unit test -- and then this test does not run at all.
+    if page_width and (x1 - x0) >= 0.45 * page_width and (x1 - x0) >= 25.0 * size:
+        return "table"
 
     # A VINCULUM, named by the sign it starts at. TeX begins the bar exactly
     # at the radical's right edge, and the bar lies within the sign's own box.
@@ -3250,7 +3282,9 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                 _g.size = page_size
                 _g.rect = (_g.rect[0], _base, _g.rect[2], _base + page_size)
         for r in rules:
-            r.role = _rule_role(r, glyphs, page_size, rules)
+            r.role = _rule_role(r, glyphs, page_size, rules,
+                                page_width=(layout.bbox[2] - layout.bbox[0]
+                                            if layout.bbox is not None else None))
 
         # Sideways text must be separated BEFORE grouping. A rotated glyph's
         # text-space origin runs along the page's y axis, so its `baseline`
