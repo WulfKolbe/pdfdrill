@@ -4349,6 +4349,58 @@ _MP_TYPE = {
 }
 
 
+def _column_reading_order(pages: list[PageNode]) -> list[PageNode]:
+    """A fully columnised page's lines in READING order, not stream order.
+
+    `_add_column_containers` states the columns as containers, and its own
+    docstring says why: the nesting IS the reading order of a two-column paper,
+    "stated rather than left for each consumer to guess from x-coordinates".
+    But the flat `lines` list stayed in the order the content stream emits, and
+    every consumer that walks it -- a markdown projection, the ink judge, a CER
+    against the page's text layer -- reads the columns interleaved.
+
+    Measured on the board's two-column page lib:69bc5c71b881 p16 (91 lines, all
+    91 assigned to one of 2 columns). Left/right of each line in list order:
+
+        ours      LLRRLLLLLLLLRRRRRRRLLLLRRLLLL...
+        MathPix   LLLLLLLLLLLLLLLLLLLLLLLL...RRRR...
+
+    The content stream emits two lines of the left column, two of the right,
+    and so on, and we followed it. Order-free the two readings of that page are
+    nearly identical -- 8 words missing, 18 extra of 714 -- yet our CER against
+    the page's own text layer is 0.3169 against MathPix's 0.0151. The whole gap
+    is the order.
+
+    ONLY when every line of the page belongs to a column, and there are at
+    least two. A page with full-width lines between column blocks (a title, a
+    section heading spanning both) needs those lines placed in bands, and a
+    band rule invented without a measurement behind it would move text that is
+    currently in the right place. Such a page keeps the order it has.
+    """
+    from dataclasses import replace
+    try:
+        from pdfreader.project_mmd import column_membership
+    except Exception:                                    # noqa: BLE001
+        return pages
+    out = []
+    for p in pages:
+        try:
+            member = column_membership(p)
+        except Exception:                                # noqa: BLE001
+            out.append(p)
+            continue
+        if (not member or len(member) != len(p.lines)
+                or len(set(member.values())) < 2):
+            out.append(p)
+            continue
+        order = sorted(range(len(p.lines)),
+                       key=lambda i: (member[i], -p.lines[i].rect[3],
+                                      p.lines[i].rect[0]))
+        out.append(p if order == list(range(len(p.lines)))
+                   else replace(p, lines=[p.lines[i] for i in order]))
+    return out
+
+
 def to_lines_json(pages: list[PageNode],
                   px_per_pt: float = PX_PER_PT,
                   doc_id: str = "pdfdrill") -> dict:
@@ -4359,6 +4411,10 @@ def to_lines_json(pages: list[PageNode],
     from here, put it straight into a crop URL, and get that region back.
     """
     k = px_per_pt
+    # Reading order BEFORE anything else reads the lines: `classify_lines` and
+    # every container pass key off the position of a line in `p.lines`, so the
+    # order has to be settled first or the two disagree.
+    pages = _column_reading_order(pages)
     # THE LINE TYPE, from the one classifier. `LineNode.type` is "text" or
     # "formula" — two values, and pdfdrill's twenty docmodel modules key off
     # SIXTEEN, so a two-type stream can only ever produce paragraphs. The
@@ -4490,7 +4546,8 @@ def to_lines_json(pages: list[PageNode],
                             "width": max(1, round((ln.rect[2] - ln.rect[0]) * k)),
                             "height": max(1, round((ln.rect[3] - ln.rect[1]) * k)),
                         },
-                        "text": (" ".join(span_text(sp) for sp in ln.spans)),
+                        "text": (" ".join(span_reading_text(sp)
+                                          for sp in ln.spans)),
                         # 844 — MathPix puts `text_display` on EVERY line and
                         # `inlinectx.load_spans` reads `text_display or text`
                         # (676 review B3). We emitted none, so a consumer that
@@ -4499,7 +4556,7 @@ def to_lines_json(pages: list[PageNode],
                         # — emitting it is what makes that true rather than
                         # something a reader has to know.
                         "text_display": (
-                            " ".join(span_text(sp) for sp in ln.spans)),
+                            " ".join(span_reading_text(sp) for sp in ln.spans)),
                         "complete": all(
                             sp.kind == "text" or span_latex(sp) is not None
                             for sp in ln.spans
@@ -5205,6 +5262,38 @@ def span_text(sp: Span) -> str:
         return f"${tex}$"
     return (f"<!-- DEFERRED {sp.id} rect={[round(v, 1) for v in sp.rect]} "
             f"reason={span_reason(sp)} -->")
+
+
+def span_reading_text(sp: Span) -> str:
+    """One span as the READING's text: prose, `$maths$`, or the characters the
+    page carries when the maths cannot be typed.
+
+    `span_text` is a PROJECTION FOR PEOPLE, and an untypeable maths span there
+    becomes `<!-- DEFERRED ... -->`, which tells a reader where to look. In a
+    lines.json `text` field the same string is a defect, because every consumer
+    of `text` reads it as the line's text: the ink judge TYPESETS it, so a line
+    of prose grows a run of visible angle brackets and flags every glyph, and a
+    CER against the page's own text layer is charged for the whole comment.
+    Measured on two board pages (board 010a31b, judge inkdrill 504cf59):
+
+        lib:c9daf79960c3 p68   CER 0.7521 with the markers, 0.1511 without
+                               (MathPix on the same page: 0.1799)
+        1805.01788 p3          CER 0.2866 with, 0.0472 without
+                               (MathPix: 0.0621)
+
+    Both pages read BETTER than the paid lane once the markers are out of
+    `text`, so the markers were the whole measured gap.
+
+    Nothing is lost by keeping them out of the reading: the same line record
+    already carries `deferred_glyphs` -- every glyph with no LaTeX, with its
+    region, font and glyph name -- plus `complete: false` and
+    `confidence: 0.0`. The characters are what the page shows, which is what a
+    reading is for; `to_markdown` keeps the explicit marker.
+    """
+    if sp.kind == "text":
+        return _run_text(sp.glyphs)
+    tex = span_latex(sp)
+    return f"${tex}$" if tex is not None else _run_text(sp.glyphs)
 
 
 def to_markdown(pages: list[PageNode]) -> str:
