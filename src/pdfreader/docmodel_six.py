@@ -41,7 +41,7 @@ from pdfminer.layout import LTChar, LTCurve, LTImage, LTLine, LTRect
 from pdfreader import listings
 from pdfreader import texmap
 from pdfreader.texmap import (TexToken, family_of, greek_latex, is_drawing, space_class,
-                    tex_slot, untrusted_name,
+                    tex_slot, untrusted_name, names_untrusted,
                     is_italic, is_monospace, measure_monospace, project,
                     set_measured_monospace, unicode_latex)
 
@@ -5325,9 +5325,31 @@ def _glyph_text(g: GlyphNode) -> str:
     #: Libertinus page states no glyph names at all and reads correctly through
     #: `g.text` -- and preferring the field there would put a raw character
     #: where `greek_latex` would have given a command.
+    #: IT RECOVERS AN IDENTITY; IT MUST NOT SPEND ONE. Where `g.text` is
+    #: already a CORRECT non-ASCII character there is nothing misnamed, and
+    #: the field can only be equal or worse: `_UNI_LATEX[0x2212]` is `"-"`, so
+    #: a U+2212 MINUS read as an ASCII hyphen. Board 0864 p4's judged page
+    #: differs from the pre-b7996491 reader in exactly two leaf lines, both
+    #: this, and it cost the page 7 pairings -- 3929 -> 3922, residual 0.1659
+    #: -> 0.1676, the one row of the ninth state's seven that pdfdrill caused.
+    #:
+    #: `g.text` is correct only where the FONT names its slots. A misnamed
+    #: slot's fallback is usually ASCII (`f` for `{`, `;` for `,`, `0` for a
+    #: prime) but not always: TeX-matha12 reports `“` for `=` and `Ñ`
+    #: for `\rightarrow`, so that font is asked by name, not by character.
+    #: Measured, 2026-11-18, one judge, three-page extracts:
+    #:
+    #:     0864 p4            0.1676 -> 0.1659   (the regression, gone)
+    #:     1511.08771 p2709   0.0209 -> 0.0186   (flagged 12 -> 6; its primes
+    #:                                            are U+2032, not `0`)
+    #:     lib:c9daf79960c3   0.0147 unchanged   (26 TeX-matha corrections
+    #:                                            kept by the font test)
     fam = getattr(g, "family", "") or ""
     if fam.startswith(("math", "maths", "ams")) and g.tex and g.tex.latex:
-        return g.tex.latex
+        if (names_untrusted(getattr(g, "fontname", ""))
+                or t.isascii() or not g.tex.latex.isascii()):
+            return g.tex.latex
+        return t
     #: pdfminer's placeholder for a glyph whose font states no Unicode for it
     #: is the literal string `(cid:<number>)`. A string test, not a regex:
     #: this module imports `re` nowhere at the top level.

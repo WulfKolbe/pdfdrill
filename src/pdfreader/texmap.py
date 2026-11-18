@@ -842,6 +842,24 @@ MATHABX = {
 _MATHABX_FONT = re.compile(r"^(?:[A-Z]{6}\+)?TeX-(math[abx])\d+$")
 
 
+def names_untrusted(fontname: str | None) -> bool:
+    r"""True for a font whose glyph NAMES are a Latin fallback, not its glyphs.
+
+    `TeX-matha12` hands pdfminer StandardEncoding names while drawing
+    something else entirely, and the fallback is not always ASCII: on
+    lib:c9daf79960c3 p68 it reports `“` for `=`, `Ñ` for
+    `\rightarrow`, `´` for `\acute`. These are exactly the fonts
+    `tex_slot` and `mathabx_name` exist to correct, so for them the corrected
+    identity always outranks `g.text`.
+    """
+    if not fontname:
+        return False
+    if _MATHABX_FONT.match(fontname):
+        return True
+    base = fontname.split("+")[-1].lower()
+    return any(base.startswith(fam.lower()) for fam, _slot in _TEX_SLOTS)
+
+
 def mathabx_name(fontname: str | None, cid: int) -> str | None:
     """The mathabx symbol name for a CID, from the package's own tables."""
     if not fontname or cid < 0:
