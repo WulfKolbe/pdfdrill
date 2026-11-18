@@ -1690,6 +1690,35 @@ def _is_plain_rule(rect: Rect) -> bool:
     return (h <= 2.0 and w > 2.0) or (w <= 2.0 and h > 2.0)
 
 
+def _row_straddles_bar(grp: list, rule: "RuleNode", span_pt: float) -> bool:
+    r"""True when this row ALREADY holds both halves of `rule`'s fraction.
+
+    `_group_lines`' script fold sometimes puts a numerator and a denominator
+    in one row before the bar merge runs. The bar then joins that finished
+    fraction to whatever sits nearest above it, and on lib:c57ac038ae5f p293
+    that is a complete sentence: "By (13.5) we have Q(xk + apk) = ... where
+    rk :=b-Axk.SincepTk Apk >= 0..." -- two text rows run together with the
+    second's spaces lost. It is caught because the host row's own
+    superscripts fall inside the bar's x-range.
+
+    A row with glyphs on BOTH sides of the bar, inside its x-range and within
+    the two line-heights `_near_rows` already uses, is the whole fraction. A
+    real two-row fraction has each half on one side only and still merges.
+    """
+    mid = 0.5 * (rule.rect[1] + rule.rect[3])
+    above = below = False
+    for g in grp:
+        if g.rect[0] < rule.rect[0] - 2 or g.rect[2] > rule.rect[2] + 2:
+            continue
+        if abs(g.baseline - mid) > 2.0 * span_pt:
+            continue
+        if g.baseline > mid:
+            above = True
+        elif g.baseline < mid:
+            below = True
+    return above and below
+
+
 def _tiles(rects: list[Rect]) -> set:
     """Indices of marks that STACK into a contiguous band of one width.
 
@@ -3542,6 +3571,12 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                 continue
             up, dn = _near_rows(r)
             if up is None or dn is None or up == dn:
+                continue
+            #: A ROW THAT ALREADY STRADDLES THE BAR IS A FINISHED FRACTION.
+            #: Merging it joins two complete text rows -- lib:c57ac038ae5f
+            #: p293 L4 and L22, found by inkdrill-10.
+            if (_row_straddles_bar(groups[up], r, span_pt)
+                    or _row_straddles_bar(groups[dn], r, span_pt)):
                 continue
             groups[up] = groups[up] + groups[dn]
             groups[dn] = []
