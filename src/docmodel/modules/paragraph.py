@@ -352,7 +352,18 @@ class ParagraphProcessor(BaseModule):
                     #
                     # A display between two prose runs does NOT depend on this:
                     # `find_items` already flushes on any non-prose line type.
-                    gap = y - current["_last_y"]
+                    #: THE JUMP'S SIZE, NOT ITS DIRECTION. This read
+                    #: `gap = y - _last_y` and tested `gap > 1.6 * ref`, which
+                    #: is downward only. Reading order jumps UP at every
+                    #: column break -- the foot of the left column to the head
+                    #: of the right -- and an upward jump is negative, so the
+                    #: paragraph ran on across it. On lib:d68e0271bd4d p400,
+                    #: the book's index, obj_e390e3cade20 held three lines at
+                    #: y 1937, 1973 and 322: a union box down the whole column
+                    #: that overlapped every object between, and most of that
+                    #: page's 15 overlap findings. Upwards the gap is stronger
+                    #: evidence, not weaker: running text never goes back up.
+                    gap = abs(y - current["_last_y"])
                     pitches = current.get("_pitches") or []
                     ref = sum(pitches) / len(pitches) if pitches else None
                     if ((ref and gap > 1.6 * ref)
