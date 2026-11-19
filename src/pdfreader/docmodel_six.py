@@ -26,7 +26,8 @@ from __future__ import annotations
 
 import os
 import json
-from dataclasses import dataclass, field
+import unicodedata
+from dataclasses import dataclass, field, replace
 from typing import Iterable
 
 import logging
@@ -2780,6 +2781,84 @@ def _merge_stream_lines(rows: list[list["GlyphNode"]],
     return out
 
 
+#: A TEXT ACCENT'S GLYPH NAME, AND THE COMBINING MARK THAT COMPOSES IT.
+#: Adobe glyph names on the left, Unicode combining marks on the right. Only
+#: marks that compose with a Latin letter into a precomposed character are
+#: listed: `unicodedata` decides whether a given pair has one, and a pair that
+#: has none is left as it was rather than written as two characters that look
+#: like one.
+_TEXT_ACCENT_MARK = {
+    "dieresis": "̈", "acute": "́", "grave": "̀",
+    "circumflex": "̂", "tilde": "̃", "caron": "̌",
+    "macron": "̄", "breve": "̆", "ring": "̊",
+    "ringabove": "̊", "dotaccent": "̇", "cedilla": "̧",
+    "hungarumlaut": "̋", "ogonek": "̨",
+}
+
+
+def _compose_text_accents(rows: list[list["GlyphNode"]]) -> list[list["GlyphNode"]]:
+    r"""An accent over a letter is ONE character, in prose.
+
+    TeX sets `Saarbr\"ucken` as the accent first, at an offset, and the base
+    letter after it one point to the left:
+
+        39  r         x=370.94
+        40  dieresis  x=375.92   tex.latex='\ddot'
+        41  u         x=374.92
+
+    `\ddot` is a MATHS accent, so the dieresis opened a maths span and took
+    the rest of the word with it -- pdfdrill read 0864's affiliation line as
+    `... Saarbr $\mathrm{ucken},$ Germany`, and pdf2mmd2, from the same
+    glyphs, cut the line in two at the accent instead. Measured on 0864: 42 of
+    69 unpaired open-page lines are an accent or end at one.
+
+    `structure._merge_accents` already composes a MATHS accent, but a prose
+    word never reaches the maths structure pass. So the pair is composed here,
+    into the character the page actually shows, before spans are decided.
+
+    THE BASE IS THE NEXT GLYPH IN THE ROW, and only if it sits under the
+    accent: TeX positions the accent over its base, so their boxes overlap. A
+    letter further along the line is somebody else's.
+    """
+    out = []
+    for row in rows:
+        if not any((getattr(g, "glyphname", "") or "") in _TEXT_ACCENT_MARK
+                   and (getattr(g, "family", "") or "").startswith("text")
+                   for g in row):
+            out.append(row)
+            continue
+        new: list = []
+        skip = -1
+        for i, g in enumerate(row):
+            if i == skip:
+                continue
+            mark = _TEXT_ACCENT_MARK.get(getattr(g, "glyphname", "") or "")
+            fam = getattr(g, "family", "") or ""
+            if not mark or not fam.startswith("text") or i + 1 >= len(row):
+                new.append(g)
+                continue
+            base = row[i + 1]
+            bt = base.text or ""
+            #: One letter, under the accent. The boxes overlap because TeX
+            #: centres the accent on its base; a glyph that merely follows on
+            #: the line is not a base.
+            if (len(bt) != 1 or not bt.isalpha()
+                    or base.rect[0] > g.rect[2] or base.rect[2] < g.rect[0]):
+                new.append(g)
+                continue
+            composed = unicodedata.normalize("NFC", bt + mark)
+            if len(composed) != 1:
+                new.append(g)          # no precomposed character exists
+                continue
+            new.append(replace(
+                base, text=composed,
+                rect=(min(g.rect[0], base.rect[0]), min(g.rect[1], base.rect[1]),
+                      max(g.rect[2], base.rect[2]), max(g.rect[3], base.rect[3]))))
+            skip = i + 1
+        out.append(new)
+    return out
+
+
 def _rejoin_accents(rows: list[list["GlyphNode"]]) -> list[list["GlyphNode"]]:
     """Move an accent into the row of its base.
 
@@ -4278,6 +4357,13 @@ def build(path: str, pages: Iterable[int] | None = None, *,
             # page where some glyph lacks one.
             if all(getattr(g, "stream", None) is not None for g in group):
                 group = sorted(group, key=lambda g: g.stream)
+            #: An accent and the letter under it are ONE character, and this
+            #: is the first point where they are adjacent in the order TeX
+            #: emitted them -- which is what the pass needs, since TeX draws
+            #: the accent first and the base one point to its left. Before
+            #: this, `\ddot` opened a maths span and took the rest of the word
+            #: with it: `Saarbr $\mathrm{ucken},$ Germany`.
+            group = _compose_text_accents([group])[0]
             page.lines.append(
                 LineNode(
                     id=f"p{pno}l{len(page.lines)}", page=pno,
