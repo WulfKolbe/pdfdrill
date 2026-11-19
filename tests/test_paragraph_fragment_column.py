@@ -152,6 +152,11 @@ def test_a_page_of_only_narrow_columns_keeps_its_edges():
         y += 74
     edges = _body_edges(_Stream(payload), _PROSE_TYPES)
     assert 1 in edges, "the page lost its edges entirely"
-    cols, em, gutters = edges[1]
+    cols, em, gutters, lines_at = edges[1]
     assert len(cols) == 2, cols
     assert gutters == [], "a page with no text column declares no gutter"
+    #: The counts travel with the edges on this branch too -- a page that
+    #: reaches it must not arrive upstairs without its evidence, or
+    #: `_is_first_line` is back to guessing which edge is the body.
+    assert set(lines_at) == set(cols), lines_at
+    assert all(n >= 1 for n in lines_at.values()), lines_at

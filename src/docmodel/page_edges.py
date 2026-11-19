@@ -116,7 +116,9 @@ def _body_edges(stream, prose_types) -> dict:
             # would silently switch the indent rule off for it. 10 pages of
             # 35,095 in the 900-reading sample reach this branch (0.03%) --
             # narrow-column pages in two reference works and a review article.
-            out[page] = (sorted(k * step for k in recurring), em, [])
+            narrow = sorted(k * step for k in recurring)
+            out[page] = (narrow, em, [],
+                         {k * step: len(ws) for k, ws in recurring.items()})
             continue
         # The furthest ink on the page, not the page width: the frame is the
         # data's, and a reading states its own units (eqlist's declared frame).
@@ -126,7 +128,27 @@ def _body_edges(stream, prose_types) -> dict:
             k * step for k, ws in recurring.items()
             if max(ws) <= _GUTTER_EM * em
             and span > 0 and (k * step - edges[0]) / span > _GUTTER_FRAC)
-        out[page] = (edges, em, gutters)
+        #: THE COUNT IS EVIDENCE AND IT TRAVELS WITH THE EDGE.
+        #:
+        #: An edge is an x the page RETURNS TO, and how often it returns is
+        #: what tells a BODY edge from a first-line INDENT: body text uses its
+        #: edge on every line, an indent once per paragraph. That number is
+        #: computed here, in `recurring`, and it used to be dropped on the
+        #: floor -- so every caller got a bare list of x values and had to
+        #: guess which one was the body.
+        #:
+        #: `_is_first_line` guessed "the rightmost", which is right for a
+        #: hanging indent and exactly wrong for an ordinary one. On
+        #: lib:008d43e5db48 the edges are 464 with 27 lines and 512 with 9:
+        #: the body is 464, the rightmost is the indent, and the guess turned
+        #: 370 pages of prose into one paragraph per line (2,501 objects ->
+        #: 7,904, and +56 % over the ten-document set). Reverted in af1e996b.
+        #:
+        #: A lower layer that can only offer CANDIDATES must say so by handing
+        #: up the evidence, not by picking one and hoping. This dict is that
+        #: evidence: edge x -> the number of prose lines that start there.
+        out[page] = (edges, em, gutters,
+                     {k * step: len(ws) for k, ws in recurring.items()})
     return out
 
 
@@ -135,7 +157,7 @@ def _in_a_gutter(x, page, edges: dict) -> bool:
     equation-number gutter, not prose. See `_body_edges`."""
     if x is None or page not in edges:
         return False
-    _cols, em, gutters = edges[page]
+    _cols, em, gutters = edges[page][:3]
     return any(abs(float(x) - g) <= em * 0.5 for g in gutters)
 
 
@@ -150,7 +172,7 @@ def _at_an_edge(x, page, edges: dict) -> bool:
     line of a paragraph does, because an edge IS an x the page returns to."""
     if x is None or page not in edges:
         return False
-    cols, em, _gutters = edges[page]
+    cols, em, _gutters = edges[page][:3]
     return any(abs(float(x) - c) <= em * 0.5 for c in cols)
 
 

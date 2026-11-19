@@ -100,13 +100,82 @@ def _is_first_line(x, page, edges: dict) -> bool:
     """
     if x is None or page not in edges:
         return False
-    cols, em, _gutters = edges[page]
-    at_or_left = [e for e in cols if e <= x + em * 0.5]
-    if not at_or_left:
+    rec = edges[page]
+    cols, em = rec[0], rec[1]
+    lines_at = rec[3] if len(rec) > 3 else {}
+    if not cols or not em:
         return False
-    if (float(x) - at_or_left[-1]) <= em:
+    body = _column_body_edge(float(x), cols, em, lines_at)
+    if body is None:
         return False
-    return True
+    off = float(x) - body
+    #: RIGHT of the body edge by an em: an ordinary first-line indent.
+    if off > em:
+        return True
+    #: LEFT of it by three quarters of an em: a HANGING indent, which is what
+    #: a bibliography uses and which says "an entry begins here" just as
+    #: plainly. 0864 p5 sets its references so, and without this the whole
+    #: left column was one Paragraph of 54 lines.
+    return off < -0.75 * em
+
+
+def _column_body_edge(x: float, cols: list, em: float, lines_at: dict):
+    r"""The body edge of the column `x` belongs to: its MOST FREQUENT edge.
+
+    A column may own two edges, one em apart -- where paragraphs begin and
+    where they continue -- and which is which is NOT decided by position. An
+    ordinary indent puts the first line on the RIGHT; a hanging indent, as a
+    bibliography uses, puts it on the LEFT. Both shapes occur in one corpus:
+
+        lib:008d43e5db48   464 with 27 lines, 512 with 9   ordinary indent
+        0864 p5 left       192 with 15 lines, 224 with 40  hanging indent
+
+    What separates them is frequency, which `_body_edges` measures and now
+    hands over: body text uses its edge on EVERY line, an indent once per
+    paragraph. Taking the rightmost instead was pushed as 9255c818 and
+    reverted an hour later in af1e996b -- it read 370 pages of ordinary prose
+    as one paragraph per line, +56 % objects over the ten-document set.
+
+    Columns are kept apart by a gap of more than two em, so a right-column
+    line is never measured against the left column's edge -- which is how
+    0864 p5's right column came to be split correctly by accident, against
+    the wrong column entirely.
+    """
+    groups: list[list[float]] = []
+    for e in sorted(cols):
+        if groups and e - groups[-1][-1] <= 2.0 * em:
+            groups[-1].append(e)
+        else:
+            groups.append([e])
+    best = None
+    for g in groups:
+        d = min(abs(e - x) for e in g)
+        if best is None or d < best[0]:
+            best = (d, g)
+    if best is None:
+        return None
+    g = best[1]
+    if len(g) == 1:
+        return g[0]
+    #: AND WHERE THE EVIDENCE DOES NOT DECIDE, SAY SO.
+    #:
+    #: A column may carry three recurring edges, and then the most frequent is
+    #: not necessarily the body. lib:008d43e5db48 p292 has 464 with 15 lines,
+    #: 512 with 9 and 544 with 13 -- a narrative page of dialogue. Taking 464
+    #: on a 15-to-13 margin makes every one of the 13 lines at 552 an indent
+    #: of nearly three em, so a passage came out as one paragraph per line.
+    #:
+    #: A majority of 1.5 to 1 is the evidence this rule needs. Below it the
+    #: page gets NO indent-based paragraph start at all: the blank-band rule
+    #: and the reading's own grouping still apply, and a missed break is a
+    #: smaller error than a break through the middle of a sentence. A lower
+    #: layer that can only offer candidates must not have one chosen for it
+    #: by a layer that knows less.
+    ranked = sorted(g, key=lambda e: (-lines_at.get(e, 0), e))
+    top, second = lines_at.get(ranked[0], 0), lines_at.get(ranked[1], 0)
+    if top < 1.5 * second:
+        return None
+    return ranked[0]
 
 class ParagraphProcessor(BaseModule):
     def find_items(self, doc: Document) -> list[dict[str, Any]]:
