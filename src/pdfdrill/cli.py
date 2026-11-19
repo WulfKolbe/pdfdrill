@@ -2059,13 +2059,36 @@ def _do_clean(args):
     return cmd_clean(Path(args[0]))
 
 
+def _with_verdict(result, pdf, md=False, llm=False):
+    """Append the run's verdict (REACHED / DEGRADED / NOT REACHED) to a
+    command's output, write it into the projections named, and carry its exit
+    code (T-0153). The verdict repeats what the run recorded; see `verdict`."""
+    from . import verdict as _v
+    from .sidecar import Sidecar
+    try:
+        sc = Sidecar(pdf)
+        files = []
+        if md:
+            blob = ((sc.layers or {}).get("md") or {}).get("blob")
+            if blob:
+                files.append(sc.blob_dir / blob)
+        if llm:
+            files.extend(sorted(sc.blob_dir.glob("*.llm.txt")))
+        v = _v.assess(pdf, sc, files)
+    except Exception:                                          # noqa: BLE001
+        return result
+    return _v.finish(result, v, files)
+
+
 def _do_llmtext(args):
     """pdfdrill llmtext <pdf|md> [--delimiter %%%%] [--no-split]"""
     from .commands import cmd_llmtext
     delim, args = _opt(args, "--delimiter")
     rest = [a for a in args if a != "--no-split"]
-    return cmd_llmtext(_drilled(rest), delimiter=delim or "%%%%",
-                       split="--no-split" not in args)
+    target = _drilled(rest)
+    return _with_verdict(cmd_llmtext(target, delimiter=delim or "%%%%",
+                                     split="--no-split" not in args),
+                         target, llm=True)
 
 
 def _do_visionocr(args):
@@ -2417,7 +2440,9 @@ def _do_md(args):
     pages, args = _opt(args, "--pages")
     image_base, args = _opt(args, "--image-base")
     lang, args = _opt(args, "--lang")
-    return cmd_md(_pdf(args), pages, image_base=image_base, lang=lang)
+    pdf = _pdf(args)
+    return _with_verdict(cmd_md(pdf, pages, image_base=image_base, lang=lang),
+                         pdf, md=True)
 
 
 def _do_page(args):
@@ -2813,7 +2838,7 @@ def _do_drill(args):
         lines.append(f"\n(exit {EXIT_LANE_NOT_RUN}: a lane was reported and not "
                      f"run, so this document has no reading and no "
                      f"inspect.html. Everything above it did run.)")
-        return Report("\n".join(lines), EXIT_LANE_NOT_RUN)
+        return _with_verdict(Report("\n".join(lines), EXIT_LANE_NOT_RUN), pdf, md=True)
     # THE SAME PROMISE UNKEPT ONE LEVEL DOWN (rule 41). `drill` ends with an
     # inspect.html; `inspect` carries EXIT_LANE_NOT_RUN when that file has no
     # page images, which makes every box sit on a blank page. A caller should
@@ -2827,8 +2852,8 @@ def _do_drill(args):
         lines.append(f"\n(exit {insp}: the inspect.html was written without page "
                      f"images \u2014 see the inspect section above for the one fix. "
                      f"Everything else did run.)")
-        return Report("\n".join(lines), insp)
-    return "\n".join(lines)
+        return _with_verdict(Report("\n".join(lines), insp), pdf, md=True)
+    return _with_verdict("\n".join(lines), pdf, md=True)
 
 
 # `--full` wipes the SIDECAR. In the LEGACY layout that is a folder of its own

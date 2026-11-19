@@ -203,8 +203,14 @@ def test_a_lane_that_DID_run_still_exits_zero(tmp_path, monkeypatch):
     monkeypatch.setenv("PDFDRILL_SANDBOX", "1")
     monkeypatch.setenv("PDFDRILL_NO_PREFLIGHT", "1")
     out = cli._do_drill([str(pdf)])
-    assert getattr(out, "exit_code", 0) == 0, (
-        "the free lane ran and drill still reported a failure")
+    # T-0153: every run ends with its verdict. The lane ran, so this is not
+    # EXIT_LANE_NOT_RUN; the stub reading holds no line, so the verdict is
+    # NOT REACHED, which has a code of its own.
+    from pdfdrill import verdict
+    assert getattr(out, "exit_code", 0) != cli.EXIT_LANE_NOT_RUN, (
+        "the free lane ran and drill still reported that no lane ran")
+    assert getattr(out, "exit_code", 0) == verdict.EXIT[verdict.NOT_REACHED]
+    assert "pdfdrill verdict: NOT REACHED" in out
 
 
 def test_main_returns_the_handlers_code():
