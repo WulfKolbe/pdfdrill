@@ -7182,14 +7182,46 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
         # equation typesets; the flag records that MathPix emitted a fragment
         # of the surrounding prose inside a maths value. Recording that by
         # blanking the equation would trade one fact for the other.
-        _changed = (_hc.clean_heading_residuals(_doc)
-                    + _hc.extract_footnote_paragraphs(_doc)
-                    + _eb.flag_document(_doc))
+        #: EACH STEP ON ITS OWN, AND A FAILURE IS RECORDED, NEVER SWALLOWED.
+        #:
+        #: This was one `try` round all three with `except Exception: pass`.
+        #: The middle step is `extract_footnote_paragraphs`, which is what
+        #: stops a footnote existing twice -- once on the Footnote and once on
+        #: the Paragraph built over the same child lines (637). If it ever
+        #: failed, the build would succeed, the model would carry duplicate
+        #: footnotes, and the only sign would be overlapping rectangles on the
+        #: owner's page: on lib:d68e0271bd4d that class is worth about 320
+        #: overlap findings. A step that prevents a visible defect must not
+        #: fail quietly.
+        #:
+        #: It still does not stop the build -- the model without a cleanup is
+        #: better than no model -- but the failure is on stderr and in
+        #: `meta["cleanup_failures"]`, where a test can see it.
+        _changed = 0
+        for _name, _step in (("clean_heading_residuals", _hc.clean_heading_residuals),
+                             ("extract_footnote_paragraphs", _hc.extract_footnote_paragraphs),
+                             ("flag_document", _eb.flag_document)):
+            try:
+                _changed += _step(_doc) or 0
+            except Exception as _exc:
+                _fail = {"step": _name, "error": type(_exc).__name__,
+                         "message": str(_exc)[:300]}
+                _doc.meta.setdefault("cleanup_failures", []).append(_fail)
+                _changed += 1          # so the record is saved with the model
+                print("pdfdrill model: cleanup step %s failed: %s: %s"
+                      % (_name, _fail["error"], _fail["message"]),
+                      file=sys.stderr)
         if _changed:
             save_model(model_path, _doc)
             out = _doc.to_dict()
-    except Exception:                                  # cleanup is best-effort
-        pass
+    except Exception as _exc:
+        #: Only the SETUP above can still reach here -- the imports and
+        #: `Document.from_dict`. It is recorded too, on the same key.
+        print("pdfdrill model: cleanup could not run: %s: %s"
+              % (type(_exc).__name__, _exc), file=sys.stderr)
+        out.setdefault("meta", {}).setdefault("cleanup_failures", []).append(
+            {"step": "setup", "error": type(_exc).__name__,
+             "message": str(_exc)[:300]})
 
     objects = out.get("objects", [])
     by_type: dict[str, int] = {}
