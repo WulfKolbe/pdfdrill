@@ -51,11 +51,18 @@ SPAN = 10.0            # the page body on 2016icpr page 1
 
 
 def _g(size: float, *, x: float = 100.0, y: float = 600.0, text: str = "x"):
+    #: `baseline` is `matrix[5]`, so a glyph built without a matrix has
+    #: baseline 0 whatever its rect says. Every glyph here did, which left
+    #: `test_a_full_size_fraction_part_still_joins_by_the_rule` asserting that
+    #: a glyph at baseline 0 belongs to a bar at y 403 -- true only while the
+    #: clause had no upper bound on the distance, and so not a test of the
+    #: geometry it describes. The matrix now states the baseline the rect
+    #: implies. The size-only cases are unaffected: they pass no rules.
     return D.GlyphNode(id=f"g{x}_{y}_{size}", page=1,
                        rect=(x, y, x + 0.5 * size, y + size),
                        text=text, cid=120, glyphname=text,
                        fontname="F1", family="F", size=size,
-                       tex=None, stream=0)
+                       tex=None, stream=0, matrix=(1, 0, 0, 1, x, y))
 
 
 def _row(size: float, y: float, n: int = 50):

@@ -1322,11 +1322,21 @@ def _off_row_by_rule(g, rules: list, span_pt: float) -> bool:
     puts off the row. Its centre is in the bar's x-range and its baseline is
     not the bar's axis, which is what makes it a numerator or a denominator
     rather than a term of the row."""
+    #: A BAR CLAIMS THE ROWS BESIDE IT, NOT THE WHOLE COLUMN. The distance
+    #: from the bar's axis was bounded BELOW and not above, so a glyph 200 pt
+    #: away counted as a numerator. On 2312.11532 p7 `_rule_role` calls the
+    #: table's booktabs midrule and six 126.6 pt chart axes "fraction", and
+    #: whole body rows in their x-range were moved into the stream-preceding
+    #: row -- "...in ETM, which" + "also utilizes Word2Vec." as one line,
+    #: ours 0.5290 against MathPix 0.0917, unpaired 773/758 (inkdrill-10).
+    #: The upper bound is 1.5 em, the window `_near_rows` already uses for
+    #: the rows a bar may join.
     cx = 0.5 * (g.rect[0] + g.rect[2])
     return any(r.role == "fraction"
                and r.rect[0] - 1 <= cx <= r.rect[2] + 1
-               and abs(g.baseline - 0.5 * (r.rect[1] + r.rect[3]))
-               > 0.12 * span_pt
+               and 0.12 * span_pt
+               < abs(g.baseline - 0.5 * (r.rect[1] + r.rect[3]))
+               <= 1.5 * span_pt
                for r in rules)
 
 
