@@ -2468,6 +2468,10 @@ def _do_plan(args):
         sc = Sidecar(pdf)
         held = frozenset(sc.facts)
         invalid = frozenset(f for f in held if not sc.capability_valid(f))
+        # T-0153: a projection older than the reading it was made from is not
+        # satisfied, proof or no proof.
+        from .commands import stale_projection_facts
+        invalid |= stale_projection_facts(pdf, sc.blob_dir, sc.layers) & held
         return cp.describe(goal, held=held, invalid=invalid)
 
     _reject_unknown_flags(args[1:])
@@ -2577,6 +2581,26 @@ def _do_drill(args):
     _reject_unknown_flags(unknown + pdf_args[1:])
     pdf = _pdf(pdf_args[:1])
 
+    # T-0153 — THE DOCUMENT IS FILED ONCE, HERE, AND `drill` FOLLOWS IT. Every
+    # writing step files a PDF into `<stem>/` when a second document shares its
+    # directory (doclock.ensure_doc_folder). The step got the new path and
+    # `drill` kept the old one, so in a folder of two PDFs the reading went to
+    # `<stem>/` and the model, the Markdown and the inspector were built
+    # beside a PDF that was no longer there: exit 0, two half-results, and not
+    # a word about the move (1805.01788-p0003 beside alex1-p0021, 2026-11-19).
+    filed_note = ""
+    try:
+        from .doclock import ensure_doc_folder
+        _was = Path(pdf)
+        pdf = Path(ensure_doc_folder(pdf))
+        if pdf.resolve() != _was.resolve():
+            filed_note = (f"note: filed {_was.name} into its own folder — "
+                          f"{pdf.parent}{os.sep} — because another PDF shares "
+                          f"its directory. Use that path from now on.")
+            _emit(filed_note)
+    except Exception:                                        # noqa: BLE001
+        pass
+
     from .commands import (
         cmd_size, cmd_fonts, cmd_abstract, cmd_toc, cmd_md, cmd_status,
         cmd_model, cmd_geometry, cmd_inspect, cmd_gemmaocr,
@@ -2660,7 +2684,48 @@ def _do_drill(args):
                     _timed("gemmaocr --geometry-only",
                            lambda: cmd_gemmaocr(pdf, geometry_only=True))))
     elif dec.cost in ("free", "none"):
-        ran.append(("model", _timed("model", lambda: cmd_model(pdf))))
+        # T-0153 — ONE ROUTE: A BORN-DIGITAL PAGE IS READ BY THE GLYPH READER.
+        # The board's "ours" column is `pdfdrill glyphlines`, and `drill` never
+        # called it: it built the model from the text-layer reader, or from the
+        # author's whole LaTeX for a one-page extract, so no gain measured on
+        # the board reached the user who typed `drill`. Now the glyph reading
+        # is the reading; the model and every projection are built from it.
+        # The other reader is used only when this one yields no reading, and a
+        # reading that was bought (MathPix, Gemma) is never replaced.
+        glyph_read = False
+        if dec.lane == "born_digital":
+            from .commands import cmd_glyphlines
+            from . import planner as _pl
+            if _pl.reading_producer(pdf) not in ("mathpix", "gemmaocr"):
+                # IT SAYS WHAT IT COSTS BEFORE IT SPENDS IT. The glyph reader
+                # is the one step here the manifest marks `slow` without a
+                # flag: it is the reading itself, so it cannot be left out,
+                # and 3.2 s/page is 25 minutes on a 470-page volume.
+                if _pl.reading_producer(pdf) != "glyphlines":
+                    _why = _pl._slow_note("glyphlines")
+                    if _why:
+                        _emit(f"[drill] reading with glyphlines — {_why}",
+                              sys.stderr)
+                g = _timed("glyphlines", lambda: cmd_glyphlines(pdf))
+                glyph_read = (getattr(g, "exit_code", 0) == 0
+                              and _pl.reading_producer(pdf) == "glyphlines")
+                if "already read" not in g:
+                    ran.append(("glyphlines", g))
+                if not glyph_read:
+                    lane_note += ("\n  The glyph reader gave no reading; the "
+                                  "text-layer reader was used instead.")
+        if glyph_read:
+            ran.append(("model", _timed(
+                "model", lambda: cmd_model(pdf, no_source=True))))
+            # The decision's own sentence describes the route `model` takes
+            # alone (text layer, plus the author's LaTeX for an e-print). It
+            # is not the route that ran here, so the report says which did.
+            lane_note = (f"{pdf.name}: born-digital → read by the glyph reader "
+                         f"[free] — `glyphlines` read the page's own glyphs, "
+                         f"and the model, the Markdown and the inspector are "
+                         f"built from that reading. No OCR, nothing to pay.")
+        else:
+            ran.append(("model", _timed("model", lambda: cmd_model(pdf))))
         ran.append(("md", _timed("md", lambda: cmd_md(pdf))))
     else:
         lane_note += (f"\n  NOT RUN by `drill`: this lane costs money. Run the "

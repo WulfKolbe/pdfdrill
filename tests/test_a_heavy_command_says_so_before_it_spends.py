@@ -122,6 +122,12 @@ def test_drill_runs_nothing_that_declares_a_cost():
         # manifest is per command, so a conditional cost must NAME its flag,
         # and drill is then held to not passing it.
         flags = re.findall(r"--[a-z][a-z-]*", str(note))
+        if not flags and f'_slow_note("{name}")' in code:
+            # T-0153: the reading itself. `drill` on a born-digital document
+            # reads with the glyph reader (the route the board measures), so
+            # the step cannot be left out; it prints the manifest's cost note
+            # before it starts, which is the rule this file exists for.
+            continue
         assert flags, (
             f"`drill` runs `{name}`, which the manifest says costs minutes "
             f"unconditionally. Either it stops running it, or the cost note "

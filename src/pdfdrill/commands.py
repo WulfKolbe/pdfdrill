@@ -2894,6 +2894,34 @@ _OPENABLE_PROJECTIONS = (
 )
 
 
+def stale_projection_facts(pdf: Path, blob_dir: Path, layers: dict) -> frozenset:
+    """Facts that are held but describe a file older than the reading.
+
+    T-0153 — `plan --goal md` answered "already satisfied" after `glyphlines`
+    had replaced the reading: MD_BUILT carries no proof, and a fact without a
+    proof is trusted for ever. The Markdown is a projection of the reading, so
+    a reading newer than the file makes the fact stale. The model is not
+    compared here on purpose: `geometry` rewrites it after `md` in every
+    `drill`, and that would call a fresh drill stale.
+    """
+    lp = _lines_json_path(pdf)
+    out = set()
+    try:
+        if not lp.exists():
+            return frozenset()
+        read_at = lp.stat().st_mtime
+        blob = ((layers or {}).get("md") or {}).get("blob")
+        md = (Path(blob_dir) / blob) if blob else None
+        if md is not None and md.is_file() and md.stat().st_mtime < read_at:
+            out.add(MD_BUILT)
+        mp = Path(blob_dir) / "model.docmodel.json"
+        if mp.is_file() and mp.stat().st_mtime < read_at:
+            out.add(MODEL_BUILT)
+    except OSError:
+        pass
+    return frozenset(out)
+
+
 def projection_state(pdf: Path) -> dict:
     """What this document HAS, and what it could have — with the command.
 
@@ -17303,12 +17331,20 @@ def cmd_glyphlines(pdf: Path, force: bool = False) -> str:
         pages = _dm.build(str(pdf))
         data = _dm.to_lines_json(pages, doc_id=key)
     except Exception as e:                                   # noqa: BLE001
-        return f"glyphlines: could not read {pdf.name} — {e}"
+        # T-0153 — A READER THAT FAILED EXITS NON-ZERO. This returned a plain
+        # string, so the process exited 0 and a caller that checks the status
+        # (the board runner, `drill`, a shell `&&`) went on with no reading.
+        from .cli import Report
+        return Report(f"glyphlines: could not read {pdf.name} — {e}",
+                      exit_code=1)
 
     n_lines = sum(len(p["lines"]) for p in data["pages"])
     if n_lines < 2:
-        return (f"glyphlines: {pdf.name} yielded {n_lines} line(s) — no text "
-                f"layer to read. This lane never OCRs; use `ocr` or `mathpix`.")
+        from .cli import Report
+        return Report(
+            f"glyphlines: {pdf.name} yielded {n_lines} line(s) — no text "
+            f"layer to read. This lane never OCRs; use `gemmaocr` or `mathpix`.",
+            exit_code=1)
     from . import model_io as _mio
     _mio._atomic_write(lines_path, json.dumps(data))
     # A lines.json newer than the model is what makes `model` rebuild, so the

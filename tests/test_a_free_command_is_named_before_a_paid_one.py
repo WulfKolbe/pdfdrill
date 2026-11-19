@@ -48,9 +48,13 @@ def test_glyphlines_declares_that_it_satisfies_typed_geometry():
     g = by_name["glyphlines"]
     assert g.get("also_satisfies") == "lines:typed-geometry", (
         "glyphlines writes pdfminer-docmodel, which IS typed geometry")
-    assert g.get("done_when") == "file:{stem}.lines.json", (
-        "its own done_when stays the weaker one — 5 of 40 sampled readings "
-        "carry no typed-family line in their first three pages")
+    # T-0153: `lines:glyph` (the reading declares this reader as its source),
+    # not `file:{stem}.lines.json`, which `model`'s `pdfminer-chars` reading
+    # met on a document `glyphlines` had never read. It is still weaker than
+    # typed geometry, so every successful run meets it.
+    assert g.get("done_when") == "lines:glyph", (
+        "its own done_when stays weaker than typed geometry — 5 of 40 sampled "
+        "readings carry no typed-family line in their first three pages")
     assert not g.get("network"), "glyphlines is free and offline"
 
 

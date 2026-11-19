@@ -102,8 +102,10 @@ def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
                                a .pdf not older than its .tex
       lines           a MathPix lines.json sits next to the PDF
       fact:NAME       the sidecar carries that fact
-      file:PATTERN    a NON-EMPTY file matching it sits beside the PDF;
-                      {stem} and {bibkey} expand, and a glob is allowed
+      file:PATTERN    a NON-EMPTY file matching it sits beside the PDF or in
+                      its drill folder; {stem} and {bibkey} expand, and a glob
+                      is allowed
+      lines:glyph     the reading beside the PDF is the glyph reader's own
 
     `model` is a PRESENCE test and `model:geometry` an ADEQUACY one. The
     distinction matters: a model built by a lane that produces no object regions
@@ -144,15 +146,46 @@ def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
         # NON-EMPTY IS PART OF THE TEST. The pages repo learned it the hard
         # way — "the guard checked names, so a zero-byte report.pdf passed
         # it" — and a command that wrote nothing has not run.
-        base = pdf.parent
+        #
+        # T-0153 — WHERE THE WRITER PUT IT, UNDER THE NAME THE WRITER USED.
+        # This looked beside the PDF only and expanded `{bibkey}` to the drill
+        # FOLDER's name. Both are right in the one-folder-per-document layout,
+        # where the folder is named after the bibkey and holds the PDF. In the
+        # `<name>.pdf.drill/` layout both are wrong: `{bibkey}.md` became
+        # `<name>.pdf.drill.md` beside the PDF, a file no command writes, so
+        # `artifacts` listed `<bibkey>.md` as present and `md` as "not
+        # generated yet" in one output (1805.01788-p0003, 2026-11-19).
         stem = pdf.name[:-4] if pdf.name.lower().endswith(".pdf") else pdf.name
-        pat = (spec[5:].replace("{stem}", stem)
-                       .replace("{bibkey}", str(sc.blob_dir.name)))
+        blob = getattr(sc, "blob_dir", None)
+        folders = [pdf.parent]
+        if blob and Path(blob) != pdf.parent:
+            folders.append(Path(blob))
+        keys = [str(Path(blob).name)] if blob else []
         try:
-            hits = sorted(base.glob(pat))
-        except (ValueError, OSError):
-            return False
-        return any(h.is_file() and h.stat().st_size > 0 for h in hits)
+            stored = sc.get_evidence("bibkey")
+        except AttributeError:
+            stored = None
+        if stored and stored not in keys:
+            keys.insert(0, str(stored))
+        if stem not in keys:
+            keys.append(stem)
+        for key in keys or [stem]:
+            pat = spec[5:].replace("{stem}", stem).replace("{bibkey}", key)
+            for base in folders:
+                try:
+                    hits = sorted(base.glob(pat))
+                except (ValueError, OSError):
+                    continue
+                if any(h.is_file() and h.stat().st_size > 0 for h in hits):
+                    return True
+        return False
+    if spec == "lines:glyph":
+        # T-0153 — THE GLYPH READER'S OWN READING, NOT ANY FILE OF THAT NAME.
+        # `glyphlines` was done when `<stem>.lines.json` existed. `model`
+        # leaves a `pdfminer-chars` reading under that name, so `steps` called
+        # `glyphlines` done on a document it had never read. The test is the
+        # one `cmd_glyphlines` itself uses to decide it has nothing to do.
+        return reading_producer(pdf) == "glyphlines"
     if spec == "lines:typed-geometry":
         # 897 — A TYPED, GEOMETRY-BEARING READING, FROM WHICHEVER READER.
         #
@@ -487,12 +520,65 @@ def equivalent_commands(manifest: dict) -> dict:
     return out
 
 
+def reading_producer(pdf: Path) -> "str | None":
+    """The command that wrote the reading beside `pdf`, or None.
+
+    Read from the `source` the lines.json declares. A reading that declares
+    nothing and has MathPix's shape is MathPix's.
+    """
+    from .commands import _lines_json_source, _is_mathpix_lines
+    base = pdf.name[:-4] if pdf.name.lower().endswith(".pdf") else pdf.name
+    lp = pdf.parent / f"{base}.lines.json"
+    if not lp.exists():
+        return None
+    try:
+        src = str(_lines_json_source(lp) or "")
+        if src.startswith("pdfminer-docmodel"):
+            return "glyphlines"
+        if src.startswith("gemma"):
+            return "gemmaocr"
+        if src.startswith("pdfminer") or src.startswith("pdftotext"):
+            return "model"
+        if _is_mathpix_lines(lp):
+            return "mathpix"
+    except (OSError, ValueError):
+        return None
+    return None
+
+
+def _met(sat: set, pdf: Path, man: dict) -> str:
+    """The satisfied commands, each said as what it is.
+
+    T-0153 — "already done: …, glyphlines, …" on a document `glyphlines` never
+    read. The satisfied set holds CONDITIONS that are met, and a condition can
+    be met by another command's output: a typed reading satisfies `mathpix`,
+    `gemmaocr` and `glyphlines` alike, whichever of them wrote it. So the list
+    is headed by what it is (nothing left to run), and a reading command that
+    did not write the reading on disk is named as not run, with the one that
+    did.
+    """
+    if not sat:
+        return "none"
+    readers = {c["name"] for c in man.get("commands", [])
+               if "lines:typed-geometry" in (c.get("done_when"),
+                                             c.get("also_satisfies"))}
+    who = reading_producer(pdf)
+    out = []
+    for c in sorted(sat):
+        if c in readers and who and c != who:
+            out.append(f"{c} (not run: the reading on disk is `{who}`'s)")
+        else:
+            out.append(c)
+    return ", ".join(out)
+
+
 def describe(target: str, pdf: Path) -> str:
     steps, sat = resolve_steps(target, pdf)
     prereqs = steps[:-1]
     if not prereqs:
         return (f"`{target}` for {pdf.name}: prerequisites satisfied "
-                f"({', '.join(sorted(sat)) or 'none required'}) — runs directly.")
+                f"(condition met for: {_met(sat, pdf, load_manifest())}) "
+                f"— runs directly.")
     man = load_manifest()
     paid = network_commands(man)
     alts = equivalent_commands(man)
@@ -531,7 +617,7 @@ def describe(target: str, pdf: Path) -> str:
             + " → ".join(f"{s}" for s in steps)
             + f"\n  (missing prerequisites: {', '.join(_tag(c) for c in prereqs)}; "
             f"--ensure auto-runs the offline ones and NAMES the paid ones; "
-            f"already done: {', '.join(sorted(sat)) or 'none'})")
+            f"condition already met for: {_met(sat, pdf, man)})")
 
 
 def ensure(target: str, pdf: Path, handlers: dict, pdf_arg: str,

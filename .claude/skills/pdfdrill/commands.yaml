@@ -164,7 +164,12 @@ commands:
     type: bool
     help: re-read, replacing an existing lines.json (including MathPix's)
   typed: true
-  done_when: file:{stem}.lines.json
+  # T-0153: done when the reading on disk is THIS reader's (`source` starts
+  # `pdfminer-docmodel`), which is the test `cmd_glyphlines` uses itself. The
+  # file test `file:{stem}.lines.json` was met by the `pdfminer-chars` reading
+  # `model` leaves under the same name, and `steps` called this command done
+  # on a document it had never read.
+  done_when: lines:glyph
   # It writes `pdfminer-docmodel`, which IS typed geometry (measured on
   # 2018jrtip: a 2067x2923 PIXEL frame, 1172 typed lines — 11 math, 128
   # list_item, 12 code, 7 section_header — where the chars route gives 1240
