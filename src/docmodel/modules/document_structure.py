@@ -123,6 +123,15 @@ class DocumentStructureProcessor(BaseModule):
             obj.props["parent_section"] = owner.id
             if obj.id not in owner.children:
                 owner.children.append(obj.id)
+            #: AND THE BACK-LINK. `a in b.children` must imply
+            #: `a.parent == b.id`, or a walker that descends and one that
+            #: ascends read two different documents. Measured before writing
+            #: it: 272 of 1805.01788's 313 links and 242 of 0864's 353 had no
+            #: parent, with ZERO conflicts and no id listed twice. A FILL, not
+            #: an overwrite -- where another writer has already claimed the
+            #: object, its claim stands.
+            if obj.parent is None:
+                obj.parent = owner.id
 
     def _create_document_root(
         self, sections: list[DocObject], doc: Document,
@@ -158,6 +167,8 @@ class DocumentStructureProcessor(BaseModule):
             o.props["parent_section"] = root.id
             if o.id not in root.children:
                 root.children.append(o.id)
+            if o.parent is None:          #: the back-link, as above
+                o.parent = root.id
 
         # Sibling next/prev for top-level Sections, mirroring TS behavior.
         for i, s in enumerate(top_sections):

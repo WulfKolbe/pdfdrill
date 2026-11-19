@@ -157,3 +157,57 @@ def test_no_math_object_is_left_untranscluded():
     body = " ".join(str(t.get("text") or "") for t in ts)
     missing = [t for t in math_titles(d, "K").values() if "{{" + t + "||" not in body]
     assert not missing, f"math objects never transcluded: {missing}"
+
+
+#: ------------------------------------------------------------------ 
+#: THE OTHER HALF OF THE SAME INVARIANT: the back-link.
+#:
+#: Everything above asserts that a Section HAS children, because a Section
+#: without them loses every block transclusion. None of it asks whether the
+#: child agrees. `_assign_content_parent_sections` appends to `owner.children`
+#: and writes `props["parent_section"]`, but never sets the object's own
+#: `parent` field; `_create_document_root` does the same for orphans. Only the
+#: two Section paths set both, which is why this stayed invisible.
+#:
+#: MEASURED before changing it, on two real models: of 313 links on
+#: 1805.01788, 272 had `parent is None`; of 353 on 0864, 242 did. In both,
+#: CONFLICTS were ZERO and no id was listed by two parents -- so filling the
+#: field steals nothing from another writer. That measurement is the reason
+#: this is a fill and not an overwrite: where something else has already
+#: claimed an object, this pass leaves the claim alone.
+
+
+def _links(doc):
+    """(child id -> the objects that list it) for a finished Document."""
+    out = {}
+    for o in doc.objects.values():
+        for c in (o.children or []):
+            out.setdefault(c, []).append(o.id)
+    return out
+
+
+def test_a_listed_child_knows_its_parent():
+    """`a in b.children` must imply `a.parent == b.id`. A tree walker that
+    descends by `children` and one that ascends by `parent` have to agree, or
+    the same document has two different shapes depending on the direction it
+    is read."""
+    d = _doc()
+    apply_document_structure(d)
+    bad = []
+    for cid, parents in _links(d).items():
+        ch = d.objects.get(cid)
+        if ch is None:
+            continue                     # dangling ids are a separate defect
+        if ch.parent not in parents:
+            bad.append((ch.type, cid, ch.parent, parents))
+    assert not bad, "listed as a child but does not point back: %r" % (bad,)
+
+
+def test_the_pass_does_not_steal_an_existing_parent():
+    """Zero conflicts today, and this keeps it so. An object another writer
+    has already parented keeps that parent, even when a Section lists it."""
+    d = _doc()
+    para = next(o for o in d.objects.values() if o.type == "Paragraph")
+    para.parent = "obj_somebody_else"
+    apply_document_structure(d)
+    assert para.parent == "obj_somebody_else"
