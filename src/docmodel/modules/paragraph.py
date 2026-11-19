@@ -264,11 +264,25 @@ class ParagraphProcessor(BaseModule):
                     # a caption starts its OWN paragraph, never rides the tail
                     # of the previous one
                     flush()
-                elif (current.get("kind") == "caption" and y is not None
-                        and current.get("_last_y") is not None):
-                    # the caption ends at the first oversized vertical gap —
-                    # applied ONLY inside captions so general paragraphing
-                    # keeps its existing behavior
+                elif (y is not None and current.get("_last_y") is not None):
+                    # A PARAGRAPH ENDS AT A BLANK BAND, prose as well as
+                    # caption. It was gated to captions, and 0864 p4 read by
+                    # glyphdrill3 shows what that cost: one Paragraph holding
+                    # the results paragraph, the section heading "6 Conclusion"
+                    # and the Conclusion paragraph, with a rectangle 1479 px
+                    # tall over half the column. The same weld joined a
+                    # Conclusion to an "Acknowledgements" block on
+                    # lib:5a5c76391c9c p12.
+                    #
+                    # Nothing else in the data could stop it there: the heading
+                    # is typed `text` so it is prose, it is not indented, and
+                    # that reading states no block_num/par_num, so the group
+                    # test above skips itself. The gap is the signal that IS
+                    # present -- pitch about 61 px, the band above the heading
+                    # 187 px and above the Conclusion 137 px.
+                    #
+                    # A display between two prose runs does NOT depend on this:
+                    # `find_items` already flushes on any non-prose line type.
                     gap = y - current["_last_y"]
                     pitches = current.get("_pitches") or []
                     ref = sum(pitches) / len(pitches) if pitches else None
