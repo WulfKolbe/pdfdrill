@@ -1,0 +1,469 @@
+{
+ "source": "gemma4-ink-yolo",
+ "pages": [
+  {
+   "page": 170,
+   "image_id": null,
+   "page_width": 1494,
+   "page_height": 2292,
+   "lines": [
+    {
+     "id": "g4_p170_l34",
+     "line": 34,
+     "column": 0,
+     "type": "footnote",
+     "region": {
+      "top_left_x": 184,
+      "top_left_y": 1583,
+      "width": 1138,
+      "height": 207
+     },
+     "text": "",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "children_ids": [
+      "g4_p170_l35",
+      "g4_p170_l36",
+      "g4_p170_l37",
+      "g4_p170_l38",
+      "g4_p170_l39",
+      "g4_p170_l40"
+     ],
+     "geometry_before": {
+      "top_left_x": 184,
+      "top_left_y": 1589,
+      "width": 1138,
+      "height": 194
+     }
+    },
+    {
+     "id": "g4_p170_l35",
+     "line": 35,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 184,
+      "top_left_y": 1583,
+      "width": 1137,
+      "height": 33
+     },
+     "text": "\\( { }^{2} \\) The structural and formal justification elements discussed in this section are",
+     "text_display": "\n\n\\footnotetext{\n\\( { }^{2} \\) The structural and formal justification elements discussed in this section are",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p170_l34",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 184,
+      "top_left_y": 1589,
+      "width": 1137,
+      "height": 21
+     }
+    },
+    {
+     "id": "g4_p170_l36",
+     "line": 36,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 208,
+      "top_left_y": 1623,
+      "width": 1113,
+      "height": 28
+     },
+     "text": "derived from hierarchical data structures developed for semi-automated theorem",
+     "text_display": " derived from hierarchical data structures developed for semi-automated theorem",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p170_l34",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 208,
+      "top_left_y": 1624,
+      "width": 1113,
+      "height": 21
+     }
+    },
+    {
+     "id": "g4_p170_l37",
+     "line": 37,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 208,
+      "top_left_y": 1657,
+      "width": 1113,
+      "height": 30
+     },
+     "text": "proving (satisfying the logical side). They allow natural language representations",
+     "text_display": " proving (satisfying the logical side). They allow natural language representations",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p170_l34",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 208,
+      "top_left_y": 1659,
+      "width": 1113,
+      "height": 27
+     }
+    },
+    {
+     "id": "g4_p170_l38",
+     "line": 38,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 208,
+      "top_left_y": 1691,
+      "width": 1112,
+      "height": 30
+     },
+     "text": "at every level (allowing for natural representation of mathematical vernacular at",
+     "text_display": " at every level (allowing for natural representation of mathematical vernacular at",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p170_l34",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 208,
+      "top_left_y": 1693,
+      "width": 1111,
+      "height": 21
+     }
+    },
+    {
+     "id": "g4_p170_l39",
+     "line": 39,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 208,
+      "top_left_y": 1717,
+      "width": 1114,
+      "height": 40
+     },
+     "text": "multiple levels of abstraction). This proof representation (see [BCF\\(^{+}\\)97] for a",
+     "text_display": " multiple levels of abstraction). This proof representation (see [BCF\\(^{+}\\)97] for a",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p170_l34",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 208,
+      "top_left_y": 1727,
+      "width": 1114,
+      "height": 28
+     }
+    },
+    {
+     "id": "g4_p170_l40",
+     "line": 40,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 208,
+      "top_left_y": 1760,
+      "width": 1059,
+      "height": 30
+     },
+     "text": "discussion and pointers) is a DAG of nodes which represent the proof steps.",
+     "text_display": " discussion and pointers) is a DAG of nodes which represent the proof steps.\n}",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p170_l34",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 208,
+      "top_left_y": 1762,
+      "width": 1059,
+      "height": 21
+     }
+    },
+    {
+     "id": "g4_p170_l41",
+     "line": 41,
+     "column": 0,
+     "type": "footnote",
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 1793,
+      "width": 1138,
+      "height": 241
+     },
+     "text": "",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "children_ids": [
+      "g4_p170_l42",
+      "g4_p170_l43",
+      "g4_p170_l44",
+      "g4_p170_l45",
+      "g4_p170_l46",
+      "g4_p170_l47",
+      "g4_p170_l48"
+     ],
+     "geometry_before": {
+      "top_left_x": 183,
+      "top_left_y": 1798,
+      "width": 1138,
+      "height": 230
+     }
+    },
+    {
+     "id": "g4_p170_l42",
+     "line": 42,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 1793,
+      "width": 1138,
+      "height": 33
+     },
+     "text": "\\( { }^{3} \\) At the moment OMDoc does not provide markup for such objects, so that they",
+     "text_display": "\n\n\\footnotetext{\n\\( { }^{3} \\) At the moment OMDoc does not provide markup for such objects, so that they",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p170_l41",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 183,
+      "top_left_y": 1798,
+      "width": 1138,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p170_l43",
+     "line": 43,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 208,
+      "top_left_y": 1833,
+      "width": 1113,
+      "height": 29
+     },
+     "text": "should best be represented by symbols with definition where the inference rule",
+     "text_display": " should best be represented by symbols with definition where the inference rule",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p170_l41",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 208,
+      "top_left_y": 1834,
+      "width": 1113,
+      "height": 21
+     }
+    },
+    {
+     "id": "g4_p170_l44",
+     "line": 44,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 208,
+      "top_left_y": 1866,
+      "width": 1113,
+      "height": 30
+     },
+     "text": "is explained in the CMP (see the lower part of Listing 17.4), and the FMP holds",
+     "text_display": " is explained in the CMP (see the lower part of Listing 17.4), and the FMP holds",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p170_l41",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 208,
+      "top_left_y": 1868,
+      "width": 1113,
+      "height": 21
+     }
+    },
+    {
+     "id": "g4_p170_l45",
+     "line": 45,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 208,
+      "top_left_y": 1902,
+      "width": 1112,
+      "height": 28
+     },
+     "text": "a content representation for the inference rule, e.g. using the content dic-",
+     "text_display": " a content representation for the inference rule, e.g. using the content dic",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p170_l41",
+     "subtype": "continues_line_no_hyphen",
+     "geometry_before": {
+      "top_left_x": 208,
+      "top_left_y": 1903,
+      "width": 1112,
+      "height": 21
+     }
+    },
+    {
+     "id": "g4_p170_l46",
+     "line": 46,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 208,
+      "top_left_y": 1935,
+      "width": 1113,
+      "height": 31
+     },
+     "text": "tionary [Koh05d]. A good enhancement is to encapsulate system-specific encodings",
+     "text_display": "tionary [Koh05d]. A good enhancement is to encapsulate system-specific encodings",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p170_l41",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 208,
+      "top_left_y": 1937,
+      "width": 1113,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p170_l47",
+     "line": 47,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 208,
+      "top_left_y": 1971,
+      "width": 1113,
+      "height": 29
+     },
+     "text": "of the inference rules in private or code elements and have the xref attribute",
+     "text_display": " of the inference rules in private or code elements and have the xref attribute",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p170_l41",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 208,
+      "top_left_y": 1972,
+      "width": 1113,
+      "height": 21
+     }
+    },
+    {
+     "id": "g4_p170_l48",
+     "line": 48,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 208,
+      "top_left_y": 2007,
+      "width": 199,
+      "height": 27
+     },
+     "text": "point to these.",
+     "text_display": " point to these.\n}",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p170_l41",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 208,
+      "top_left_y": 2007,
+      "width": 199,
+      "height": 21
+     }
+    },
+    {
+     "id": "g4_p170_l49",
+     "line": 49,
+     "column": 0,
+     "type": "footnote",
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 2037,
+      "width": 1116,
+      "height": 34
+     },
+     "text": "",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "children_ids": [
+      "g4_p170_l50"
+     ],
+     "geometry_before": {
+      "top_left_x": 186,
+      "top_left_y": 2037,
+      "width": 1113,
+      "height": 28
+     }
+    },
+    {
+     "id": "g4_p170_l50",
+     "line": 50,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 2037,
+      "width": 1116,
+      "height": 34
+     },
+     "text": "\\( { }^{4} \\) This object is an alternative representation of certain proofs, see Section 17.4.",
+     "text_display": "\n\n\\footnotetext{\n\\( { }^{4} \\) This object is an alternative representation of certain proofs, see Section 17.4.\n}",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p170_l49",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 186,
+      "top_left_y": 2037,
+      "width": 1113,
+      "height": 28
+     }
+    }
+   ]
+  }
+ ]
+}

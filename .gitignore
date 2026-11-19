@@ -65,6 +65,11 @@ dist/
 # /data/-anchored. They are scratch from working on a document in the checkout,
 # never fixtures — the tests that mention those ids build their own temp PDFs.
 *.lines.json
+# ... EXCEPT a fixture a test needs. A reading is derived and large, which is
+# why the line above exists; a page's records cut out of one for a unit test
+# are 12 KB, and the suite cannot run from a fresh clone without them. The
+# negation must follow the blanket rule: the LAST match wins.
+!tests/fixtures/*.lines.json
 *.chars.json
 *.docmodel.json
 *.docpack.json

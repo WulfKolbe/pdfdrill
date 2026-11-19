@@ -311,14 +311,15 @@ def _author_latex(obj: dict) -> dict:
     return {}
 
 
-def _boxes_from_groups(groups: list, page: Optional[int]) -> list[dict]:
+def _boxes_from_groups(groups: list, page: Optional[int],
+                       inline: Optional[list] = None) -> list[dict]:
     """One box per realization, each the union of ITS OWN anchors on `page`.
 
     Ordered as the page reads them (top, then left), so the first is a stable
     choice for the single `bbox` every older caller still expects.
     """
     out: list[dict] = []
-    for group in groups:
+    for gi, group in enumerate(groups):
         box: Optional[dict] = None
         for pg, one in group:
             if one is None:
@@ -327,6 +328,19 @@ def _boxes_from_groups(groups: list, page: Optional[int]) -> list[dict]:
                 continue
             box = _union(box, one)
         if box is not None:
+            #: AN INLINE REALIZATION'S BOX IS ITS HOST LINE'S, NOT ITS OWN.
+            #: `\(m\)` inside a 69-character line realizes 5 characters of
+            #: it -- `{'offset': 55, 'length': 5}` -- and the anchors it spans
+            #: are that whole line, so the box drawn is 800 px wide. The owner
+            #: read it as a Formula lying across a line of prose on
+            #: 1805.01788 p4, which is exactly what it looks like.
+            #:
+            #: It is MARKED, not narrowed: the record carries no `cnt` and its
+            #: `geometry` is the string "ink", so there is no sub-line
+            #: geometry to cut it with and a box by character proportion would
+            #: be a guess (D-11).
+            if inline and gi < len(inline) and inline[gi]:
+                box = dict(box, inline=True)
             out.append(box)
     out.sort(key=lambda b: (b["y"], b["x"]))
     return out
@@ -343,6 +357,7 @@ def object_boxes(obj: dict, sidx: dict, page: Optional[int]) -> list[dict]:
     order_of = sidx["order"]
     anchors = order_of.get("mathpix_lines", [])
     groups: list[list] = []
+    inline: list = []
     for rz in obj.get("realizations", []):
         if rz.get("stream") != "mathpix_lines":
             continue
@@ -361,7 +376,9 @@ def object_boxes(obj: dict, sidx: dict, page: Optional[int]) -> list[dict]:
             group.append((pl.get("_page"), _region_to_box(pl.get("region") or {})))
         if group:
             groups.append(group)
-    return _boxes_from_groups(groups, page)
+            rp = rz.get("props") or {}
+            inline.append("offset" in rp or "length" in rp)
+    return _boxes_from_groups(groups, page, inline)
 
 
 def object_geometry(obj: dict, sidx: dict) -> tuple[Optional[int], Optional[dict], str]:
@@ -1037,6 +1054,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .overlay{position:absolute;inset:0;pointer-events:none}
 .box{position:absolute;pointer-events:auto;border:1px solid transparent;border-radius:2px}
 .box[data-via="interpolated"]{border-style:dashed}
+.box[data-inline="1"]{border-style:dashed;opacity:.75}
 .box.sel{background:var(--hl);border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);z-index:3}
 .box.hl{background:var(--hl);border-color:var(--accent);z-index:2}
 .box[data-cat="image"].hl,.box[data-cat="image"].sel{border-color:var(--accent2);
@@ -2033,9 +2051,20 @@ function renderPage(){
     (e.bboxes && e.bboxes.length ? e.bboxes : [e.bbox]).forEach(b=>{
       const d=el('div','box'); d.dataset.cat=IMAGE_CATS.has(e.type)?'image':'text';
       if(e.via) d.dataset.via=e.via;
+      /* THE RECTANGLE OF AN INLINE OBJECT IS ITS HOST LINE'S, NOT ITS OWN.
+       * `\(m\)` realizes 5 characters of a 69-character line, so the box is
+       * the whole line and a Formula appears to lie across prose. There is no
+       * sub-line geometry in the reading to cut it with, so it is drawn
+       * DASHED and says what it is on click, instead of claiming an extent
+       * the reading never stated. */
+      if(b.inline) d.dataset.inline='1';
       d.style.left=(100*b.x/W)+'%'; d.style.top=(100*b.y/H)+'%';
       d.style.width=(100*b.w/W)+'%'; d.style.height=(100*b.h/H)+'%';
-      const tag=el('div','tag'); tag.textContent=e.type+(e.refnum?(' '+e.refnum):''); d.appendChild(tag);
+      const tag=el('div','tag');
+      tag.textContent=e.type+(e.refnum?(' '+e.refnum):'')+(b.inline?' (in line)':'');
+      if(b.inline) d.title='inline: this rectangle is the LINE that hosts '
+        +e.type+', not its own extent — the reading states no sub-line geometry';
+      d.appendChild(tag);
       attachHooks(d,e,{mouse:false}); ov.appendChild(d);
     });
   });
