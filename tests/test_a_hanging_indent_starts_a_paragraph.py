@@ -34,7 +34,29 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
+import pytest  # noqa: E402
+
 from docmodel.modules.paragraph import _is_first_line  # noqa: E402
+
+#: THE FIX THIS FILE DESCRIBES IS REVERTED. It was pushed as 9255c818 and
+#: taken out again the same hour, because taking a column's RIGHTMOST edge as
+#: its body edge INVERTS the ordinary indented paragraph. On a page whose
+#: edges are 464 (body, 27 lines) and 512 (first-line indent, 9 lines), the
+#: rightmost is the INDENT, so every body line read as a hanging indent and
+#: started a paragraph. Measured over the ten-document inspect set:
+#: 53,828 objects -> 83,773, +56 %; lib:008d43e5db48 2501 -> 7904 on 370
+#: pages of ordinary German prose.
+#:
+#: The body edge is the MOST FREQUENT edge of its column, not the rightmost.
+#: `_body_edges` has those counts in `recurring` and discards them, so the
+#: real fix carries them through -- which is a change to what that function
+#: returns and to everything that unpacks it, not a change here.
+#:
+#: These stay as xfail so the target is not lost and nobody re-pushes the
+#: rightmost rule.
+pytestmark = pytest.mark.xfail(strict=False, reason=(
+    "hanging indent not implemented: 9255c818 inverted the ordinary indent "
+    "and was reverted; needs the per-edge line counts from _body_edges"))
 
 #: 0864 p5 exactly as `_body_edges` returns it.
 EDGES = {5: ([192.0, 224.0, 1136.0], 32.0, [])}

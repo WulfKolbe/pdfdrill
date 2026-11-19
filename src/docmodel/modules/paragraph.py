@@ -101,51 +101,12 @@ def _is_first_line(x, page, edges: dict) -> bool:
     if x is None or page not in edges:
         return False
     cols, em, _gutters = edges[page]
-    if not cols or not em:
+    at_or_left = [e for e in cols if e <= x + em * 0.5]
+    if not at_or_left:
         return False
-    body = _column_body_edge(float(x), cols, em)
-    if body is None:
+    if (float(x) - at_or_left[-1]) <= em:
         return False
-    off = float(x) - body
-    #: RIGHT of the body edge by an em: an ordinary first-line indent.
-    if off > em:
-        return True
-    #: LEFT of it by three quarters of an em: a HANGING indent, which is what
-    #: a bibliography uses and which says "an entry begins here" just as
-    #: plainly. 0864 p5 sets its references that way and all 54 of the left
-    #: column's lines became one Paragraph without this.
-    return off < -0.75 * em
-
-
-def _column_body_edge(x: float, cols: list, em: float):
-    r"""The edge of the column `x` belongs to, which is that column's RIGHTMOST.
-
-    A column may own TWO edges. A hanging indent gives one where entries begin
-    and one an em to its right where they continue, and the continuations are
-    the more frequent, so both survive `_body_edges`: 0864 p5 returns
-    192, 224 and 1136 with an em of 32 -- the left column's pair and the right
-    column's single edge.
-
-    The BODY edge is the rightmost of a column's own, because that is where
-    running text sits; the other is the indent. Grouping by a gap of more than
-    two em keeps the columns apart, which is what stops a right-column line at
-    1097 being measured against the left column's 224 and read as an indent of
-    twenty-seven em. That measurement is how the right column of 0864 p5 came
-    out split correctly while the left column welded: by accident, against the
-    wrong column.
-    """
-    groups: list[list[float]] = []
-    for e in sorted(cols):
-        if groups and e - groups[-1][-1] <= 2.0 * em:
-            groups[-1].append(e)
-        else:
-            groups.append([e])
-    best = None
-    for g in groups:
-        d = min(abs(e - x) for e in g)
-        if best is None or d < best[0]:
-            best = (d, max(g))
-    return best[1] if best else None
+    return True
 
 class ParagraphProcessor(BaseModule):
     def find_items(self, doc: Document) -> list[dict[str, Any]]:
