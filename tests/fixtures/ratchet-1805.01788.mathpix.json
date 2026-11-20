@@ -1,0 +1,3301 @@
+{
+ "pages": [
+  {
+   "image_id": "b3b5815d-f0a2-43b2-ae84-1e3b9e059c8a-08",
+   "page": 8,
+   "lines": [
+    {
+     "cnt": [
+      [
+       185,
+       204
+      ],
+      [
+       787,
+       204
+      ],
+      [
+       787,
+       241
+      ],
+      [
+       185,
+       241
+      ]
+     ],
+     "region": {
+      "top_left_x": 185,
+      "top_left_y": 204,
+      "width": 602,
+      "height": 37
+     },
+     "line": 1,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "c673dc796f124b20a9f320273b08637c",
+     "type": "page_info",
+     "conversion_output": false,
+     "text": "SIGIR '18, July 8-12, 2018, Ann Arbor, MI, USA",
+     "text_display": "",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1201,
+       204
+      ],
+      [
+       1942,
+       204
+      ],
+      [
+       1942,
+       241
+      ],
+      [
+       1201,
+       241
+      ]
+     ],
+     "region": {
+      "top_left_x": 1201,
+      "top_left_y": 204,
+      "width": 741,
+      "height": 37
+     },
+     "line": 2,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "32df2f130c0a4c70b417e678b4fce63c",
+     "type": "page_info",
+     "conversion_output": false,
+     "text": "Asia J. Biega, Krishna P. Gummadi, and Gerhard Weikum",
+     "text_display": "",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       183,
+       299
+      ],
+      [
+       716,
+       299
+      ],
+      [
+       716,
+       1330
+      ],
+      [
+       183,
+       1330
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 299,
+      "width": 533,
+      "height": 1031
+     },
+     "line": 3,
+     "column": 0,
+     "font_size": 21,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "8a92178e51864f84bd3f49c3984da74f",
+     "type": "column",
+     "conversion_output": false,
+     "children_ids": [
+      "5600a5a8a0414103bb276cf24049bb8e",
+      "66ed5b832c574bed8ac7564b0f1b7b56",
+      "8fb31c092b4244a789f4e578dcc096b7",
+      "2a241d8072b846f0920b69d5e68804ea"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       196,
+       299
+      ],
+      [
+       705,
+       299
+      ],
+      [
+       705,
+       677
+      ],
+      [
+       196,
+       677
+      ]
+     ],
+     "region": {
+      "top_left_x": 196,
+      "top_left_y": 299,
+      "width": 509,
+      "height": 378
+     },
+     "line": 4,
+     "column": 1,
+     "font_size": 14,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "5600a5a8a0414103bb276cf24049bb8e",
+     "type": "chart",
+     "conversion_output": true,
+     "parent_id": "8a92178e51864f84bd3f49c3984da74f",
+     "selected_labels": [
+      "66ed5b832c574bed8ac7564b0f1b7b56"
+     ],
+     "text": "",
+     "text_display": "\n\n\\begin{figure}\n\\includegraphics[alt={},max width=\\textwidth]{https://cdn.mathpix.com/cropped/b3b5815d-f0a2-43b2-ae84-1e3b9e059c8a-08.jpg?height=378&width=509&top_left_y=299&top_left_x=196}\n\\captionsetup{labelformat=empty}\n\\caption{Figure 3: Model performance on the synthetic Uniform dataset. Attention singular.}\n\\end{figure}",
+     "subtype": "line"
+    },
+    {
+     "cnt": [
+      [
+       183,
+       696
+      ],
+      [
+       716,
+       696
+      ],
+      [
+       716,
+       808
+      ],
+      [
+       183,
+       808
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 696,
+      "width": 533,
+      "height": 112
+     },
+     "line": 5,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "66ed5b832c574bed8ac7564b0f1b7b56",
+     "type": "figure_label",
+     "conversion_output": false,
+     "parent_id": "8a92178e51864f84bd3f49c3984da74f",
+     "children_ids": [
+      "ce941a6dc98c47118839933514e0b281",
+      "915ec145cdb6499b997afa89f58a69f4",
+      "e05c1882adc54b10b46609244c685185"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       183,
+       696
+      ],
+      [
+       716,
+       696
+      ],
+      [
+       716,
+       733
+      ],
+      [
+       183,
+       733
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 696,
+      "width": 533,
+      "height": 37
+     },
+     "line": 6,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "ce941a6dc98c47118839933514e0b281",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "66ed5b832c574bed8ac7564b0f1b7b56",
+     "text": "Figure 3: Model performance on the",
+     "text_display": "",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       185,
+       735
+      ],
+      [
+       716,
+       735
+      ],
+      [
+       716,
+       769
+      ],
+      [
+       185,
+       769
+      ]
+     ],
+     "region": {
+      "top_left_x": 185,
+      "top_left_y": 735,
+      "width": 531,
+      "height": 34
+     },
+     "line": 7,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "915ec145cdb6499b997afa89f58a69f4",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "66ed5b832c574bed8ac7564b0f1b7b56",
+     "text": "synthetic Uniform dataset. Attention",
+     "text_display": "",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       185,
+       771
+      ],
+      [
+       312,
+       771
+      ],
+      [
+       312,
+       808
+      ],
+      [
+       185,
+       808
+      ]
+     ],
+     "region": {
+      "top_left_x": 185,
+      "top_left_y": 771,
+      "width": 127,
+      "height": 37
+     },
+     "line": 8,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "e05c1882adc54b10b46609244c685185",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "66ed5b832c574bed8ac7564b0f1b7b56",
+     "text": "singular.",
+     "text_display": "",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       193,
+       821
+      ],
+      [
+       704,
+       821
+      ],
+      [
+       704,
+       1199
+      ],
+      [
+       193,
+       1199
+      ]
+     ],
+     "region": {
+      "top_left_x": 193,
+      "top_left_y": 821,
+      "width": 511,
+      "height": 378
+     },
+     "line": 9,
+     "column": 1,
+     "font_size": 14,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "8fb31c092b4244a789f4e578dcc096b7",
+     "type": "chart",
+     "conversion_output": true,
+     "parent_id": "8a92178e51864f84bd3f49c3984da74f",
+     "selected_labels": [
+      "2a241d8072b846f0920b69d5e68804ea"
+     ],
+     "text": "",
+     "text_display": "\n\n\\begin{figure}\n\\includegraphics[alt={},max width=\\textwidth]{https://cdn.mathpix.com/cropped/b3b5815d-f0a2-43b2-ae84-1e3b9e059c8a-08.jpg?height=378&width=511&top_left_y=821&top_left_x=193}\n\\captionsetup{labelformat=empty}\n\\caption{Figure 6: Model performance on the synthetic Uniform dataset. Attention geometric.}\n\\end{figure}",
+     "subtype": "line"
+    },
+    {
+     "cnt": [
+      [
+       183,
+       1216
+      ],
+      [
+       716,
+       1216
+      ],
+      [
+       716,
+       1330
+      ],
+      [
+       183,
+       1330
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 1216,
+      "width": 533,
+      "height": 114
+     },
+     "line": 10,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "2a241d8072b846f0920b69d5e68804ea",
+     "type": "figure_label",
+     "conversion_output": false,
+     "parent_id": "8a92178e51864f84bd3f49c3984da74f",
+     "children_ids": [
+      "3cedab5df4864687a2a7a2008648af59",
+      "3cc1c3cab7aa4df39c49665e14863858",
+      "47ec7b2f9cff4899a78aa64155ced67d"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       183,
+       1216
+      ],
+      [
+       716,
+       1216
+      ],
+      [
+       716,
+       1255
+      ],
+      [
+       183,
+       1255
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 1216,
+      "width": 533,
+      "height": 39
+     },
+     "line": 11,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "3cedab5df4864687a2a7a2008648af59",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "2a241d8072b846f0920b69d5e68804ea",
+     "text": "Figure 6: Model performance on the",
+     "text_display": "",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       185,
+       1255
+      ],
+      [
+       716,
+       1255
+      ],
+      [
+       716,
+       1294
+      ],
+      [
+       185,
+       1294
+      ]
+     ],
+     "region": {
+      "top_left_x": 185,
+      "top_left_y": 1255,
+      "width": 531,
+      "height": 39
+     },
+     "line": 12,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "3cc1c3cab7aa4df39c49665e14863858",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "2a241d8072b846f0920b69d5e68804ea",
+     "text": "synthetic Uniform dataset. Attention",
+     "text_display": "",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       183,
+       1296
+      ],
+      [
+       338,
+       1296
+      ],
+      [
+       338,
+       1330
+      ],
+      [
+       183,
+       1330
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 1296,
+      "width": 155,
+      "height": 34
+     },
+     "line": 13,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "47ec7b2f9cff4899a78aa64155ced67d",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "2a241d8072b846f0920b69d5e68804ea",
+     "text": "geometric.",
+     "text_display": "",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       795,
+       299
+      ],
+      [
+       1328,
+       299
+      ],
+      [
+       1328,
+       1330
+      ],
+      [
+       795,
+       1330
+      ]
+     ],
+     "region": {
+      "top_left_x": 795,
+      "top_left_y": 299,
+      "width": 533,
+      "height": 1031
+     },
+     "line": 14,
+     "column": 0,
+     "font_size": 21,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "fa511cc5dc984984868c736a842e5359",
+     "type": "column",
+     "conversion_output": false,
+     "children_ids": [
+      "c638233ab8504217aaa03c6b0e2fc19e",
+      "8bd274a8e426430db7f92b7d7ce4d210",
+      "27379f5929964852ba140882304cc329",
+      "08748e64299641fb9c574e2a969386b7"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       808,
+       299
+      ],
+      [
+       1319,
+       299
+      ],
+      [
+       1319,
+       675
+      ],
+      [
+       808,
+       675
+      ]
+     ],
+     "region": {
+      "top_left_x": 808,
+      "top_left_y": 299,
+      "width": 511,
+      "height": 376
+     },
+     "line": 15,
+     "column": 2,
+     "font_size": 14,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "c638233ab8504217aaa03c6b0e2fc19e",
+     "type": "chart",
+     "conversion_output": true,
+     "parent_id": "fa511cc5dc984984868c736a842e5359",
+     "selected_labels": [
+      "8bd274a8e426430db7f92b7d7ce4d210"
+     ],
+     "text": "",
+     "text_display": "\n\n\\begin{figure}\n\\includegraphics[alt={},max width=\\textwidth]{https://cdn.mathpix.com/cropped/b3b5815d-f0a2-43b2-ae84-1e3b9e059c8a-08.jpg?height=376&width=511&top_left_y=299&top_left_x=808}\n\\captionsetup{labelformat=empty}\n\\caption{Figure 4: Model performance on the synthetic Linear dataset. Attention singular.}\n\\end{figure}",
+     "subtype": "line"
+    },
+    {
+     "cnt": [
+      [
+       795,
+       696
+      ],
+      [
+       1328,
+       696
+      ],
+      [
+       1328,
+       808
+      ],
+      [
+       795,
+       808
+      ]
+     ],
+     "region": {
+      "top_left_x": 795,
+      "top_left_y": 696,
+      "width": 533,
+      "height": 112
+     },
+     "line": 16,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "8bd274a8e426430db7f92b7d7ce4d210",
+     "type": "figure_label",
+     "conversion_output": false,
+     "parent_id": "fa511cc5dc984984868c736a842e5359",
+     "children_ids": [
+      "91e5f10a505e44ad8bf0073cac8ffced",
+      "bd90e33bcc5740dcacfc03148b02e4a2",
+      "168952812cc04f5eae26d2aa740663e2"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       795,
+       696
+      ],
+      [
+       1328,
+       696
+      ],
+      [
+       1328,
+       733
+      ],
+      [
+       795,
+       733
+      ]
+     ],
+     "region": {
+      "top_left_x": 795,
+      "top_left_y": 696,
+      "width": 533,
+      "height": 37
+     },
+     "line": 17,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "91e5f10a505e44ad8bf0073cac8ffced",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "8bd274a8e426430db7f92b7d7ce4d210",
+     "text": "Figure 4: Model performance on the",
+     "text_display": "",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       797,
+       735
+      ],
+      [
+       1328,
+       735
+      ],
+      [
+       1328,
+       769
+      ],
+      [
+       797,
+       769
+      ]
+     ],
+     "region": {
+      "top_left_x": 797,
+      "top_left_y": 735,
+      "width": 531,
+      "height": 34
+     },
+     "line": 18,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "bd90e33bcc5740dcacfc03148b02e4a2",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "8bd274a8e426430db7f92b7d7ce4d210",
+     "text": "synthetic Linear dataset. Attention",
+     "text_display": "",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       797,
+       771
+      ],
+      [
+       924,
+       771
+      ],
+      [
+       924,
+       808
+      ],
+      [
+       797,
+       808
+      ]
+     ],
+     "region": {
+      "top_left_x": 797,
+      "top_left_y": 771,
+      "width": 127,
+      "height": 37
+     },
+     "line": 19,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "168952812cc04f5eae26d2aa740663e2",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "8bd274a8e426430db7f92b7d7ce4d210",
+     "text": "singular.",
+     "text_display": "",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       806,
+       821
+      ],
+      [
+       1319,
+       821
+      ],
+      [
+       1319,
+       1199
+      ],
+      [
+       806,
+       1199
+      ]
+     ],
+     "region": {
+      "top_left_x": 806,
+      "top_left_y": 821,
+      "width": 513,
+      "height": 378
+     },
+     "line": 20,
+     "column": 2,
+     "font_size": 14,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "27379f5929964852ba140882304cc329",
+     "type": "chart",
+     "conversion_output": true,
+     "parent_id": "fa511cc5dc984984868c736a842e5359",
+     "selected_labels": [
+      "08748e64299641fb9c574e2a969386b7"
+     ],
+     "text": "",
+     "text_display": "\n\n\\begin{figure}\n\\includegraphics[alt={},max width=\\textwidth]{https://cdn.mathpix.com/cropped/b3b5815d-f0a2-43b2-ae84-1e3b9e059c8a-08.jpg?height=378&width=513&top_left_y=821&top_left_x=806}\n\\captionsetup{labelformat=empty}\n\\caption{Figure 7: Model performance on the synthetic Linear dataset. Attention geometric.}\n\\end{figure}",
+     "subtype": "line"
+    },
+    {
+     "cnt": [
+      [
+       795,
+       1216
+      ],
+      [
+       1328,
+       1216
+      ],
+      [
+       1328,
+       1330
+      ],
+      [
+       795,
+       1330
+      ]
+     ],
+     "region": {
+      "top_left_x": 795,
+      "top_left_y": 1216,
+      "width": 533,
+      "height": 114
+     },
+     "line": 21,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "08748e64299641fb9c574e2a969386b7",
+     "type": "figure_label",
+     "conversion_output": false,
+     "parent_id": "fa511cc5dc984984868c736a842e5359",
+     "children_ids": [
+      "7e684c046f914e218bdc84343a002ab2",
+      "ecb3389169bb482ca68954e05b30b640",
+      "8d09623f6e94468fb037a86c7b050acb"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       795,
+       1216
+      ],
+      [
+       1328,
+       1216
+      ],
+      [
+       1328,
+       1255
+      ],
+      [
+       795,
+       1255
+      ]
+     ],
+     "region": {
+      "top_left_x": 795,
+      "top_left_y": 1216,
+      "width": 533,
+      "height": 39
+     },
+     "line": 22,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "7e684c046f914e218bdc84343a002ab2",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "08748e64299641fb9c574e2a969386b7",
+     "text": "Figure 7: Model performance on the",
+     "text_display": "",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       797,
+       1255
+      ],
+      [
+       1328,
+       1255
+      ],
+      [
+       1328,
+       1292
+      ],
+      [
+       797,
+       1292
+      ]
+     ],
+     "region": {
+      "top_left_x": 797,
+      "top_left_y": 1255,
+      "width": 531,
+      "height": 37
+     },
+     "line": 23,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "ecb3389169bb482ca68954e05b30b640",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "08748e64299641fb9c574e2a969386b7",
+     "text": "synthetic Linear dataset. Attention",
+     "text_display": "",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       797,
+       1296
+      ],
+      [
+       950,
+       1296
+      ],
+      [
+       950,
+       1330
+      ],
+      [
+       797,
+       1330
+      ]
+     ],
+     "region": {
+      "top_left_x": 797,
+      "top_left_y": 1296,
+      "width": 153,
+      "height": 34
+     },
+     "line": 24,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "8d09623f6e94468fb037a86c7b050acb",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "08748e64299641fb9c574e2a969386b7",
+     "text": "geometric.",
+     "text_display": "",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1409,
+       299
+      ],
+      [
+       1946,
+       299
+      ],
+      [
+       1946,
+       1332
+      ],
+      [
+       1409,
+       1332
+      ]
+     ],
+     "region": {
+      "top_left_x": 1409,
+      "top_left_y": 299,
+      "width": 537,
+      "height": 1033
+     },
+     "line": 25,
+     "column": 0,
+     "font_size": 21,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "f5b568f6a0a94fd7a80b85776ec5ea4a",
+     "type": "column",
+     "conversion_output": false,
+     "children_ids": [
+      "de970ad0ee374ebaaad349ac05e7a805",
+      "48182f2532874ed58ab78c09acbfc838",
+      "4e142023a6b44b6480900bb0444eac32",
+      "7c56971ee1a047c28c1431051e7c8daa"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       1422,
+       299
+      ],
+      [
+       1929,
+       299
+      ],
+      [
+       1929,
+       675
+      ],
+      [
+       1422,
+       675
+      ]
+     ],
+     "region": {
+      "top_left_x": 1422,
+      "top_left_y": 299,
+      "width": 507,
+      "height": 376
+     },
+     "line": 26,
+     "column": 3,
+     "font_size": 14,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "de970ad0ee374ebaaad349ac05e7a805",
+     "type": "chart",
+     "conversion_output": true,
+     "parent_id": "f5b568f6a0a94fd7a80b85776ec5ea4a",
+     "selected_labels": [
+      "48182f2532874ed58ab78c09acbfc838"
+     ],
+     "text": "",
+     "text_display": "\n\n\\begin{figure}\n\\includegraphics[alt={},max width=\\textwidth]{https://cdn.mathpix.com/cropped/b3b5815d-f0a2-43b2-ae84-1e3b9e059c8a-08.jpg?height=376&width=507&top_left_y=299&top_left_x=1422}\n\\captionsetup{labelformat=empty}\n\\caption{Figure 5: Model performance on the synthetic Exponential dataset. Attention singular.}\n\\end{figure}",
+     "subtype": "line"
+    },
+    {
+     "cnt": [
+      [
+       1409,
+       696
+      ],
+      [
+       1946,
+       696
+      ],
+      [
+       1946,
+       807
+      ],
+      [
+       1409,
+       807
+      ]
+     ],
+     "region": {
+      "top_left_x": 1409,
+      "top_left_y": 696,
+      "width": 537,
+      "height": 111
+     },
+     "line": 27,
+     "column": 3,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "48182f2532874ed58ab78c09acbfc838",
+     "type": "figure_label",
+     "conversion_output": false,
+     "parent_id": "f5b568f6a0a94fd7a80b85776ec5ea4a",
+     "children_ids": [
+      "1735c4ec009848b2872006a2ad0244d4",
+      "bc50d8ace95145a9ad4874a0d42359b8",
+      "79fb10905566496c85f0b4cfdca26232"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       1409,
+       696
+      ],
+      [
+       1942,
+       696
+      ],
+      [
+       1942,
+       733
+      ],
+      [
+       1409,
+       733
+      ]
+     ],
+     "region": {
+      "top_left_x": 1409,
+      "top_left_y": 696,
+      "width": 533,
+      "height": 37
+     },
+     "line": 28,
+     "column": 3,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "1735c4ec009848b2872006a2ad0244d4",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "48182f2532874ed58ab78c09acbfc838",
+     "text": "Figure 5: Model performance on the",
+     "text_display": "",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1409,
+       735
+      ],
+      [
+       1946,
+       735
+      ],
+      [
+       1946,
+       769
+      ],
+      [
+       1409,
+       769
+      ]
+     ],
+     "region": {
+      "top_left_x": 1409,
+      "top_left_y": 735,
+      "width": 537,
+      "height": 34
+     },
+     "line": 29,
+     "column": 3,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "bc50d8ace95145a9ad4874a0d42359b8",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "48182f2532874ed58ab78c09acbfc838",
+     "text": "synthetic Exponential dataset. Atten-",
+     "text_display": "",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1409,
+       773
+      ],
+      [
+       1602,
+       773
+      ],
+      [
+       1602,
+       807
+      ],
+      [
+       1409,
+       807
+      ]
+     ],
+     "region": {
+      "top_left_x": 1409,
+      "top_left_y": 773,
+      "width": 193,
+      "height": 34
+     },
+     "line": 30,
+     "column": 3,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "79fb10905566496c85f0b4cfdca26232",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "48182f2532874ed58ab78c09acbfc838",
+     "text": "tion singular.",
+     "text_display": "",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1422,
+       821
+      ],
+      [
+       1929,
+       821
+      ],
+      [
+       1929,
+       1197
+      ],
+      [
+       1422,
+       1197
+      ]
+     ],
+     "region": {
+      "top_left_x": 1422,
+      "top_left_y": 821,
+      "width": 507,
+      "height": 376
+     },
+     "line": 31,
+     "column": 3,
+     "font_size": 14,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "4e142023a6b44b6480900bb0444eac32",
+     "type": "chart",
+     "conversion_output": true,
+     "parent_id": "f5b568f6a0a94fd7a80b85776ec5ea4a",
+     "selected_labels": [
+      "7c56971ee1a047c28c1431051e7c8daa"
+     ],
+     "text": "",
+     "text_display": "\n\n\\begin{figure}\n\\includegraphics[alt={},max width=\\textwidth]{https://cdn.mathpix.com/cropped/b3b5815d-f0a2-43b2-ae84-1e3b9e059c8a-08.jpg?height=376&width=507&top_left_y=821&top_left_x=1422}\n\\captionsetup{labelformat=empty}\n\\caption{Figure 8: Model performance on the synthetic Exponential dataset. Attention geometric.}\n\\end{figure}",
+     "subtype": "line"
+    },
+    {
+     "cnt": [
+      [
+       1409,
+       1216
+      ],
+      [
+       1946,
+       1216
+      ],
+      [
+       1946,
+       1332
+      ],
+      [
+       1409,
+       1332
+      ]
+     ],
+     "region": {
+      "top_left_x": 1409,
+      "top_left_y": 1216,
+      "width": 537,
+      "height": 116
+     },
+     "line": 32,
+     "column": 3,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "7c56971ee1a047c28c1431051e7c8daa",
+     "type": "figure_label",
+     "conversion_output": false,
+     "parent_id": "f5b568f6a0a94fd7a80b85776ec5ea4a",
+     "children_ids": [
+      "a1735cb86dc848d1a7a28f3ca2ee6731",
+      "32f61ff0ab5343eb83981bf9b4fe7ba6",
+      "78461d8c6b8a44b9aa12d62a69aefed0"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       1409,
+       1216
+      ],
+      [
+       1942,
+       1216
+      ],
+      [
+       1942,
+       1255
+      ],
+      [
+       1409,
+       1255
+      ]
+     ],
+     "region": {
+      "top_left_x": 1409,
+      "top_left_y": 1216,
+      "width": 533,
+      "height": 39
+     },
+     "line": 33,
+     "column": 3,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "a1735cb86dc848d1a7a28f3ca2ee6731",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "7c56971ee1a047c28c1431051e7c8daa",
+     "text": "Figure 8: Model performance on the",
+     "text_display": "",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1409,
+       1255
+      ],
+      [
+       1946,
+       1255
+      ],
+      [
+       1946,
+       1294
+      ],
+      [
+       1409,
+       1294
+      ]
+     ],
+     "region": {
+      "top_left_x": 1409,
+      "top_left_y": 1255,
+      "width": 537,
+      "height": 39
+     },
+     "line": 34,
+     "column": 3,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "32f61ff0ab5343eb83981bf9b4fe7ba6",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "7c56971ee1a047c28c1431051e7c8daa",
+     "text": "synthetic Exponential dataset. Atten-",
+     "text_display": "",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1409,
+       1293
+      ],
+      [
+       1628,
+       1293
+      ],
+      [
+       1628,
+       1332
+      ],
+      [
+       1409,
+       1332
+      ]
+     ],
+     "region": {
+      "top_left_x": 1409,
+      "top_left_y": 1293,
+      "width": 219,
+      "height": 39
+     },
+     "line": 35,
+     "column": 3,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "78461d8c6b8a44b9aa12d62a69aefed0",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "7c56971ee1a047c28c1431051e7c8daa",
+     "text": "tion geometric.",
+     "text_display": "",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       183,
+       1392
+      ],
+      [
+       1029,
+       1392
+      ],
+      [
+       1029,
+       2454
+      ],
+      [
+       183,
+       2454
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 1392,
+      "width": 846,
+      "height": 1062
+     },
+     "line": 36,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "9b16aa80855d4b8f8bd40d86f50d5a9c",
+     "type": "column",
+     "conversion_output": false,
+     "children_ids": [
+      "b6f74a3305714de08cf1aa16baad0d65",
+      "115286b2708c4a86a472431bbd0d62a5",
+      "bb1608dc4e784329807697a1ace36de4",
+      "efa6709bca5c4f879b2b2248797d998b",
+      "d488888f44974b58b5be65fa9b5e5b4c",
+      "aa65c2fc5d7a47a0991e1ac68df25c8a",
+      "45c6b8b210b74d30afb4d80222c4e73b",
+      "75bdb4f1b9184cc194eb47725b288f20",
+      "960c19f66ec948e7a3cd33329913e617",
+      "f93fec3cfe234402b9f625e2f8ec5ed6",
+      "5db3881a32e44897ab81eea20696b9c4",
+      "d8d41916b70f465ba2cd0ecdf95a4fa0",
+      "9f09b89d9b47463e9cdfabcb18efc02d",
+      "4fbeb3df5644477e97402819e4c6e3a7"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       185,
+       1392
+      ],
+      [
+       1029,
+       1392
+      ],
+      [
+       1029,
+       1429
+      ],
+      [
+       185,
+       1429
+      ]
+     ],
+     "region": {
+      "top_left_x": 185,
+      "top_left_y": 1392,
+      "width": 844,
+      "height": 37
+     },
+     "line": 37,
+     "column": 4,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "b6f74a3305714de08cf1aa16baad0d65",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "9b16aa80855d4b8f8bd40d86f50d5a9c",
+     "text": "on the Boston dataset under the Singular attention model in Fig-",
+     "text_display": "\non the Boston dataset under the Singular attention model in Fig",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       183,
+       1431
+      ],
+      [
+       1025,
+       1431
+      ],
+      [
+       1025,
+       1463
+      ],
+      [
+       183,
+       1463
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 1431,
+      "width": 842,
+      "height": 32
+     },
+     "line": 38,
+     "column": 4,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "115286b2708c4a86a472431bbd0d62a5",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "9b16aa80855d4b8f8bd40d86f50d5a9c",
+     "text": "ure 17. The results confirm that the actual loss is often lower than",
+     "text_display": "ure 17. The results confirm that the actual loss is often lower than",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       183,
+       1467
+      ],
+      [
+       1025,
+       1467
+      ],
+      [
+       1025,
+       1504
+      ],
+      [
+       183,
+       1504
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 1467,
+      "width": 842,
+      "height": 37
+     },
+     "line": 39,
+     "column": 4,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "bb1608dc4e784329807697a1ace36de4",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "9b16aa80855d4b8f8bd40d86f50d5a9c",
+     "text": "the threshold enforced by the ILP. Observe that NDCG-quality is 1",
+     "text_display": " the threshold enforced by the ILP. Observe that NDCG-quality is 1",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       183,
+       1506
+      ],
+      [
+       1025,
+       1506
+      ],
+      [
+       1025,
+       1538
+      ],
+      [
+       183,
+       1538
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 1506,
+      "width": 842,
+      "height": 32
+     },
+     "line": 40,
+     "column": 4,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "efa6709bca5c4f879b2b2248797d998b",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "9b16aa80855d4b8f8bd40d86f50d5a9c",
+     "text": "for a number of initial iterations in all the methods. This is where",
+     "text_display": " for a number of initial iterations in all the methods. This is where",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       183,
+       1543
+      ],
+      [
+       1025,
+       1543
+      ],
+      [
+       1025,
+       1582
+      ],
+      [
+       183,
+       1582
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 1543,
+      "width": 842,
+      "height": 39
+     },
+     "line": 41,
+     "column": 4,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "d488888f44974b58b5be65fa9b5e5b4c",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "9b16aa80855d4b8f8bd40d86f50d5a9c",
+     "text": "reshuffling of the top ties happens. The quality starts decreasing",
+     "text_display": " reshuffling of the top ties happens. The quality starts decreasing",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       185,
+       1581
+      ],
+      [
+       1025,
+       1581
+      ],
+      [
+       1025,
+       1618
+      ],
+      [
+       185,
+       1618
+      ]
+     ],
+     "region": {
+      "top_left_x": 185,
+      "top_left_y": 1581,
+      "width": 840,
+      "height": 37
+     },
+     "line": 42,
+     "column": 4,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "aa65c2fc5d7a47a0991e1ac68df25c8a",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "9b16aa80855d4b8f8bd40d86f50d5a9c",
+     "text": "as less relevant subjects gather enough deserved attention, and",
+     "text_display": " as less relevant subjects gather enough deserved attention, and",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       183,
+       1620
+      ],
+      [
+       1027,
+       1620
+      ],
+      [
+       1027,
+       1657
+      ],
+      [
+       183,
+       1657
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 1620,
+      "width": 844,
+      "height": 37
+     },
+     "line": 43,
+     "column": 4,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "45c6b8b210b74d30afb4d80222c4e73b",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "9b16aa80855d4b8f8bd40d86f50d5a9c",
+     "text": "periodically goes back to 1, when the top-relevant subjects gain",
+     "text_display": " periodically goes back to 1, when the top-relevant subjects gain",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       183,
+       1659
+      ],
+      [
+       1025,
+       1659
+      ],
+      [
+       1025,
+       1693
+      ],
+      [
+       183,
+       1693
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 1659,
+      "width": 842,
+      "height": 34
+     },
+     "line": 44,
+     "column": 4,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "75bdb4f1b9184cc194eb47725b288f20",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "9b16aa80855d4b8f8bd40d86f50d5a9c",
+     "text": "priority again. Similar conclusions regarding the absolute loss hold",
+     "text_display": " priority again. Similar conclusions regarding the absolute loss hold",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       185,
+       1697
+      ],
+      [
+       765,
+       1697
+      ],
+      [
+       765,
+       1731
+      ],
+      [
+       185,
+       1731
+      ]
+     ],
+     "region": {
+      "top_left_x": 185,
+      "top_left_y": 1697,
+      "width": 580,
+      "height": 34
+     },
+     "line": 45,
+     "column": 4,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "960c19f66ec948e7a3cd33329913e617",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "9b16aa80855d4b8f8bd40d86f50d5a9c",
+     "text": "under the general geometric attention model.",
+     "text_display": " under the general geometric attention model.",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       183,
+       1766
+      ],
+      [
+       905,
+       1766
+      ],
+      [
+       905,
+       1809
+      ],
+      [
+       183,
+       1809
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 1766,
+      "width": 722,
+      "height": 43
+     },
+     "line": 46,
+     "column": 4,
+     "font_size": 35,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "f93fec3cfe234402b9f625e2f8ec5ed6",
+     "type": "section_header",
+     "conversion_output": true,
+     "parent_id": "9b16aa80855d4b8f8bd40d86f50d5a9c",
+     "text": "4.8 Performance on StackExchange data",
+     "text_display": "\n\n\\subsection*{4.8 Performance on StackExchange data}",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       183,
+       1820
+      ],
+      [
+       1025,
+       1820
+      ],
+      [
+       1025,
+       1857
+      ],
+      [
+       183,
+       1857
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 1820,
+      "width": 842,
+      "height": 37
+     },
+     "line": 47,
+     "column": 4,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "5db3881a32e44897ab81eea20696b9c4",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "9b16aa80855d4b8f8bd40d86f50d5a9c",
+     "text": "The relative trends in the performance of our method are the same",
+     "text_display": "\n\nThe relative trends in the performance of our method are the same",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       183,
+       1856
+      ],
+      [
+       1025,
+       1856
+      ],
+      [
+       1025,
+       1890
+      ],
+      [
+       183,
+       1890
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 1856,
+      "width": 842,
+      "height": 34
+     },
+     "line": 48,
+     "column": 4,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "d8d41916b70f465ba2cd0ecdf95a4fa0",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "9b16aa80855d4b8f8bd40d86f50d5a9c",
+     "text": "here as in the results for other datasets. One of the characteristics",
+     "text_display": " here as in the results for other datasets. One of the characteristics",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       339,
+       1901
+      ],
+      [
+       863,
+       1901
+      ],
+      [
+       863,
+       2290
+      ],
+      [
+       339,
+       2290
+      ]
+     ],
+     "region": {
+      "top_left_x": 339,
+      "top_left_y": 1901,
+      "width": 524,
+      "height": 389
+     },
+     "line": 49,
+     "column": 4,
+     "font_size": 14,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "9f09b89d9b47463e9cdfabcb18efc02d",
+     "type": "chart",
+     "conversion_output": true,
+     "parent_id": "9b16aa80855d4b8f8bd40d86f50d5a9c",
+     "selected_labels": [
+      "4fbeb3df5644477e97402819e4c6e3a7"
+     ],
+     "text": "",
+     "text_display": "\n\n\\begin{figure}\n\\includegraphics[alt={},max width=\\textwidth]{https://cdn.mathpix.com/cropped/b3b5815d-f0a2-43b2-ae84-1e3b9e059c8a-08.jpg?height=389&width=524&top_left_y=1901&top_left_x=339}\n\\captionsetup{labelformat=empty}\n\\caption{Figure 9: Performance of the Objective heuristic on the synthetic Uniform dataset under the geometric attention model with different attention cut-off points.}\n\\end{figure}",
+     "subtype": "line"
+    },
+    {
+     "cnt": [
+      [
+       183,
+       2342
+      ],
+      [
+       1029,
+       2342
+      ],
+      [
+       1029,
+       2454
+      ],
+      [
+       183,
+       2454
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 2342,
+      "width": 846,
+      "height": 112
+     },
+     "line": 50,
+     "column": 4,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "4fbeb3df5644477e97402819e4c6e3a7",
+     "type": "figure_label",
+     "conversion_output": false,
+     "parent_id": "9b16aa80855d4b8f8bd40d86f50d5a9c",
+     "children_ids": [
+      "7f460a3842614554bae9bae30859a8c7",
+      "965e6c95668544e8b7ceb253b723f030",
+      "a898336f6fe54648811adba264358e7e"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       183,
+       2342
+      ],
+      [
+       1029,
+       2342
+      ],
+      [
+       1029,
+       2379
+      ],
+      [
+       183,
+       2379
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 2342,
+      "width": 846,
+      "height": 37
+     },
+     "line": 51,
+     "column": 4,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "7f460a3842614554bae9bae30859a8c7",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "4fbeb3df5644477e97402819e4c6e3a7",
+     "text": "Figure 9: Performance of the Objective heuristic on the syn-",
+     "text_display": "",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       185,
+       2378
+      ],
+      [
+       1027,
+       2378
+      ],
+      [
+       1027,
+       2415
+      ],
+      [
+       185,
+       2415
+      ]
+     ],
+     "region": {
+      "top_left_x": 185,
+      "top_left_y": 2378,
+      "width": 842,
+      "height": 37
+     },
+     "line": 52,
+     "column": 4,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "965e6c95668544e8b7ceb253b723f030",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "4fbeb3df5644477e97402819e4c6e3a7",
+     "text": "thetic Uniform dataset under the geometric attention model",
+     "text_display": "",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       185,
+       2417
+      ],
+      [
+       729,
+       2417
+      ],
+      [
+       729,
+       2454
+      ],
+      [
+       185,
+       2454
+      ]
+     ],
+     "region": {
+      "top_left_x": 185,
+      "top_left_y": 2417,
+      "width": 544,
+      "height": 37
+     },
+     "line": 53,
+     "column": 4,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "a898336f6fe54648811adba264358e7e",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "4fbeb3df5644477e97402819e4c6e3a7",
+     "text": "with different attention cut-off points.",
+     "text_display": "",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       1392
+      ],
+      [
+       1946,
+       1392
+      ],
+      [
+       1946,
+       2467
+      ],
+      [
+       1100,
+       2467
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 1392,
+      "width": 846,
+      "height": 1075
+     },
+     "line": 54,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "06f1975ff0d84efeb138cf323d900c83",
+     "type": "column",
+     "conversion_output": false,
+     "children_ids": [
+      "bb10e2c3691240708c14d529839389a1",
+      "82fe93b5a2894344988f2fbff1710452",
+      "7aa8a6e121f2461b956069fcbfbbe77b",
+      "eca35d52f0914ec4af00f94cda0279d7",
+      "9f68f860a0a04c5a925af7c1e83c9c47",
+      "f6c62fdb9df74399a767382b2f4f4e54",
+      "aace06c8d2864c159a3a390b99600181",
+      "5d5ee2424bcd4fa9af9e77a1f62be098",
+      "3ffec34d2f444f70b503ad81b260c6d8",
+      "1c08263eff594e109f459c4c15d82f48",
+      "802bf77c4b934932b85b1bb7989c3e17",
+      "f3586d2110794f39ada2e54a493522a4",
+      "f453dfbd5a1a4abc807d00454ab5039d",
+      "49858941679240a4ba746c7a1596705a",
+      "3e2172d56f2841e6b7f8deb995839a89",
+      "adc715ca86494890945c6dd8853eebf6",
+      "afa30c6a81654f55a5f2fc70c2026c2d",
+      "697af2f09d7c4cf0893e43aac2d46db4",
+      "ab3b132dfc4745f7ac5217a9000ce5bd",
+      "33b22da51f814167a6e0cbe089db7987",
+      "83e364c746bd41968c8a64876186e91c",
+      "11dbea5347684b72bd797af5ecced1b7",
+      "ca7973c486df462197abebb98bf59153",
+      "15ba031b1cee414fa5364799c4d4163d",
+      "123c341490054da4ac0258da2773cbaa",
+      "ce6eb2800fe241468307d3a74c337086",
+      "d5a7ace7cbee48798d4e1eb50b9d6365"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       1392
+      ],
+      [
+       1942,
+       1392
+      ],
+      [
+       1942,
+       1426
+      ],
+      [
+       1100,
+       1426
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 1392,
+      "width": 842,
+      "height": 34
+     },
+     "line": 55,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "bb10e2c3691240708c14d529839389a1",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "that distinguish the StackExchange dataset is that each individual",
+     "text_display": " that distinguish the StackExchange dataset is that each individual",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       1431
+      ],
+      [
+       1946,
+       1431
+      ],
+      [
+       1946,
+       1465
+      ],
+      [
+       1100,
+       1465
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 1431,
+      "width": 846,
+      "height": 34
+     },
+     "line": 56,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "82fe93b5a2894344988f2fbff1710452",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "subject occurs in relatively few rankings. An observation that fol-",
+     "text_display": " subject occurs in relatively few rankings. An observation that fol",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       1470
+      ],
+      [
+       1942,
+       1470
+      ],
+      [
+       1942,
+       1504
+      ],
+      [
+       1100,
+       1504
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 1470,
+      "width": 842,
+      "height": 34
+     },
+     "line": 57,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "7aa8a6e121f2461b956069fcbfbbe77b",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "lows is that longer amortization timeframe is necessary under such",
+     "text_display": "lows is that longer amortization timeframe is necessary under such",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       1506
+      ],
+      [
+       1944,
+       1506
+      ],
+      [
+       1944,
+       1543
+      ],
+      [
+       1100,
+       1543
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 1506,
+      "width": 844,
+      "height": 37
+     },
+     "line": 58,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "eca35d52f0914ec4af00f94cda0279d7",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "conditions - a subject obviously needs to appear in a number of",
+     "text_display": " conditions - a subject obviously needs to appear in a number of",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       1543
+      ],
+      [
+       1942,
+       1543
+      ],
+      [
+       1942,
+       1582
+      ],
+      [
+       1100,
+       1582
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 1543,
+      "width": 842,
+      "height": 39
+     },
+     "line": 59,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "9f68f860a0a04c5a925af7c1e83c9c47",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "rankings so that the model can reposition them to fairly distribute",
+     "text_display": " rankings so that the model can reposition them to fairly distribute",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       1583
+      ],
+      [
+       1229,
+       1583
+      ],
+      [
+       1229,
+       1611
+      ],
+      [
+       1100,
+       1611
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 1583,
+      "width": 129,
+      "height": 28
+     },
+     "line": 60,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "f6c62fdb9df74399a767382b2f4f4e54",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "attention.",
+     "text_display": " attention.",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       1654
+      ],
+      [
+       1470,
+       1654
+      ],
+      [
+       1470,
+       1688
+      ],
+      [
+       1100,
+       1688
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 1654,
+      "width": 370,
+      "height": 34
+     },
+     "line": 61,
+     "column": 5,
+     "font_size": 35,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "aace06c8d2864c159a3a390b99600181",
+     "type": "section_header",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "5 RELATED WORK",
+     "text_display": "\n\n\\section*{5 RELATED WORK}",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       1706
+      ],
+      [
+       1942,
+       1706
+      ],
+      [
+       1942,
+       1743
+      ],
+      [
+       1100,
+       1743
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 1706,
+      "width": 842,
+      "height": 37
+     },
+     "line": 62,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "5d5ee2424bcd4fa9af9e77a1f62be098",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "Fairness. The growing ubiquity of data-driven learning models in",
+     "text_display": "\n\nFairness. The growing ubiquity of data-driven learning models in",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       1745
+      ],
+      [
+       1942,
+       1745
+      ],
+      [
+       1942,
+       1779
+      ],
+      [
+       1100,
+       1779
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 1745,
+      "width": 842,
+      "height": 34
+     },
+     "line": 63,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "3ffec34d2f444f70b503ad81b260c6d8",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "algorithmic decision-making has recently boosted concerns about",
+     "text_display": " algorithmic decision-making has recently boosted concerns about",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       1781
+      ],
+      [
+       1946,
+       1781
+      ],
+      [
+       1946,
+       1818
+      ],
+      [
+       1100,
+       1818
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 1781,
+      "width": 846,
+      "height": 37
+     },
+     "line": 64,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "1c08263eff594e109f459c4c15d82f48",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "the issues of fairness and bias (see, e.g., [9] and the pointers there).",
+     "text_display": " the issues of fairness and bias (see, e.g., [9] and the pointers there).",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       1820
+      ],
+      [
+       1942,
+       1820
+      ],
+      [
+       1942,
+       1857
+      ],
+      [
+       1100,
+       1857
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 1820,
+      "width": 842,
+      "height": 37
+     },
+     "line": 65,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "802bf77c4b934932b85b1bb7989c3e17",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "The problem of discrimination in data mining and machine learning",
+     "text_display": " The problem of discrimination in data mining and machine learning",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       1856
+      ],
+      [
+       1942,
+       1856
+      ],
+      [
+       1942,
+       1895
+      ],
+      [
+       1100,
+       1895
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 1856,
+      "width": 842,
+      "height": 39
+     },
+     "line": 66,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "f3586d2110794f39ada2e54a493522a4",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "has been studied for a number of years (e.g., [23, 28, 29]). The",
+     "text_display": " has been studied for a number of years (e.g., [23, 28, 29]). The",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       1895
+      ],
+      [
+       1942,
+       1895
+      ],
+      [
+       1942,
+       1934
+      ],
+      [
+       1100,
+       1934
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 1895,
+      "width": 842,
+      "height": 39
+     },
+     "line": 67,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "f453dfbd5a1a4abc807d00454ab5039d",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "goal there is to analyze and counter data bias and unfair decisions",
+     "text_display": " goal there is to analyze and counter data bias and unfair decisions",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       1934
+      ],
+      [
+       1942,
+       1934
+      ],
+      [
+       1942,
+       1971
+      ],
+      [
+       1100,
+       1971
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 1934,
+      "width": 842,
+      "height": 37
+     },
+     "line": 68,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "49858941679240a4ba746c7a1596705a",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "that may lead to discrimination. Much prior work has centered",
+     "text_display": " that may lead to discrimination. Much prior work has centered",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       1972
+      ],
+      [
+       1942,
+       1972
+      ],
+      [
+       1942,
+       2009
+      ],
+      [
+       1100,
+       2009
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 1972,
+      "width": 842,
+      "height": 37
+     },
+     "line": 69,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "3e2172d56f2841e6b7f8deb995839a89",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "around various notions of group fairness: preserving certain ratios",
+     "text_display": " around various notions of group fairness: preserving certain ratios",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       2011
+      ],
+      [
+       1942,
+       2011
+      ],
+      [
+       1942,
+       2045
+      ],
+      [
+       1100,
+       2045
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 2011,
+      "width": 842,
+      "height": 34
+     },
+     "line": 70,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "adc715ca86494890945c6dd8853eebf6",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "of members of protected vs. unprotected groups in the decision",
+     "text_display": " of members of protected vs. unprotected groups in the decision",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       2050
+      ],
+      [
+       1946,
+       2050
+      ],
+      [
+       1946,
+       2084
+      ],
+      [
+       1100,
+       2084
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 2050,
+      "width": 846,
+      "height": 34
+     },
+     "line": 71,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "afa30c6a81654f55a5f2fc70c2026c2d",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "making outcomes, with the groups derived from discrimination-",
+     "text_display": " making outcomes, with the groups derived from discrimination",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       2088
+      ],
+      [
+       1942,
+       2088
+      ],
+      [
+       1942,
+       2122
+      ],
+      [
+       1100,
+       2122
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 2088,
+      "width": 842,
+      "height": 34
+     },
+     "line": 72,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "697af2f09d7c4cf0893e43aac2d46db4",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "prone attributes like gender, race, nationality, etc. [14, 20]. For",
+     "text_display": "prone attributes like gender, race, nationality, etc. [14, 20]. For",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       2127
+      ],
+      [
+       1942,
+       2127
+      ],
+      [
+       1942,
+       2161
+      ],
+      [
+       1100,
+       2161
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 2127,
+      "width": 842,
+      "height": 34
+     },
+     "line": 73,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "ab3b132dfc4745f7ac5217a9000ce5bd",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "example, the criterion of statistical parity requires that a classifier's",
+     "text_display": " example, the criterion of statistical parity requires that a classifier's",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       2161
+      ],
+      [
+       1946,
+       2161
+      ],
+      [
+       1946,
+       2200
+      ],
+      [
+       1100,
+       2200
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 2161,
+      "width": 846,
+      "height": 39
+     },
+     "line": 74,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "33b22da51f814167a6e0cbe089db7987",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "outcomes do not depend on the membership in the protected group.",
+     "text_display": " outcomes do not depend on the membership in the protected group.",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       2200
+      ],
+      [
+       1942,
+       2200
+      ],
+      [
+       1942,
+       2237
+      ],
+      [
+       1100,
+       2237
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 2200,
+      "width": 842,
+      "height": 37
+     },
+     "line": 75,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "83e364c746bd41968c8a64876186e91c",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "State-of-the-art mechanisms for dealing with such group fairness",
+     "text_display": " State-of-the-art mechanisms for dealing with such group fairness",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       2239
+      ],
+      [
+       1942,
+       2239
+      ],
+      [
+       1942,
+       2276
+      ],
+      [
+       1100,
+       2276
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 2239,
+      "width": 842,
+      "height": 37
+     },
+     "line": 76,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "11dbea5347684b72bd797af5ecced1b7",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "requirements are to solve constrained optimization, e.g. maximize",
+     "text_display": " requirements are to solve constrained optimization, e.g. maximize",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       2277
+      ],
+      [
+       1942,
+       2277
+      ],
+      [
+       1942,
+       2314
+      ],
+      [
+       1100,
+       2314
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 2277,
+      "width": 842,
+      "height": 37
+     },
+     "line": 77,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "ca7973c486df462197abebb98bf59153",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "prediction accuracy subject to certain bounds on group membership",
+     "text_display": " prediction accuracy subject to certain bounds on group membership",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       2314
+      ],
+      [
+       1942,
+       2314
+      ],
+      [
+       1942,
+       2351
+      ],
+      [
+       1100,
+       2351
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 2314,
+      "width": 842,
+      "height": 37
+     },
+     "line": 78,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "15ba031b1cee414fa5364799c4d4163d",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "in the output labels. This has led to classification models with",
+     "text_display": " in the output labels. This has led to classification models with",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       2353
+      ],
+      [
+       1944,
+       2353
+      ],
+      [
+       1944,
+       2390
+      ],
+      [
+       1100,
+       2390
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 2353,
+      "width": 844,
+      "height": 37
+     },
+     "line": 79,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "123c341490054da4ac0258da2773cbaa",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "fairness-aware regularization (e.g., [35]). Beyond the fairness of",
+     "text_display": " fairness-aware regularization (e.g., [35]). Beyond the fairness of",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       2389
+      ],
+      [
+       1942,
+       2389
+      ],
+      [
+       1942,
+       2428
+      ],
+      [
+       1100,
+       2428
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 2389,
+      "width": 842,
+      "height": 39
+     },
+     "line": 80,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "ce6eb2800fe241468307d3a74c337086",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "outcomes, researchers have looked into the fairness of process in",
+     "text_display": " outcomes, researchers have looked into the fairness of process in",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1100,
+       2428
+      ],
+      [
+       1538,
+       2428
+      ],
+      [
+       1538,
+       2467
+      ],
+      [
+       1100,
+       2467
+      ]
+     ],
+     "region": {
+      "top_left_x": 1100,
+      "top_left_y": 2428,
+      "width": 438,
+      "height": 39
+     },
+     "line": 81,
+     "column": 5,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "d5a7ace7cbee48798d4e1eb50b9d6365",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "06f1975ff0d84efeb138cf323d900c83",
+     "text": "the decision-making systems [18].",
+     "text_display": " the decision-making systems [18].",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    }
+   ],
+   "page_height": 2750,
+   "page_width": 2125,
+   "languages_detected": []
+  }
+ ]
+}

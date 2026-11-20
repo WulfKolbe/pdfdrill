@@ -1,0 +1,1888 @@
+{
+ "source": "gemma4-ink-yolo",
+ "pages": [
+  {
+   "page": 8,
+   "image_id": null,
+   "page_width": 2125,
+   "page_height": 2750,
+   "lines": [
+    {
+     "id": "g4_p8_c1",
+     "line": 3,
+     "column": 0,
+     "type": "column",
+     "text": "",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "text-extent",
+     "region": {
+      "top_left_x": 194,
+      "top_left_y": 298,
+      "width": 506,
+      "height": 186
+     },
+     "children_ids": [
+      "g4_p8_l2"
+     ]
+    },
+    {
+     "id": "g4_p8_l2",
+     "line": 4,
+     "column": 1,
+     "type": "diagram",
+     "region": {
+      "top_left_x": 194,
+      "top_left_y": 298,
+      "width": 506,
+      "height": 186
+     },
+     "text": "",
+     "text_display": "",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "description": "Graph: Unfairness (sum(|A_i - R_i|)) vs Iteration. Legend: Objective, ndcg@1>=0.0, ndcg@1>=0.6, ndcg@1>=0.8, ndcg@1>=1.0, Relevance",
+     "parent_id": "g4_p8_c1"
+    },
+    {
+     "id": "g4_p8_c2",
+     "line": 1,
+     "column": 0,
+     "type": "column",
+     "text": "",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "text-extent",
+     "region": {
+      "top_left_x": 807,
+      "top_left_y": 209,
+      "width": 1134,
+      "height": 275
+     },
+     "children_ids": [
+      "g4_p8_l1",
+      "g4_p8_l3"
+     ]
+    },
+    {
+     "id": "g4_p8_l1",
+     "line": 2,
+     "column": 2,
+     "type": "page_info",
+     "region": {
+      "top_left_x": 1206,
+      "top_left_y": 209,
+      "width": 730,
+      "height": 29
+     },
+     "text": "SIGIR '18, July 8–12, 2018, Ann Arbor, MI, USA",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "parent_id": "g4_p8_c2",
+     "geometry_before": {
+      "top_left_x": 1201,
+      "top_left_y": 209,
+      "width": 740,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p8_l3",
+     "line": 5,
+     "column": 2,
+     "type": "diagram",
+     "region": {
+      "top_left_x": 807,
+      "top_left_y": 298,
+      "width": 1121,
+      "height": 186
+     },
+     "text": "",
+     "text_display": "",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "description": "Graph: Unfairness (sum(|A_i - R_i|)) vs Iteration. Legend: Objective, ndcg@1>=0.0, ndcg@1>=0.6, ndcg@1>=0.8, Relevance",
+     "parent_id": "g4_p8_c2"
+    },
+    {
+     "id": "g4_p8_l6",
+     "line": 6,
+     "column": 0,
+     "type": "diagram",
+     "region": {
+      "top_left_x": 194,
+      "top_left_y": 484,
+      "width": 506,
+      "height": 190
+     },
+     "text": "",
+     "text_display": "",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo"
+    },
+    {
+     "id": "g4_p8_l7",
+     "line": 7,
+     "column": 0,
+     "type": "diagram",
+     "region": {
+      "top_left_x": 807,
+      "top_left_y": 484,
+      "width": 1121,
+      "height": 190
+     },
+     "text": "",
+     "text_display": "",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo"
+    },
+    {
+     "id": "g4_p8_l10",
+     "line": 10,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 187,
+      "top_left_y": 699,
+      "width": 524,
+      "height": 30
+     },
+     "text": "Figure 3: Model performance on the",
+     "text_display": "\n\nFigure 3: Model performance on the",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 187,
+      "top_left_y": 699,
+      "width": 524,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l11",
+     "line": 11,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 737,
+      "width": 523,
+      "height": 29
+     },
+     "text": "synthetic Uniform dataset. Attention",
+     "text_display": " synthetic Uniform dataset. Attention",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 741,
+      "width": 523,
+      "height": 18
+     }
+    },
+    {
+     "id": "g4_p8_l12",
+     "line": 12,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 296,
+      "top_left_y": 738,
+      "width": 377,
+      "height": 4
+     },
+     "text": "singular.",
+     "text_display": " singular.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "geometry_before": {
+      "top_left_x": 184,
+      "top_left_y": 737,
+      "width": 532,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l13",
+     "line": 13,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 800,
+      "top_left_y": 699,
+      "width": 524,
+      "height": 30
+     },
+     "text": "Figure 4: Model performance on the",
+     "text_display": "\n\nFigure 4: Model performance on the",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 800,
+      "top_left_y": 699,
+      "width": 524,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l14",
+     "line": 14,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 802,
+      "top_left_y": 737,
+      "width": 523,
+      "height": 29
+     },
+     "text": "synthetic Linear dataset. Attention",
+     "text_display": " synthetic Linear dataset. Attention",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 802,
+      "top_left_y": 741,
+      "width": 523,
+      "height": 18
+     }
+    },
+    {
+     "id": "g4_p8_l15",
+     "line": 15,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 909,
+      "top_left_y": 738,
+      "width": 377,
+      "height": 4
+     },
+     "text": "singular.",
+     "text_display": " singular.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "geometry_before": {
+      "top_left_x": 798,
+      "top_left_y": 737,
+      "width": 530,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l16",
+     "line": 16,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 1413,
+      "top_left_y": 699,
+      "width": 524,
+      "height": 30
+     },
+     "text": "Figure 5: Model performance on the",
+     "text_display": "\n\nFigure 5: Model performance on the",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 1413,
+      "top_left_y": 699,
+      "width": 524,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l17",
+     "line": 17,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 1415,
+      "top_left_y": 737,
+      "width": 528,
+      "height": 29
+     },
+     "text": "synthetic Exponential dataset. Atten-",
+     "text_display": " synthetic Exponential dataset. Atten",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "subtype": "continues_line_no_hyphen",
+     "geometry_before": {
+      "top_left_x": 1415,
+      "top_left_y": 741,
+      "width": 528,
+      "height": 18
+     }
+    },
+    {
+     "id": "g4_p8_l18",
+     "line": 18,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 1522,
+      "top_left_y": 738,
+      "width": 175,
+      "height": 4
+     },
+     "text": "singular.",
+     "text_display": " singular.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "geometry_before": {
+      "top_left_x": 1409,
+      "top_left_y": 737,
+      "width": 536,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_c3",
+     "line": 8,
+     "column": 0,
+     "type": "column",
+     "text": "",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "text-extent",
+     "region": {
+      "top_left_x": 194,
+      "top_left_y": 766,
+      "width": 629,
+      "height": 229
+     },
+     "children_ids": [
+      "g4_p8_l9",
+      "g4_p8_l19"
+     ]
+    },
+    {
+     "id": "g4_p8_l9",
+     "line": 9,
+     "column": 1,
+     "type": "text",
+     "region": null,
+     "text": "Asia J. Biega, Krishna P. Gummadi, and Gerhard Weikum",
+     "text_display": "\n\nAsia J. Biega, Krishna P. Gummadi, and Gerhard Weikum",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "unplaced",
+     "parent_id": "g4_p8_c3"
+    },
+    {
+     "id": "g4_p8_l19",
+     "line": 19,
+     "column": 1,
+     "type": "diagram",
+     "region": {
+      "top_left_x": 194,
+      "top_left_y": 822,
+      "width": 506,
+      "height": 173
+     },
+     "text": "",
+     "text_display": "",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "description": "Graph: Unfairness (sum(|A_i - R_i|)) vs Iteration. Legend: Objective, ndcg@5>=0.0, ndcg@5>=0.6, ndcg@5>=0.8, ndcg@5>=1.0, Relevance",
+     "parent_id": "g4_p8_c3"
+    },
+    {
+     "id": "g4_p8_c4",
+     "line": 20,
+     "column": 0,
+     "type": "column",
+     "text": "",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "text-extent",
+     "region": {
+      "top_left_x": 807,
+      "top_left_y": 823,
+      "width": 1119,
+      "height": 172
+     },
+     "children_ids": [
+      "g4_p8_l20"
+     ]
+    },
+    {
+     "id": "g4_p8_l20",
+     "line": 21,
+     "column": 2,
+     "type": "diagram",
+     "region": {
+      "top_left_x": 807,
+      "top_left_y": 823,
+      "width": 1119,
+      "height": 172
+     },
+     "text": "",
+     "text_display": "",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "description": "Graph: Unfairness (sum(|A_i - R_i|)) vs Iteration. Legend: Objective, ndcg@5>=0.0, ndcg@5>=0.6, ndcg@5>=0.8, ndcg@5>=1.0, Relevance",
+     "parent_id": "g4_p8_c4"
+    },
+    {
+     "id": "g4_p8_l23",
+     "line": 22,
+     "column": 0,
+     "type": "diagram",
+     "region": {
+      "top_left_x": 194,
+      "top_left_y": 995,
+      "width": 506,
+      "height": 200
+     },
+     "text": "",
+     "text_display": "",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo"
+    },
+    {
+     "id": "g4_p8_l24",
+     "line": 23,
+     "column": 0,
+     "type": "diagram",
+     "region": {
+      "top_left_x": 807,
+      "top_left_y": 995,
+      "width": 1119,
+      "height": 200
+     },
+     "text": "",
+     "text_display": "",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo"
+    },
+    {
+     "id": "g4_p8_l26",
+     "line": 24,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 187,
+      "top_left_y": 1221,
+      "width": 524,
+      "height": 30
+     },
+     "text": "Figure 6: Model performance on the",
+     "text_display": "\n\nFigure 6: Model performance on the",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 187,
+      "top_left_y": 1221,
+      "width": 524,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l27",
+     "line": 25,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1259,
+      "width": 523,
+      "height": 29
+     },
+     "text": "synthetic Uniform dataset. Attention",
+     "text_display": " synthetic Uniform dataset. Attention",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1263,
+      "width": 523,
+      "height": 18
+     }
+    },
+    {
+     "id": "g4_p8_l28",
+     "line": 26,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 296,
+      "top_left_y": 1260,
+      "width": 377,
+      "height": 4
+     },
+     "text": "geometric.",
+     "text_display": " geometric.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "geometry_before": {
+      "top_left_x": 183,
+      "top_left_y": 1259,
+      "width": 534,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l29",
+     "line": 27,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 800,
+      "top_left_y": 1221,
+      "width": 524,
+      "height": 30
+     },
+     "text": "Figure 7: Model performance on the",
+     "text_display": "\n\nFigure 7: Model performance on the",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 800,
+      "top_left_y": 1221,
+      "width": 524,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l30",
+     "line": 28,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 802,
+      "top_left_y": 1259,
+      "width": 523,
+      "height": 29
+     },
+     "text": "synthetic Linear dataset. Attention",
+     "text_display": " synthetic Linear dataset. Attention",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 802,
+      "top_left_y": 1263,
+      "width": 523,
+      "height": 18
+     }
+    },
+    {
+     "id": "g4_p8_l31",
+     "line": 29,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 909,
+      "top_left_y": 1260,
+      "width": 377,
+      "height": 4
+     },
+     "text": "geometric.",
+     "text_display": " geometric.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "geometry_before": {
+      "top_left_x": 796,
+      "top_left_y": 1259,
+      "width": 533,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l32",
+     "line": 30,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 1413,
+      "top_left_y": 1221,
+      "width": 524,
+      "height": 30
+     },
+     "text": "Figure 8: Model performance on the",
+     "text_display": "\n\nFigure 8: Model performance on the",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 1413,
+      "top_left_y": 1221,
+      "width": 524,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l33",
+     "line": 31,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 1415,
+      "top_left_y": 1259,
+      "width": 528,
+      "height": 29
+     },
+     "text": "synthetic Exponential dataset. Atten-",
+     "text_display": " synthetic Exponential dataset. Atten",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "subtype": "continues_line_no_hyphen",
+     "geometry_before": {
+      "top_left_x": 1415,
+      "top_left_y": 1263,
+      "width": 528,
+      "height": 18
+     }
+    },
+    {
+     "id": "g4_p8_l34",
+     "line": 32,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 1522,
+      "top_left_y": 1260,
+      "width": 175,
+      "height": 4
+     },
+     "text": "geometric.",
+     "text_display": " geometric.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "geometry_before": {
+      "top_left_x": 1409,
+      "top_left_y": 1259,
+      "width": 535,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_c5",
+     "line": 33,
+     "column": 0,
+     "type": "column",
+     "text": "",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "text-extent",
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1395,
+      "width": 839,
+      "height": 1048
+     },
+     "children_ids": [
+      "g4_p8_l35",
+      "g4_p8_l36",
+      "g4_p8_l37",
+      "g4_p8_l38",
+      "g4_p8_l39",
+      "g4_p8_l40",
+      "g4_p8_l41",
+      "g4_p8_l42",
+      "g4_p8_l43",
+      "g4_p8_l44",
+      "g4_p8_l45",
+      "g4_p8_l46",
+      "g4_p8_l47",
+      "g4_p8_l48",
+      "g4_p8_l49",
+      "g4_p8_l50"
+     ]
+    },
+    {
+     "id": "g4_p8_l35",
+     "line": 34,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 188,
+      "top_left_y": 1395,
+      "width": 836,
+      "height": 30
+     },
+     "text": "on the Boston dataset under the Singular attention model in Fig-",
+     "text_display": "\n\non the Boston dataset under the Singular attention model in Fig",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "parent_id": "g4_p8_c5",
+     "geometry_before": {
+      "top_left_x": 188,
+      "top_left_y": 1395,
+      "width": 836,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l36",
+     "line": 35,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 188,
+      "top_left_y": 1433,
+      "width": 833,
+      "height": 22
+     },
+     "text": "ure 17. The results confirm that the actual loss is often lower than",
+     "text_display": " ure 17. The results confirm that the actual loss is often lower than",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c5"
+    },
+    {
+     "id": "g4_p8_l37",
+     "line": 36,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 188,
+      "top_left_y": 1471,
+      "width": 831,
+      "height": 29
+     },
+     "text": "the threshold enforced by the ILP. Observe that NDCG-quality is 1",
+     "text_display": " the threshold enforced by the ILP. Observe that NDCG-quality is 1",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c5",
+     "geometry_before": {
+      "top_left_x": 188,
+      "top_left_y": 1471,
+      "width": 831,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l38",
+     "line": 37,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 188,
+      "top_left_y": 1509,
+      "width": 832,
+      "height": 22
+     },
+     "text": "for a number of initial iterations in all the methods. This is where",
+     "text_display": " for a number of initial iterations in all the methods. This is where",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c5"
+    },
+    {
+     "id": "g4_p8_l39",
+     "line": 38,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 188,
+      "top_left_y": 1547,
+      "width": 832,
+      "height": 30
+     },
+     "text": "reshuffling of the top ties happens. The quality starts decreasing",
+     "text_display": " reshuffling of the top ties happens. The quality starts decreasing",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c5",
+     "geometry_before": {
+      "top_left_x": 188,
+      "top_left_y": 1547,
+      "width": 832,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p8_l40",
+     "line": 39,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 188,
+      "top_left_y": 1585,
+      "width": 833,
+      "height": 30
+     },
+     "text": "as less relevant subjects gather enough deserved attention, and",
+     "text_display": " as less relevant subjects gather enough deserved attention, and",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c5",
+     "geometry_before": {
+      "top_left_x": 188,
+      "top_left_y": 1585,
+      "width": 833,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l41",
+     "line": 40,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 187,
+      "top_left_y": 1624,
+      "width": 834,
+      "height": 30
+     },
+     "text": "periodically goes back to 1, when the top-relevant subjects gain",
+     "text_display": " periodically goes back to 1, when the top-relevant subjects gain",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c5",
+     "geometry_before": {
+      "top_left_x": 187,
+      "top_left_y": 1624,
+      "width": 834,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p8_l42",
+     "line": 41,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 187,
+      "top_left_y": 1662,
+      "width": 833,
+      "height": 30
+     },
+     "text": "priority again. Similar conclusions regarding the absolute loss hold",
+     "text_display": " priority again. Similar conclusions regarding the absolute loss hold",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c5",
+     "geometry_before": {
+      "top_left_x": 187,
+      "top_left_y": 1662,
+      "width": 833,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l43",
+     "line": 42,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 188,
+      "top_left_y": 1700,
+      "width": 573,
+      "height": 30
+     },
+     "text": "under the general geometric attention model.",
+     "text_display": " under the general geometric attention model.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p8_c5",
+     "geometry_before": {
+      "top_left_x": 188,
+      "top_left_y": 1700,
+      "width": 573,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l44",
+     "line": 43,
+     "column": 1,
+     "type": "section_header",
+     "region": {
+      "top_left_x": 188,
+      "top_left_y": 1770,
+      "width": 711,
+      "height": 36
+     },
+     "text": "4.8 Performance on StackExchange data",
+     "text_display": "\n\n4.8 Performance on StackExchange data",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p8_c5",
+     "geometry_before": {
+      "top_left_x": 188,
+      "top_left_y": 1771,
+      "width": 711,
+      "height": 26
+     }
+    },
+    {
+     "id": "g4_p8_l45",
+     "line": 44,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1823,
+      "width": 834,
+      "height": 29
+     },
+     "text": "The relative trends in the performance of our method are the same",
+     "text_display": "\n\nThe relative trends in the performance of our method are the same",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c5",
+     "geometry_before": {
+      "top_left_x": 186,
+      "top_left_y": 1823,
+      "width": 834,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l46",
+     "line": 45,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 187,
+      "top_left_y": 1861,
+      "width": 833,
+      "height": 22
+     },
+     "text": "here as in the results for other datasets. One of the characteristics",
+     "text_display": " here as in the results for other datasets. One of the characteristics",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p8_c5"
+    },
+    {
+     "id": "g4_p8_l47",
+     "line": 46,
+     "column": 1,
+     "type": "diagram",
+     "region": {
+      "top_left_x": 340,
+      "top_left_y": 1903,
+      "width": 521,
+      "height": 387
+     },
+     "text": "",
+     "text_display": "",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "description": "Graph: Unfairness (sum(|A_i - R_i|)) vs Iteration. Legend: Objective, geom(k=1), Objective, geom(k=2), Objective, geom(k=3), Objective, geom(k=7), Objective, geom(k=10), Relevance",
+     "parent_id": "g4_p8_c5"
+    },
+    {
+     "id": "g4_p8_l48",
+     "line": 47,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 187,
+      "top_left_y": 2345,
+      "width": 838,
+      "height": 30
+     },
+     "text": "Figure 9: Performance of the Objective heuristic on the syn-",
+     "text_display": "\n\nFigure 9: Performance of the Objective heuristic on the syn",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "subtype": "continues_line_no_hyphen",
+     "parent_id": "g4_p8_c5",
+     "geometry_before": {
+      "top_left_x": 187,
+      "top_left_y": 2345,
+      "width": 838,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l49",
+     "line": 48,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 188,
+      "top_left_y": 2383,
+      "width": 833,
+      "height": 30
+     },
+     "text": "thetic Uniform dataset under the geometric attention model",
+     "text_display": " thetic Uniform dataset under the geometric attention model",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c5",
+     "geometry_before": {
+      "top_left_x": 188,
+      "top_left_y": 2383,
+      "width": 833,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l50",
+     "line": 49,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 187,
+      "top_left_y": 2421,
+      "width": 538,
+      "height": 29
+     },
+     "text": "with different attention cut-off points.",
+     "text_display": " with different attention cut-off points.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "parent_id": "g4_p8_c5",
+     "geometry_before": {
+      "top_left_x": 187,
+      "top_left_y": 2421,
+      "width": 538,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_c6",
+     "line": 50,
+     "column": 0,
+     "type": "column",
+     "text": "",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "text-extent",
+     "region": {
+      "top_left_x": 1103,
+      "top_left_y": 1395,
+      "width": 839,
+      "height": 1022
+     },
+     "children_ids": [
+      "g4_p8_l51",
+      "g4_p8_l52",
+      "g4_p8_l53",
+      "g4_p8_l54",
+      "g4_p8_l55",
+      "g4_p8_l56",
+      "g4_p8_l57",
+      "g4_p8_l58",
+      "g4_p8_l59",
+      "g4_p8_l60",
+      "g4_p8_l61",
+      "g4_p8_l62",
+      "g4_p8_l63",
+      "g4_p8_l64",
+      "g4_p8_l65",
+      "g4_p8_l66",
+      "g4_p8_l67",
+      "g4_p8_l68",
+      "g4_p8_l69",
+      "g4_p8_l70",
+      "g4_p8_l71",
+      "g4_p8_l72",
+      "g4_p8_l73",
+      "g4_p8_l74",
+      "g4_p8_l75",
+      "g4_p8_l76",
+      "g4_p8_l77"
+     ]
+    },
+    {
+     "id": "g4_p8_l51",
+     "line": 51,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 1395,
+      "width": 833,
+      "height": 30
+     },
+     "text": "that distinguish the StackExchange dataset is that each individual",
+     "text_display": "\n\nthat distinguish the StackExchange dataset is that each individual",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 1395,
+      "width": 833,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l52",
+     "line": 52,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 1433,
+      "width": 837,
+      "height": 30
+     },
+     "text": "subject occurs in relatively few rankings. An observation that fol-",
+     "text_display": " subject occurs in relatively few rankings. An observation that fol",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 1433,
+      "width": 837,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l53",
+     "line": 53,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 1471,
+      "width": 833,
+      "height": 30
+     },
+     "text": "lows is that longer amortization timeframe is necessary under such",
+     "text_display": " lows is that longer amortization timeframe is necessary under such",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 1473,
+      "width": 833,
+      "height": 20
+     }
+    },
+    {
+     "id": "g4_p8_l54",
+     "line": 54,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 1509,
+      "width": 836,
+      "height": 29
+     },
+     "text": "conditions - a subject obviously needs to appear in a number of",
+     "text_display": " conditions - a subject obviously needs to appear in a number of",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 1509,
+      "width": 836,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l55",
+     "line": 55,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 1547,
+      "width": 832,
+      "height": 30
+     },
+     "text": "rankings so that the model can reposition them to fairly distribute",
+     "text_display": " rankings so that the model can reposition them to fairly distribute",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 1547,
+      "width": 832,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l56",
+     "line": 56,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 1587,
+      "width": 120,
+      "height": 20
+     },
+     "text": "attention.",
+     "text_display": " attention.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 1589,
+      "width": 120,
+      "height": 18
+     }
+    },
+    {
+     "id": "g4_p8_l57",
+     "line": 57,
+     "column": 2,
+     "type": "section_header",
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1659,
+      "width": 358,
+      "height": 25
+     },
+     "text": "5 RELATED WORK",
+     "text_display": "\n\n5 RELATED WORK",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p8_c6"
+    },
+    {
+     "id": "g4_p8_l58",
+     "line": 58,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1104,
+      "top_left_y": 1710,
+      "width": 833,
+      "height": 30
+     },
+     "text": "Fairness. The growing ubiquity of data-driven learning models in",
+     "text_display": "\n\nFairness. The growing ubiquity of data-driven learning models in",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1104,
+      "top_left_y": 1710,
+      "width": 833,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l59",
+     "line": 59,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 1748,
+      "width": 832,
+      "height": 30
+     },
+     "text": "algorithmic decision-making has recently boosted concerns about",
+     "text_display": " algorithmic decision-making has recently boosted concerns about",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 1748,
+      "width": 832,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l60",
+     "line": 60,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 1786,
+      "width": 836,
+      "height": 30
+     },
+     "text": "the issues of fairness and bias (see, e.g., [9] and the pointers there).",
+     "text_display": " the issues of fairness and bias (see, e.g., [9] and the pointers there).",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 1786,
+      "width": 836,
+      "height": 26
+     }
+    },
+    {
+     "id": "g4_p8_l61",
+     "line": 61,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1103,
+      "top_left_y": 1824,
+      "width": 835,
+      "height": 30
+     },
+     "text": "The problem of discrimination in data mining and machine learning",
+     "text_display": " The problem of discrimination in data mining and machine learning",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1103,
+      "top_left_y": 1824,
+      "width": 835,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l62",
+     "line": 62,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1104,
+      "top_left_y": 1862,
+      "width": 833,
+      "height": 30
+     },
+     "text": "has been studied for a number of years (e.g., [23, 28, 29]). The",
+     "text_display": " has been studied for a number of years (e.g., [23, 28, 29]). The",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1104,
+      "top_left_y": 1862,
+      "width": 833,
+      "height": 28
+     }
+    },
+    {
+     "id": "g4_p8_l63",
+     "line": 63,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 1900,
+      "width": 832,
+      "height": 30
+     },
+     "text": "goal there is to analyze and counter data bias and unfair decisions",
+     "text_display": " goal there is to analyze and counter data bias and unfair decisions",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 1900,
+      "width": 832,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l64",
+     "line": 64,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 1938,
+      "width": 833,
+      "height": 29
+     },
+     "text": "that may lead to discrimination. Much prior work has centered",
+     "text_display": " that may lead to discrimination. Much prior work has centered",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 1938,
+      "width": 833,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l65",
+     "line": 65,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 1976,
+      "width": 832,
+      "height": 30
+     },
+     "text": "around various notions of group fairness: preserving certain ratios",
+     "text_display": " around various notions of group fairness: preserving certain ratios",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 1978,
+      "width": 832,
+      "height": 20
+     }
+    },
+    {
+     "id": "g4_p8_l66",
+     "line": 66,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 2014,
+      "width": 833,
+      "height": 30
+     },
+     "text": "of members of protected vs. unprotected groups in the decision",
+     "text_display": " of members of protected vs. unprotected groups in the decision",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 2014,
+      "width": 833,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l67",
+     "line": 67,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 2052,
+      "width": 837,
+      "height": 30
+     },
+     "text": "making outcomes, with the groups derived from discrimination-",
+     "text_display": " making outcomes, with the groups derived from discrimination",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 2052,
+      "width": 837,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l68",
+     "line": 68,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1104,
+      "top_left_y": 2090,
+      "width": 834,
+      "height": 30
+     },
+     "text": "prone attributes like gender, race, nationality, etc. [14, 20]. For",
+     "text_display": " prone attributes like gender, race, nationality, etc. [14, 20]. For",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1104,
+      "top_left_y": 2090,
+      "width": 834,
+      "height": 26
+     }
+    },
+    {
+     "id": "g4_p8_l69",
+     "line": 69,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 2128,
+      "width": 832,
+      "height": 29
+     },
+     "text": "example, the criterion of statistical parity requires that a classifier's",
+     "text_display": " example, the criterion of statistical parity requires that a classifier's",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 2128,
+      "width": 832,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l70",
+     "line": 70,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 2166,
+      "width": 836,
+      "height": 30
+     },
+     "text": "outcomes do not depend on the membership in the protected group.",
+     "text_display": " outcomes do not depend on the membership in the protected group.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 2166,
+      "width": 836,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l71",
+     "line": 71,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 2204,
+      "width": 832,
+      "height": 30
+     },
+     "text": "State-of-the-art mechanisms for dealing with such group fairness",
+     "text_display": " State-of-the-art mechanisms for dealing with such group fairness",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 2204,
+      "width": 832,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l72",
+     "line": 72,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 2242,
+      "width": 832,
+      "height": 30
+     },
+     "text": "requirements are to solve constrained optimization, e.g. maximize",
+     "text_display": " requirements are to solve constrained optimization, e.g. maximize",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 2244,
+      "width": 832,
+      "height": 20
+     }
+    },
+    {
+     "id": "g4_p8_l73",
+     "line": 73,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1104,
+      "top_left_y": 2280,
+      "width": 833,
+      "height": 30
+     },
+     "text": "prediction accuracy subject to certain bounds on group membership",
+     "text_display": " prediction accuracy subject to certain bounds on group membership",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1104,
+      "top_left_y": 2282,
+      "width": 833,
+      "height": 20
+     }
+    },
+    {
+     "id": "g4_p8_l74",
+     "line": 74,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 2318,
+      "width": 833,
+      "height": 29
+     },
+     "text": "in the output labels. This has led to classification models with",
+     "text_display": " in the output labels. This has led to classification models with",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 2318,
+      "width": 833,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l75",
+     "line": 75,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 2356,
+      "width": 836,
+      "height": 30
+     },
+     "text": "fairness-aware regularization (e.g., [35]). Beyond the fairness of",
+     "text_display": " fairness-aware regularization (e.g., [35]). Beyond the fairness of",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 2356,
+      "width": 836,
+      "height": 28
+     }
+    },
+    {
+     "id": "g4_p8_l76",
+     "line": 76,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1105,
+      "top_left_y": 2394,
+      "width": 833,
+      "height": 29
+     },
+     "text": "outcomes, researchers have looked into the fairness of process in",
+     "text_display": " outcomes, researchers have looked into the fairness of process in",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p8_c6",
+     "geometry_before": {
+      "top_left_x": 1105,
+      "top_left_y": 2394,
+      "width": 833,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p8_l77",
+     "line": 77,
+     "column": 2,
+     "type": "text",
+     "region": null,
+     "text": "the decision-making systems [18].",
+     "text_display": " the decision-making systems [18].",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "unplaced",
+     "parent_id": "g4_p8_c6"
+    }
+   ],
+   "source": "gemma4-ink-yolo"
+  }
+ ]
+}

@@ -56,6 +56,47 @@ def _guards(text: str) -> set:
             | set(re.findall(r'skipif.*?["\']([\w.]+)', text)))
 
 
+def _guarded_by_try(tree: ast.AST) -> set:
+    r"""Module names imported inside a `try` that catches an import failure.
+
+    This is a DECLARATION, and a stronger one than `importorskip`: the module
+    is optional and the code carries a fallback, so on a base install the
+    test still RUNS rather than skipping. Neither failure this file exists to
+    catch can happen -- it cannot stop collection and it cannot fail as if
+    the code were broken.
+
+    Added for `tests/_pagecheck_pinned.py`, which is a pinned copy of the
+    board's measuring script and guards `rapidfuzz` exactly this way, with a
+    pure-Python Levenshtein beside it. Patching the pin to drop the import
+    would make the suite measure something the board does not.
+    """
+    out: set = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Try):
+            continue
+        catches = False
+        for h in node.handlers:
+            if h.type is None:                      # bare except
+                catches = True
+                break
+            names = ([h.type] if not isinstance(h.type, ast.Tuple)
+                     else list(h.type.elts))
+            for nm in names:
+                if isinstance(nm, ast.Name) and nm.id in (
+                        "ImportError", "ModuleNotFoundError", "Exception"):
+                    catches = True
+        if not catches:
+            continue
+        for stmt in node.body:
+            for sub in ast.walk(stmt):
+                if isinstance(sub, ast.Import):
+                    for a in sub.names:
+                        out.add(a.name.split(".")[0])
+                elif isinstance(sub, ast.ImportFrom) and sub.module:
+                    out.add(sub.module.split(".")[0])
+    return out
+
+
 def _imported(tree: ast.AST):
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -76,7 +117,7 @@ def test_no_test_imports_an_extra_it_has_not_declared():
             tree = ast.parse(text)
         except SyntaxError:
             continue                      # a fixture of broken source, not a test
-        guarded = _guards(text)
+        guarded = _guards(text) | _guarded_by_try(tree)
         for mod, line in _imported(tree):
             if mod in EXTRA_ONLY and mod not in guarded:
                 offenders.append(
@@ -120,3 +161,35 @@ def test_the_claimed_suite_numbers_name_the_install_they_came_from():
         "on — the numbers quoted here for months came from a machine with "
         "every extra and were never checked against `bootstrap.sh` + "
         "`pip install -e .`")
+
+
+def test_a_try_except_importerror_counts_as_declaring_it():
+    """The guard added for the pinned pagecheck, asserted both ways so the
+    gate cannot be loosened by accident."""
+    guarded = ast.parse(
+        "try:\n    import rapidfuzz\nexcept ImportError:\n    rapidfuzz = None\n")
+    assert _guarded_by_try(guarded) == {"rapidfuzz"}
+
+    bare = ast.parse("import rapidfuzz\n")
+    assert _guarded_by_try(bare) == set(), \
+        "an unguarded import must still be an offence"
+
+    wrong_handler = ast.parse(
+        "try:\n    import rapidfuzz\nexcept ValueError:\n    pass\n")
+    assert _guarded_by_try(wrong_handler) == set(), \
+        "a handler that does not catch an import failure is no guard"
+
+    from_form = ast.parse(
+        "try:\n    from rapidfuzz.distance import Levenshtein\n"
+        "except ImportError:\n    Levenshtein = None\n")
+    assert _guarded_by_try(from_form) == {"rapidfuzz"}
+
+
+def test_the_pinned_pagecheck_is_what_made_that_guard_necessary():
+    """A regression pin on the real file: it imports an extra and guards it."""
+    path = ROOT / "tests" / "_pagecheck_pinned.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    imported = {m for m, _ in _imported(tree)}
+    assert "rapidfuzz" in imported, "the pin no longer imports rapidfuzz"
+    assert "rapidfuzz" in _guarded_by_try(tree), \
+        "the pin imports rapidfuzz WITHOUT a guard — the base install breaks"

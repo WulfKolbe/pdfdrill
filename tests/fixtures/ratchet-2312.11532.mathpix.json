@@ -1,0 +1,4537 @@
+{
+ "pages": [
+  {
+   "image_id": "63adb8f5-ad01-4b4d-b5ea-8d8702d0d25e-06",
+   "page": 6,
+   "lines": [
+    {
+     "cnt": [
+      [
+       213,
+       174
+      ],
+      [
+       1910,
+       174
+      ],
+      [
+       1910,
+       669
+      ],
+      [
+       213,
+       669
+      ]
+     ],
+     "region": {
+      "top_left_x": 213,
+      "top_left_y": 174,
+      "width": 1697,
+      "height": 495
+     },
+     "line": 1,
+     "column": 0,
+     "font_size": null,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "f33d71f2ecc843d9aab40d81b30beaf2",
+     "type": "diagram",
+     "conversion_output": true,
+     "selected_labels": [
+      "c485e8a4bc8b481ea8adc1adebd89e78"
+     ],
+     "text": "",
+     "text_display": "\n\n\\begin{figure}\n\\includegraphics[alt={},max width=\\textwidth]{https://cdn.mathpix.com/cropped/63adb8f5-ad01-4b4d-b5ea-8d8702d0d25e-06.jpg?height=495&width=1697&top_left_y=174&top_left_x=213}\n\\captionsetup{labelformat=empty}\n\\caption{Figure 2: The quantitative evaluation of topic quality over two datasets: 20NG and NYT. The baseline methods are listed from Left to right: LDA, ProdLDA (PLDA), ETM, BerTopic, and TVQ-VAE.}\n\\end{figure}"
+    },
+    {
+     "cnt": [
+      [
+       183,
+       695
+      ],
+      [
+       1941,
+       695
+      ],
+      [
+       1941,
+       773
+      ],
+      [
+       183,
+       773
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 695,
+      "width": 1758,
+      "height": 78
+     },
+     "line": 2,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "c485e8a4bc8b481ea8adc1adebd89e78",
+     "type": "figure_label",
+     "conversion_output": false,
+     "children_ids": [
+      "4462188fb4004f168a93eff1c1ecb8fb",
+      "02286b080aff49a1949507c306de3f73"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       183,
+       695
+      ],
+      [
+       1941,
+       695
+      ],
+      [
+       1941,
+       733
+      ],
+      [
+       183,
+       733
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 695,
+      "width": 1758,
+      "height": 38
+     },
+     "line": 3,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "4462188fb4004f168a93eff1c1ecb8fb",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "c485e8a4bc8b481ea8adc1adebd89e78",
+     "text": "Figure 2: The quantitative evaluation of topic quality over two datasets: 20NG and NYT. The baseline methods are listed from",
+     "text_display": "",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       735
+      ],
+      [
+       1186,
+       735
+      ],
+      [
+       1186,
+       773
+      ],
+      [
+       186,
+       773
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 735,
+      "width": 1000,
+      "height": 38
+     },
+     "line": 4,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "02286b080aff49a1949507c306de3f73",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "c485e8a4bc8b481ea8adc1adebd89e78",
+     "text": "Left to right: LDA, ProdLDA (PLDA), ETM, BerTopic, and TVQ-VAE.",
+     "text_display": "",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       242,
+       812
+      ],
+      [
+       1882,
+       812
+      ],
+      [
+       1882,
+       959
+      ],
+      [
+       242,
+       959
+      ]
+     ],
+     "region": {
+      "top_left_x": 242,
+      "top_left_y": 812,
+      "width": 1640,
+      "height": 147
+     },
+     "line": 5,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "type": "table",
+     "conversion_output": true,
+     "children_ids": [
+      "bc526bdc4f764ae687d1cb83e9ea543a",
+      "499f9b7e7252478bafb99782be4ba3d4",
+      "2b19a8da31794c45bf7a58373486b2f7",
+      "b55dd357e4b349779fe282430206ca72",
+      "64ae0ef9d59a45e4a4f25c729a932f7f",
+      "0840a86caa0a4e42aac1a262619dea5c",
+      "4685196dee844f39b269c657d6b6adca",
+      "47a9688b10114155bdaa946422be7fde",
+      "7b2e0ce1d673423ca93638a470f19ee9",
+      "acd4b94e9c994a5eac1cc53cb8fc1224",
+      "f7f171e7597049b08b83a948f3933b4d",
+      "1e47dbd1f4d64160979024d9b3c9a3d7",
+      "a7ced9f5f25f453ebcbb163d2c185f00",
+      "038bb83a3812435db6096cda1ed2ae88",
+      "566425ce35da4685b79846d39524ee36",
+      "6bbed566bc594a1989e6db005ad7d601",
+      "a1ce1460f365420b9581fabbc35d1af3",
+      "42c5fb41663d4a77b7cbe23483df13ce",
+      "15ad764e74614563a2f0a30613b9cfd9",
+      "fa3159fb9a9647b091d11604ef6b5c30",
+      "293ad0d304984b349afd92f3ff1b1d97",
+      "1348fcb65c044b7f8aae2fbc31099afb",
+      "b4e795731dc348cc9a9a345b269340e0",
+      "7609344eadee492db5772e1e81b42602",
+      "e31ac191c158483d9c86f8d0148687f0",
+      "1bdd74474e3840bd9eb3cbfe637d6b1f",
+      "00e107f8b4bf4e7e8d43a8af59ea15a1",
+      "af57c65a70594fc79dd07b472d015784",
+      "ac0d1b40e83f49f0bc22a975dd82e3e1",
+      "babd50533bd24b0ebb8ebc18ec36d1d4",
+      "a969dcc68e5647c1afb17e8f628f787c",
+      "36b9062dc078444ca07583d8231f0af6",
+      "a855d21df0ef4be888f79c381bb39639",
+      "855a16612f184bc99b7950c9afb7806b"
+     ],
+     "selected_labels": [
+      "895ce811ef104af7bc19a3b8a9c9750f"
+     ],
+     "text": "\\begin{tabular}[t]{|l|l|l|l|l|l|l|l|}\n\\hline & LDA & PLDA & ETM & TVQ-VAE (W) & BerTopic & TopClus & TVQ-VAE \\\\\n\\hline 20NG & (0.309/0.231) & (0.276/0.184) & (0.331/0.207) & (0.222/0.249) & (0.133/0.178) & (0.168/0.221) & (0.210/0.242) \\\\\n\\hline NYT & (0.144/0.399) & (0.107/0.367) & (0.094/0.346) & (0.176/0.489) & (0.155/0.481) & (0.137/0.461) & (0.184/0.510) \\\\\n\\hline\n\\end{tabular}",
+     "text_display": "\n\n\\begin{table}\n\\begin{tabular}[t]{|l|l|l|l|l|l|l|l|}\n\\hline & LDA & PLDA & ETM & TVQ-VAE (W) & BerTopic & TopClus & TVQ-VAE \\\\\n\\hline 20NG & (0.309/0.231) & (0.276/0.184) & (0.331/0.207) & (0.222/0.249) & (0.133/0.178) & (0.168/0.221) & (0.210/0.242) \\\\\n\\hline NYT & (0.144/0.399) & (0.107/0.367) & (0.094/0.346) & (0.176/0.489) & (0.155/0.481) & (0.137/0.461) & (0.184/0.510) \\\\\n\\hline\n\\end{tabular}\n\\captionsetup{labelformat=empty}\n\\caption{Table 2: Evaluation on Km-NMI and Km-Purity on 20NG and NYT datasets: (Km-NMI / Km-Purity). We note that BerTopic, TopClus and TVQ-VAE both use PLM (Reimers and Gurevych 2019). TVQ-VAE (W) uses Word2Vec instead of the PLM.}\n\\end{table}",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       265,
+       817
+      ],
+      [
+       349,
+       817
+      ],
+      [
+       349,
+       959
+      ],
+      [
+       265,
+       959
+      ]
+     ],
+     "region": {
+      "top_left_x": 265,
+      "top_left_y": 817,
+      "width": 84,
+      "height": 142
+     },
+     "line": 6,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "bc526bdc4f764ae687d1cb83e9ea543a",
+     "type": "table_column",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       396,
+       817
+      ],
+      [
+       572,
+       817
+      ],
+      [
+       572,
+       959
+      ],
+      [
+       396,
+       959
+      ]
+     ],
+     "region": {
+      "top_left_x": 396,
+      "top_left_y": 817,
+      "width": 176,
+      "height": 142
+     },
+     "line": 7,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "499f9b7e7252478bafb99782be4ba3d4",
+     "type": "table_column",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       606,
+       814
+      ],
+      [
+       782,
+       814
+      ],
+      [
+       782,
+       959
+      ],
+      [
+       606,
+       959
+      ]
+     ],
+     "region": {
+      "top_left_x": 606,
+      "top_left_y": 814,
+      "width": 176,
+      "height": 145
+     },
+     "line": 8,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "2b19a8da31794c45bf7a58373486b2f7",
+     "type": "table_column",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       816,
+       817
+      ],
+      [
+       992,
+       817
+      ],
+      [
+       992,
+       959
+      ],
+      [
+       816,
+       959
+      ]
+     ],
+     "region": {
+      "top_left_x": 816,
+      "top_left_y": 817,
+      "width": 176,
+      "height": 142
+     },
+     "line": 9,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "b55dd357e4b349779fe282430206ca72",
+     "type": "table_column",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       1026,
+       814
+      ],
+      [
+       1225,
+       814
+      ],
+      [
+       1225,
+       959
+      ],
+      [
+       1026,
+       959
+      ]
+     ],
+     "region": {
+      "top_left_x": 1026,
+      "top_left_y": 814,
+      "width": 199,
+      "height": 145
+     },
+     "line": 10,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "64ae0ef9d59a45e4a4f25c729a932f7f",
+     "type": "table_column",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       1263,
+       814
+      ],
+      [
+       1439,
+       814
+      ],
+      [
+       1439,
+       959
+      ],
+      [
+       1263,
+       959
+      ]
+     ],
+     "region": {
+      "top_left_x": 1263,
+      "top_left_y": 814,
+      "width": 176,
+      "height": 145
+     },
+     "line": 11,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "0840a86caa0a4e42aac1a262619dea5c",
+     "type": "table_column",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       1473,
+       814
+      ],
+      [
+       1649,
+       814
+      ],
+      [
+       1649,
+       959
+      ],
+      [
+       1473,
+       959
+      ]
+     ],
+     "region": {
+      "top_left_x": 1473,
+      "top_left_y": 814,
+      "width": 176,
+      "height": 145
+     },
+     "line": 12,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "4685196dee844f39b269c657d6b6adca",
+     "type": "table_column",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       1683,
+       814
+      ],
+      [
+       1859,
+       814
+      ],
+      [
+       1859,
+       959
+      ],
+      [
+       1683,
+       959
+      ]
+     ],
+     "region": {
+      "top_left_x": 1683,
+      "top_left_y": 814,
+      "width": 176,
+      "height": 145
+     },
+     "line": 13,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "47a9688b10114155bdaa946422be7fde",
+     "type": "table_column",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       244,
+       823
+      ],
+      [
+       1881,
+       823
+      ],
+      [
+       1881,
+       864
+      ],
+      [
+       244,
+       864
+      ]
+     ],
+     "region": {
+      "top_left_x": 244,
+      "top_left_y": 823,
+      "width": 1637,
+      "height": 41
+     },
+     "line": 14,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "7b2e0ce1d673423ca93638a470f19ee9",
+     "type": "table_row",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       447,
+       826
+      ],
+      [
+       515,
+       826
+      ],
+      [
+       515,
+       855
+      ],
+      [
+       447,
+       855
+      ]
+     ],
+     "region": {
+      "top_left_x": 447,
+      "top_left_y": 826,
+      "width": 68,
+      "height": 29
+     },
+     "line": 15,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "acd4b94e9c994a5eac1cc53cb8fc1224",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "LDA",
+     "text_display": "LDA",
+     "cell_row": 0,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       648,
+       826
+      ],
+      [
+       734,
+       826
+      ],
+      [
+       734,
+       855
+      ],
+      [
+       648,
+       855
+      ]
+     ],
+     "region": {
+      "top_left_x": 648,
+      "top_left_y": 826,
+      "width": 86,
+      "height": 29
+     },
+     "line": 16,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "f7f171e7597049b08b83a948f3933b4d",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "PLDA",
+     "text_display": "PLDA",
+     "cell_row": 0,
+     "cell_column": 2,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       867,
+       826
+      ],
+      [
+       937,
+       826
+      ],
+      [
+       937,
+       855
+      ],
+      [
+       867,
+       855
+      ]
+     ],
+     "region": {
+      "top_left_x": 867,
+      "top_left_y": 826,
+      "width": 70,
+      "height": 29
+     },
+     "line": 17,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "1e47dbd1f4d64160979024d9b3c9a3d7",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "ETM",
+     "text_display": "ETM",
+     "cell_row": 0,
+     "cell_column": 3,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1026,
+       826
+      ],
+      [
+       1222,
+       826
+      ],
+      [
+       1222,
+       860
+      ],
+      [
+       1026,
+       860
+      ]
+     ],
+     "region": {
+      "top_left_x": 1026,
+      "top_left_y": 826,
+      "width": 196,
+      "height": 34
+     },
+     "line": 18,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "a7ced9f5f25f453ebcbb163d2c185f00",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "TVQ-VAE (W)",
+     "text_display": "TVQ-VAE (W)",
+     "cell_row": 0,
+     "cell_column": 4,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1290,
+       826
+      ],
+      [
+       1407,
+       826
+      ],
+      [
+       1407,
+       862
+      ],
+      [
+       1290,
+       862
+      ]
+     ],
+     "region": {
+      "top_left_x": 1290,
+      "top_left_y": 826,
+      "width": 117,
+      "height": 36
+     },
+     "line": 19,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "038bb83a3812435db6096cda1ed2ae88",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "BerTopic",
+     "text_display": "BerTopic",
+     "cell_row": 0,
+     "cell_column": 5,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1502,
+       826
+      ],
+      [
+       1615,
+       826
+      ],
+      [
+       1615,
+       862
+      ],
+      [
+       1502,
+       862
+      ]
+     ],
+     "region": {
+      "top_left_x": 1502,
+      "top_left_y": 826,
+      "width": 113,
+      "height": 36
+     },
+     "line": 20,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "566425ce35da4685b79846d39524ee36",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "TopClus",
+     "text_display": "TopClus",
+     "cell_row": 0,
+     "cell_column": 6,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1701,
+       826
+      ],
+      [
+       1841,
+       826
+      ],
+      [
+       1841,
+       860
+      ],
+      [
+       1701,
+       860
+      ]
+     ],
+     "region": {
+      "top_left_x": 1701,
+      "top_left_y": 826,
+      "width": 140,
+      "height": 34
+     },
+     "line": 21,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "6bbed566bc594a1989e6db005ad7d601",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "TVQ-VAE",
+     "text_display": "TVQ-VAE",
+     "cell_row": 0,
+     "cell_column": 7,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       244,
+       875
+      ],
+      [
+       1881,
+       875
+      ],
+      [
+       1881,
+       913
+      ],
+      [
+       244,
+       913
+      ]
+     ],
+     "region": {
+      "top_left_x": 244,
+      "top_left_y": 875,
+      "width": 1637,
+      "height": 38
+     },
+     "line": 22,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "a1ce1460f365420b9581fabbc35d1af3",
+     "type": "table_row",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       267,
+       877
+      ],
+      [
+       348,
+       877
+      ],
+      [
+       348,
+       906
+      ],
+      [
+       267,
+       906
+      ]
+     ],
+     "region": {
+      "top_left_x": 267,
+      "top_left_y": 877,
+      "width": 81,
+      "height": 29
+     },
+     "line": 23,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "42c5fb41663d4a77b7cbe23483df13ce",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "20NG",
+     "text_display": "20NG",
+     "cell_row": 1,
+     "cell_column": 0,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       396,
+       877
+      ],
+      [
+       568,
+       877
+      ],
+      [
+       568,
+       911
+      ],
+      [
+       396,
+       911
+      ]
+     ],
+     "region": {
+      "top_left_x": 396,
+      "top_left_y": 877,
+      "width": 172,
+      "height": 34
+     },
+     "line": 24,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "15ad764e74614563a2f0a30613b9cfd9",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "(0.309/0.231)",
+     "text_display": "(0.309/0.231)",
+     "cell_row": 1,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       606,
+       877
+      ],
+      [
+       780,
+       877
+      ],
+      [
+       780,
+       911
+      ],
+      [
+       606,
+       911
+      ]
+     ],
+     "region": {
+      "top_left_x": 606,
+      "top_left_y": 877,
+      "width": 174,
+      "height": 34
+     },
+     "line": 25,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "fa3159fb9a9647b091d11604ef6b5c30",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "(0.276/0.184)",
+     "text_display": "(0.276/0.184)",
+     "cell_row": 1,
+     "cell_column": 2,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       816,
+       877
+      ],
+      [
+       990,
+       877
+      ],
+      [
+       990,
+       911
+      ],
+      [
+       816,
+       911
+      ]
+     ],
+     "region": {
+      "top_left_x": 816,
+      "top_left_y": 877,
+      "width": 174,
+      "height": 34
+     },
+     "line": 26,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "293ad0d304984b349afd92f3ff1b1d97",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "(0.331/0.207)",
+     "text_display": "(0.331/0.207)",
+     "cell_row": 1,
+     "cell_column": 3,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1039,
+       877
+      ],
+      [
+       1213,
+       877
+      ],
+      [
+       1213,
+       911
+      ],
+      [
+       1039,
+       911
+      ]
+     ],
+     "region": {
+      "top_left_x": 1039,
+      "top_left_y": 877,
+      "width": 174,
+      "height": 34
+     },
+     "line": 27,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "1348fcb65c044b7f8aae2fbc31099afb",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "(0.222/0.249)",
+     "text_display": "(0.222/0.249)",
+     "cell_row": 1,
+     "cell_column": 4,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1263,
+       877
+      ],
+      [
+       1435,
+       877
+      ],
+      [
+       1435,
+       911
+      ],
+      [
+       1263,
+       911
+      ]
+     ],
+     "region": {
+      "top_left_x": 1263,
+      "top_left_y": 877,
+      "width": 172,
+      "height": 34
+     },
+     "line": 28,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "b4e795731dc348cc9a9a345b269340e0",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "(0.133/0.178)",
+     "text_display": "(0.133/0.178)",
+     "cell_row": 1,
+     "cell_column": 5,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1473,
+       877
+      ],
+      [
+       1647,
+       877
+      ],
+      [
+       1647,
+       911
+      ],
+      [
+       1473,
+       911
+      ]
+     ],
+     "region": {
+      "top_left_x": 1473,
+      "top_left_y": 877,
+      "width": 174,
+      "height": 34
+     },
+     "line": 29,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "7609344eadee492db5772e1e81b42602",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "(0.168/0.221)",
+     "text_display": "(0.168/0.221)",
+     "cell_row": 1,
+     "cell_column": 6,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1683,
+       877
+      ],
+      [
+       1857,
+       877
+      ],
+      [
+       1857,
+       911
+      ],
+      [
+       1683,
+       911
+      ]
+     ],
+     "region": {
+      "top_left_x": 1683,
+      "top_left_y": 877,
+      "width": 174,
+      "height": 34
+     },
+     "line": 30,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "e31ac191c158483d9c86f8d0148687f0",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "(0.210/0.242)",
+     "text_display": "(0.210/0.242)",
+     "cell_row": 1,
+     "cell_column": 7,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       244,
+       911
+      ],
+      [
+       1881,
+       911
+      ],
+      [
+       1881,
+       949
+      ],
+      [
+       244,
+       949
+      ]
+     ],
+     "region": {
+      "top_left_x": 244,
+      "top_left_y": 911,
+      "width": 1637,
+      "height": 38
+     },
+     "line": 31,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "1bdd74474e3840bd9eb3cbfe637d6b1f",
+     "type": "table_row",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       267,
+       914
+      ],
+      [
+       337,
+       914
+      ],
+      [
+       337,
+       941
+      ],
+      [
+       267,
+       941
+      ]
+     ],
+     "region": {
+      "top_left_x": 267,
+      "top_left_y": 914,
+      "width": 70,
+      "height": 27
+     },
+     "line": 32,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "00e107f8b4bf4e7e8d43a8af59ea15a1",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "NYT",
+     "text_display": "NYT",
+     "cell_row": 2,
+     "cell_column": 0,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       396,
+       914
+      ],
+      [
+       568,
+       914
+      ],
+      [
+       568,
+       946
+      ],
+      [
+       396,
+       946
+      ]
+     ],
+     "region": {
+      "top_left_x": 396,
+      "top_left_y": 914,
+      "width": 172,
+      "height": 32
+     },
+     "line": 33,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "af57c65a70594fc79dd07b472d015784",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "(0.144/0.399)",
+     "text_display": "(0.144/0.399)",
+     "cell_row": 2,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       606,
+       914
+      ],
+      [
+       780,
+       914
+      ],
+      [
+       780,
+       946
+      ],
+      [
+       606,
+       946
+      ]
+     ],
+     "region": {
+      "top_left_x": 606,
+      "top_left_y": 914,
+      "width": 174,
+      "height": 32
+     },
+     "line": 34,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "ac0d1b40e83f49f0bc22a975dd82e3e1",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "(0.107/0.367)",
+     "text_display": "(0.107/0.367)",
+     "cell_row": 2,
+     "cell_column": 2,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       816,
+       914
+      ],
+      [
+       990,
+       914
+      ],
+      [
+       990,
+       946
+      ],
+      [
+       816,
+       946
+      ]
+     ],
+     "region": {
+      "top_left_x": 816,
+      "top_left_y": 914,
+      "width": 174,
+      "height": 32
+     },
+     "line": 35,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "babd50533bd24b0ebb8ebc18ec36d1d4",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "(0.094/0.346)",
+     "text_display": "(0.094/0.346)",
+     "cell_row": 2,
+     "cell_column": 3,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1037,
+       914
+      ],
+      [
+       1213,
+       914
+      ],
+      [
+       1213,
+       946
+      ],
+      [
+       1037,
+       946
+      ]
+     ],
+     "region": {
+      "top_left_x": 1037,
+      "top_left_y": 914,
+      "width": 176,
+      "height": 32
+     },
+     "line": 36,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "a969dcc68e5647c1afb17e8f628f787c",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "(0.176/0.489)",
+     "text_display": "(0.176/0.489)",
+     "cell_row": 2,
+     "cell_column": 4,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1263,
+       914
+      ],
+      [
+       1435,
+       914
+      ],
+      [
+       1435,
+       946
+      ],
+      [
+       1263,
+       946
+      ]
+     ],
+     "region": {
+      "top_left_x": 1263,
+      "top_left_y": 914,
+      "width": 172,
+      "height": 32
+     },
+     "line": 37,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "36b9062dc078444ca07583d8231f0af6",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "(0.155/0.481)",
+     "text_display": "(0.155/0.481)",
+     "cell_row": 2,
+     "cell_column": 5,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1473,
+       914
+      ],
+      [
+       1647,
+       914
+      ],
+      [
+       1647,
+       946
+      ],
+      [
+       1473,
+       946
+      ]
+     ],
+     "region": {
+      "top_left_x": 1473,
+      "top_left_y": 914,
+      "width": 174,
+      "height": 32
+     },
+     "line": 38,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "a855d21df0ef4be888f79c381bb39639",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "(0.137/0.461)",
+     "text_display": "(0.137/0.461)",
+     "cell_row": 2,
+     "cell_column": 6,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1683,
+       914
+      ],
+      [
+       1857,
+       914
+      ],
+      [
+       1857,
+       946
+      ],
+      [
+       1683,
+       946
+      ]
+     ],
+     "region": {
+      "top_left_x": 1683,
+      "top_left_y": 914,
+      "width": 174,
+      "height": 32
+     },
+     "line": 39,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "855a16612f184bc99b7950c9afb7806b",
+     "type": "simple_cell",
+     "conversion_output": false,
+     "parent_id": "cab3b2ca08824bc9bc9a795f01121b70",
+     "text": "(0.184/0.510)",
+     "text_display": "(0.184/0.510)",
+     "cell_row": 2,
+     "cell_column": 7,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       183,
+       989
+      ],
+      [
+       1939,
+       989
+      ],
+      [
+       1939,
+       1067
+      ],
+      [
+       183,
+       1067
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 989,
+      "width": 1756,
+      "height": 78
+     },
+     "line": 40,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "895ce811ef104af7bc19a3b8a9c9750f",
+     "type": "figure_label",
+     "conversion_output": false,
+     "children_ids": [
+      "b4fe519fe9004677a0d8ed11aeb4fd17",
+      "93bdea6a2f4f4569bd62d068b32c2e9e"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       183,
+       989
+      ],
+      [
+       1939,
+       989
+      ],
+      [
+       1939,
+       1030
+      ],
+      [
+       183,
+       1030
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 989,
+      "width": 1756,
+      "height": 41
+     },
+     "line": 41,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "b4fe519fe9004677a0d8ed11aeb4fd17",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "895ce811ef104af7bc19a3b8a9c9750f",
+     "text": "Table 2: Evaluation on Km-NMI and Km-Purity on 20NG and NYT datasets: (Km-NMI / Km-Purity). We note that BerTopic,",
+     "text_display": "",
+     "confidence": 0.99853515625,
+     "confidence_rate": 0.9999876814398867
+    },
+    {
+     "cnt": [
+      [
+       186,
+       1029
+      ],
+      [
+       1892,
+       1029
+      ],
+      [
+       1892,
+       1067
+      ],
+      [
+       186,
+       1067
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1029,
+      "width": 1706,
+      "height": 38
+     },
+     "line": 42,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "93bdea6a2f4f4569bd62d068b32c2e9e",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "895ce811ef104af7bc19a3b8a9c9750f",
+     "text": "TopClus and TVQ-VAE both use PLM (Reimers and Gurevych 2019). TVQ-VAE (W) uses Word2Vec instead of the PLM.",
+     "text_display": "",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       183,
+       1143
+      ],
+      [
+       1021,
+       1143
+      ],
+      [
+       1021,
+       2448
+      ],
+      [
+       183,
+       2448
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 1143,
+      "width": 838,
+      "height": 1305
+     },
+     "line": 43,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "type": "column",
+     "conversion_output": false,
+     "children_ids": [
+      "66c44d1a857c48f99d78d02d860bfd11",
+      "8d798c6919a7435da683e3829c24da50",
+      "6ec37ba597f842d89cd5d5db920f5b13",
+      "7303020c6b844cf5a2821b90ce120587",
+      "15ad7e7469e644de82a7ff2cbb6f579b",
+      "368450199a87469aaa3a2ac7269a0ced",
+      "63080557e7be4d0ea2fdee7a2201abba",
+      "65ece9fe4e584a28b7eb38112a8834f6",
+      "cd4966824f414bcdaa3817855924726b",
+      "da05e125486349a4be1ea8e6bc8bee42",
+      "d68a23a9501b485d90163e21573a98a8",
+      "9b09247f89b040bba4bf87d45c2d6758",
+      "1cd640d598ed48e9b92b4c3e78867d6d",
+      "536d4bfcba604a2a8366746c9ac4af0a",
+      "4e40a1b3f88c48fda981c6acace81340",
+      "be8fd609ef21443fa2ec0816f73047cd",
+      "c27f7812ad014d90b7f4cbcef247f980",
+      "f425ecfd3eb14ec086231265dacc55cd",
+      "324b51679d3c4259beda0616ab334649",
+      "09806f9ececc48578f3a2326c1184361",
+      "ed1465d99e3f469c9e9a4a924303ad37",
+      "c68902679341433c9dac5e19c0489f87",
+      "2654c7cc3dd0473c8c1717d17e37d7c6",
+      "dfb190edfb834e4ab9ea2fab334cf427",
+      "213a055f20a74af49d81f2033d6a18d6",
+      "04d1aa584a854186982aef28169796f3",
+      "ed08d8d95fee4fae976a8c3d0675a0b7",
+      "36e99670f9d84176bd5b40b1939439bd",
+      "fd608dcb39d84c2fb5e53a4bee91126e",
+      "9fb09bdd40db476c9c601aac2e8a900b",
+      "089ce41413f24bc39fe7678f86efaa72",
+      "0f007e5a75894929923f0389cb773605",
+      "0e3cf8af807343c18e9c6da709b6ef62"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       183,
+       1143
+      ],
+      [
+       966,
+       1143
+      ],
+      [
+       966,
+       1184
+      ],
+      [
+       183,
+       1184
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 1143,
+      "width": 783,
+      "height": 41
+     },
+     "line": 44,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "66c44d1a857c48f99d78d02d860bfd11",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "plication of the TC, measured by NPMI, and TD values.",
+     "text_display": "\nplication of the TC, measured by NPMI, and TD values.",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       217,
+       1186
+      ],
+      [
+       1018,
+       1186
+      ],
+      [
+       1018,
+       1224
+      ],
+      [
+       217,
+       1224
+      ]
+     ],
+     "region": {
+      "top_left_x": 217,
+      "top_left_y": 1186,
+      "width": 801,
+      "height": 38
+     },
+     "line": 45,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "8d798c6919a7435da683e3829c24da50",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "Furthermore, to measure document representation, we",
+     "text_display": "\nFurthermore, to measure document representation, we",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       183,
+       1226
+      ],
+      [
+       1018,
+       1226
+      ],
+      [
+       1018,
+       1262
+      ],
+      [
+       183,
+       1262
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 1226,
+      "width": 835,
+      "height": 36
+     },
+     "line": 46,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "6ec37ba597f842d89cd5d5db920f5b13",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "report the purity and Normalized Mutual Information",
+     "text_display": " report the purity and Normalized Mutual Information",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       1262
+      ],
+      [
+       1019,
+       1262
+      ],
+      [
+       1019,
+       1300
+      ],
+      [
+       186,
+       1300
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1262,
+      "width": 833,
+      "height": 38
+     },
+     "line": 47,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "7303020c6b844cf5a2821b90ce120587",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "(NMI) (Schutze, Manning, and Raghavan 2008). Following",
+     "text_display": " (NMI) (Schutze, Manning, and Raghavan 2008). Following",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       1299
+      ],
+      [
+       1019,
+       1299
+      ],
+      [
+       1019,
+       1340
+      ],
+      [
+       186,
+       1340
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1299,
+      "width": 833,
+      "height": 41
+     },
+     "line": 48,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "15ad7e7469e644de82a7ff2cbb6f579b",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "(Xu et al. 2022), we cluster the \\(\\theta_{d}\\) of every document \\(d\\) and",
+     "text_display": " (Xu et al. 2022), we cluster the \\(\\theta_{d}\\) of every document \\(d\\) and",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       1339
+      ],
+      [
+       1019,
+       1339
+      ],
+      [
+       1019,
+       1375
+      ],
+      [
+       186,
+       1375
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1339,
+      "width": 833,
+      "height": 36
+     },
+     "line": 49,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "368450199a87469aaa3a2ac7269a0ced",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "measure the purity and NMI termed as Km-NMI and Km-",
+     "text_display": " measure the purity and NMI termed as Km-NMI and Km-",
+     "subtype": "continues_line_space",
+     "confidence": 0.9970703125,
+     "confidence_rate": 0.9999476087397059
+    },
+    {
+     "cnt": [
+      [
+       186,
+       1376
+      ],
+      [
+       1019,
+       1376
+      ],
+      [
+       1019,
+       1417
+      ],
+      [
+       186,
+       1417
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1376,
+      "width": 833,
+      "height": 41
+     },
+     "line": 50,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "63080557e7be4d0ea2fdee7a2201abba",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "Purity. Both values range from 0 to 1, and the higher values",
+     "text_display": "Purity. Both values range from 0 to 1, and the higher values",
+     "subtype": "continues_line_no_space",
+     "confidence": 0.9345703125,
+     "confidence_rate": 0.9990053712339784
+    },
+    {
+     "cnt": [
+      [
+       186,
+       1416
+      ],
+      [
+       577,
+       1416
+      ],
+      [
+       577,
+       1452
+      ],
+      [
+       186,
+       1452
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1416,
+      "width": 391,
+      "height": 36
+     },
+     "line": 51,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "65ece9fe4e584a28b7eb38112a8834f6",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "indicate better performance.",
+     "text_display": " indicate better performance.",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       1486
+      ],
+      [
+       1019,
+       1486
+      ],
+      [
+       1019,
+       1524
+      ],
+      [
+       186,
+       1524
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1486,
+      "width": 833,
+      "height": 38
+     },
+     "line": 52,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "cd4966824f414bcdaa3817855924726b",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "Topic Quality Evaluation. We present the evaluation re-",
+     "text_display": "\n\nTopic Quality Evaluation. We present the evaluation re",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       1525
+      ],
+      [
+       1019,
+       1525
+      ],
+      [
+       1019,
+       1566
+      ],
+      [
+       186,
+       1566
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1525,
+      "width": 833,
+      "height": 41
+     },
+     "line": 53,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "da05e125486349a4be1ea8e6bc8bee42",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "sults for topic quality (TQ), as depicted in Figure 2. From",
+     "text_display": "sults for topic quality (TQ), as depicted in Figure 2. From",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       1563
+      ],
+      [
+       1019,
+       1563
+      ],
+      [
+       1019,
+       1601
+      ],
+      [
+       186,
+       1601
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1563,
+      "width": 833,
+      "height": 38
+     },
+     "line": 54,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "d68a23a9501b485d90163e21573a98a8",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "the evaluation settings outlined in (Grootendorst 2022), we",
+     "text_display": " the evaluation settings outlined in (Grootendorst 2022), we",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       1602
+      ],
+      [
+       1019,
+       1602
+      ],
+      [
+       1019,
+       1640
+      ],
+      [
+       186,
+       1640
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1602,
+      "width": 833,
+      "height": 38
+     },
+     "line": 55,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "9b09247f89b040bba4bf87d45c2d6758",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "infer a range of 10 to 50 topics with a step size of 10 and",
+     "text_display": " infer a range of 10 to 50 topics with a step size of 10 and",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       1638
+      ],
+      [
+       765,
+       1638
+      ],
+      [
+       765,
+       1676
+      ],
+      [
+       186,
+       1676
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1638,
+      "width": 579,
+      "height": 38
+     },
+     "line": 56,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "1cd640d598ed48e9b92b4c3e78867d6d",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "measure their TC and TD to evaluate TQ.",
+     "text_display": " measure their TC and TD to evaluate TQ.",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       217,
+       1679
+      ],
+      [
+       1018,
+       1679
+      ],
+      [
+       1018,
+       1720
+      ],
+      [
+       217,
+       1720
+      ]
+     ],
+     "region": {
+      "top_left_x": 217,
+      "top_left_y": 1679,
+      "width": 801,
+      "height": 41
+     },
+     "line": 57,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "536d4bfcba604a2a8366746c9ac4af0a",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "First, we evaluate the performance of TVQ-VAE on the",
+     "text_display": "\n\nFirst, we evaluate the performance of TVQ-VAE on the",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       183,
+       1719
+      ],
+      [
+       1018,
+       1719
+      ],
+      [
+       1018,
+       1760
+      ],
+      [
+       183,
+       1760
+      ]
+     ],
+     "region": {
+      "top_left_x": 183,
+      "top_left_y": 1719,
+      "width": 835,
+      "height": 41
+     },
+     "line": 58,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "4e40a1b3f88c48fda981c6acace81340",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "20NG dataset, which is widely used in the field of topic",
+     "text_display": " 20NG dataset, which is widely used in the field of topic",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       1758
+      ],
+      [
+       1019,
+       1758
+      ],
+      [
+       1019,
+       1796
+      ],
+      [
+       186,
+       1796
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1758,
+      "width": 833,
+      "height": 38
+     },
+     "line": 59,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "be8fd609ef21443fa2ec0816f73047cd",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "modeling. Notably, the TVQ-VAE demonstrates either com-",
+     "text_display": " modeling. Notably, the TVQ-VAE demonstrates either com",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       1796
+      ],
+      [
+       1019,
+       1796
+      ],
+      [
+       1019,
+       1837
+      ],
+      [
+       186,
+       1837
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1796,
+      "width": 833,
+      "height": 41
+     },
+     "line": 60,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "c27f7812ad014d90b7f4cbcef247f980",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "parable or superior performance compared to other base-",
+     "text_display": "parable or superior performance compared to other base",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       1833
+      ],
+      [
+       1021,
+       1833
+      ],
+      [
+       1021,
+       1874
+      ],
+      [
+       186,
+       1874
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1833,
+      "width": 835,
+      "height": 41
+     },
+     "line": 61,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "f425ecfd3eb14ec086231265dacc55cd",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "lines in terms of TQ measures. It is worth mentioning that",
+     "text_display": "lines in terms of TQ measures. It is worth mentioning that",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       1873
+      ],
+      [
+       1019,
+       1873
+      ],
+      [
+       1019,
+       1909
+      ],
+      [
+       186,
+       1909
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1873,
+      "width": 833,
+      "height": 36
+     },
+     "line": 62,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "324b51679d3c4259beda0616ab334649",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "the 20NG dataset has a small vocabulary size, which stands",
+     "text_display": " the 20NG dataset has a small vocabulary size, which stands",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       1910
+      ],
+      [
+       1019,
+       1910
+      ],
+      [
+       1019,
+       1951
+      ],
+      [
+       186,
+       1951
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1910,
+      "width": 833,
+      "height": 41
+     },
+     "line": 63,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "09806f9ececc48578f3a2326c1184361",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "at \\(1.6 K\\). This scale is considerably smaller considering the",
+     "text_display": " at \\(1.6 K\\). This scale is considerably smaller considering the",
+     "subtype": "continues_line_space",
+     "confidence": 0.94189453125,
+     "confidence_rate": 0.9991200642346498
+    },
+    {
+     "cnt": [
+      [
+       186,
+       1948
+      ],
+      [
+       1019,
+       1948
+      ],
+      [
+       1019,
+       1986
+      ],
+      [
+       186,
+       1986
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1948,
+      "width": 833,
+      "height": 38
+     },
+     "line": 64,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "ed1465d99e3f469c9e9a4a924303ad37",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "number of TVQ-VAE codebook sizes. These results repre-",
+     "text_display": " number of TVQ-VAE codebook sizes. These results repre",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       1986
+      ],
+      [
+       1021,
+       1986
+      ],
+      [
+       1021,
+       2024
+      ],
+      [
+       186,
+       2024
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 1986,
+      "width": 835,
+      "height": 38
+     },
+     "line": 65,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "c68902679341433c9dac5e19c0489f87",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "sent that TVQ-VAE effectively extracts topic information",
+     "text_display": "sent that TVQ-VAE effectively extracts topic information",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       2023
+      ],
+      [
+       1019,
+       2023
+      ],
+      [
+       1019,
+       2064
+      ],
+      [
+       186,
+       2064
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 2023,
+      "width": 833,
+      "height": 41
+     },
+     "line": 66,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "2654c7cc3dd0473c8c1717d17e37d7c6",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "for documents with limited size, where BoW-based topic",
+     "text_display": " for documents with limited size, where BoW-based topic",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       2063
+      ],
+      [
+       980,
+       2063
+      ],
+      [
+       980,
+       2099
+      ],
+      [
+       186,
+       2099
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 2063,
+      "width": 794,
+      "height": 36
+     },
+     "line": 67,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "dfb190edfb834e4ab9ea2fab334cf427",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "models like ProdLDA have exhibited impressive success.",
+     "text_display": " models like ProdLDA have exhibited impressive success.",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       217,
+       2104
+      ],
+      [
+       1020,
+       2104
+      ],
+      [
+       1020,
+       2142
+      ],
+      [
+       217,
+       2142
+      ]
+     ],
+     "region": {
+      "top_left_x": 217,
+      "top_left_y": 2104,
+      "width": 803,
+      "height": 38
+     },
+     "line": 68,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "213a055f20a74af49d81f2033d6a18d6",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "In the NYT dataset, characterized by a significantly larger",
+     "text_display": "\n\nIn the NYT dataset, characterized by a significantly larger",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       2145
+      ],
+      [
+       1019,
+       2145
+      ],
+      [
+       1019,
+       2181
+      ],
+      [
+       186,
+       2181
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 2145,
+      "width": 833,
+      "height": 36
+     },
+     "line": 69,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "04d1aa584a854186982aef28169796f3",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "vocabulary to 20NG, the TVQ-VAE model achieves com-",
+     "text_display": " vocabulary to 20NG, the TVQ-VAE model achieves com",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       2181
+      ],
+      [
+       1019,
+       2181
+      ],
+      [
+       1019,
+       2222
+      ],
+      [
+       186,
+       2222
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 2181,
+      "width": 833,
+      "height": 41
+     },
+     "line": 70,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "ed08d8d95fee4fae976a8c3d0675a0b7",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "petitive topic quality when utilizing only 300 virtual code-",
+     "text_display": "petitive topic quality when utilizing only 300 virtual code",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       2217
+      ],
+      [
+       1019,
+       2217
+      ],
+      [
+       1019,
+       2258
+      ],
+      [
+       186,
+       2258
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 2217,
+      "width": 833,
+      "height": 41
+     },
+     "line": 71,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "36e99670f9d84176bd5b40b1939439bd",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "books, which accounts for less than 1\\% of the original vo-",
+     "text_display": "books, which accounts for less than 1\\% of the original vo",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       2258
+      ],
+      [
+       1021,
+       2258
+      ],
+      [
+       1021,
+       2294
+      ],
+      [
+       186,
+       2294
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 2258,
+      "width": 835,
+      "height": 36
+     },
+     "line": 72,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "fd608dcb39d84c2fb5e53a4bee91126e",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "cabulary size. Among the baselines, BerTopic stands out",
+     "text_display": "cabulary size. Among the baselines, BerTopic stands out",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       2294
+      ],
+      [
+       1019,
+       2294
+      ],
+      [
+       1019,
+       2335
+      ],
+      [
+       186,
+       2335
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 2294,
+      "width": 833,
+      "height": 41
+     },
+     "line": 73,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "9fb09bdd40db476c9c601aac2e8a900b",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "as it demonstrates exceptional performance, particularly in",
+     "text_display": " as it demonstrates exceptional performance, particularly in",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       2333
+      ],
+      [
+       1019,
+       2333
+      ],
+      [
+       1019,
+       2371
+      ],
+      [
+       186,
+       2371
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 2333,
+      "width": 833,
+      "height": 38
+     },
+     "line": 74,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "089ce41413f24bc39fe7678f86efaa72",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "terms of NPMI, deviating from the results observed in the",
+     "text_display": " terms of NPMI, deviating from the results observed in the",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       2371
+      ],
+      [
+       1021,
+       2371
+      ],
+      [
+       1021,
+       2409
+      ],
+      [
+       186,
+       2409
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 2371,
+      "width": 835,
+      "height": 38
+     },
+     "line": 75,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "0f007e5a75894929923f0389cb773605",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "20NG dataset. The result verifies BerTopic's claim that",
+     "text_display": " 20NG dataset. The result verifies BerTopic's claim that",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       186,
+       2410
+      ],
+      [
+       953,
+       2410
+      ],
+      [
+       953,
+       2448
+      ],
+      [
+       186,
+       2448
+      ]
+     ],
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 2410,
+      "width": 767,
+      "height": 38
+     },
+     "line": 76,
+     "column": 1,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "0e3cf8af807343c18e9c6da709b6ef62",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "3cfc7686a9f540a491026cbbd1aa8666",
+     "text": "PLM-based methods are scalable for larger vocabulary.",
+     "text_display": " PLM-based methods are scalable for larger vocabulary.",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1104,
+       1143
+      ],
+      [
+       1941,
+       1143
+      ],
+      [
+       1941,
+       2448
+      ],
+      [
+       1104,
+       2448
+      ]
+     ],
+     "region": {
+      "top_left_x": 1104,
+      "top_left_y": 1143,
+      "width": 837,
+      "height": 1305
+     },
+     "line": 77,
+     "column": 0,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "type": "column",
+     "conversion_output": false,
+     "children_ids": [
+      "fdbd62640cc545c980d8ce4a7b80145d",
+      "21daaa84f8934789987fc2ecd2b5438c",
+      "04aa94b6ff4f490baed1b19518568232",
+      "340a9d6c86f14f488c7a62235f626657",
+      "d54548c464da49e58d1c054055f89865",
+      "3918aa64b691423dbd7d94d59bb14568",
+      "f80ee841f3a94d42a1496e6a81ecf91a",
+      "7ee0c35061474b2fa8021409b119ce92",
+      "df1513fd265940cb8a5f2c4aed768a17",
+      "a2648c6d13244073aaa7739e2edfe2ce",
+      "2a8d5b4f5efe44ceab536d13200f76b5",
+      "e4e0a48268a5476084edaefce40e2d8d",
+      "3f6400b41644480eaa3db39a23079655",
+      "9dd8868eb66a49088b2c842170650e55",
+      "abbcd81262ac4ee7ac01df3a18c86605",
+      "cf61c50ff81c450cb86a4e621bfd603c",
+      "cc8d349952df44be984dd1f94bb9747b",
+      "58de3071ef0e40bfba6213c0e57dcd63",
+      "d0739a0fefa0425984e747753f71dbe4",
+      "fe5e841192da48d0a28f32372e0ec158",
+      "3a6402d2c3f54626afe95e4862a1c9bc",
+      "bfc0cbd001b5483c81fa638d5f86a087",
+      "6009e342f4bb4103ac95e9ebfea1d04a",
+      "e222400bbddf46a7b8cc8aff1b94cd33",
+      "669ded51103e43748c792d3b3b390849",
+      "91b6451a2e274c188382486f703e7cae",
+      "254ab93351d443ab8cbc13f49fc811ce",
+      "0d7f02db628b4299b16201dfc933f6c1",
+      "a57a35da2d334b219ebada57dd4db737",
+      "940d3dfafe424a8d956604a83936d9ea",
+      "0ae1f4ac0be04c18a5e8f31ad581f1e2",
+      "67eb1ea303ec484ea2e14c8fa1e41b38",
+      "1e57816d3fdc47baaace3552cc999e63"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       1140,
+       1143
+      ],
+      [
+       1941,
+       1143
+      ],
+      [
+       1941,
+       1181
+      ],
+      [
+       1140,
+       1181
+      ]
+     ],
+     "region": {
+      "top_left_x": 1140,
+      "top_left_y": 1143,
+      "width": 801,
+      "height": 38
+     },
+     "line": 78,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "fdbd62640cc545c980d8ce4a7b80145d",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "Figure 3 presents the ablation study conducted with vary-",
+     "text_display": "\n\nFigure 3 presents the ablation study conducted with vary",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1104,
+       1181
+      ],
+      [
+       1941,
+       1181
+      ],
+      [
+       1941,
+       1219
+      ],
+      [
+       1104,
+       1219
+      ]
+     ],
+     "region": {
+      "top_left_x": 1104,
+      "top_left_y": 1181,
+      "width": 837,
+      "height": 38
+     },
+     "line": 79,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "21daaa84f8934789987fc2ecd2b5438c",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "ing the number of codebooks by \\{100, 200, 300\\} and the ex-",
+     "text_display": "ing the number of codebooks by \\{100, 200, 300\\} and the ex",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 0.9077610969543457,
+     "confidence_rate": 0.9984650832537068
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       1217
+      ],
+      [
+       1941,
+       1217
+      ],
+      [
+       1941,
+       1258
+      ],
+      [
+       1106,
+       1258
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1217,
+      "width": 835,
+      "height": 41
+     },
+     "line": 80,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "04aa94b6ff4f490baed1b19518568232",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "pansion values by \\(k=\\{1,3,5\\}\\). In the case of the 20NG",
+     "text_display": "pansion values by \\(k=\\{1,3,5\\}\\). In the case of the 20NG",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 0.99951171875,
+     "confidence_rate": 0.9999919934665097
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       1258
+      ],
+      [
+       1941,
+       1258
+      ],
+      [
+       1941,
+       1294
+      ],
+      [
+       1106,
+       1294
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1258,
+      "width": 835,
+      "height": 36
+     },
+     "line": 81,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "340a9d6c86f14f488c7a62235f626657",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "dataset, the evaluation results indicate minimal performance",
+     "text_display": " dataset, the evaluation results indicate minimal performance",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       1294
+      ],
+      [
+       1941,
+       1294
+      ],
+      [
+       1941,
+       1335
+      ],
+      [
+       1106,
+       1335
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1294,
+      "width": 835,
+      "height": 41
+     },
+     "line": 82,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "d54548c464da49e58d1c054055f89865",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "differences across all settings. This presents that the choice",
+     "text_display": " differences across all settings. This presents that the choice",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       1335
+      ],
+      [
+       1941,
+       1335
+      ],
+      [
+       1941,
+       1371
+      ],
+      [
+       1106,
+       1371
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1335,
+      "width": 835,
+      "height": 36
+     },
+     "line": 83,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "3918aa64b691423dbd7d94d59bb14568",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "of embedding and expansion numbers does not necessar-",
+     "text_display": " of embedding and expansion numbers does not necessar",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       1371
+      ],
+      [
+       1941,
+       1371
+      ],
+      [
+       1941,
+       1412
+      ],
+      [
+       1106,
+       1412
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1371,
+      "width": 835,
+      "height": 41
+     },
+     "line": 84,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "f80ee841f3a94d42a1496e6a81ecf91a",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "ily guarantee performance enhancements. This may happen",
+     "text_display": "ily guarantee performance enhancements. This may happen",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       1412
+      ],
+      [
+       1941,
+       1412
+      ],
+      [
+       1941,
+       1448
+      ],
+      [
+       1106,
+       1448
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1412,
+      "width": 835,
+      "height": 36
+     },
+     "line": 85,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "7ee0c35061474b2fa8021409b119ce92",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "due to the relatively small vocabulary size of 20NG, More-",
+     "text_display": " due to the relatively small vocabulary size of 20NG, More",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       1448
+      ],
+      [
+       1941,
+       1448
+      ],
+      [
+       1941,
+       1486
+      ],
+      [
+       1106,
+       1486
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1448,
+      "width": 835,
+      "height": 38
+     },
+     "line": 86,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "df1513fd265940cb8a5f2c4aed768a17",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "over, exceeding certain bounds for the number of codebooks",
+     "text_display": "over, exceeding certain bounds for the number of codebooks",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       1486
+      ],
+      [
+       1941,
+       1486
+      ],
+      [
+       1941,
+       1524
+      ],
+      [
+       1106,
+       1524
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1486,
+      "width": 835,
+      "height": 38
+     },
+     "line": 87,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "a2648c6d13244073aaa7739e2edfe2ce",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "and expansion appears to capture no additional information",
+     "text_display": " and expansion appears to capture no additional information",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       1525
+      ],
+      [
+       1941,
+       1525
+      ],
+      [
+       1941,
+       1563
+      ],
+      [
+       1106,
+       1563
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1525,
+      "width": 835,
+      "height": 38
+     },
+     "line": 88,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "2a8d5b4f5efe44ceab536d13200f76b5",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "from the original dataset. Conversely, the evaluation results",
+     "text_display": " from the original dataset. Conversely, the evaluation results",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       1561
+      ],
+      [
+       1941,
+       1561
+      ],
+      [
+       1941,
+       1602
+      ],
+      [
+       1106,
+       1602
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1561,
+      "width": 835,
+      "height": 41
+     },
+     "line": 89,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "e4e0a48268a5476084edaefce40e2d8d",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "obtained from the NYT dataset support our analysis. Here,",
+     "text_display": " obtained from the NYT dataset support our analysis. Here,",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       1602
+      ],
+      [
+       1941,
+       1602
+      ],
+      [
+       1941,
+       1638
+      ],
+      [
+       1106,
+       1638
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1602,
+      "width": 835,
+      "height": 36
+     },
+     "line": 90,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "3f6400b41644480eaa3db39a23079655",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "the performance improves with larger codebook sizes and",
+     "text_display": " the performance improves with larger codebook sizes and",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       1638
+      ],
+      [
+       1941,
+       1638
+      ],
+      [
+       1941,
+       1679
+      ],
+      [
+       1106,
+       1679
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1638,
+      "width": 835,
+      "height": 41
+     },
+     "line": 91,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "9dd8868eb66a49088b2c842170650e55",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "expansion numbers, given the vocabulary size of approxi-",
+     "text_display": " expansion numbers, given the vocabulary size of approxi",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       1676
+      ],
+      [
+       1583,
+       1676
+      ],
+      [
+       1583,
+       1714
+      ],
+      [
+       1106,
+       1714
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1676,
+      "width": 477,
+      "height": 38
+     },
+     "line": 92,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "abbcd81262ac4ee7ac01df3a18c86605",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "mately 20 times that of the 20NG.",
+     "text_display": "mately 20 times that of the 20NG.",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1104,
+       1756
+      ],
+      [
+       1941,
+       1756
+      ],
+      [
+       1941,
+       1792
+      ],
+      [
+       1104,
+       1792
+      ]
+     ],
+     "region": {
+      "top_left_x": 1104,
+      "top_left_y": 1756,
+      "width": 837,
+      "height": 36
+     },
+     "line": 93,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "cf61c50ff81c450cb86a4e621bfd603c",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "Document Representation Evaluation. Table 2 presents",
+     "text_display": "\n\nDocument Representation Evaluation. Table 2 presents",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       1792
+      ],
+      [
+       1941,
+       1792
+      ],
+      [
+       1941,
+       1833
+      ],
+      [
+       1106,
+       1833
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1792,
+      "width": 835,
+      "height": 41
+     },
+     "line": 94,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "cc8d349952df44be984dd1f94bb9747b",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "the km-NMI and km-Purity scores for each topic model. In",
+     "text_display": " the km-NMI and km-Purity scores for each topic model. In",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       1833
+      ],
+      [
+       1941,
+       1833
+      ],
+      [
+       1941,
+       1869
+      ],
+      [
+       1106,
+       1869
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1833,
+      "width": 835,
+      "height": 36
+     },
+     "line": 95,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "58de3071ef0e40bfba6213c0e57dcd63",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "the 20NG dataset, characterized by a relatively smaller vo-",
+     "text_display": " the 20NG dataset, characterized by a relatively smaller vo",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       1869
+      ],
+      [
+       1941,
+       1869
+      ],
+      [
+       1941,
+       1910
+      ],
+      [
+       1106,
+       1910
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1869,
+      "width": 835,
+      "height": 41
+     },
+     "line": 96,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "d0739a0fefa0425984e747753f71dbe4",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "cabulary size, the previous BoW-based method exhibited su-",
+     "text_display": "cabulary size, the previous BoW-based method exhibited su",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       1907
+      ],
+      [
+       1941,
+       1907
+      ],
+      [
+       1941,
+       1945
+      ],
+      [
+       1106,
+       1945
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1907,
+      "width": 835,
+      "height": 38
+     },
+     "line": 97,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "fe5e841192da48d0a28f32372e0ec158",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "perior NMI scores. However, in the case of the NYT dataset,",
+     "text_display": "perior NMI scores. However, in the case of the NYT dataset,",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       1946
+      ],
+      [
+       1941,
+       1946
+      ],
+      [
+       1941,
+       1984
+      ],
+      [
+       1106,
+       1984
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1946,
+      "width": 835,
+      "height": 38
+     },
+     "line": 98,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "3a6402d2c3f54626afe95e4862a1c9bc",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "PLM-based methods like BerTopic and TVQ-VAE demon-",
+     "text_display": " PLM-based methods like BerTopic and TVQ-VAE demon",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       1984
+      ],
+      [
+       1941,
+       1984
+      ],
+      [
+       1941,
+       2022
+      ],
+      [
+       1106,
+       2022
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 1984,
+      "width": 835,
+      "height": 38
+     },
+     "line": 99,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "bfc0cbd001b5483c81fa638d5f86a087",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "strated higher performance. We additionally evaluate Top-",
+     "text_display": "strated higher performance. We additionally evaluate Top",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       2023
+      ],
+      [
+       1941,
+       2023
+      ],
+      [
+       1941,
+       2061
+      ],
+      [
+       1106,
+       2061
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 2023,
+      "width": 835,
+      "height": 38
+     },
+     "line": 100,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "6009e342f4bb4103ac95e9ebfea1d04a",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "Clus (Meng et al. 2022) as a variant of the PLM-based topic",
+     "text_display": "Clus (Meng et al. 2022) as a variant of the PLM-based topic",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       2059
+      ],
+      [
+       1941,
+       2059
+      ],
+      [
+       1941,
+       2100
+      ],
+      [
+       1106,
+       2100
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 2059,
+      "width": 835,
+      "height": 41
+     },
+     "line": 101,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "e222400bbddf46a7b8cc8aff1b94cd33",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "model. These findings suggest that our TVQ-VAE model ex-",
+     "text_display": " model. These findings suggest that our TVQ-VAE model ex",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1104,
+       2100
+      ],
+      [
+       1941,
+       2100
+      ],
+      [
+       1941,
+       2136
+      ],
+      [
+       1104,
+       2136
+      ]
+     ],
+     "region": {
+      "top_left_x": 1104,
+      "top_left_y": 2100,
+      "width": 837,
+      "height": 36
+     },
+     "line": 102,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "669ded51103e43748c792d3b3b390849",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "hibits robust document representation capabilities, particu-",
+     "text_display": "hibits robust document representation capabilities, particu",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       2136
+      ],
+      [
+       1615,
+       2136
+      ],
+      [
+       1615,
+       2177
+      ],
+      [
+       1106,
+       2177
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 2136,
+      "width": 509,
+      "height": 41
+     },
+     "line": 103,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "91b6451a2e274c188382486f703e7cae",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "larly as the vocabulary size expands.",
+     "text_display": "larly as the vocabulary size expands.",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1140,
+       2181
+      ],
+      [
+       1941,
+       2181
+      ],
+      [
+       1941,
+       2219
+      ],
+      [
+       1140,
+       2219
+      ]
+     ],
+     "region": {
+      "top_left_x": 1140,
+      "top_left_y": 2181,
+      "width": 801,
+      "height": 38
+     },
+     "line": 104,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "254ab93351d443ab8cbc13f49fc811ce",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "Additionally, when employing Word2Vec with TVQ-",
+     "text_display": "\n\nAdditionally, when employing Word2Vec with TVQ-",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       2217
+      ],
+      [
+       1941,
+       2217
+      ],
+      [
+       1941,
+       2258
+      ],
+      [
+       1106,
+       2258
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 2217,
+      "width": 835,
+      "height": 41
+     },
+     "line": 105,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "0d7f02db628b4299b16201dfc933f6c1",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "VAE, we observed performance on par with that of PLM-",
+     "text_display": "VAE, we observed performance on par with that of PLM",
+     "subtype": "continues_line_no_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       2258
+      ],
+      [
+       1941,
+       2258
+      ],
+      [
+       1941,
+       2294
+      ],
+      [
+       1106,
+       2294
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 2258,
+      "width": 835,
+      "height": 36
+     },
+     "line": 106,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "a57a35da2d334b219ebada57dd4db737",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "based TVQ-VAE. In fact, in the case of the 20NG dataset,",
+     "text_display": "based TVQ-VAE. In fact, in the case of the 20NG dataset,",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       2294
+      ],
+      [
+       1941,
+       2294
+      ],
+      [
+       1941,
+       2335
+      ],
+      [
+       1106,
+       2335
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 2294,
+      "width": 835,
+      "height": 41
+     },
+     "line": 107,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "940d3dfafe424a8d956604a83936d9ea",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "Word2Vec-based TVQ-VAE even exhibited superior perfor-",
+     "text_display": " Word2Vec-based TVQ-VAE even exhibited superior perfor",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       2333
+      ],
+      [
+       1941,
+       2333
+      ],
+      [
+       1941,
+       2374
+      ],
+      [
+       1106,
+       2374
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 2333,
+      "width": 835,
+      "height": 41
+     },
+     "line": 108,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "0ae1f4ac0be04c18a5e8f31ad581f1e2",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "mance. We hypothesize that this outcome can be attributed",
+     "text_display": "mance. We hypothesize that this outcome can be attributed",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       2371
+      ],
+      [
+       1941,
+       2371
+      ],
+      [
+       1941,
+       2409
+      ],
+      [
+       1106,
+       2409
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 2371,
+      "width": 835,
+      "height": 38
+     },
+     "line": 109,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "67eb1ea303ec484ea2e14c8fa1e41b38",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "to the comparatively reduced number of words and vocabu-",
+     "text_display": " to the comparatively reduced number of words and vocabu",
+     "subtype": "continues_line_space",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1106,
+       2410
+      ],
+      [
+       1941,
+       2410
+      ],
+      [
+       1941,
+       2448
+      ],
+      [
+       1106,
+       2448
+      ]
+     ],
+     "region": {
+      "top_left_x": 1106,
+      "top_left_y": 2410,
+      "width": 835,
+      "height": 38
+     },
+     "line": 110,
+     "column": 2,
+     "font_size": 29,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "1e57816d3fdc47baaace3552cc999e63",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "067b6f3964bc4e169cdd1a0d46a3cead",
+     "text": "lary in the 20NG dataset when compared to NYT. This ob-",
+     "text_display": "lary in the 20NG dataset when compared to NYT. This ob-",
+     "subtype": "continues_line_no_hyphen",
+     "confidence": 1,
+     "confidence_rate": 1
+    }
+   ],
+   "page_height": 2750,
+   "page_width": 2125,
+   "languages_detected": []
+  }
+ ]
+}

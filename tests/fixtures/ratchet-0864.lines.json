@@ -1,0 +1,5213 @@
+{
+ "source": "gemma4-ink-yolo",
+ "pages": [
+  {
+   "page": 3,
+   "image_id": null,
+   "page_width": 2125,
+   "page_height": 2750,
+   "lines": [
+    {
+     "id": "g4_p3_l1",
+     "line": 1,
+     "column": 0,
+     "type": "page_info",
+     "region": {
+      "top_left_x": 438,
+      "top_left_y": 129,
+      "width": 1241,
+      "height": 28
+     },
+     "text": "Proceedings of the Twenty-Eighth International Joint Conference on Artificial Intelligence (IJCAI-19)",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "geometry_before": {
+      "top_left_x": 438,
+      "top_left_y": 129,
+      "width": 1241,
+      "height": 21
+     }
+    },
+    {
+     "id": "g4_p3_c1",
+     "line": 2,
+     "column": 0,
+     "type": "column",
+     "text": "",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "text-extent",
+     "region": {
+      "top_left_x": 0,
+      "top_left_y": 181,
+      "width": 1062,
+      "height": 2262
+     },
+     "children_ids": [
+      "g4_p3_l2",
+      "g4_p3_l99",
+      "g4_p3_l100",
+      "g4_p3_l101",
+      "g4_p3_l102",
+      "g4_p3_l103",
+      "g4_p3_l104",
+      "g4_p3_l105",
+      "g4_p3_l106",
+      "g4_p3_l107",
+      "g4_p3_l108",
+      "g4_p3_l109",
+      "g4_p3_l110",
+      "g4_p3_l111",
+      "g4_p3_l112",
+      "g4_p3_l113",
+      "g4_p3_l114",
+      "g4_p3_l115",
+      "g4_p3_l116",
+      "g4_p3_l117",
+      "g4_p3_l118",
+      "g4_p3_l119",
+      "g4_p3_l120",
+      "g4_p3_l121",
+      "g4_p3_l122",
+      "g4_p3_l123",
+      "g4_p3_l124",
+      "g4_p3_l125",
+      "g4_p3_l126",
+      "g4_p3_l127",
+      "g4_p3_l128",
+      "g4_p3_l129",
+      "g4_p3_l130",
+      "g4_p3_l131",
+      "g4_p3_l132",
+      "g4_p3_l133",
+      "g4_p3_l134",
+      "g4_p3_l135"
+     ]
+    },
+    {
+     "id": "g4_p3_l2",
+     "line": 3,
+     "column": 1,
+     "type": "table",
+     "region": {
+      "top_left_x": 0,
+      "top_left_y": 181,
+      "width": 1062,
+      "height": 615
+     },
+     "text": "\\begin{tabular}{|l|l|l|l|l|l|}\n\\hline  & \\(\\mathbf{X}_1\\) & \\(\\mathbf{X}_2\\) & \\(X_3\\) & \\(X_4\\) & \\(Y\\) \\\\\n\\hline 1 & \\(\\mathbf{1}\\) & \\(\\mathbf{a}\\) & 1 & 1 & a \\\\\n\\hline 2 & \\(\\mathbf{a}\\) & \\(\\mathbf{2}\\) & 2 & a & a \\\\\n\\hline \\(S_1\\) 3 & \\(\\mathbf{3}\\) & \\(\\mathbf{a}\\) & a & a & a \\\\\n\\hline 4 & \\(\\mathbf{4}\\) & \\(\\mathbf{a}\\) & 4 & a & a \\\\\n\\hline 5 & \\(\\mathbf{a}\\) & \\(\\mathbf{5}\\) & a & 5 & a \\\\\n\\hline 6 & \\(\\mathbf{a}\\) & \\(\\mathbf{a}\\) & a & a & b \\\\\n\\hline 7 & \\(\\mathbf{a}\\) & \\(\\mathbf{a}\\) & a & a & b \\\\\n\\hline \\(S_2\\) 8 & \\(\\mathbf{a}\\) & \\(\\mathbf{a}\\) & a & a & b \\\\\n\\hline 9 & \\(\\mathbf{a}\\) & \\(\\mathbf{a}\\) & a & a & b \\\\\n\\hline 10 & \\(\\mathbf{a}\\) & \\(\\mathbf{a}\\) & a & a & b \\\\\n\\hline 11 & \\(\\mathbf{b}\\) & \\(\\mathbf{c}\\) & c & c & c \\\\\n\\hline 12 & \\(\\mathbf{c}\\) & \\(\\mathbf{b}\\) & c & c & c \\\\\n\\hline \\(S_3\\) 13 & \\(\\mathbf{c}\\) & \\(\\mathbf{c}\\) & b & c & c \\\\\n\\hline 14 & \\(\\mathbf{c}\\) & \\(\\mathbf{c}\\) & c & b & c \\\\\n\\hline 15 & \\(\\mathbf{c}\\) & \\(\\mathbf{c}\\) & c & c & c \\\\\n\\hline\n\\end{tabular}",
+     "text_display": "\n\n\\begin{tabular}{|l|l|l|l|l|l|}\n\\hline  & \\(\\mathbf{X}_1\\) & \\(\\mathbf{X}_2\\) & \\(X_3\\) & \\(X_4\\) & \\(Y\\) \\\\\n\\hline 1 & \\(\\mathbf{1}\\) & \\(\\mathbf{a}\\) & 1 & 1 & a \\\\\n\\hline 2 & \\(\\mathbf{a}\\) & \\(\\mathbf{2}\\) & 2 & a & a \\\\\n\\hline \\(S_1\\) 3 & \\(\\mathbf{3}\\) & \\(\\mathbf{a}\\) & a & a & a \\\\\n\\hline 4 & \\(\\mathbf{4}\\) & \\(\\mathbf{a}\\) & 4 & a & a \\\\\n\\hline 5 & \\(\\mathbf{a}\\) & \\(\\mathbf{5}\\) & a & 5 & a \\\\\n\\hline 6 & \\(\\mathbf{a}\\) & \\(\\mathbf{a}\\) & a & a & b \\\\\n\\hline 7 & \\(\\mathbf{a}\\) & \\(\\mathbf{a}\\) & a & a & b \\\\\n\\hline \\(S_2\\) 8 & \\(\\mathbf{a}\\) & \\(\\mathbf{a}\\) & a & a & b \\\\\n\\hline 9 & \\(\\mathbf{a}\\) & \\(\\mathbf{a}\\) & a & a & b \\\\\n\\hline 10 & \\(\\mathbf{a}\\) & \\(\\mathbf{a}\\) & a & a & b \\\\\n\\hline 11 & \\(\\mathbf{b}\\) & \\(\\mathbf{c}\\) & c & c & c \\\\\n\\hline 12 & \\(\\mathbf{c}\\) & \\(\\mathbf{b}\\) & c & c & c \\\\\n\\hline \\(S_3\\) 13 & \\(\\mathbf{c}\\) & \\(\\mathbf{c}\\) & b & c & c \\\\\n\\hline 14 & \\(\\mathbf{c}\\) & \\(\\mathbf{c}\\) & c & b & c \\\\\n\\hline 15 & \\(\\mathbf{c}\\) & \\(\\mathbf{c}\\) & c & c & c \\\\\n\\hline\n\\end{tabular}",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "children_ids": [
+      "g4_p3_l3",
+      "g4_p3_l4",
+      "g4_p3_l5",
+      "g4_p3_l6",
+      "g4_p3_l7",
+      "g4_p3_l8",
+      "g4_p3_l9",
+      "g4_p3_l10",
+      "g4_p3_l11",
+      "g4_p3_l12",
+      "g4_p3_l13",
+      "g4_p3_l14",
+      "g4_p3_l15",
+      "g4_p3_l16",
+      "g4_p3_l17",
+      "g4_p3_l18",
+      "g4_p3_l19",
+      "g4_p3_l20",
+      "g4_p3_l21",
+      "g4_p3_l22",
+      "g4_p3_l23",
+      "g4_p3_l24",
+      "g4_p3_l25",
+      "g4_p3_l26",
+      "g4_p3_l27",
+      "g4_p3_l28",
+      "g4_p3_l29",
+      "g4_p3_l30",
+      "g4_p3_l31",
+      "g4_p3_l32",
+      "g4_p3_l33",
+      "g4_p3_l34",
+      "g4_p3_l35",
+      "g4_p3_l36",
+      "g4_p3_l37",
+      "g4_p3_l38",
+      "g4_p3_l39",
+      "g4_p3_l40",
+      "g4_p3_l41",
+      "g4_p3_l42",
+      "g4_p3_l43",
+      "g4_p3_l44",
+      "g4_p3_l45",
+      "g4_p3_l46",
+      "g4_p3_l47",
+      "g4_p3_l48",
+      "g4_p3_l49",
+      "g4_p3_l50",
+      "g4_p3_l51",
+      "g4_p3_l52",
+      "g4_p3_l53",
+      "g4_p3_l54",
+      "g4_p3_l55",
+      "g4_p3_l56",
+      "g4_p3_l57",
+      "g4_p3_l58",
+      "g4_p3_l59",
+      "g4_p3_l60",
+      "g4_p3_l61",
+      "g4_p3_l62",
+      "g4_p3_l63",
+      "g4_p3_l64",
+      "g4_p3_l65",
+      "g4_p3_l66",
+      "g4_p3_l67",
+      "g4_p3_l68",
+      "g4_p3_l69",
+      "g4_p3_l70",
+      "g4_p3_l71",
+      "g4_p3_l72",
+      "g4_p3_l73",
+      "g4_p3_l74",
+      "g4_p3_l75",
+      "g4_p3_l76",
+      "g4_p3_l77",
+      "g4_p3_l78",
+      "g4_p3_l79",
+      "g4_p3_l80",
+      "g4_p3_l81",
+      "g4_p3_l82",
+      "g4_p3_l83",
+      "g4_p3_l84",
+      "g4_p3_l85",
+      "g4_p3_l86",
+      "g4_p3_l87",
+      "g4_p3_l88",
+      "g4_p3_l89",
+      "g4_p3_l90",
+      "g4_p3_l91",
+      "g4_p3_l92",
+      "g4_p3_l93",
+      "g4_p3_l94",
+      "g4_p3_l95",
+      "g4_p3_l96",
+      "g4_p3_l97",
+      "g4_p3_l98"
+     ],
+     "parent_id": "g4_p3_c1"
+    },
+    {
+     "id": "g4_p3_l3",
+     "line": 4,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 0,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 0,
+     "cell_column": 0,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l4",
+     "line": 5,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 354,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "\\(\\mathbf{X}_1\\)",
+     "text_display": "\\(\\mathbf{X}_1\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 0,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l5",
+     "line": 6,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 708,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "\\(\\mathbf{X}_2\\)",
+     "text_display": "\\(\\mathbf{X}_2\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 0,
+     "cell_column": 2,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l6",
+     "line": 7,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1062,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "\\(X_3\\)",
+     "text_display": "\\(X_3\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 0,
+     "cell_column": 3,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l7",
+     "line": 8,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1417,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "\\(X_4\\)",
+     "text_display": "\\(X_4\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 0,
+     "cell_column": 4,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l8",
+     "line": 9,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1771,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "\\(Y\\)",
+     "text_display": "\\(Y\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 0,
+     "cell_column": 5,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l9",
+     "line": 10,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 0,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "1",
+     "text_display": "1",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 1,
+     "cell_column": 0,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l10",
+     "line": 11,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 354,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "\\(\\mathbf{1}\\)",
+     "text_display": "\\(\\mathbf{1}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 1,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l11",
+     "line": 12,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 708,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "\\(\\mathbf{a}\\)",
+     "text_display": "\\(\\mathbf{a}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 1,
+     "cell_column": 2,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l12",
+     "line": 13,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1062,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "1",
+     "text_display": "1",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 1,
+     "cell_column": 3,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l13",
+     "line": 14,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1417,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "1",
+     "text_display": "1",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 1,
+     "cell_column": 4,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l14",
+     "line": 15,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1771,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 1,
+     "cell_column": 5,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l15",
+     "line": 16,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 0,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "2",
+     "text_display": "2",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 2,
+     "cell_column": 0,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l16",
+     "line": 17,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 354,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "\\(\\mathbf{a}\\)",
+     "text_display": "\\(\\mathbf{a}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 2,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l17",
+     "line": 18,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 708,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "\\(\\mathbf{2}\\)",
+     "text_display": "\\(\\mathbf{2}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 2,
+     "cell_column": 2,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l18",
+     "line": 19,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1062,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "2",
+     "text_display": "2",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 2,
+     "cell_column": 3,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l19",
+     "line": 20,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1417,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 2,
+     "cell_column": 4,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l20",
+     "line": 21,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1771,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 2,
+     "cell_column": 5,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l21",
+     "line": 22,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 0,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "\\(S_1\\) 3",
+     "text_display": "\\(S_1\\) 3",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 3,
+     "cell_column": 0,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l22",
+     "line": 23,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 354,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "\\(\\mathbf{3}\\)",
+     "text_display": "\\(\\mathbf{3}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 3,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l23",
+     "line": 24,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 708,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "\\(\\mathbf{a}\\)",
+     "text_display": "\\(\\mathbf{a}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 3,
+     "cell_column": 2,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l24",
+     "line": 25,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1062,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 3,
+     "cell_column": 3,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l25",
+     "line": 26,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1417,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 3,
+     "cell_column": 4,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l26",
+     "line": 27,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1771,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 3,
+     "cell_column": 5,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l27",
+     "line": 28,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 0,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "4",
+     "text_display": "4",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 4,
+     "cell_column": 0,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l28",
+     "line": 29,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 354,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "\\(\\mathbf{4}\\)",
+     "text_display": "\\(\\mathbf{4}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 4,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l29",
+     "line": 30,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 708,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "\\(\\mathbf{a}\\)",
+     "text_display": "\\(\\mathbf{a}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 4,
+     "cell_column": 2,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l30",
+     "line": 31,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1062,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "4",
+     "text_display": "4",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 4,
+     "cell_column": 3,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l31",
+     "line": 32,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1417,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 4,
+     "cell_column": 4,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l32",
+     "line": 33,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1771,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 4,
+     "cell_column": 5,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l33",
+     "line": 34,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 0,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "5",
+     "text_display": "5",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 5,
+     "cell_column": 0,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l34",
+     "line": 35,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 354,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "\\(\\mathbf{a}\\)",
+     "text_display": "\\(\\mathbf{a}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 5,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l35",
+     "line": 36,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 708,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "\\(\\mathbf{5}\\)",
+     "text_display": "\\(\\mathbf{5}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 5,
+     "cell_column": 2,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l36",
+     "line": 37,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1062,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 5,
+     "cell_column": 3,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l37",
+     "line": 38,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1417,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "5",
+     "text_display": "5",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 5,
+     "cell_column": 4,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l38",
+     "line": 39,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1771,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 5,
+     "cell_column": 5,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l39",
+     "line": 40,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 0,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "6",
+     "text_display": "6",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 6,
+     "cell_column": 0,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l40",
+     "line": 41,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 354,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "\\(\\mathbf{a}\\)",
+     "text_display": "\\(\\mathbf{a}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 6,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l41",
+     "line": 42,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 708,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "\\(\\mathbf{a}\\)",
+     "text_display": "\\(\\mathbf{a}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 6,
+     "cell_column": 2,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l42",
+     "line": 43,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1062,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 6,
+     "cell_column": 3,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l43",
+     "line": 44,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1417,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 6,
+     "cell_column": 4,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l44",
+     "line": 45,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1771,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "b",
+     "text_display": "b",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 6,
+     "cell_column": 5,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l45",
+     "line": 46,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 0,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "7",
+     "text_display": "7",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 7,
+     "cell_column": 0,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l46",
+     "line": 47,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 354,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "\\(\\mathbf{a}\\)",
+     "text_display": "\\(\\mathbf{a}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 7,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l47",
+     "line": 48,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 708,
+      "top_left_y": 181,
+      "width": 354,
+      "height": 1
+     },
+     "text": "\\(\\mathbf{a}\\)",
+     "text_display": "\\(\\mathbf{a}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 7,
+     "cell_column": 2,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l48",
+     "line": 49,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1062,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 7,
+     "cell_column": 3,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l49",
+     "line": 50,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1417,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 7,
+     "cell_column": 4,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l50",
+     "line": 51,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 1771,
+      "top_left_y": 181,
+      "width": 0,
+      "height": 1
+     },
+     "text": "b",
+     "text_display": "b",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 7,
+     "cell_column": 5,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l51",
+     "line": 52,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 736,
+      "top_left_y": 203,
+      "width": 46,
+      "height": 26
+     },
+     "text": "\\(S_2\\) 8",
+     "text_display": "\\(S_2\\) 8",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 8,
+     "cell_column": 0,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l52",
+     "line": 53,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 782,
+      "top_left_y": 203,
+      "width": 46,
+      "height": 26
+     },
+     "text": "\\(\\mathbf{a}\\)",
+     "text_display": "\\(\\mathbf{a}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 8,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l53",
+     "line": 54,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 828,
+      "top_left_y": 203,
+      "width": 46,
+      "height": 26
+     },
+     "text": "\\(\\mathbf{a}\\)",
+     "text_display": "\\(\\mathbf{a}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 8,
+     "cell_column": 2,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l54",
+     "line": 55,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 874,
+      "top_left_y": 203,
+      "width": 46,
+      "height": 26
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 8,
+     "cell_column": 3,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l55",
+     "line": 56,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 919,
+      "top_left_y": 203,
+      "width": 46,
+      "height": 26
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 8,
+     "cell_column": 4,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l56",
+     "line": 57,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 965,
+      "top_left_y": 203,
+      "width": 46,
+      "height": 26
+     },
+     "text": "b",
+     "text_display": "b",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 8,
+     "cell_column": 5,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l57",
+     "line": 58,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 687,
+      "top_left_y": 255,
+      "width": 54,
+      "height": 22
+     },
+     "text": "9",
+     "text_display": "9",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 9,
+     "cell_column": 0,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l58",
+     "line": 59,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 741,
+      "top_left_y": 255,
+      "width": 54,
+      "height": 22
+     },
+     "text": "\\(\\mathbf{a}\\)",
+     "text_display": "\\(\\mathbf{a}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 9,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l59",
+     "line": 60,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 796,
+      "top_left_y": 255,
+      "width": 54,
+      "height": 22
+     },
+     "text": "\\(\\mathbf{a}\\)",
+     "text_display": "\\(\\mathbf{a}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 9,
+     "cell_column": 2,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l60",
+     "line": 61,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 850,
+      "top_left_y": 255,
+      "width": 54,
+      "height": 22
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 9,
+     "cell_column": 3,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l61",
+     "line": 62,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 904,
+      "top_left_y": 255,
+      "width": 54,
+      "height": 22
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 9,
+     "cell_column": 4,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l62",
+     "line": 63,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 959,
+      "top_left_y": 255,
+      "width": 54,
+      "height": 22
+     },
+     "text": "b",
+     "text_display": "b",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 9,
+     "cell_column": 5,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l63",
+     "line": 64,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 684,
+      "top_left_y": 289,
+      "width": 55,
+      "height": 23
+     },
+     "text": "10",
+     "text_display": "10",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 10,
+     "cell_column": 0,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l64",
+     "line": 65,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 739,
+      "top_left_y": 289,
+      "width": 55,
+      "height": 23
+     },
+     "text": "\\(\\mathbf{a}\\)",
+     "text_display": "\\(\\mathbf{a}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 10,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l65",
+     "line": 66,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 794,
+      "top_left_y": 289,
+      "width": 55,
+      "height": 23
+     },
+     "text": "\\(\\mathbf{a}\\)",
+     "text_display": "\\(\\mathbf{a}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 10,
+     "cell_column": 2,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l66",
+     "line": 67,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 848,
+      "top_left_y": 289,
+      "width": 55,
+      "height": 23
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 10,
+     "cell_column": 3,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l67",
+     "line": 68,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 903,
+      "top_left_y": 289,
+      "width": 55,
+      "height": 23
+     },
+     "text": "a",
+     "text_display": "a",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 10,
+     "cell_column": 4,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l68",
+     "line": 69,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 958,
+      "top_left_y": 289,
+      "width": 55,
+      "height": 23
+     },
+     "text": "b",
+     "text_display": "b",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 10,
+     "cell_column": 5,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l69",
+     "line": 70,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 380,
+      "top_left_y": 323,
+      "width": 106,
+      "height": 28
+     },
+     "text": "11",
+     "text_display": "11",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 11,
+     "cell_column": 0,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l70",
+     "line": 71,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 486,
+      "top_left_y": 323,
+      "width": 106,
+      "height": 28
+     },
+     "text": "\\(\\mathbf{b}\\)",
+     "text_display": "\\(\\mathbf{b}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 11,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l71",
+     "line": 72,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 591,
+      "top_left_y": 323,
+      "width": 106,
+      "height": 28
+     },
+     "text": "\\(\\mathbf{c}\\)",
+     "text_display": "\\(\\mathbf{c}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 11,
+     "cell_column": 2,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l72",
+     "line": 73,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 696,
+      "top_left_y": 323,
+      "width": 106,
+      "height": 28
+     },
+     "text": "c",
+     "text_display": "c",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 11,
+     "cell_column": 3,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l73",
+     "line": 74,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 802,
+      "top_left_y": 323,
+      "width": 106,
+      "height": 28
+     },
+     "text": "c",
+     "text_display": "c",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 11,
+     "cell_column": 4,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l74",
+     "line": 75,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 908,
+      "top_left_y": 323,
+      "width": 106,
+      "height": 28
+     },
+     "text": "c",
+     "text_display": "c",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 11,
+     "cell_column": 5,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l75",
+     "line": 76,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 239,
+      "top_left_y": 356,
+      "width": 131,
+      "height": 336
+     },
+     "text": "12",
+     "text_display": "12",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 12,
+     "cell_column": 0,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l76",
+     "line": 77,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 370,
+      "top_left_y": 356,
+      "width": 131,
+      "height": 336
+     },
+     "text": "\\(\\mathbf{c}\\)",
+     "text_display": "\\(\\mathbf{c}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 12,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l77",
+     "line": 78,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 500,
+      "top_left_y": 356,
+      "width": 131,
+      "height": 336
+     },
+     "text": "\\(\\mathbf{b}\\)",
+     "text_display": "\\(\\mathbf{b}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 12,
+     "cell_column": 2,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l78",
+     "line": 79,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 631,
+      "top_left_y": 356,
+      "width": 131,
+      "height": 336
+     },
+     "text": "c",
+     "text_display": "c",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 12,
+     "cell_column": 3,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l79",
+     "line": 80,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 762,
+      "top_left_y": 356,
+      "width": 131,
+      "height": 336
+     },
+     "text": "c",
+     "text_display": "c",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 12,
+     "cell_column": 4,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l80",
+     "line": 81,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 892,
+      "top_left_y": 356,
+      "width": 131,
+      "height": 336
+     },
+     "text": "c",
+     "text_display": "c",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 12,
+     "cell_column": 5,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l81",
+     "line": 82,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 630,
+      "top_left_y": 705,
+      "width": 64,
+      "height": 25
+     },
+     "text": "\\(S_3\\) 13",
+     "text_display": "\\(S_3\\) 13",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 13,
+     "cell_column": 0,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l82",
+     "line": 83,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 694,
+      "top_left_y": 705,
+      "width": 64,
+      "height": 25
+     },
+     "text": "\\(\\mathbf{c}\\)",
+     "text_display": "\\(\\mathbf{c}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 13,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l83",
+     "line": 84,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 757,
+      "top_left_y": 705,
+      "width": 64,
+      "height": 25
+     },
+     "text": "\\(\\mathbf{c}\\)",
+     "text_display": "\\(\\mathbf{c}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 13,
+     "cell_column": 2,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l84",
+     "line": 85,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 820,
+      "top_left_y": 705,
+      "width": 64,
+      "height": 25
+     },
+     "text": "b",
+     "text_display": "b",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 13,
+     "cell_column": 3,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l85",
+     "line": 86,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 884,
+      "top_left_y": 705,
+      "width": 64,
+      "height": 25
+     },
+     "text": "c",
+     "text_display": "c",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 13,
+     "cell_column": 4,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l86",
+     "line": 87,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 948,
+      "top_left_y": 705,
+      "width": 64,
+      "height": 25
+     },
+     "text": "c",
+     "text_display": "c",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 13,
+     "cell_column": 5,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l87",
+     "line": 88,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 687,
+      "top_left_y": 740,
+      "width": 54,
+      "height": 22
+     },
+     "text": "14",
+     "text_display": "14",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 14,
+     "cell_column": 0,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l88",
+     "line": 89,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 741,
+      "top_left_y": 740,
+      "width": 54,
+      "height": 22
+     },
+     "text": "\\(\\mathbf{c}\\)",
+     "text_display": "\\(\\mathbf{c}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 14,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l89",
+     "line": 90,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 795,
+      "top_left_y": 740,
+      "width": 54,
+      "height": 22
+     },
+     "text": "\\(\\mathbf{c}\\)",
+     "text_display": "\\(\\mathbf{c}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 14,
+     "cell_column": 2,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l90",
+     "line": 91,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 849,
+      "top_left_y": 740,
+      "width": 54,
+      "height": 22
+     },
+     "text": "c",
+     "text_display": "c",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 14,
+     "cell_column": 3,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l91",
+     "line": 92,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 903,
+      "top_left_y": 740,
+      "width": 54,
+      "height": 22
+     },
+     "text": "b",
+     "text_display": "b",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 14,
+     "cell_column": 4,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l92",
+     "line": 93,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 957,
+      "top_left_y": 740,
+      "width": 54,
+      "height": 22
+     },
+     "text": "c",
+     "text_display": "c",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 14,
+     "cell_column": 5,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l93",
+     "line": 94,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 687,
+      "top_left_y": 774,
+      "width": 54,
+      "height": 22
+     },
+     "text": "15",
+     "text_display": "15",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 15,
+     "cell_column": 0,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l94",
+     "line": 95,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 741,
+      "top_left_y": 774,
+      "width": 54,
+      "height": 22
+     },
+     "text": "\\(\\mathbf{c}\\)",
+     "text_display": "\\(\\mathbf{c}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 15,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l95",
+     "line": 96,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 795,
+      "top_left_y": 774,
+      "width": 54,
+      "height": 22
+     },
+     "text": "\\(\\mathbf{c}\\)",
+     "text_display": "\\(\\mathbf{c}\\)",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 15,
+     "cell_column": 2,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l96",
+     "line": 97,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 849,
+      "top_left_y": 774,
+      "width": 54,
+      "height": 22
+     },
+     "text": "c",
+     "text_display": "c",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 15,
+     "cell_column": 3,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l97",
+     "line": 98,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 903,
+      "top_left_y": 774,
+      "width": 54,
+      "height": 22
+     },
+     "text": "c",
+     "text_display": "c",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 15,
+     "cell_column": 4,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l98",
+     "line": 99,
+     "column": 1,
+     "type": "simple_cell",
+     "region": {
+      "top_left_x": 957,
+      "top_left_y": 774,
+      "width": 54,
+      "height": 22
+     },
+     "text": "c",
+     "text_display": "c",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "estimated",
+     "parent_id": "g4_p3_l2",
+     "cell_row": 15,
+     "cell_column": 5,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "id": "g4_p3_l99",
+     "line": 100,
+     "column": 1,
+     "type": "diagram",
+     "region": {
+      "top_left_x": 234,
+      "top_left_y": 315,
+      "width": 332,
+      "height": 449
+     },
+     "text": "",
+     "text_display": "",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "description": "Figure 2: Base transformation example. A set cover instance $U = \\{u_1, \\dots, u_5\\}$ and $\\mathcal{B} = \\{B_1, B_2, B_3, B_4\\}$ (left). The resulting $D_{15}$ using $\\tau_1(U, \\mathcal{B})$ (right) (bold indicates the set cover)",
+     "parent_id": "g4_p3_c1"
+    },
+    {
+     "id": "g4_p3_l100",
+     "line": 101,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 852,
+      "width": 840,
+      "height": 28
+     },
+     "text": "Figure 2: Base transformation example. A set cover instance \\(U =\\)",
+     "text_display": "\n\nFigure 2: Base transformation example. A set cover instance \\(U =\\)",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 969,
+       "top_left_y": 847,
+       "width": 66,
+       "height": 32
+      }
+     ],
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 852,
+      "width": 840,
+      "height": 21
+     }
+    },
+    {
+     "id": "g4_p3_l101",
+     "line": 102,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 191,
+      "top_left_y": 885,
+      "width": 837,
+      "height": 31
+     },
+     "text": "\\(\\{u_1, \\dots, u_5\\}\\) and \\(\\mathcal{B} = \\{B_1, B_2, B_3, B_4\\}\\) (left). The resulting \\(D_{15}\\)",
+     "text_display": " \\(\\{u_1, \\dots, u_5\\}\\) and \\(\\mathcal{B} = \\{B_1, B_2, B_3, B_4\\}\\) (left). The resulting \\(D_{15}\\)",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 187,
+       "top_left_y": 880,
+       "width": 170,
+       "height": 38
+      },
+      {
+       "top_left_x": 415,
+       "top_left_y": 880,
+       "width": 298,
+       "height": 38
+      },
+      {
+       "top_left_x": 976,
+       "top_left_y": 882,
+       "width": 56,
+       "height": 33
+      }
+     ],
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 191,
+      "top_left_y": 887,
+      "width": 837,
+      "height": 27
+     }
+    },
+    {
+     "id": "g4_p3_l102",
+     "line": 103,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 919,
+      "width": 637,
+      "height": 31
+     },
+     "text": "using \\(\\tau_1(U, \\mathcal{B})\\) (right) (bold indicates the set cover)",
+     "text_display": " using \\(\\tau_1(U, \\mathcal{B})\\) (right) (bold indicates the set cover)",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "math_regions": [
+      {
+       "top_left_x": 261,
+       "top_left_y": 917,
+       "width": 113,
+       "height": 35
+      }
+     ],
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 921,
+      "width": 637,
+      "height": 26
+     }
+    },
+    {
+     "id": "g4_p3_l103",
+     "line": 104,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1021,
+      "width": 846,
+      "height": 32
+     },
+     "text": "branch-and-bound that effectively propagates pruning infor-",
+     "text_display": "\n\nbranch-and-bound that effectively propagates pruning infor",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "parent_id": "g4_p3_c1"
+    },
+    {
+     "id": "g4_p3_l104",
+     "line": 105,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1057,
+      "width": 846,
+      "height": 34
+     },
+     "text": "mation to siblings in the search tree [Webb, 1995]. A com-",
+     "text_display": " mation to siblings in the search tree [Webb, 1995]. A com",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1059,
+      "width": 846,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p3_l105",
+     "line": 106,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1097,
+      "width": 842,
+      "height": 32
+     },
+     "text": "monly used alternative to complete branch-and-bound search",
+     "text_display": " monly used alternative to complete branch-and-bound search",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1098,
+      "width": 842,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p3_l106",
+     "line": 107,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1136,
+      "width": 846,
+      "height": 32
+     },
+     "text": "for the optimization of dependency measures is the stan-",
+     "text_display": " for the optimization of dependency measures is the stan",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1136,
+      "width": 846,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l107",
+     "line": 108,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1171,
+      "width": 843,
+      "height": 35
+     },
+     "text": "dard greedy algorithm (see [Guyon and Elisseeff, 2003;",
+     "text_display": " dard greedy algorithm (see [Guyon and Elisseeff, 2003;",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1174,
+      "width": 843,
+      "height": 30
+     }
+    },
+    {
+     "id": "g4_p3_l108",
+     "line": 109,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1210,
+      "width": 841,
+      "height": 34
+     },
+     "text": "Brown et al., 2012]). This algorithm only refines the best",
+     "text_display": " Brown et al., 2012]). This algorithm only refines the best",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1212,
+      "width": 841,
+      "height": 27
+     }
+    },
+    {
+     "id": "g4_p3_l109",
+     "line": 110,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1250,
+      "width": 405,
+      "height": 32
+     },
+     "text": "candidate in a given iteration.",
+     "text_display": " candidate in a given iteration.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1250,
+      "width": 405,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l110",
+     "line": 111,
+     "column": 1,
+     "type": "section_header",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1333,
+      "width": 520,
+      "height": 38
+     },
+     "text": "3 Hardness of Optimization",
+     "text_display": "\n\n3 Hardness of Optimization",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1333,
+      "width": 520,
+      "height": 30
+     }
+    },
+    {
+     "id": "g4_p3_l111",
+     "line": 112,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1401,
+      "width": 840,
+      "height": 32
+     },
+     "text": "In this section, we show that the problem of maximizing \\(\\hat{F}_0\\)",
+     "text_display": "\n\nIn this section, we show that the problem of maximizing \\(\\hat{F}_0\\)",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 991,
+       "top_left_y": 1388,
+       "width": 42,
+       "height": 46
+      }
+     ],
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1401,
+      "width": 840,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l112",
+     "line": 113,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1439,
+      "width": 842,
+      "height": 32
+     },
+     "text": "is NP-hard by providing a reduction from the well-known",
+     "text_display": " is NP-hard by providing a reduction from the well-known",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1439,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l113",
+     "line": 114,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1477,
+      "width": 846,
+      "height": 32
+     },
+     "text": "NP-hard minimum set cover problem: given a finite uni-",
+     "text_display": " NP-hard minimum set cover problem: given a finite uni",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1477,
+      "width": 846,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p3_l114",
+     "line": 115,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 188,
+      "top_left_y": 1513,
+      "width": 841,
+      "height": 35
+     },
+     "text": "verse \\(U = \\{u_1, \\dots, u_n\\}\\) and collection of subsets \\(\\mathcal{B} =\\)",
+     "text_display": " verse \\(U = \\{u_1, \\dots, u_n\\}\\) and collection of subsets \\(\\mathcal{B} =\\)",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 273,
+       "top_left_y": 1509,
+       "width": 288,
+       "height": 39
+      },
+      {
+       "top_left_x": 955,
+       "top_left_y": 1509,
+       "width": 80,
+       "height": 37
+      }
+     ],
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 188,
+      "top_left_y": 1515,
+      "width": 841,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p3_l115",
+     "line": 116,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 191,
+      "top_left_y": 1548,
+      "width": 840,
+      "height": 38
+     },
+     "text": "\\(\\{B_1, \\dots, B_m\\} \\subseteq 2^U\\), find a set cover, i.e., a sub-collection",
+     "text_display": " \\(\\{B_1, \\dots, B_m\\} \\subseteq 2^U\\), find a set cover, i.e., a sub-collection",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 187,
+       "top_left_y": 1548,
+       "width": 298,
+       "height": 39
+      }
+     ],
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 191,
+      "top_left_y": 1553,
+      "width": 840,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p3_l116",
+     "line": 117,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 188,
+      "top_left_y": 1589,
+      "width": 719,
+      "height": 35
+     },
+     "text": "\\(\\mathcal{C} \\subseteq \\mathcal{B}\\) with \\(\\bigcup \\mathcal{C} = U\\), that is of minimal cardinality.",
+     "text_display": " \\(\\mathcal{C} \\subseteq \\mathcal{B}\\) with \\(\\bigcup \\mathcal{C} = U\\), that is of minimal cardinality.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "math_regions": [
+      {
+       "top_left_x": 186,
+       "top_left_y": 1587,
+       "width": 94,
+       "height": 36
+      },
+      {
+       "top_left_x": 353,
+       "top_left_y": 1587,
+       "width": 134,
+       "height": 39
+      }
+     ],
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 188,
+      "top_left_y": 1591,
+      "width": 719,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p3_l117",
+     "line": 118,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 222,
+      "top_left_y": 1631,
+      "width": 808,
+      "height": 32
+     },
+     "text": "The reduction consists of two parts. First, we construct",
+     "text_display": "\n\nThe reduction consists of two parts. First, we construct",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 222,
+      "top_left_y": 1632,
+      "width": 808,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p3_l118",
+     "line": 119,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1667,
+      "width": 843,
+      "height": 35
+     },
+     "text": "a base transformation \\(\\tau_1(U, \\mathcal{B}) = \\mathbf{D}_l\\) that maps a set cover",
+     "text_display": " a base transformation \\(\\tau_1(U, \\mathcal{B}) = \\mathbf{D}_l\\) that maps a set cover",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 503,
+       "top_left_y": 1663,
+       "width": 218,
+       "height": 41
+      }
+     ],
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1669,
+      "width": 843,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p3_l119",
+     "line": 120,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1707,
+      "width": 842,
+      "height": 32
+     },
+     "text": "instance to a dataset \\(\\mathbf{D}_l\\) such that set covers correspond to",
+     "text_display": " instance to a dataset \\(\\mathbf{D}_l\\) such that set covers correspond to",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 487,
+       "top_left_y": 1704,
+       "width": 45,
+       "height": 35
+      }
+     ],
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1708,
+      "width": 842,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p3_l120",
+     "line": 121,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1745,
+      "width": 842,
+      "height": 32
+     },
+     "text": "attribute sets with an empirical fraction of information score",
+     "text_display": " attribute sets with an empirical fraction of information score",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1745,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l121",
+     "line": 122,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1789,
+      "width": 842,
+      "height": 32
+     },
+     "text": "\\(\\hat{F}\\) of 1 and bias correction terms \\(\\hat{b}_0\\) that are a monotonically",
+     "text_display": " \\(\\hat{F}\\) of 1 and bias correction terms \\(\\hat{b}_0\\) that are a monotonically",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 185,
+       "top_left_y": 1776,
+       "width": 32,
+       "height": 42
+      },
+      {
+       "top_left_x": 649,
+       "top_left_y": 1777,
+       "width": 33,
+       "height": 44
+      }
+     ],
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1789,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l122",
+     "line": 123,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1827,
+      "width": 842,
+      "height": 32
+     },
+     "text": "decreasing function of their cardinality (see Fig.2). In a second",
+     "text_display": " decreasing function of their cardinality (see Fig.2). In a second",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1827,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l123",
+     "line": 124,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 190,
+      "top_left_y": 1871,
+      "width": 840,
+      "height": 32
+     },
+     "text": "step, we calibrate the \\(\\hat{b}_0\\) terms such that, when considering the",
+     "text_display": " step, we calibrate the \\(\\hat{b}_0\\) terms such that, when considering the",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 478,
+       "top_left_y": 1858,
+       "width": 35,
+       "height": 45
+      }
+     ],
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 190,
+      "top_left_y": 1872,
+      "width": 840,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p3_l124",
+     "line": 125,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1915,
+      "width": 846,
+      "height": 32
+     },
+     "text": "corrected score \\(\\hat{F}_0\\), they cannot change the order between at-",
+     "text_display": " corrected score \\(\\hat{F}_0\\), they cannot change the order between at",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "math_regions": [
+      {
+       "top_left_x": 405,
+       "top_left_y": 1902,
+       "width": 42,
+       "height": 45
+      }
+     ],
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1916,
+      "width": 846,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p3_l125",
+     "line": 126,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1959,
+      "width": 843,
+      "height": 32
+     },
+     "text": "tribute sets with different \\(\\hat{F}\\) values but only act as a tie-breaker",
+     "text_display": " tribute sets with different \\(\\hat{F}\\) values but only act as a tie-breaker",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 531,
+       "top_left_y": 1947,
+       "width": 32,
+       "height": 40
+      }
+     ],
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1959,
+      "width": 843,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l126",
+     "line": 127,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 2002,
+      "width": 842,
+      "height": 32
+     },
+     "text": "between attribute sets of equal \\(\\hat{F}\\) value. This is achieved by",
+     "text_display": " between attribute sets of equal \\(\\hat{F}\\) value. This is achieved by",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 624,
+       "top_left_y": 1991,
+       "width": 32,
+       "height": 39
+      }
+     ],
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 2002,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l127",
+     "line": 128,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 2040,
+      "width": 842,
+      "height": 32
+     },
+     "text": "copying the dataset \\(\\mathbf{D}_l\\) a suitable number of times \\(k\\) such",
+     "text_display": " copying the dataset \\(\\mathbf{D}_l\\) a suitable number of times \\(k\\) such",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 477,
+       "top_left_y": 2035,
+       "width": 45,
+       "height": 38
+      },
+      {
+       "top_left_x": 932,
+       "top_left_y": 2036,
+       "width": 24,
+       "height": 32
+      }
+     ],
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 2040,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l128",
+     "line": 129,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 2078,
+      "width": 841,
+      "height": 32
+     },
+     "text": "that the correction terms are sufficiently small but the overall",
+     "text_display": " that the correction terms are sufficiently small but the overall",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 2079,
+      "width": 841,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p3_l129",
+     "line": 130,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 2115,
+      "width": 835,
+      "height": 35
+     },
+     "text": "transformation, denoted \\(\\tau_k(U, \\mathcal{B}) = \\mathbf{D}_{kl}\\), is still polynomial.",
+     "text_display": " transformation, denoted \\(\\tau_k(U, \\mathcal{B}) = \\mathbf{D}_{kl}\\), is still polynomial.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "math_regions": [
+      {
+       "top_left_x": 525,
+       "top_left_y": 2110,
+       "width": 227,
+       "height": 42
+      }
+     ],
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 2117,
+      "width": 835,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p3_l130",
+     "line": 131,
+     "column": 1,
+     "type": "section_header",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 2200,
+      "width": 550,
+      "height": 38
+     },
+     "text": "4 Refined Bounding Function",
+     "text_display": "\n\n4 Refined Bounding Function",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 2200,
+      "width": 550,
+      "height": 30
+     }
+    },
+    {
+     "id": "g4_p3_l131",
+     "line": 132,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 2261,
+      "width": 844,
+      "height": 32
+     },
+     "text": "The NP-hardness established in the previous section excludes",
+     "text_display": "\n\nThe NP-hardness established in the previous section excludes",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 186,
+      "top_left_y": 2262,
+      "width": 844,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p3_l132",
+     "line": 133,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 188,
+      "top_left_y": 2299,
+      "width": 843,
+      "height": 32
+     },
+     "text": "(unless P=NP) the existence of a polynomial time algorithm",
+     "text_display": " (unless P=NP) the existence of a polynomial time algorithm",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 188,
+      "top_left_y": 2300,
+      "width": 843,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p3_l133",
+     "line": 134,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 2337,
+      "width": 841,
+      "height": 32
+     },
+     "text": "for maximizing the reliable fraction of information, leaving",
+     "text_display": " for maximizing the reliable fraction of information, leaving",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 2337,
+      "width": 841,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l134",
+     "line": 135,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 2375,
+      "width": 842,
+      "height": 32
+     },
+     "text": "therefore exact but exponential search and heuristics as the",
+     "text_display": " therefore exact but exponential search and heuristics as the",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 2376,
+      "width": 842,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p3_l135",
+     "line": 136,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 2414,
+      "width": 841,
+      "height": 32
+     },
+     "text": "two options. For both, and particularly the former, reducing",
+     "text_display": " two options. For both, and particularly the former, reducing",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p3_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 2414,
+      "width": 841,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p3_c2",
+     "line": 137,
+     "column": 0,
+     "type": "column",
+     "text": "",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "text-extent",
+     "region": {
+      "top_left_x": 1089,
+      "top_left_y": 199,
+      "width": 853,
+      "height": 2240
+     },
+     "children_ids": [
+      "g4_p3_l136",
+      "g4_p3_l137",
+      "g4_p3_l138",
+      "g4_p3_l139",
+      "g4_p3_l140",
+      "g4_p3_l141",
+      "g4_p3_l142",
+      "g4_p3_l143",
+      "g4_p3_l144",
+      "g4_p3_l145",
+      "g4_p3_l146",
+      "g4_p3_l147",
+      "g4_p3_l148",
+      "g4_p3_l149",
+      "g4_p3_l150",
+      "g4_p3_l151",
+      "g4_p3_l152",
+      "g4_p3_l153",
+      "g4_p3_l154",
+      "g4_p3_l155",
+      "g4_p3_l156",
+      "g4_p3_l157",
+      "g4_p3_l158",
+      "g4_p3_l159",
+      "g4_p3_l160",
+      "g4_p3_l161",
+      "g4_p3_l162",
+      "g4_p3_l163",
+      "g4_p3_l164",
+      "g4_p3_l165",
+      "g4_p3_l166",
+      "g4_p3_l167",
+      "g4_p3_l168",
+      "g4_p3_l169",
+      "g4_p3_l170",
+      "g4_p3_l171",
+      "g4_p3_l172",
+      "g4_p3_l173",
+      "g4_p3_l174",
+      "g4_p3_l175",
+      "g4_p3_l176",
+      "g4_p3_l177",
+      "g4_p3_l178",
+      "g4_p3_l179",
+      "g4_p3_l180",
+      "g4_p3_l181",
+      "g4_p3_l182",
+      "g4_p3_l183",
+      "g4_p3_l184",
+      "g4_p3_l185",
+      "g4_p3_l186"
+     ]
+    },
+    {
+     "id": "g4_p3_l136",
+     "line": 138,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 198,
+      "width": 841,
+      "height": 32
+     },
+     "text": "the search space can lead to more effective algorithms. For this",
+     "text_display": "\n\nthe search space can lead to more effective algorithms. For this",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 199,
+      "width": 841,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p3_l137",
+     "line": 139,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 236,
+      "width": 842,
+      "height": 32
+     },
+     "text": "purpose, we derive in this section a novel bounding function",
+     "text_display": " purpose, we derive in this section a novel bounding function",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 236,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l138",
+     "line": 140,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 280,
+      "width": 807,
+      "height": 32
+     },
+     "text": "for \\(\\hat{F}_0\\) to be used for pruning. The ideal function would be",
+     "text_display": " for \\(\\hat{F}_0\\) to be used for pruning. The ideal function would be",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "math_regions": [
+      {
+       "top_left_x": 1141,
+       "top_left_y": 268,
+       "width": 40,
+       "height": 44
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 280,
+      "width": 807,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l139",
+     "line": 141,
+     "column": 2,
+     "type": "math",
+     "region": {
+      "top_left_x": 1191,
+      "top_left_y": 328,
+      "width": 649,
+      "height": 42
+     },
+     "text": "\\[\n\\bar{f}_{\\text{ideal}}(\\mathcal{X}) = \\max\\{\\hat{F}_0(\\mathcal{X}'; Y) : \\mathcal{X} \\subseteq \\mathcal{X}' \\subseteq \\mathcal{I}\\} .\n\\]",
+     "text_display": "\n\\[\n\\bar{f}_{\\text{ideal}}(\\mathcal{X}) = \\max\\{\\hat{F}_0(\\mathcal{X}'; Y) : \\mathcal{X} \\subseteq \\mathcal{X}' \\subseteq \\mathcal{I}\\} .\n\\]",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1184,
+      "top_left_y": 324,
+      "width": 659,
+      "height": 50
+     }
+    },
+    {
+     "id": "g4_p3_l140",
+     "line": 142,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 389,
+      "width": 847,
+      "height": 32
+     },
+     "text": "Computing this function is equivalent to the original optimiza-",
+     "text_display": "\n\nComputing this function is equivalent to the original optimiza",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 389,
+      "width": 847,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l141",
+     "line": 143,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 427,
+      "width": 842,
+      "height": 32
+     },
+     "text": "tion problem and hence NP-hard. We can relax the maximum",
+     "text_display": " tion problem and hence NP-hard. We can relax the maximum",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 428,
+      "width": 842,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p3_l142",
+     "line": 144,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 465,
+      "width": 844,
+      "height": 32
+     },
+     "text": "over all supersets to the maximum over all specializations of",
+     "text_display": " over all supersets to the maximum over all specializations of",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 466,
+      "width": 844,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p3_l143",
+     "line": 145,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1096,
+      "top_left_y": 497,
+      "width": 812,
+      "height": 40
+     },
+     "text": "\\(\\mathcal{X}\\). That is, we define a bounding function \\(f_{\\text{spc}}(\\mathcal{X})\\) through",
+     "text_display": " \\(\\mathcal{X}\\). That is, we define a bounding function \\(f_{\\text{spc}}(\\mathcal{X})\\) through",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "math_regions": [
+      {
+       "top_left_x": 1092,
+       "top_left_y": 498,
+       "width": 32,
+       "height": 33
+      },
+      {
+       "top_left_x": 1684,
+       "top_left_y": 495,
+       "width": 109,
+       "height": 44
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1096,
+      "top_left_y": 503,
+      "width": 812,
+      "height": 31
+     }
+    },
+    {
+     "id": "g4_p3_l144",
+     "line": 146,
+     "column": 2,
+     "type": "math",
+     "region": {
+      "top_left_x": 1116,
+      "top_left_y": 555,
+      "width": 771,
+      "height": 99
+     },
+     "text": "\\[\n\\begin{aligned} \\bar{f}_{\\text{spc}}(\\mathcal{X}) &= \\max\\{\\hat{F}_0(\\mathcal{X}'; Y) : \\mathcal{X} \\preceq \\mathcal{X}'\\} \\\\ &\\ge \\max\\{\\hat{F}_0(\\mathcal{X}'; Y) : \\mathcal{X} \\subseteq \\mathcal{X}' \\subseteq \\mathcal{I}\\} = \\bar{f}_{\\text{ideal}}(\\mathcal{X}) . \\end{aligned}\n\\]",
+     "text_display": "\n\\[\n\\begin{aligned} \\bar{f}_{\\text{spc}}(\\mathcal{X}) &= \\max\\{\\hat{F}_0(\\mathcal{X}'; Y) : \\mathcal{X} \\preceq \\mathcal{X}'\\} \\\\ &\\ge \\max\\{\\hat{F}_0(\\mathcal{X}'; Y) : \\mathcal{X} \\subseteq \\mathcal{X}' \\subseteq \\mathcal{I}\\} = \\bar{f}_{\\text{ideal}}(\\mathcal{X}) . \\end{aligned}\n\\]",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1107,
+      "top_left_y": 548,
+      "width": 799,
+      "height": 112
+     }
+    },
+    {
+     "id": "g4_p3_l145",
+     "line": 147,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1128,
+      "top_left_y": 673,
+      "width": 808,
+      "height": 32
+     },
+     "text": "While this definition constitutes an admissible bounding",
+     "text_display": "\n\nWhile this definition constitutes an admissible bounding",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1128,
+      "top_left_y": 673,
+      "width": 808,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l146",
+     "line": 148,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 711,
+      "width": 842,
+      "height": 32
+     },
+     "text": "function, it is unclear how it can be efficiently evaluated. Let",
+     "text_display": " function, it is unclear how it can be efficiently evaluated. Let",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 711,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l147",
+     "line": 149,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 746,
+      "width": 842,
+      "height": 35
+     },
+     "text": "us denote by \\(R^+\\) the operation of joining a labeling \\(R\\) with",
+     "text_display": " us denote by \\(R^+\\) the operation of joining a labeling \\(R\\) with",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1282,
+       "top_left_y": 742,
+       "width": 53,
+       "height": 36
+      },
+      {
+       "top_left_x": 1836,
+       "top_left_y": 744,
+       "width": 31,
+       "height": 34
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 749,
+      "width": 842,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p3_l148",
+     "line": 150,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 784,
+      "width": 841,
+      "height": 37
+     },
+     "text": "the target attribute \\(Y\\), i.e., \\(R^+ = \\{R\\} \\cup \\{Y\\}\\). This definition",
+     "text_display": " the target attribute \\(Y\\), i.e., \\(R^+ = \\{R\\} \\cup \\{Y\\}\\). This definition",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1351,
+       "top_left_y": 782,
+       "width": 32,
+       "height": 35
+      },
+      {
+       "top_left_x": 1456,
+       "top_left_y": 781,
+       "width": 261,
+       "height": 41
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 787,
+      "width": 841,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p3_l149",
+     "line": 151,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 825,
+      "width": 813,
+      "height": 35
+     },
+     "text": "gives rise to a simple constructive form for computing \\(\\bar{f}_{\\text{spc}}\\).",
+     "text_display": " gives rise to a simple constructive form for computing \\(\\bar{f}_{\\text{spc}}\\).",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "math_regions": [
+      {
+       "top_left_x": 1849,
+       "top_left_y": 816,
+       "width": 54,
+       "height": 47
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 825,
+      "width": 813,
+      "height": 30
+     }
+    },
+    {
+     "id": "g4_p3_l150",
+     "line": 152,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1094,
+      "top_left_y": 878,
+      "width": 843,
+      "height": 34
+     },
+     "text": "THEOREM 3. The function \\(\\bar{f}_{\\text{spc}}\\) can be efficiently computed as",
+     "text_display": "\n\nTHEOREM 3. The function \\(\\bar{f}_{\\text{spc}}\\) can be efficiently computed as",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1459,
+       "top_left_y": 867,
+       "width": 54,
+       "height": 47
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1094,
+      "top_left_y": 878,
+      "width": 843,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p3_l151",
+     "line": 153,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1096,
+      "top_left_y": 915,
+      "width": 710,
+      "height": 43
+     },
+     "text": "\\(\\bar{f}_{\\text{spc}}(\\mathcal{X}) = \\hat{F}_0(\\mathcal{X}^+; Y)\\) in time \\(O(n |V(\\mathcal{X})| |V(Y)|)\\).",
+     "text_display": " \\(\\bar{f}_{\\text{spc}}(\\mathcal{X}) = \\hat{F}_0(\\mathcal{X}^+; Y)\\) in time \\(O(n |V(\\mathcal{X})| |V(Y)|)\\).",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "math_regions": [
+      {
+       "top_left_x": 1092,
+       "top_left_y": 911,
+       "width": 318,
+       "height": 49
+      },
+      {
+       "top_left_x": 1518,
+       "top_left_y": 916,
+       "width": 283,
+       "height": 45
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1096,
+      "top_left_y": 922,
+      "width": 710,
+      "height": 35
+     }
+    },
+    {
+     "id": "g4_p3_l152",
+     "line": 154,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1129,
+      "top_left_y": 968,
+      "width": 807,
+      "height": 36
+     },
+     "text": "Intuitively, \\(\\mathcal{X}^+\\) constitutes the most efficient specialization",
+     "text_display": "\n\nIntuitively, \\(\\mathcal{X}^+\\) constitutes the most efficient specialization",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1283,
+       "top_left_y": 965,
+       "width": 56,
+       "height": 36
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1129,
+      "top_left_y": 972,
+      "width": 807,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l153",
+     "line": 155,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1016,
+      "width": 842,
+      "height": 32
+     },
+     "text": "of \\(\\mathcal{X}\\) in terms of growth in \\(\\hat{F}\\) and \\(\\hat{b}_0\\). In contrast, the bounding",
+     "text_display": " of \\(\\mathcal{X}\\) in terms of growth in \\(\\hat{F}\\) and \\(\\hat{b}_0\\). In contrast, the bounding",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1128,
+       "top_left_y": 1011,
+       "width": 33,
+       "height": 33
+      },
+      {
+       "top_left_x": 1457,
+       "top_left_y": 1004,
+       "width": 31,
+       "height": 40
+      },
+      {
+       "top_left_x": 1548,
+       "top_left_y": 1004,
+       "width": 34,
+       "height": 44
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1016,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l154",
+     "line": 156,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1051,
+      "width": 840,
+      "height": 42
+     },
+     "text": "function \\(\\bar{f}_{\\text{mon}}(\\mathcal{X}) = 1 - \\hat{b}_0(\\mathcal{X}, Y, n)\\) of [Mandros et al., 2017]",
+     "text_display": " function \\(\\bar{f}_{\\text{mon}}(\\mathcal{X}) = 1 - \\hat{b}_0(\\mathcal{X}, Y, n)\\) of [Mandros et al., 2017]",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1212,
+       "top_left_y": 1048,
+       "width": 380,
+       "height": 47
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1058,
+      "width": 840,
+      "height": 32
+     }
+    },
+    {
+     "id": "g4_p3_l155",
+     "line": 157,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1098,
+      "width": 842,
+      "height": 32
+     },
+     "text": "assumes that full information about the target can be attained",
+     "text_display": " assumes that full information about the target can be attained",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1099,
+      "width": 842,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p3_l156",
+     "line": 158,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1142,
+      "width": 847,
+      "height": 32
+     },
+     "text": "(i.e., \\(\\hat{F} = 1\\)) without \"paying\" an increased \\(\\hat{b}_0\\) term. The fol-",
+     "text_display": " (i.e., \\(\\hat{F} = 1\\)) without \"paying\" an increased \\(\\hat{b}_0\\) term. The fol",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "math_regions": [
+      {
+       "top_left_x": 1161,
+       "top_left_y": 1129,
+       "width": 96,
+       "height": 43
+      },
+      {
+       "top_left_x": 1704,
+       "top_left_y": 1130,
+       "width": 35,
+       "height": 44
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1142,
+      "width": 847,
+      "height": 30
+     }
+    },
+    {
+     "id": "g4_p3_l157",
+     "line": 159,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1180,
+      "width": 846,
+      "height": 32
+     },
+     "text": "lowing proposition shows this idea leads to an inferior bound.",
+     "text_display": " lowing proposition shows this idea leads to an inferior bound.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1180,
+      "width": 846,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l158",
+     "line": 160,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1094,
+      "top_left_y": 1222,
+      "width": 842,
+      "height": 40
+     },
+     "text": "PROPOSITION 4. Let \\(\\mathcal{X} \\subseteq \\mathcal{I}\\) and \\(\\Delta = \\bar{f}_{\\text{mon}}(\\mathcal{X}) - \\bar{f}_{\\text{spc}}(\\mathcal{X})\\). The",
+     "text_display": "\n\nPROPOSITION 4. Let \\(\\mathcal{X} \\subseteq \\mathcal{I}\\) and \\(\\Delta = \\bar{f}_{\\text{mon}}(\\mathcal{X}) - \\bar{f}_{\\text{spc}}(\\mathcal{X})\\). The",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1364,
+       "top_left_y": 1220,
+       "width": 102,
+       "height": 40
+      },
+      {
+       "top_left_x": 1529,
+       "top_left_y": 1217,
+       "width": 338,
+       "height": 47
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1094,
+      "top_left_y": 1227,
+      "width": 842,
+      "height": 32
+     }
+    },
+    {
+     "id": "g4_p3_l159",
+     "line": 161,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1089,
+      "top_left_y": 1266,
+      "width": 369,
+      "height": 31
+     },
+     "text": "following statements hold:",
+     "text_display": " following statements hold:",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1089,
+      "top_left_y": 1266,
+      "width": 369,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p3_l160",
+     "line": 162,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1117,
+      "top_left_y": 1307,
+      "width": 698,
+      "height": 41
+     },
+     "text": "a) \\(\\Delta \\ge 0\\) for all datasets, i.e., \\(\\bar{f}_{\\text{spc}}(\\mathcal{X}) \\le \\bar{f}_{\\text{mon}}(\\mathcal{X})\\)",
+     "text_display": " a) \\(\\Delta \\ge 0\\) for all datasets, i.e., \\(\\bar{f}_{\\text{spc}}(\\mathcal{X}) \\le \\bar{f}_{\\text{mon}}(\\mathcal{X})\\)",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1160,
+       "top_left_y": 1306,
+       "width": 97,
+       "height": 41
+      },
+      {
+       "top_left_x": 1546,
+       "top_left_y": 1302,
+       "width": 274,
+       "height": 48
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1117,
+      "top_left_y": 1311,
+      "width": 698,
+      "height": 34
+     }
+    },
+    {
+     "id": "g4_p3_l161",
+     "line": 163,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1118,
+      "top_left_y": 1362,
+      "width": 820,
+      "height": 47
+     },
+     "text": "b) there are datasets \\(\\mathbf{D}_{4l}\\) for all \\(l \\ge 1\\) s.t. \\(\\Delta \\in \\Omega(1 - \\frac{1}{\\log 2l})\\)",
+     "text_display": " b) there are datasets \\(\\mathbf{D}_{4l}\\) for all \\(l \\ge 1\\) s.t. \\(\\Delta \\in \\Omega(1 - \\frac{1}{\\log 2l})\\)",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "math_regions": [
+      {
+       "top_left_x": 1112,
+       "top_left_y": 1364,
+       "width": 25,
+       "height": 34
+      },
+      {
+       "top_left_x": 1406,
+       "top_left_y": 1363,
+       "width": 59,
+       "height": 38
+      },
+      {
+       "top_left_x": 1693,
+       "top_left_y": 1358,
+       "width": 250,
+       "height": 53
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1118,
+      "top_left_y": 1366,
+      "width": 820,
+      "height": 38
+     }
+    },
+    {
+     "id": "g4_p3_l162",
+     "line": 164,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1104,
+      "top_left_y": 1427,
+      "width": 833,
+      "height": 38
+     },
+     "text": "Thus, we have established that \\(\\bar{f}_{\\text{spc}}\\) is not only tighter than",
+     "text_display": "\n\nThus, we have established that \\(\\bar{f}_{\\text{spc}}\\) is not only tighter than",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1561,
+       "top_left_y": 1416,
+       "width": 54,
+       "height": 47
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1128,
+      "top_left_y": 1428,
+      "width": 809,
+      "height": 28
+     }
+    },
+    {
+     "id": "g4_p3_l163",
+     "line": 165,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1096,
+      "top_left_y": 1469,
+      "width": 843,
+      "height": 32
+     },
+     "text": "\\(\\bar{f}_{\\text{mon}}\\), but even that the difference can be arbitrary close to 1",
+     "text_display": " \\(\\bar{f}_{\\text{mon}}\\), but even that the difference can be arbitrary close to 1",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1092,
+       "top_left_y": 1459,
+       "width": 64,
+       "height": 44
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1096,
+      "top_left_y": 1469,
+      "width": 843,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p3_l164",
+     "line": 166,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1507,
+      "width": 845,
+      "height": 32
+     },
+     "text": "(for an increasing domain size of \\(Y\\)). Put differently, their ratio,",
+     "text_display": " (for an increasing domain size of \\(Y\\)). Put differently, their ratio,",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1535,
+       "top_left_y": 1503,
+       "width": 31,
+       "height": 33
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1507,
+      "width": 845,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l165",
+     "line": 167,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1545,
+      "width": 817,
+      "height": 32
+     },
+     "text": "and thus the potential for additional pruning, is unbounded.",
+     "text_display": " and thus the potential for additional pruning, is unbounded.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1545,
+      "width": 817,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l166",
+     "line": 168,
+     "column": 2,
+     "type": "section_header",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1619,
+      "width": 254,
+      "height": 30
+     },
+     "text": "5 Evaluation",
+     "text_display": "\n\n5 Evaluation",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1620,
+      "width": 254,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p3_l167",
+     "line": 169,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1672,
+      "width": 843,
+      "height": 34
+     },
+     "text": "For ease of comparison to [Mandros et al., 2017], we consider",
+     "text_display": "\n\nFor ease of comparison to [Mandros et al., 2017], we consider",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1674,
+      "width": 843,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p3_l168",
+     "line": 170,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1710,
+      "width": 845,
+      "height": 34
+     },
+     "text": "datasets from the KEEL data repository [Alcalà-Fdez et al.,",
+     "text_display": " datasets from the KEEL data repository [Alcalà-Fdez et al.,",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1712,
+      "width": 845,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l169",
+     "line": 171,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1748,
+      "width": 842,
+      "height": 34
+     },
+     "text": "2011]. In particular, we use all classification datasets with",
+     "text_display": " 2011]. In particular, we use all classification datasets with",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1750,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l170",
+     "line": 172,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1786,
+      "width": 841,
+      "height": 35
+     },
+     "text": "\\(d \\in [10, 90]\\) and no missing values, resulting in 35 datasets",
+     "text_display": " \\(d \\in [10, 90]\\) and no missing values, resulting in 35 datasets",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1092,
+       "top_left_y": 1782,
+       "width": 172,
+       "height": 40
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1788,
+      "width": 841,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p3_l171",
+     "line": 173,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1094,
+      "top_left_y": 1826,
+      "width": 847,
+      "height": 32
+     },
+     "text": "with 52000 and 30 rows and columns on average, respectively.",
+     "text_display": " with 52000 and 30 rows and columns on average, respectively.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1094,
+      "top_left_y": 1827,
+      "width": 847,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l172",
+     "line": 174,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1094,
+      "top_left_y": 1860,
+      "width": 571,
+      "height": 36
+     },
+     "text": "All implementations are available online[^1].",
+     "text_display": " All implementations are available online[^1].",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1094,
+      "top_left_y": 1864,
+      "width": 571,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l173",
+     "line": 175,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1128,
+      "top_left_y": 1902,
+      "width": 809,
+      "height": 29
+     },
+     "text": "We use two metrics for evaluation, the relative runtime",
+     "text_display": "\n\nWe use two metrics for evaluation, the relative runtime",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1128,
+      "top_left_y": 1903,
+      "width": 809,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p3_l174",
+     "line": 176,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1940,
+      "width": 842,
+      "height": 32
+     },
+     "text": "difference and the relative difference in number of explored",
+     "text_display": " difference and the relative difference in number of explored",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1940,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l175",
+     "line": 177,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1978,
+      "width": 842,
+      "height": 29
+     },
+     "text": "nodes. For methods A and B, the relative runtime difference",
+     "text_display": " nodes. For methods A and B, the relative runtime difference",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1978,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l176",
+     "line": 178,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 2014,
+      "width": 840,
+      "height": 35
+     },
+     "text": "on a particular dataset is computed as \\(\\text{rrd}(A, B) = (\\tau_A -\\)",
+     "text_display": " on a particular dataset is computed as \\(\\text{rrd}(A, B) = (\\tau_A -\\)",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1652,
+       "top_left_y": 2009,
+       "width": 290,
+       "height": 43
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 2016,
+      "width": 840,
+      "height": 32
+     }
+    },
+    {
+     "id": "g4_p3_l177",
+     "line": 179,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 2052,
+      "width": 843,
+      "height": 35
+     },
+     "text": "\\(\\tau_B) / \\max(\\tau_A, \\tau_B)\\), where \\(\\tau_A\\) and \\(\\tau_B\\) are the run times for",
+     "text_display": " \\(\\tau_B) / \\max(\\tau_A, \\tau_B)\\), where \\(\\tau_A\\) and \\(\\tau_B\\) are the run times for",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1091,
+       "top_left_y": 2047,
+       "width": 262,
+       "height": 43
+      },
+      {
+       "top_left_x": 1469,
+       "top_left_y": 2054,
+       "width": 43,
+       "height": 33
+      },
+      {
+       "top_left_x": 1583,
+       "top_left_y": 2055,
+       "width": 44,
+       "height": 32
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 2054,
+      "width": 843,
+      "height": 30
+     }
+    },
+    {
+     "id": "g4_p3_l178",
+     "line": 180,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1094,
+      "top_left_y": 2090,
+      "width": 843,
+      "height": 35
+     },
+     "text": "A and B respectively. The rrd score lies in \\([-1, 1]\\), where",
+     "text_display": " A and B respectively. The rrd score lies in \\([-1, 1]\\), where",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1731,
+       "top_left_y": 2086,
+       "width": 99,
+       "height": 41
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1094,
+      "top_left_y": 2092,
+      "width": 843,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p3_l179",
+     "line": 181,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 2131,
+      "width": 842,
+      "height": 32
+     },
+     "text": "positive (negative) values indicate that B is proportionally",
+     "text_display": " positive (negative) values indicate that B is proportionally",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 2131,
+      "width": 842,
+      "height": 30
+     }
+    },
+    {
+     "id": "g4_p3_l180",
+     "line": 182,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 2169,
+      "width": 842,
+      "height": 32
+     },
+     "text": "faster (slower). For example, a rrd score of 0.5 corresponds to",
+     "text_display": " faster (slower). For example, a rrd score of 0.5 corresponds to",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 2170,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l181",
+     "line": 183,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 2207,
+      "width": 841,
+      "height": 32
+     },
+     "text": "a factor of 2 speed-up, 0.66 to a factor of 3, 0.75 to 4 etc. The",
+     "text_display": " a factor of 2 speed-up, 0.66 to a factor of 3, 0.75 to 4 etc. The",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 2208,
+      "width": 841,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l182",
+     "line": 184,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 2245,
+      "width": 843,
+      "height": 32
+     },
+     "text": "relative nodes explored difference rnd is defined similarly. For",
+     "text_display": " relative nodes explored difference rnd is defined similarly. For",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 2245,
+      "width": 843,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l183",
+     "line": 185,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 2281,
+      "width": 841,
+      "height": 35
+     },
+     "text": "both scores, we consider \\((-0.5, 0.5)\\) to be a region of practical",
+     "text_display": " both scores, we consider \\((-0.5, 0.5)\\) to be a region of practical",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1431,
+       "top_left_y": 2277,
+       "width": 157,
+       "height": 41
+      }
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 2283,
+      "width": 841,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p3_l184",
+     "line": 186,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 2321,
+      "width": 842,
+      "height": 32
+     },
+     "text": "equivalence, i.e., a factor of 2 of improvement is required to",
+     "text_display": " equivalence, i.e., a factor of 2 of improvement is required to",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 2321,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p3_l185",
+     "line": 187,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 2359,
+      "width": 377,
+      "height": 24
+     },
+     "text": "consider a method \"better\".",
+     "text_display": " consider a method \"better\".",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 2360,
+      "width": 377,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p3_l186",
+     "line": 188,
+     "column": 2,
+     "type": "footnote",
+     "region": {
+      "top_left_x": 1141,
+      "top_left_y": 2410,
+      "width": 519,
+      "height": 35
+     },
+     "text": "",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "children_ids": [
+      "g4_p3_l187"
+     ],
+     "parent_id": "g4_p3_c2",
+     "geometry_before": {
+      "top_left_x": 1141,
+      "top_left_y": 2410,
+      "width": 519,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p3_l187",
+     "line": 189,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1141,
+      "top_left_y": 2410,
+      "width": 519,
+      "height": 35
+     },
+     "text": "\\( { }^{1} \\) https://github.com/pmandros/fodiscovery",
+     "text_display": "\n\n\\footnotetext{\n\\( { }^{1} \\) https://github.com/pmandros/fodiscovery\n}",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p3_l186",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 1141,
+      "top_left_y": 2410,
+      "width": 519,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p3_l188",
+     "line": 190,
+     "column": 0,
+     "type": "page_info",
+     "region": {
+      "top_left_x": 1027,
+      "top_left_y": 2597,
+      "width": 64,
+      "height": 21
+     },
+     "text": "6208",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink"
+    }
+   ],
+   "source": "gemma4-ink-yolo"
+  }
+ ]
+}

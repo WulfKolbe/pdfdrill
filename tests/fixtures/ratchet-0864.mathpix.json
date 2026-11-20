@@ -1,0 +1,5066 @@
+{
+ "pages": [
+  {
+   "image_id": "5901124c-8392-48f6-bb13-c87938bfeb4f-3",
+   "page": 3,
+   "lines": [
+    {
+     "cnt": [
+      [
+       432,
+       122
+      ],
+      [
+       1687,
+       122
+      ],
+      [
+       1687,
+       161
+      ],
+      [
+       432,
+       161
+      ]
+     ],
+     "region": {
+      "top_left_x": 431,
+      "top_left_y": 122,
+      "width": 1256,
+      "height": 40
+     },
+     "line": 1,
+     "column": 0,
+     "font_size": 22,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "f69ccb6ef8474fc094deed7f98258cfe",
+     "type": "page_info",
+     "conversion_output": false,
+     "text": "Proceedings of the Twenty-Eighth International Joint Conference on Artificial Intelligence (IJCAI-19)",
+     "text_display": "",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       172,
+       178
+      ],
+      [
+       1045,
+       178
+      ],
+      [
+       1045,
+       2455
+      ],
+      [
+       172,
+       2455
+      ]
+     ],
+     "region": {
+      "top_left_x": 172,
+      "top_left_y": 178,
+      "width": 873,
+      "height": 2277
+     },
+     "line": 2,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "6e276222759f4e219d6b7bfe43e951fa",
+     "type": "column",
+     "conversion_output": false,
+     "children_ids": [
+      "261e030f308c411bb33caa6deac61b0b",
+      "32eb4bc4e4a8459f9dd15b9983b0b7b4",
+      "e2d492d180b44ca4bd6be15765bf202b",
+      "b398008fbb1a4ed888bbbd72e2141e06",
+      "5f58ce89a2c84d8397521872f89db61d",
+      "5f65b6db88274ce499f33e6aed2c62d9",
+      "20c4f4f80edc473e83b5bc1bd8b3461e",
+      "8bd63214cb5f40cba2d4667d0ea8b532",
+      "1876535bf493472c958c84817947c7e3",
+      "0cb743bb8804471b9a1a32b793ce717d",
+      "da6af68e51e048b69c24f2c96a075d72",
+      "15a2c7a6eae84091aa6105dc4c5162de",
+      "ebc24927ee2a43d6863b61b234502ad8",
+      "2d4adf2104314714865b95523353f842",
+      "8c13985ca23d44a3bca74c6ff44722fb",
+      "fdf8cf4cbb1d49c394126192150c8381",
+      "467df44334a346a2b193b688eaa3554a",
+      "a73d48edfdc2469890bf40ad043d721c",
+      "46b04f58fad74ea3afc5277b612f1691",
+      "0fc274becb8d41d284639fbcde1b6de7",
+      "b32f7953610f4cb0a25c07c711dbcbfc",
+      "dda86ef088f3480e923e0304298cc449",
+      "17e22a20968d4b4eaabe9208e1639a80",
+      "6adde0d719f640ff80b4121b8707015d",
+      "c4018fcec85648e8b2acbd6a4b0b3048",
+      "d55015acfe4e467abfaa0dd384055183",
+      "699a1ac3033d425e9165c29f5cc403ca",
+      "1636a83aa6cc4b918b471688c2722af2",
+      "a9116024523d45c8a5c2c90596293cb3",
+      "13b6a07649a6499e824fad42ab4f1174",
+      "34ffb8e79363465c83f599190b8751b6",
+      "06aef9daaec4442ca4b444de0832045e",
+      "5be432ef1748473899e0aebe4d7f8782",
+      "a72c5559da1d423a8f8b5671adf568fe",
+      "758d1bdecd9c48e48bd7cfa7dd7a42eb"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       226,
+       180
+      ],
+      [
+       1036,
+       180
+      ],
+      [
+       1036,
+       823
+      ],
+      [
+       226,
+       823
+      ]
+     ],
+     "region": {
+      "top_left_x": 225,
+      "top_left_y": 180,
+      "width": 811,
+      "height": 643
+     },
+     "line": 3,
+     "column": 1,
+     "font_size": 22,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "261e030f308c411bb33caa6deac61b0b",
+     "type": "table",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "children_ids": [
+      "78e41e9f49a04f55bb4173d0e9a1ba74",
+      "1109d5f6b82c45659b86636d638373d9",
+      "9ed68d23cf98469bb8b32e90a087707a",
+      "e3593e9d9653410abf2cd8c891f057f3",
+      "dd0c61f2dfd94ba49566fea5e2125a3e",
+      "be4150a963df471cad95219db6b42262",
+      "de5f1f568e2047c582bae51043bbdbd1",
+      "b3dc4035959f4636baa305d3885c1b2e",
+      "33b73807bf3f4b9c888ebfb8053efcd4",
+      "980ae0bb428f423e88b745fb6be67baf",
+      "1b929502da7d4adbbb133f6818b5d423"
+     ],
+     "selected_labels": [
+      "32eb4bc4e4a8459f9dd15b9983b0b7b4"
+     ],
+     "text": "\\begin{tabular}{|l|l|}\n\\hline \\multirow{4}{*}{} & \\begin{tabular}{l}\n\\(\\mathbf{X}_{\\mathbf{1}}\\) \\\\\n\\(\\mathrm{X}_{2} \\begin{array}{lll}X_{3} & X_{4} & Y\\end{array}\\)\n\\end{tabular} \\\\\n\\hline & ![](https://cdn.mathpix.com/cropped/5901124c-8392-48f6-bb13-c87938bfeb4f-3.jpg?height=177\\&width=107\\&top_left_y=248\\&top_left_x=615) \\\\\n\\hline & 6 7 \\(S_{2}\\) 8 9 10 \\\\\n\\hline & 11 12 \\(S_{3}\\) 13 14 15 \\\\\n\\hline\n\\end{tabular}",
+     "text_display": "\n\n\\begin{table}\n\\begin{tabular}{|l|l|}\n\\hline \\multirow{4}{*}{} & \\begin{tabular}{l}\n\\(\\mathbf{X}_{\\mathbf{1}}\\) \\\\\n\\(\\mathrm{X}_{2} \\begin{array}{lll}X_{3} & X_{4} & Y\\end{array}\\)\n\\end{tabular} \\\\\n\\hline & ![](https://cdn.mathpix.com/cropped/5901124c-8392-48f6-bb13-c87938bfeb4f-3.jpg?height=177\\&width=107\\&top_left_y=248\\&top_left_x=615) \\\\\n\\hline & 6 7 \\(S_{2}\\) 8 9 10 \\\\\n\\hline & 11 12 \\(S_{3}\\) 13 14 15 \\\\\n\\hline\n\\end{tabular}\n\\captionsetup{labelformat=empty}\n\\caption{Figure 2: Base transformation example. A set cover instance \\(U= \\left\\{u_{1}, \\ldots, u_{5}\\right\\}\\) and \\(\\mathcal{B}=\\left\\{B_{1}, B_{2}, B_{3}, B_{4}\\right\\}\\) (left). The resulting \\(D_{15}\\) using \\(\\tau_{1}(U, \\mathcal{B})\\) (right) (bold indicates the set cover)}\n\\end{table}",
+     "confidence": 0,
+     "confidence_rate": 0
+    },
+    {
+     "cnt": [
+      [
+       235,
+       180
+      ],
+      [
+       564,
+       180
+      ],
+      [
+       564,
+       823
+      ],
+      [
+       235,
+       823
+      ]
+     ],
+     "region": {
+      "top_left_x": 235,
+      "top_left_y": 180,
+      "width": 329,
+      "height": 643
+     },
+     "line": 4,
+     "column": 0,
+     "font_size": 22,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "78e41e9f49a04f55bb4173d0e9a1ba74",
+     "type": "table_column",
+     "conversion_output": false,
+     "parent_id": "261e030f308c411bb33caa6deac61b0b",
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       613,
+       180
+      ],
+      [
+       1029,
+       180
+      ],
+      [
+       1029,
+       821
+      ],
+      [
+       613,
+       821
+      ]
+     ],
+     "region": {
+      "top_left_x": 613,
+      "top_left_y": 180,
+      "width": 417,
+      "height": 642
+     },
+     "line": 5,
+     "column": 0,
+     "font_size": 22,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "1109d5f6b82c45659b86636d638373d9",
+     "type": "table_column",
+     "conversion_output": false,
+     "parent_id": "261e030f308c411bb33caa6deac61b0b",
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       225,
+       185
+      ],
+      [
+       1033,
+       185
+      ],
+      [
+       1033,
+       237
+      ],
+      [
+       225,
+       237
+      ]
+     ],
+     "region": {
+      "top_left_x": 225,
+      "top_left_y": 185,
+      "width": 808,
+      "height": 52
+     },
+     "line": 6,
+     "column": 0,
+     "font_size": 22,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "9ed68d23cf98469bb8b32e90a087707a",
+     "type": "table_row",
+     "conversion_output": false,
+     "parent_id": "261e030f308c411bb33caa6deac61b0b",
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       225,
+       245
+      ],
+      [
+       1038,
+       245
+      ],
+      [
+       1038,
+       424
+      ],
+      [
+       225,
+       424
+      ]
+     ],
+     "region": {
+      "top_left_x": 225,
+      "top_left_y": 245,
+      "width": 813,
+      "height": 180
+     },
+     "line": 7,
+     "column": 0,
+     "font_size": 22,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "e3593e9d9653410abf2cd8c891f057f3",
+     "type": "table_row",
+     "conversion_output": false,
+     "parent_id": "261e030f308c411bb33caa6deac61b0b",
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       225,
+       428
+      ],
+      [
+       1035,
+       428
+      ],
+      [
+       1035,
+       613
+      ],
+      [
+       225,
+       613
+      ]
+     ],
+     "region": {
+      "top_left_x": 225,
+      "top_left_y": 427,
+      "width": 810,
+      "height": 187
+     },
+     "line": 8,
+     "column": 0,
+     "font_size": 22,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "dd0c61f2dfd94ba49566fea5e2125a3e",
+     "type": "table_row",
+     "conversion_output": false,
+     "parent_id": "261e030f308c411bb33caa6deac61b0b",
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       225,
+       622
+      ],
+      [
+       1035,
+       622
+      ],
+      [
+       1035,
+       804
+      ],
+      [
+       225,
+       804
+      ]
+     ],
+     "region": {
+      "top_left_x": 225,
+      "top_left_y": 621,
+      "width": 810,
+      "height": 183
+     },
+     "line": 9,
+     "column": 0,
+     "font_size": 22,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "be4150a963df471cad95219db6b42262",
+     "type": "table_row",
+     "conversion_output": false,
+     "parent_id": "261e030f308c411bb33caa6deac61b0b",
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       235,
+       187
+      ],
+      [
+       564,
+       187
+      ],
+      [
+       564,
+       802
+      ],
+      [
+       235,
+       802
+      ]
+     ],
+     "region": {
+      "top_left_x": 235,
+      "top_left_y": 186,
+      "width": 329,
+      "height": 617
+     },
+     "line": 10,
+     "column": 0,
+     "font_size": 18,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "de5f1f568e2047c582bae51043bbdbd1",
+     "type": "table_spanning_cell",
+     "conversion_output": false,
+     "parent_id": "261e030f308c411bb33caa6deac61b0b",
+     "children_ids": [
+      "676cd070a2f14a31af6f39dc3352810c"
+     ],
+     "text": "",
+     "text_display": "",
+     "cell_row": 0,
+     "cell_column": 0,
+     "cell_row_span": 4,
+     "cell_col_span": 1
+    },
+    {
+     "cnt": [
+      [
+       235,
+       323
+      ],
+      [
+       562,
+       323
+      ],
+      [
+       562,
+       685
+      ],
+      [
+       235,
+       685
+      ]
+     ],
+     "region": {
+      "top_left_x": 235,
+      "top_left_y": 322,
+      "width": 327,
+      "height": 364
+     },
+     "line": 11,
+     "column": 0,
+     "font_size": 18,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "676cd070a2f14a31af6f39dc3352810c",
+     "type": "diagram",
+     "conversion_output": false,
+     "parent_id": "de5f1f568e2047c582bae51043bbdbd1",
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       617,
+       187
+      ],
+      [
+       1021,
+       187
+      ],
+      [
+       1021,
+       237
+      ],
+      [
+       617,
+       237
+      ]
+     ],
+     "region": {
+      "top_left_x": 616,
+      "top_left_y": 186,
+      "width": 405,
+      "height": 51
+     },
+     "line": 12,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "b3dc4035959f4636baa305d3885c1b2e",
+     "type": "table_spanning_cell",
+     "conversion_output": false,
+     "parent_id": "261e030f308c411bb33caa6deac61b0b",
+     "children_ids": [
+      "41732d42b3014c32bad97fbb78744248"
+     ],
+     "text": "",
+     "text_display": "\\begin{tabular}{l}\n\\(\\mathbf{X}_{\\mathbf{1}}\\) \\\\\n\\(\\mathrm{X}_{2} \\begin{array}{lll}X_{3} & X_{4} & Y\\end{array}\\)\n\\end{tabular}",
+     "cell_row": 0,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1
+    },
+    {
+     "cnt": [
+      [
+       617,
+       189
+      ],
+      [
+       1019,
+       189
+      ],
+      [
+       1019,
+       237
+      ],
+      [
+       617,
+       237
+      ]
+     ],
+     "region": {
+      "top_left_x": 616,
+      "top_left_y": 188,
+      "width": 404,
+      "height": 49
+     },
+     "line": 13,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "41732d42b3014c32bad97fbb78744248",
+     "type": "complex_cell",
+     "conversion_output": false,
+     "parent_id": "b3dc4035959f4636baa305d3885c1b2e",
+     "children_ids": [
+      "cdf7e762e243448c81b7d2934c873a60",
+      "149c628da59b4a508a2d736aeddacfe7",
+      "26a0b530bb34437d9367f90e9038be59"
+     ],
+     "text": "\\begin{tabular}{l}\n\\(\\mathbf{X}_{\\mathbf{1}}\\) \\\\\n\\(\\mathrm{X}_{2} \\begin{array}{lll}X_{3} & X_{4} & Y\\end{array}\\)\n\\end{tabular}",
+     "text_display": "\\begin{tabular}{l}\n\\(\\mathbf{X}_{\\mathbf{1}}\\) \\\\\n\\(\\mathrm{X}_{2} \\begin{array}{lll}X_{3} & X_{4} & Y\\end{array}\\)\n\\end{tabular}",
+     "cell_row": 0,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 0.6165386943612248,
+     "confidence_rate": 0.9825923165672714
+    },
+    {
+     "cnt": [
+      [
+       730,
+       190
+      ],
+      [
+       773,
+       190
+      ],
+      [
+       773,
+       237
+      ],
+      [
+       730,
+       237
+      ]
+     ],
+     "region": {
+      "top_left_x": 730,
+      "top_left_y": 190,
+      "width": 44,
+      "height": 47
+     },
+     "line": 14,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "cdf7e762e243448c81b7d2934c873a60",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "41732d42b3014c32bad97fbb78744248",
+     "text": "\\(\\mathbf{X}_{\\mathbf{1}}\\)",
+     "text_display": "\\(\\mathbf{X}_{\\mathbf{1}}\\)",
+     "confidence": 0.9716796875,
+     "confidence_rate": 0.9980865617321575
+    },
+    {
+     "cnt": [
+      [
+       797,
+       194
+      ],
+      [
+       844,
+       194
+      ],
+      [
+       844,
+       232
+      ],
+      [
+       797,
+       232
+      ]
+     ],
+     "region": {
+      "top_left_x": 797,
+      "top_left_y": 193,
+      "width": 47,
+      "height": 39
+     },
+     "line": 15,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "149c628da59b4a508a2d736aeddacfe7",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "41732d42b3014c32bad97fbb78744248",
+     "text": "\\(\\mathrm{X}_{2}\\)",
+     "text_display": "\n\\(\\mathrm{X}_{2}",
+     "confidence": 0.6449918746948242,
+     "confidence_rate": 0.9641165106835612
+    },
+    {
+     "cnt": [
+      [
+       861,
+       197
+      ],
+      [
+       1014,
+       197
+      ],
+      [
+       1014,
+       232
+      ],
+      [
+       861,
+       232
+      ]
+     ],
+     "region": {
+      "top_left_x": 860,
+      "top_left_y": 197,
+      "width": 154,
+      "height": 35
+     },
+     "line": 16,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "26a0b530bb34437d9367f90e9038be59",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "41732d42b3014c32bad97fbb78744248",
+     "text": "\\(\\begin{array}{lll}X_{3} & X_{4} & Y\\end{array}\\)",
+     "text_display": " \\begin{array}{lll}X_{3} & X_{4} & Y\\end{array}\\)",
+     "confidence": 0.6165386943612248,
+     "confidence_rate": 0.985876155597081
+    },
+    {
+     "cnt": [
+      [
+       613,
+       245
+      ],
+      [
+       722,
+       245
+      ],
+      [
+       722,
+       424
+      ],
+      [
+       613,
+       424
+      ]
+     ],
+     "region": {
+      "top_left_x": 613,
+      "top_left_y": 245,
+      "width": 109,
+      "height": 180
+     },
+     "line": 17,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "33b73807bf3f4b9c888ebfb8053efcd4",
+     "type": "complex_cell",
+     "conversion_output": false,
+     "parent_id": "261e030f308c411bb33caa6deac61b0b",
+     "children_ids": [
+      "226c039833194e4ba0ce11acaac0cb6d"
+     ],
+     "text": "![](https://cdn.mathpix.com/cropped/5901124c-8392-48f6-bb13-c87938bfeb4f-3.jpg?height=177\\&width=107\\&top_left_y=248\\&top_left_x=615)",
+     "text_display": "![](https://cdn.mathpix.com/cropped/5901124c-8392-48f6-bb13-c87938bfeb4f-3.jpg?height=177\\&width=107\\&top_left_y=248\\&top_left_x=615)",
+     "cell_row": 1,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 0,
+     "confidence_rate": 0
+    },
+    {
+     "cnt": [
+      [
+       615,
+       249
+      ],
+      [
+       722,
+       249
+      ],
+      [
+       722,
+       424
+      ],
+      [
+       615,
+       424
+      ]
+     ],
+     "region": {
+      "top_left_x": 615,
+      "top_left_y": 248,
+      "width": 107,
+      "height": 177
+     },
+     "line": 18,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "226c039833194e4ba0ce11acaac0cb6d",
+     "type": "diagram",
+     "conversion_output": false,
+     "parent_id": "33b73807bf3f4b9c888ebfb8053efcd4",
+     "text": "",
+     "text_display": "![](https://cdn.mathpix.com/cropped/5901124c-8392-48f6-bb13-c87938bfeb4f-3.jpg?height=177\\&width=107\\&top_left_y=248\\&top_left_x=615)"
+    },
+    {
+     "cnt": [
+      [
+       615,
+       438
+      ],
+      [
+       742,
+       438
+      ],
+      [
+       742,
+       611
+      ],
+      [
+       615,
+       611
+      ]
+     ],
+     "region": {
+      "top_left_x": 615,
+      "top_left_y": 437,
+      "width": 128,
+      "height": 175
+     },
+     "line": 19,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "980ae0bb428f423e88b745fb6be67baf",
+     "type": "complex_cell",
+     "conversion_output": false,
+     "parent_id": "261e030f308c411bb33caa6deac61b0b",
+     "children_ids": [
+      "3100c5c2c8bc46f28f2003764c2275fa",
+      "06216d7888e24872b7465caf6ed029e7",
+      "49420676c5f940e593a05106783763de",
+      "acab45af35b24e99823558cae5116caf",
+      "7e3ce250a38c4b85a10d8e0a31008d43",
+      "bebf939e29d7484d9408e79b5793d216"
+     ],
+     "text": "6 7 \\(S_{2}\\) 8 9 10",
+     "text_display": "6 7 \\(S_{2}\\) 8 9 10",
+     "cell_row": 2,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       672,
+       441
+      ],
+      [
+       703,
+       441
+      ],
+      [
+       703,
+       474
+      ],
+      [
+       672,
+       474
+      ]
+     ],
+     "region": {
+      "top_left_x": 671,
+      "top_left_y": 441,
+      "width": 32,
+      "height": 33
+     },
+     "line": 20,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "3100c5c2c8bc46f28f2003764c2275fa",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "980ae0bb428f423e88b745fb6be67baf",
+     "text": "6",
+     "text_display": "6",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       679,
+       474
+      ],
+      [
+       703,
+       474
+      ],
+      [
+       703,
+       507
+      ],
+      [
+       679,
+       507
+      ]
+     ],
+     "region": {
+      "top_left_x": 678,
+      "top_left_y": 473,
+      "width": 25,
+      "height": 34
+     },
+     "line": 21,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "06216d7888e24872b7465caf6ed029e7",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "980ae0bb428f423e88b745fb6be67baf",
+     "text": "7",
+     "text_display": " 7",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       627,
+       510
+      ],
+      [
+       670,
+       510
+      ],
+      [
+       670,
+       544
+      ],
+      [
+       627,
+       544
+      ]
+     ],
+     "region": {
+      "top_left_x": 627,
+      "top_left_y": 510,
+      "width": 44,
+      "height": 35
+     },
+     "line": 22,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "49420676c5f940e593a05106783763de",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "980ae0bb428f423e88b745fb6be67baf",
+     "text": "\\(S_{2}\\)",
+     "text_display": " \\(S_{2}\\)",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       672,
+       510
+      ],
+      [
+       703,
+       510
+      ],
+      [
+       703,
+       544
+      ],
+      [
+       672,
+       544
+      ]
+     ],
+     "region": {
+      "top_left_x": 671,
+      "top_left_y": 510,
+      "width": 32,
+      "height": 35
+     },
+     "line": 23,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "acab45af35b24e99823558cae5116caf",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "980ae0bb428f423e88b745fb6be67baf",
+     "text": "8",
+     "text_display": " 8",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       679,
+       544
+      ],
+      [
+       703,
+       544
+      ],
+      [
+       703,
+       575
+      ],
+      [
+       679,
+       575
+      ]
+     ],
+     "region": {
+      "top_left_x": 678,
+      "top_left_y": 544,
+      "width": 25,
+      "height": 32
+     },
+     "line": 24,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "7e3ce250a38c4b85a10d8e0a31008d43",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "980ae0bb428f423e88b745fb6be67baf",
+     "text": "9",
+     "text_display": " 9",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       682,
+       579
+      ],
+      [
+       718,
+       579
+      ],
+      [
+       718,
+       613
+      ],
+      [
+       682,
+       613
+      ]
+     ],
+     "region": {
+      "top_left_x": 682,
+      "top_left_y": 578,
+      "width": 37,
+      "height": 36
+     },
+     "line": 25,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "bebf939e29d7484d9408e79b5793d216",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "980ae0bb428f423e88b745fb6be67baf",
+     "text": "10",
+     "text_display": " 10",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       613,
+       627
+      ],
+      [
+       739,
+       627
+      ],
+      [
+       739,
+       804
+      ],
+      [
+       613,
+       804
+      ]
+     ],
+     "region": {
+      "top_left_x": 613,
+      "top_left_y": 626,
+      "width": 126,
+      "height": 178
+     },
+     "line": 26,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "1b929502da7d4adbbb133f6818b5d423",
+     "type": "complex_cell",
+     "conversion_output": false,
+     "parent_id": "261e030f308c411bb33caa6deac61b0b",
+     "children_ids": [
+      "f9213ac74d214f5eaf13b4fd228e39cd",
+      "bc73e8347ce140c2b7fda2d5ad939eaa",
+      "7c152a2edcef4356b263b8952560ecb8",
+      "910a1a6570a54dada392e90fd4868dee",
+      "138800f0c92840129b8677a552d5fdf2",
+      "83bdd97242804232b38cb4f7cb7c9837"
+     ],
+     "text": "11 12 \\(S_{3}\\) 13 14 15",
+     "text_display": "11 12 \\(S_{3}\\) 13 14 15",
+     "cell_row": 3,
+     "cell_column": 1,
+     "cell_row_span": 1,
+     "cell_col_span": 1,
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       682,
+       629
+      ],
+      [
+       717,
+       629
+      ],
+      [
+       717,
+       670
+      ],
+      [
+       682,
+       670
+      ]
+     ],
+     "region": {
+      "top_left_x": 682,
+      "top_left_y": 628,
+      "width": 35,
+      "height": 42
+     },
+     "line": 27,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "f9213ac74d214f5eaf13b4fd228e39cd",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "1b929502da7d4adbbb133f6818b5d423",
+     "text": "11",
+     "text_display": "11",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       682,
+       665
+      ],
+      [
+       720,
+       665
+      ],
+      [
+       720,
+       699
+      ],
+      [
+       682,
+       699
+      ]
+     ],
+     "region": {
+      "top_left_x": 682,
+      "top_left_y": 664,
+      "width": 38,
+      "height": 36
+     },
+     "line": 28,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "bc73e8347ce140c2b7fda2d5ad939eaa",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "1b929502da7d4adbbb133f6818b5d423",
+     "text": "12",
+     "text_display": " 12",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       625,
+       699
+      ],
+      [
+       665,
+       699
+      ],
+      [
+       665,
+       740
+      ],
+      [
+       625,
+       740
+      ]
+     ],
+     "region": {
+      "top_left_x": 625,
+      "top_left_y": 699,
+      "width": 40,
+      "height": 42
+     },
+     "line": 29,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "7c152a2edcef4356b263b8952560ecb8",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "1b929502da7d4adbbb133f6818b5d423",
+     "text": "\\(S_{3}\\)",
+     "text_display": " \\(S_{3}\\)",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       682,
+       699
+      ],
+      [
+       717,
+       699
+      ],
+      [
+       717,
+       740
+      ],
+      [
+       682,
+       740
+      ]
+     ],
+     "region": {
+      "top_left_x": 682,
+      "top_left_y": 699,
+      "width": 35,
+      "height": 42
+     },
+     "line": 30,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "910a1a6570a54dada392e90fd4868dee",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "1b929502da7d4adbbb133f6818b5d423",
+     "text": "13",
+     "text_display": " 13",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       682,
+       735
+      ],
+      [
+       720,
+       735
+      ],
+      [
+       720,
+       768
+      ],
+      [
+       682,
+       768
+      ]
+     ],
+     "region": {
+      "top_left_x": 682,
+      "top_left_y": 735,
+      "width": 38,
+      "height": 33
+     },
+     "line": 31,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "138800f0c92840129b8677a552d5fdf2",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "1b929502da7d4adbbb133f6818b5d423",
+     "text": "14",
+     "text_display": " 14",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       682,
+       771
+      ],
+      [
+       718,
+       771
+      ],
+      [
+       718,
+       809
+      ],
+      [
+       682,
+       809
+      ]
+     ],
+     "region": {
+      "top_left_x": 682,
+      "top_left_y": 771,
+      "width": 37,
+      "height": 39
+     },
+     "line": 32,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "83bdd97242804232b38cb4f7cb7c9837",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "1b929502da7d4adbbb133f6818b5d423",
+     "text": "15",
+     "text_display": " 15",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       176,
+       838
+      ],
+      [
+       1042,
+       838
+      ],
+      [
+       1042,
+       960
+      ],
+      [
+       176,
+       960
+      ]
+     ],
+     "region": {
+      "top_left_x": 176,
+      "top_left_y": 837,
+      "width": 866,
+      "height": 124
+     },
+     "line": 33,
+     "column": 1,
+     "font_size": 22,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "32eb4bc4e4a8459f9dd15b9983b0b7b4",
+     "type": "figure_label",
+     "conversion_output": false,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "children_ids": [
+      "7a9cbd0d36154fd393d88962b95053a5",
+      "4c94cbe249c94799ad6a3a40037ea8ff",
+      "1b65d30bae5641fa89ca144d8e62ccea"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       183,
+       844
+      ],
+      [
+       1036,
+       844
+      ],
+      [
+       1036,
+       883
+      ],
+      [
+       183,
+       883
+      ]
+     ],
+     "region": {
+      "top_left_x": 182,
+      "top_left_y": 844,
+      "width": 854,
+      "height": 40
+     },
+     "line": 34,
+     "column": 1,
+     "font_size": 22,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "7a9cbd0d36154fd393d88962b95053a5",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "32eb4bc4e4a8459f9dd15b9983b0b7b4",
+     "text": "Figure 2: Base transformation example. A set cover instance \\(U=\\)",
+     "text_display": "",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       185,
+       881
+      ],
+      [
+       1036,
+       881
+      ],
+      [
+       1036,
+       922
+      ],
+      [
+       185,
+       922
+      ]
+     ],
+     "region": {
+      "top_left_x": 184,
+      "top_left_y": 880,
+      "width": 852,
+      "height": 42
+     },
+     "line": 35,
+     "column": 1,
+     "font_size": 22,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "4c94cbe249c94799ad6a3a40037ea8ff",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "32eb4bc4e4a8459f9dd15b9983b0b7b4",
+     "text": "\\(\\left\\{u_{1}, \\ldots, u_{5}\\right\\}\\) and \\(\\mathcal{B}=\\left\\{B_{1}, B_{2}, B_{3}, B_{4}\\right\\}\\) (left). The resulting \\(D_{15}\\)",
+     "text_display": "",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       183,
+       915
+      ],
+      [
+       831,
+       915
+      ],
+      [
+       831,
+       956
+      ],
+      [
+       183,
+       956
+      ]
+     ],
+     "region": {
+      "top_left_x": 182,
+      "top_left_y": 915,
+      "width": 650,
+      "height": 42
+     },
+     "line": 36,
+     "column": 1,
+     "font_size": 22,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "1b65d30bae5641fa89ca144d8e62ccea",
+     "type": "text",
+     "conversion_output": false,
+     "parent_id": "32eb4bc4e4a8459f9dd15b9983b0b7b4",
+     "text": "using \\(\\tau_{1}(U, \\mathcal{B})\\) (right) (bold indicates the set cover)",
+     "text_display": "",
+     "confidence": 0.99951171875,
+     "confidence_rate": 0.9999930228743673
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1014
+      ],
+      [
+       1042,
+       1014
+      ],
+      [
+       1042,
+       1059
+      ],
+      [
+       180,
+       1059
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1014,
+      "width": 862,
+      "height": 46
+     },
+     "line": 37,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "e2d492d180b44ca4bd6be15765bf202b",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "branch-and-bound that effectively propagates pruning infor-",
+     "text_display": "\nbranch-and-bound that effectively propagates pruning infor",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1053
+      ],
+      [
+       1042,
+       1053
+      ],
+      [
+       1042,
+       1094
+      ],
+      [
+       180,
+       1094
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1052,
+      "width": 862,
+      "height": 42
+     },
+     "line": 38,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "b398008fbb1a4ed888bbbd72e2141e06",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "mation to siblings in the search tree [Webb, 1995]. A com-",
+     "text_display": "mation to siblings in the search tree [Webb, 1995]. A com",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1091
+      ],
+      [
+       1040,
+       1091
+      ],
+      [
+       1040,
+       1134
+      ],
+      [
+       180,
+       1134
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1091,
+      "width": 860,
+      "height": 44
+     },
+     "line": 39,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "5f58ce89a2c84d8397521872f89db61d",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "monly used alternative to complete branch-and-bound search",
+     "text_display": "monly used alternative to complete branch-and-bound search",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1130
+      ],
+      [
+       1042,
+       1130
+      ],
+      [
+       1042,
+       1171
+      ],
+      [
+       180,
+       1171
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1130,
+      "width": 862,
+      "height": 41
+     },
+     "line": 40,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "5f65b6db88274ce499f33e6aed2c62d9",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "for the optimization of dependency measures is the stan-",
+     "text_display": " for the optimization of dependency measures is the stan",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1164
+      ],
+      [
+       1042,
+       1164
+      ],
+      [
+       1042,
+       1210
+      ],
+      [
+       180,
+       1210
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1164,
+      "width": 862,
+      "height": 46
+     },
+     "line": 41,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "20c4f4f80edc473e83b5bc1bd8b3461e",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "dard greedy algorithm (see [Guyon and Elisseeff, 2003;",
+     "text_display": "dard greedy algorithm (see [Guyon and Elisseeff, 2003;",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1205
+      ],
+      [
+       1038,
+       1205
+      ],
+      [
+       1038,
+       1248
+      ],
+      [
+       180,
+       1248
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1205,
+      "width": 858,
+      "height": 44
+     },
+     "line": 42,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "8bd63214cb5f40cba2d4667d0ea8b532",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "Brown et al., 2012]). This algorithm only refines the best",
+     "text_display": " Brown et al., 2012]). This algorithm only refines the best",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1242
+      ],
+      [
+       604,
+       1242
+      ],
+      [
+       604,
+       1287
+      ],
+      [
+       180,
+       1287
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1241,
+      "width": 424,
+      "height": 46
+     },
+     "line": 43,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "1876535bf493472c958c84817947c7e3",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "candidate in a given iteration.",
+     "text_display": " candidate in a given iteration.",
+     "confidence": 0.99951171875,
+     "confidence_rate": 0.9999864334115239
+    },
+    {
+     "cnt": [
+      [
+       174,
+       1319
+      ],
+      [
+       720,
+       1319
+      ],
+      [
+       720,
+       1381
+      ],
+      [
+       174,
+       1381
+      ]
+     ],
+     "region": {
+      "top_left_x": 174,
+      "top_left_y": 1319,
+      "width": 546,
+      "height": 63
+     },
+     "line": 44,
+     "column": 1,
+     "font_size": 35,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "0cb743bb8804471b9a1a32b793ce717d",
+     "type": "section_header",
+     "conversion_output": false,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "children_ids": [
+      "18ac9bd70f854b6781f41e964b60a672"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1326
+      ],
+      [
+       715,
+       1326
+      ],
+      [
+       715,
+       1377
+      ],
+      [
+       180,
+       1377
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1325,
+      "width": 536,
+      "height": 53
+     },
+     "line": 45,
+     "column": 1,
+     "font_size": 35,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "18ac9bd70f854b6781f41e964b60a672",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "0cb743bb8804471b9a1a32b793ce717d",
+     "text": "3 Hardness of Optimization",
+     "text_display": "\n\n\\section*{3 Hardness of Optimization}",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1388
+      ],
+      [
+       1038,
+       1388
+      ],
+      [
+       1038,
+       1437
+      ],
+      [
+       180,
+       1437
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1387,
+      "width": 858,
+      "height": 51
+     },
+     "line": 46,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "da6af68e51e048b69c24f2c96a075d72",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "In this section, we show that the problem of maximizing \\(\\hat{F}_{0}\\)",
+     "text_display": "\n\nIn this section, we show that the problem of maximizing \\(\\hat{F}_{0}\\)",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1433
+      ],
+      [
+       1038,
+       1433
+      ],
+      [
+       1038,
+       1476
+      ],
+      [
+       180,
+       1476
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1433,
+      "width": 858,
+      "height": 43
+     },
+     "line": 47,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "15a2c7a6eae84091aa6105dc4c5162de",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "is NP-hard by providing a reduction from the well-known",
+     "text_display": " is NP-hard by providing a reduction from the well-known",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1470
+      ],
+      [
+       1042,
+       1470
+      ],
+      [
+       1042,
+       1515
+      ],
+      [
+       180,
+       1515
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1469,
+      "width": 862,
+      "height": 46
+     },
+     "line": 48,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "ebc24927ee2a43d6863b61b234502ad8",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "NP-hard minimum set cover problem: given a finite uni-",
+     "text_display": " NP-hard minimum set cover problem: given a finite uni",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1508
+      ],
+      [
+       1040,
+       1508
+      ],
+      [
+       1040,
+       1553
+      ],
+      [
+       180,
+       1553
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1508,
+      "width": 860,
+      "height": 46
+     },
+     "line": 49,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "2d4adf2104314714865b95523353f842",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "verse \\(U=\\left\\{u_{1}, \\ldots, u_{n}\\right\\}\\) and collection of subsets \\(\\mathcal{B}=\\)",
+     "text_display": "verse \\(U=\\left\\{u_{1}, \\ldots, u_{n}\\right\\}\\) and collection of subsets \\(\\mathcal{B}=",
+     "confidence": 0.99951171875,
+     "confidence_rate": 0.9999930228743673
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1543
+      ],
+      [
+       1038,
+       1543
+      ],
+      [
+       1038,
+       1592
+      ],
+      [
+       180,
+       1592
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1542,
+      "width": 858,
+      "height": 50
+     },
+     "line": 50,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "8c13985ca23d44a3bca74c6ff44722fb",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "\\(\\left\\{B_{1}, \\ldots, B_{m}\\right\\} \\subseteq 2^{U}\\), find a set cover, i.e., a sub-collection",
+     "text_display": " \\left\\{B_{1}, \\ldots, B_{m}\\right\\} \\subseteq 2^{U}\\), find a set cover, i.e., a sub-collection",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1586
+      ],
+      [
+       915,
+       1586
+      ],
+      [
+       915,
+       1629
+      ],
+      [
+       180,
+       1629
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1585,
+      "width": 736,
+      "height": 44
+     },
+     "line": 51,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "fdf8cf4cbb1d49c394126192150c8381",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "\\(\\mathcal{C} \\subseteq \\mathcal{B}\\) with \\(\\cup \\mathcal{C}=U\\), that is of minimal cardinality.",
+     "text_display": " \\(\\mathcal{C} \\subseteq \\mathcal{B}\\) with \\(\\cup \\mathcal{C}=U\\), that is of minimal cardinality.",
+     "confidence": 0.9990236759185791,
+     "confidence_rate": 0.9999844953424807
+    },
+    {
+     "cnt": [
+      [
+       215,
+       1624
+      ],
+      [
+       1038,
+       1624
+      ],
+      [
+       1038,
+       1665
+      ],
+      [
+       215,
+       1665
+      ]
+     ],
+     "region": {
+      "top_left_x": 214,
+      "top_left_y": 1624,
+      "width": 824,
+      "height": 42
+     },
+     "line": 52,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "467df44334a346a2b193b688eaa3554a",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "The reduction consists of two parts. First, we construct",
+     "text_display": "\n\nThe reduction consists of two parts. First, we construct",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1663
+      ],
+      [
+       1040,
+       1663
+      ],
+      [
+       1040,
+       1706
+      ],
+      [
+       180,
+       1706
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1662,
+      "width": 860,
+      "height": 44
+     },
+     "line": 53,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "a73d48edfdc2469890bf40ad043d721c",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "a base transformation \\(\\tau_{1}(U, \\mathcal{B})=\\mathbf{D}_{l}\\) that maps a set cover",
+     "text_display": " a base transformation \\(\\tau_{1}(U, \\mathcal{B})=\\mathbf{D}_{l}\\) that maps a set cover",
+     "confidence": 0.99951171875,
+     "confidence_rate": 0.9999940439141021
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1702
+      ],
+      [
+       1038,
+       1702
+      ],
+      [
+       1038,
+       1742
+      ],
+      [
+       180,
+       1742
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1701,
+      "width": 858,
+      "height": 42
+     },
+     "line": 54,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "46b04f58fad74ea3afc5277b612f1691",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "instance to a dataset \\(\\mathbf{D}_{l}\\) such that set covers correspond to",
+     "text_display": " instance to a dataset \\(\\mathbf{D}_{l}\\) such that set covers correspond to",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1740
+      ],
+      [
+       1038,
+       1740
+      ],
+      [
+       1038,
+       1781
+      ],
+      [
+       180,
+       1781
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1740,
+      "width": 858,
+      "height": 42
+     },
+     "line": 55,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "0fc274becb8d41d284639fbcde1b6de7",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "attribute sets with an empirical fraction of information score",
+     "text_display": " attribute sets with an empirical fraction of information score",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1775
+      ],
+      [
+       1038,
+       1775
+      ],
+      [
+       1038,
+       1824
+      ],
+      [
+       180,
+       1824
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1774,
+      "width": 858,
+      "height": 51
+     },
+     "line": 56,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "b32f7953610f4cb0a25c07c711dbcbfc",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "\\(\\hat{F}\\) of 1 and bias correction terms \\(\\hat{b}_{0}\\) that are a monotonically",
+     "text_display": " \\(\\hat{F}\\) of 1 and bias correction terms \\(\\hat{b}_{0}\\) that are a monotonically",
+     "confidence": 0.9970703125,
+     "confidence_rate": 0.9999646513785749
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1822
+      ],
+      [
+       1038,
+       1822
+      ],
+      [
+       1038,
+       1863
+      ],
+      [
+       180,
+       1863
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1821,
+      "width": 858,
+      "height": 42
+     },
+     "line": 57,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "dda86ef088f3480e923e0304298cc449",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "decreasing function of their cardinality (see Fig.2). In a second",
+     "text_display": " decreasing function of their cardinality (see Fig.2). In a second",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1858
+      ],
+      [
+       1038,
+       1858
+      ],
+      [
+       1038,
+       1910
+      ],
+      [
+       180,
+       1910
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1858,
+      "width": 858,
+      "height": 52
+     },
+     "line": 58,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "17e22a20968d4b4eaabe9208e1639a80",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "step, we calibrate the \\(\\hat{b}_{0}\\) terms such that, when considering the",
+     "text_display": " step, we calibrate the \\(\\hat{b}_{0}\\) terms such that, when considering the",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1904
+      ],
+      [
+       1042,
+       1904
+      ],
+      [
+       1042,
+       1953
+      ],
+      [
+       180,
+       1953
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1903,
+      "width": 862,
+      "height": 50
+     },
+     "line": 59,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "6adde0d719f640ff80b4121b8707015d",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "corrected score \\(\\hat{F}_{0}\\), they cannot change the order between at-",
+     "text_display": " corrected score \\(\\hat{F}_{0}\\), they cannot change the order between at",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1946
+      ],
+      [
+       1042,
+       1946
+      ],
+      [
+       1042,
+       1996
+      ],
+      [
+       180,
+       1996
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1946,
+      "width": 862,
+      "height": 50
+     },
+     "line": 60,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "c4018fcec85648e8b2acbd6a4b0b3048",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "tribute sets with different \\(\\hat{F}\\) values but only act as a tie-breaker",
+     "text_display": "tribute sets with different \\(\\hat{F}\\) values but only act as a tie-breaker",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       1989
+      ],
+      [
+       1040,
+       1989
+      ],
+      [
+       1040,
+       2039
+      ],
+      [
+       180,
+       2039
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 1989,
+      "width": 860,
+      "height": 50
+     },
+     "line": 61,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "d55015acfe4e467abfaa0dd384055183",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "between attribute sets of equal \\(\\hat{F}\\) value. This is achieved by",
+     "text_display": " between attribute sets of equal \\(\\hat{F}\\) value. This is achieved by",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       2035
+      ],
+      [
+       1038,
+       2035
+      ],
+      [
+       1038,
+       2078
+      ],
+      [
+       180,
+       2078
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 2034,
+      "width": 858,
+      "height": 44
+     },
+     "line": 62,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "699a1ac3033d425e9165c29f5cc403ca",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "copying the dataset \\(\\mathbf{D}_{l}\\) a suitable number of times \\(k\\) such",
+     "text_display": " copying the dataset \\(\\mathbf{D}_{l}\\) a suitable number of times \\(k\\) such",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       2071
+      ],
+      [
+       1038,
+       2071
+      ],
+      [
+       1038,
+       2116
+      ],
+      [
+       180,
+       2116
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 2071,
+      "width": 858,
+      "height": 46
+     },
+     "line": 63,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "1636a83aa6cc4b918b471688c2722af2",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "that the correction terms are sufficiently small but the overall",
+     "text_display": " that the correction terms are sufficiently small but the overall",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       2110
+      ],
+      [
+       1033,
+       2110
+      ],
+      [
+       1033,
+       2155
+      ],
+      [
+       180,
+       2155
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 2109,
+      "width": 854,
+      "height": 46
+     },
+     "line": 64,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "a9116024523d45c8a5c2c90596293cb3",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "transformation, denoted \\(\\tau_{k}(U, \\mathcal{B})=\\mathbf{D}_{k l}\\), is still polynomial.",
+     "text_display": " transformation, denoted \\(\\tau_{k}(U, \\mathcal{B})=\\mathbf{D}_{k l}\\), is still polynomial.",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       176,
+       2187
+      ],
+      [
+       750,
+       2187
+      ],
+      [
+       750,
+       2249
+      ],
+      [
+       176,
+       2249
+      ]
+     ],
+     "region": {
+      "top_left_x": 176,
+      "top_left_y": 2187,
+      "width": 574,
+      "height": 63
+     },
+     "line": 65,
+     "column": 1,
+     "font_size": 35,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "13b6a07649a6499e824fad42ab4f1174",
+     "type": "section_header",
+     "conversion_output": false,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "children_ids": [
+      "9c31aa37eaef4e3d8a7641a6ce03cd81"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       180,
+       2194
+      ],
+      [
+       746,
+       2194
+      ],
+      [
+       746,
+       2245
+      ],
+      [
+       180,
+       2245
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 2193,
+      "width": 566,
+      "height": 53
+     },
+     "line": 66,
+     "column": 1,
+     "font_size": 35,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "9c31aa37eaef4e3d8a7641a6ce03cd81",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "13b6a07649a6499e824fad42ab4f1174",
+     "text": "4 Refined Bounding Function",
+     "text_display": "\n\n\\section*{4 Refined Bounding Function}",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       2254
+      ],
+      [
+       1038,
+       2254
+      ],
+      [
+       1038,
+       2297
+      ],
+      [
+       180,
+       2297
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 2253,
+      "width": 858,
+      "height": 44
+     },
+     "line": 67,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "34ffb8e79363465c83f599190b8751b6",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "The NP-hardness established in the previous section excludes",
+     "text_display": "\n\nThe NP-hardness established in the previous section excludes",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       2295
+      ],
+      [
+       1038,
+       2295
+      ],
+      [
+       1038,
+       2335
+      ],
+      [
+       180,
+       2335
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 2294,
+      "width": 858,
+      "height": 42
+     },
+     "line": 68,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "06aef9daaec4442ca4b444de0832045e",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "(unless \\(\\mathrm{P}=\\mathrm{NP}\\) ) the existence of a polynomial time algorithm",
+     "text_display": " (unless \\(\\mathrm{P}=\\mathrm{NP}\\) ) the existence of a polynomial time algorithm",
+     "confidence": 0.9990234375,
+     "confidence_rate": 0.999986615984802
+    },
+    {
+     "cnt": [
+      [
+       180,
+       2333
+      ],
+      [
+       1038,
+       2333
+      ],
+      [
+       1038,
+       2374
+      ],
+      [
+       180,
+       2374
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 2333,
+      "width": 858,
+      "height": 42
+     },
+     "line": 69,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "5be432ef1748473899e0aebe4d7f8782",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "for maximizing the reliable fraction of information, leaving",
+     "text_display": " for maximizing the reliable fraction of information, leaving",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       2368
+      ],
+      [
+       1038,
+       2368
+      ],
+      [
+       1038,
+       2413
+      ],
+      [
+       180,
+       2413
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 2367,
+      "width": 858,
+      "height": 46
+     },
+     "line": 70,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "a72c5559da1d423a8f8b5671adf568fe",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "therefore exact but exponential search and heuristics as the",
+     "text_display": " therefore exact but exponential search and heuristics as the",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       180,
+       2406
+      ],
+      [
+       1038,
+       2406
+      ],
+      [
+       1038,
+       2451
+      ],
+      [
+       180,
+       2451
+      ]
+     ],
+     "region": {
+      "top_left_x": 180,
+      "top_left_y": 2406,
+      "width": 858,
+      "height": 46
+     },
+     "line": 71,
+     "column": 1,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "758d1bdecd9c48e48bd7cfa7dd7a42eb",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "6e276222759f4e219d6b7bfe43e951fa",
+     "text": "two options. For both, and particularly the former, reducing",
+     "text_display": " two options. For both, and particularly the former, reducing",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1080,
+       191
+      ],
+      [
+       1952,
+       191
+      ],
+      [
+       1952,
+       2459
+      ],
+      [
+       1080,
+       2459
+      ]
+     ],
+     "region": {
+      "top_left_x": 1080,
+      "top_left_y": 191,
+      "width": 872,
+      "height": 2268
+     },
+     "line": 72,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "type": "column",
+     "conversion_output": false,
+     "children_ids": [
+      "52ca3e03d44c47d28e452354593043c4",
+      "55960dcf0d334f0f99aa414eea823336",
+      "1386b48fa6d6476fac98f23021dd81b5",
+      "c9433bf15a8c4d728009580aafe33e37",
+      "78f03daf675444b2bcfc557f564f7275",
+      "139039302a2d4c2a9b2769bd3437a707",
+      "5ca5a114dda4404e9d384639928df76a",
+      "eedee7942905406d968e9f8e8a894826",
+      "842e683db6194181bc7e8c26170f369a",
+      "33088c6313e747869080b0e5b07f43fe",
+      "086b20ae07304b06b6534d30fee58814",
+      "ccaea04a55f44645931475f9c045c8c6",
+      "b8b4ffb96c064ecb9aedf7b1e64f6e9e",
+      "d2a4f8e446e644758c7e62552bf86c42",
+      "361adb65dd234823b4c158ea14d76b03",
+      "4c7dd9722e0f43a588c9ba75f65a4a04",
+      "8842103ec1684905bfed1582eba51be8",
+      "b82cd658dc8e4e4fbe97202b894564bf",
+      "dbfe0504d30c428b835b31e0afbe9ae9",
+      "a29f303e00b7428caa684fa0664caef3",
+      "59fc1ef165f24454996b68037b9bdb1b",
+      "14496696702749aebecd90ada2386c79",
+      "5d41362d1b5c447197ecdcb4a41b4bd6",
+      "302f662a1f0d4d73b520c8c4f30b5cec",
+      "2ddf8a8848a84c17b386e55ced15714f",
+      "538c37a40c454c65aa23799bcf2db1d9",
+      "dc503ae5fe57413caae115397894ba72",
+      "02c9da9e3c874de48b9abdb7b8417dd9",
+      "abcaf354a6ba46eeaa6e6f41bd300102",
+      "20ab61309ae747aebb24f05f76318951",
+      "2f81a34dbd0f443ebf15489617399104",
+      "9a5fcee687814b9cae21f0fa17b29a00",
+      "9925554db5f440128f5f0bb04a357053",
+      "398e77e0165d4e9d800c113aa718a835",
+      "547900286278475e936d5a84cae3e4b9",
+      "3cb52b1bbdbd45bdbca218c40c72f298",
+      "4a7463de8ee14ca383638b8885f69b16",
+      "9136ad64ba894caf8c1612a4066e0016",
+      "397011d0abe043cbb6a7fb9e61298132",
+      "18052ff1a9a84459ba85284ccd091fec",
+      "ccd98bf8af684b4db3130f54a1fdb748",
+      "2e927f64ebac4195ba292a9426570050",
+      "f3802f0dd35b4a3ab37d597749ba5aa8",
+      "f7a82b96efcf4b9cbf7d69929bae771c",
+      "14b98f0375674f128385936f31416ca3",
+      "aa80e16c9c25470896f6109ea0cfbda1",
+      "ce4f53b8b1364a288fee8019a0d8ea0f",
+      "8467cd87df77461c913eebf1a1451fbe",
+      "8f9a9b7b5aea4e8c849eef59d1a128b7",
+      "3f117c18140343d894e6adecd68cc8ec",
+      "f5c0a207b6c7417ba0656d082e9a7c3c"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       193
+      ],
+      [
+       1944,
+       193
+      ],
+      [
+       1944,
+       234
+      ],
+      [
+       1087,
+       234
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 193,
+      "width": 858,
+      "height": 42
+     },
+     "line": 73,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "52ca3e03d44c47d28e452354593043c4",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "the search space can lead to more effective algorithms. For this",
+     "text_display": "\nthe search space can lead to more effective algorithms. For this",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       232
+      ],
+      [
+       1944,
+       232
+      ],
+      [
+       1944,
+       273
+      ],
+      [
+       1087,
+       273
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 232,
+      "width": 858,
+      "height": 41
+     },
+     "line": 74,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "55960dcf0d334f0f99aa414eea823336",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "purpose, we derive in this section a novel bounding function",
+     "text_display": " purpose, we derive in this section a novel bounding function",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       266
+      ],
+      [
+       1910,
+       266
+      ],
+      [
+       1910,
+       316
+      ],
+      [
+       1087,
+       316
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 266,
+      "width": 823,
+      "height": 50
+     },
+     "line": 75,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "1386b48fa6d6476fac98f23021dd81b5",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "for \\(\\hat{F}_{0}\\) to be used for pruning. The ideal function would be",
+     "text_display": " for \\(\\hat{F}_{0}\\) to be used for pruning. The ideal function would be",
+     "confidence": 0.99951171875,
+     "confidence_rate": 0.9999935736983052
+    },
+    {
+     "cnt": [
+      [
+       1177,
+       318
+      ],
+      [
+       1850,
+       318
+      ],
+      [
+       1850,
+       380
+      ],
+      [
+       1177,
+       380
+      ]
+     ],
+     "region": {
+      "top_left_x": 1177,
+      "top_left_y": 317,
+      "width": 673,
+      "height": 64
+     },
+     "line": 76,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "c9433bf15a8c4d728009580aafe33e37",
+     "type": "math",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "\\[\n\\bar{f}_{\\text {ideal }}(\\mathcal{X})=\\max \\left\\{\\hat{F}_{0}\\left(\\mathcal{X}^{\\prime} ; Y\\right): \\mathcal{X} \\subseteq \\mathcal{X}^{\\prime} \\subseteq \\mathcal{I}\\right\\}\n\\]",
+     "text_display": "\n\\[\n\\bar{f}_{\\text {ideal }}(\\mathcal{X})=\\max \\left\\{\\hat{F}_{0}\\left(\\mathcal{X}^{\\prime} ; Y\\right): \\mathcal{X} \\subseteq \\mathcal{X}^{\\prime} \\subseteq \\mathcal{I}\\right\\}\n\\]",
+     "confidence": 0.9970703125,
+     "confidence_rate": 0.9999662765751441
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       382
+      ],
+      [
+       1949,
+       382
+      ],
+      [
+       1949,
+       423
+      ],
+      [
+       1087,
+       423
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 382,
+      "width": 862,
+      "height": 42
+     },
+     "line": 78,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "78f03daf675444b2bcfc557f564f7275",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "Computing this function is equivalent to the original optimiza-",
+     "text_display": "\n\nComputing this function is equivalent to the original optimiza",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       421
+      ],
+      [
+       1944,
+       421
+      ],
+      [
+       1944,
+       462
+      ],
+      [
+       1087,
+       462
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 421,
+      "width": 858,
+      "height": 41
+     },
+     "line": 79,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "139039302a2d4c2a9b2769bd3437a707",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "tion problem and hence NP-hard. We can relax the maximum",
+     "text_display": "tion problem and hence NP-hard. We can relax the maximum",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       460
+      ],
+      [
+       1946,
+       460
+      ],
+      [
+       1946,
+       501
+      ],
+      [
+       1087,
+       501
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 459,
+      "width": 860,
+      "height": 42
+     },
+     "line": 80,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "5ca5a114dda4404e9d384639928df76a",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "over all supersets to the maximum over all specializations of",
+     "text_display": " over all supersets to the maximum over all specializations of",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       494
+      ],
+      [
+       1916,
+       494
+      ],
+      [
+       1916,
+       544
+      ],
+      [
+       1087,
+       544
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 494,
+      "width": 830,
+      "height": 50
+     },
+     "line": 81,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "eedee7942905406d968e9f8e8a894826",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "\\(\\mathcal{X}\\). That is, we define a bounding function \\(\\bar{f}_{\\text {spc }}(\\mathcal{X})\\) through",
+     "text_display": " \\(\\mathcal{X}\\). That is, we define a bounding function \\(\\bar{f}_{\\text {spc }}(\\mathcal{X})\\) through",
+     "confidence": 0.6459603309631348,
+     "confidence_rate": 0.9949312942966153
+    },
+    {
+     "cnt": [
+      [
+       1104,
+       544
+      ],
+      [
+       1929,
+       544
+      ],
+      [
+       1929,
+       666
+      ],
+      [
+       1104,
+       666
+      ]
+     ],
+     "region": {
+      "top_left_x": 1104,
+      "top_left_y": 543,
+      "width": 826,
+      "height": 124
+     },
+     "line": 82,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "842e683db6194181bc7e8c26170f369a",
+     "type": "math",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "\\[\n\\begin{aligned}\n\\bar{f}_{\\mathrm{spc}}(\\mathcal{X}) & =\\max \\left\\{\\hat{F}_{0}\\left(\\mathcal{X}^{\\prime} ; Y\\right): \\mathcal{X} \\preceq \\mathcal{X}^{\\prime}\\right\\} \\\\\n& \\geq \\max \\left\\{\\hat{F}_{0}\\left(\\mathcal{X}^{\\prime} ; Y\\right): \\mathcal{X} \\subseteq \\mathcal{X}^{\\prime} \\subseteq \\mathcal{I}\\right\\}=\\bar{f}_{\\text {ideal }}(\\mathcal{X})\n\\end{aligned}\n\\]",
+     "text_display": "\n\\[\n\\begin{aligned}\n\\bar{f}_{\\mathrm{spc}}(\\mathcal{X}) & =\\max \\left\\{\\hat{F}_{0}\\left(\\mathcal{X}^{\\prime} ; Y\\right): \\mathcal{X} \\preceq \\mathcal{X}^{\\prime}\\right\\} \\\\\n& \\geq \\max \\left\\{\\hat{F}_{0}\\left(\\mathcal{X}^{\\prime} ; Y\\right): \\mathcal{X} \\subseteq \\mathcal{X}^{\\prime} \\subseteq \\mathcal{I}\\right\\}=\\bar{f}_{\\text {ideal }}(\\mathcal{X})\n\\end{aligned}\n\\]",
+     "confidence": 0.996584415435791,
+     "confidence_rate": 0.99998130383057
+    },
+    {
+     "cnt": [
+      [
+       1121,
+       666
+      ],
+      [
+       1944,
+       666
+      ],
+      [
+       1944,
+       711
+      ],
+      [
+       1121,
+       711
+      ]
+     ],
+     "region": {
+      "top_left_x": 1121,
+      "top_left_y": 666,
+      "width": 824,
+      "height": 46
+     },
+     "line": 85,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "33088c6313e747869080b0e5b07f43fe",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "While this definition constitutes an admissible bounding",
+     "text_display": "\n\nWhile this definition constitutes an admissible bounding",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       705
+      ],
+      [
+       1944,
+       705
+      ],
+      [
+       1944,
+       748
+      ],
+      [
+       1087,
+       748
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 704,
+      "width": 858,
+      "height": 44
+     },
+     "line": 86,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "086b20ae07304b06b6534d30fee58814",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "function, it is unclear how it can be efficiently evaluated. Let",
+     "text_display": " function, it is unclear how it can be efficiently evaluated. Let",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       743
+      ],
+      [
+       1944,
+       743
+      ],
+      [
+       1944,
+       784
+      ],
+      [
+       1087,
+       784
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 743,
+      "width": 858,
+      "height": 42
+     },
+     "line": 87,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "ccaea04a55f44645931475f9c045c8c6",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "us denote by \\(R^{+}\\)the operation of joining a labeling \\(R\\) with",
+     "text_display": " us denote by \\(R^{+}\\)the operation of joining a labeling \\(R\\) with",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       778
+      ],
+      [
+       1944,
+       778
+      ],
+      [
+       1944,
+       823
+      ],
+      [
+       1087,
+       823
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 777,
+      "width": 858,
+      "height": 46
+     },
+     "line": 88,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "b8b4ffb96c064ecb9aedf7b1e64f6e9e",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "the target attribute \\(Y\\), i.e., \\(R^{+}=\\{R\\} \\cup\\{Y\\}\\). This definition",
+     "text_display": " the target attribute \\(Y\\), i.e., \\(R^{+}=\\{R\\} \\cup\\{Y\\}\\). This definition",
+     "confidence": 0.99951171875,
+     "confidence_rate": 0.9999936571565041
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       816
+      ],
+      [
+       1916,
+       816
+      ],
+      [
+       1916,
+       866
+      ],
+      [
+       1087,
+       866
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 816,
+      "width": 830,
+      "height": 50
+     },
+     "line": 89,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "d2a4f8e446e644758c7e62552bf86c42",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "gives rise to a simple constructive form for computing \\(\\bar{f}_{\\text {spc }}\\).",
+     "text_display": " gives rise to a simple constructive form for computing \\(\\bar{f}_{\\text {spc }}\\).",
+     "confidence": 0.9907436370849609,
+     "confidence_rate": 0.9998892981605946
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       868
+      ],
+      [
+       1944,
+       868
+      ],
+      [
+       1944,
+       915
+      ],
+      [
+       1087,
+       915
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 867,
+      "width": 858,
+      "height": 49
+     },
+     "line": 90,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "361adb65dd234823b4c158ea14d76b03",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "Theorem 3. The function \\(\\bar{f}_{\\text {spc }}\\) can be efficiently computed as",
+     "text_display": "\nTheorem 3. The function \\(\\bar{f}_{\\text {spc }}\\) can be efficiently computed as",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       911
+      ],
+      [
+       1811,
+       911
+      ],
+      [
+       1811,
+       965
+      ],
+      [
+       1087,
+       965
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 910,
+      "width": 725,
+      "height": 55
+     },
+     "line": 91,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "4c7dd9722e0f43a588c9ba75f65a4a04",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "\\(\\bar{f}_{\\text {spc }}(\\mathcal{X})=\\hat{F}_{0}\\left(\\mathcal{X}^{+} ; Y\\right)\\) in time \\(O(n|V(\\mathcal{X}) \\| V(Y)|)\\).",
+     "text_display": " \\(\\bar{f}_{\\text {spc }}(\\mathcal{X})=\\hat{F}_{0}\\left(\\mathcal{X}^{+} ; Y\\right)\\) in time \\(O(n|V(\\mathcal{X}) \\| V(Y)|)\\).",
+     "confidence": 0.5799671771305803,
+     "confidence_rate": 0.9939651304411478
+    },
+    {
+     "cnt": [
+      [
+       1121,
+       962
+      ],
+      [
+       1944,
+       962
+      ],
+      [
+       1944,
+       1008
+      ],
+      [
+       1121,
+       1008
+      ]
+     ],
+     "region": {
+      "top_left_x": 1121,
+      "top_left_y": 962,
+      "width": 824,
+      "height": 46
+     },
+     "line": 92,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "8842103ec1684905bfed1582eba51be8",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "Intuitively, \\(\\mathcal{X}^{+}\\)constitutes the most efficient specialization",
+     "text_display": "\n\nIntuitively, \\(\\mathcal{X}^{+}\\)constitutes the most efficient specialization",
+     "confidence": 0.9931671619415283,
+     "confidence_rate": 0.99991321530043
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       1001
+      ],
+      [
+       1944,
+       1001
+      ],
+      [
+       1944,
+       1051
+      ],
+      [
+       1087,
+       1051
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 1001,
+      "width": 858,
+      "height": 50
+     },
+     "line": 93,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "b82cd658dc8e4e4fbe97202b894564bf",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "of \\(\\mathcal{X}\\) in terms of growth in \\(\\hat{F}\\) and \\(\\hat{b}_{0}\\). In contrast, the bounding",
+     "text_display": " of \\(\\mathcal{X}\\) in terms of growth in \\(\\hat{F}\\) and \\(\\hat{b}_{0}\\). In contrast, the bounding",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       1044
+      ],
+      [
+       1944,
+       1044
+      ],
+      [
+       1944,
+       1096
+      ],
+      [
+       1087,
+       1096
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 1044,
+      "width": 858,
+      "height": 52
+     },
+     "line": 94,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "dbfe0504d30c428b835b31e0afbe9ae9",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "function \\(\\bar{f}_{\\text {mon }}(\\mathcal{X})=1-\\hat{b}_{0}(\\mathcal{X}, Y, n)\\) of [Mandros et al., 2017]",
+     "text_display": " function \\(\\bar{f}_{\\text {mon }}(\\mathcal{X})=1-\\hat{b}_{0}(\\mathcal{X}, Y, n)\\) of [Mandros et al., 2017]",
+     "confidence": 0.9970729344058782,
+     "confidence_rate": 0.9999684805200995
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       1091
+      ],
+      [
+       1944,
+       1091
+      ],
+      [
+       1944,
+       1132
+      ],
+      [
+       1087,
+       1132
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 1091,
+      "width": 858,
+      "height": 42
+     },
+     "line": 95,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "a29f303e00b7428caa684fa0664caef3",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "assumes that full information about the target can be attained",
+     "text_display": " assumes that full information about the target can be attained",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       1130
+      ],
+      [
+       1949,
+       1130
+      ],
+      [
+       1949,
+       1179
+      ],
+      [
+       1087,
+       1179
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 1130,
+      "width": 862,
+      "height": 50
+     },
+     "line": 96,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "59fc1ef165f24454996b68037b9bdb1b",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "(i.e., \\(\\hat{F}=1\\) ) without \"paying\" an increased \\(\\hat{b}_{0}\\) term. The fol-",
+     "text_display": " (i.e., \\(\\hat{F}=1\\) ) without \"paying\" an increased \\(\\hat{b}_{0}\\) term. The fol",
+     "confidence": 0.9985356330871582,
+     "confidence_rate": 0.9999825544361526
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       1173
+      ],
+      [
+       1949,
+       1173
+      ],
+      [
+       1949,
+       1218
+      ],
+      [
+       1087,
+       1218
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 1173,
+      "width": 862,
+      "height": 46
+     },
+     "line": 97,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "14496696702749aebecd90ada2386c79",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "lowing proposition shows this idea leads to an inferior bound.",
+     "text_display": "lowing proposition shows this idea leads to an inferior bound.",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       1216
+      ],
+      [
+       1944,
+       1216
+      ],
+      [
+       1944,
+       1265
+      ],
+      [
+       1087,
+       1265
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 1216,
+      "width": 858,
+      "height": 50
+     },
+     "line": 98,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "5d41362d1b5c447197ecdcb4a41b4bd6",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "Proposition 4. Let \\(\\mathcal{X} \\subseteq \\mathcal{I}\\) and \\(\\Delta=\\bar{f}_{\\text {mon }}(\\mathcal{X})-\\bar{f}_{\\text {spc }}(\\mathcal{X})\\). The",
+     "text_display": "\nProposition 4. Let \\(\\mathcal{X} \\subseteq \\mathcal{I}\\) and \\(\\Delta=\\bar{f}_{\\text {mon }}(\\mathcal{X})-\\bar{f}_{\\text {spc }}(\\mathcal{X})\\). The",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1083,
+       1259
+      ],
+      [
+       1467,
+       1259
+      ],
+      [
+       1467,
+       1300
+      ],
+      [
+       1083,
+       1300
+      ]
+     ],
+     "region": {
+      "top_left_x": 1082,
+      "top_left_y": 1258,
+      "width": 386,
+      "height": 42
+     },
+     "line": 99,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "302f662a1f0d4d73b520c8c4f30b5cec",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "following statements hold:",
+     "text_display": " following statements hold:",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1109,
+       1302
+      ],
+      [
+       1824,
+       1302
+      ],
+      [
+       1824,
+       1354
+      ],
+      [
+       1109,
+       1354
+      ]
+     ],
+     "region": {
+      "top_left_x": 1108,
+      "top_left_y": 1301,
+      "width": 717,
+      "height": 53
+     },
+     "line": 100,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "2ddf8a8848a84c17b386e55ced15714f",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "a) \\(\\Delta \\geq 0\\) for all datasets, i.e., \\(\\bar{f}_{\\text {spc }}(\\mathcal{X}) \\leq \\bar{f}_{\\text {mon }}(\\mathcal{X})\\)",
+     "text_display": "\na) \\(\\Delta \\geq 0\\) for all datasets, i.e., \\(\\bar{f}_{\\text {spc }}(\\mathcal{X}) \\leq \\bar{f}_{\\text {mon }}(\\mathcal{X})\\)",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1109,
+       1354
+      ],
+      [
+       1944,
+       1354
+      ],
+      [
+       1944,
+       1414
+      ],
+      [
+       1109,
+       1414
+      ]
+     ],
+     "region": {
+      "top_left_x": 1108,
+      "top_left_y": 1353,
+      "width": 837,
+      "height": 61
+     },
+     "line": 101,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "538c37a40c454c65aa23799bcf2db1d9",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "b) there are datasets \\(\\mathbf{D}_{4 l}\\) for all \\(l \\geq 1\\) s.t. \\(\\Delta \\in \\Omega\\left(1-\\frac{1}{\\log 2 l}\\right)\\)",
+     "text_display": "\nb) there are datasets \\(\\mathbf{D}_{4 l}\\) for all \\(l \\geq 1\\) s.t. \\(\\Delta \\in \\Omega\\left(1-\\frac{1}{\\log 2 l}\\right)\\)",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1121,
+       1416
+      ],
+      [
+       1944,
+       1416
+      ],
+      [
+       1944,
+       1463
+      ],
+      [
+       1121,
+       1463
+      ]
+     ],
+     "region": {
+      "top_left_x": 1121,
+      "top_left_y": 1415,
+      "width": 824,
+      "height": 49
+     },
+     "line": 102,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "dc503ae5fe57413caae115397894ba72",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "Thus, we have established that \\(\\bar{f}_{\\mathrm{spc}}\\) is not only tighter than",
+     "text_display": "\n\nThus, we have established that \\(\\bar{f}_{\\mathrm{spc}}\\) is not only tighter than",
+     "confidence": 0.99755859375,
+     "confidence_rate": 0.9999698227844552
+    },
+    {
+     "cnt": [
+      [
+       1089,
+       1461
+      ],
+      [
+       1944,
+       1461
+      ],
+      [
+       1944,
+       1506
+      ],
+      [
+       1089,
+       1506
+      ]
+     ],
+     "region": {
+      "top_left_x": 1089,
+      "top_left_y": 1460,
+      "width": 856,
+      "height": 47
+     },
+     "line": 103,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "02c9da9e3c874de48b9abdb7b8417dd9",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "\\(\\bar{f}_{\\text {mon }}\\), but even that the difference can be arbitrary close to 1",
+     "text_display": " \\(\\bar{f}_{\\text {mon }}\\), but even that the difference can be arbitrary close to 1",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       1500
+      ],
+      [
+       1946,
+       1500
+      ],
+      [
+       1946,
+       1545
+      ],
+      [
+       1087,
+       1545
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 1499,
+      "width": 860,
+      "height": 46
+     },
+     "line": 104,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "abcaf354a6ba46eeaa6e6f41bd300102",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "(for an increasing domain size of \\(Y\\) ). Put differently, their ratio,",
+     "text_display": " (for an increasing domain size of \\(Y\\) ). Put differently, their ratio,",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       1538
+      ],
+      [
+       1919,
+       1538
+      ],
+      [
+       1919,
+       1583
+      ],
+      [
+       1087,
+       1583
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 1538,
+      "width": 832,
+      "height": 46
+     },
+     "line": 105,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "20ab61309ae747aebb24f05f76318951",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "and thus the potential for additional pruning, is unbounded.",
+     "text_display": " and thus the potential for additional pruning, is unbounded.",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1083,
+       1607
+      ],
+      [
+       1360,
+       1607
+      ],
+      [
+       1360,
+       1661
+      ],
+      [
+       1083,
+       1661
+      ]
+     ],
+     "region": {
+      "top_left_x": 1082,
+      "top_left_y": 1607,
+      "width": 278,
+      "height": 54
+     },
+     "line": 106,
+     "column": 2,
+     "font_size": 35,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "2f81a34dbd0f443ebf15489617399104",
+     "type": "section_header",
+     "conversion_output": false,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "children_ids": [
+      "b358973fd2454a1e8934f1fc7f1d9f8f"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       1611
+      ],
+      [
+       1356,
+       1611
+      ],
+      [
+       1356,
+       1656
+      ],
+      [
+       1087,
+       1656
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 1611,
+      "width": 269,
+      "height": 46
+     },
+     "line": 107,
+     "column": 2,
+     "font_size": 35,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "b358973fd2454a1e8934f1fc7f1d9f8f",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2f81a34dbd0f443ebf15489617399104",
+     "text": "5 Evaluation",
+     "text_display": "\n\n\\section*{5 Evaluation}",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       1667
+      ],
+      [
+       1944,
+       1667
+      ],
+      [
+       1944,
+       1708
+      ],
+      [
+       1087,
+       1708
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 1667,
+      "width": 858,
+      "height": 42
+     },
+     "line": 108,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "9a5fcee687814b9cae21f0fa17b29a00",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "For ease of comparison to [Mandros et al., 2017], we consider",
+     "text_display": "\n\nFor ease of comparison to [Mandros et al., 2017], we consider",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       1706
+      ],
+      [
+       1946,
+       1706
+      ],
+      [
+       1946,
+       1747
+      ],
+      [
+       1087,
+       1747
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 1705,
+      "width": 860,
+      "height": 42
+     },
+     "line": 109,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "9925554db5f440128f5f0bb04a357053",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "datasets from the KEEL data repository [Alcalà-Fdez et al.,",
+     "text_display": " datasets from the KEEL data repository [Alcalà-Fdez et al.,",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       1745
+      ],
+      [
+       1944,
+       1745
+      ],
+      [
+       1944,
+       1785
+      ],
+      [
+       1087,
+       1785
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 1744,
+      "width": 858,
+      "height": 42
+     },
+     "line": 110,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "398e77e0165d4e9d800c113aa718a835",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "2011]. In particular, we use all classification datasets with",
+     "text_display": " 2011]. In particular, we use all classification datasets with",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       1781
+      ],
+      [
+       1944,
+       1781
+      ],
+      [
+       1944,
+       1824
+      ],
+      [
+       1087,
+       1824
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 1781,
+      "width": 858,
+      "height": 44
+     },
+     "line": 111,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "547900286278475e936d5a84cae3e4b9",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "\\(d \\in[10,90]\\) and no missing values, resulting in 35 datasets",
+     "text_display": " \\(d \\in[10,90]\\) and no missing values, resulting in 35 datasets",
+     "confidence": 0.99853515625,
+     "confidence_rate": 0.9999770952985276
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       1822
+      ],
+      [
+       1949,
+       1822
+      ],
+      [
+       1949,
+       1863
+      ],
+      [
+       1087,
+       1863
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 1821,
+      "width": 862,
+      "height": 42
+     },
+     "line": 112,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "3cb52b1bbdbd45bdbca218c40c72f298",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "with 52000 and 30 rows and columns on average, respectively.",
+     "text_display": " with 52000 and 30 rows and columns on average, respectively.",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       1856
+      ],
+      [
+       1674,
+       1856
+      ],
+      [
+       1674,
+       1901
+      ],
+      [
+       1087,
+       1901
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 1856,
+      "width": 587,
+      "height": 46
+     },
+     "line": 113,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "4a7463de8ee14ca383638b8885f69b16",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "All implementations are available online \\({ }^{1}\\).",
+     "text_display": " All implementations are available online \\({ }^{1}\\).",
+     "confidence": 0.9476494949776679,
+     "confidence_rate": 0.9990890494704536
+    },
+    {
+     "cnt": [
+      [
+       1121,
+       1895
+      ],
+      [
+       1944,
+       1895
+      ],
+      [
+       1944,
+       1936
+      ],
+      [
+       1121,
+       1936
+      ]
+     ],
+     "region": {
+      "top_left_x": 1121,
+      "top_left_y": 1894,
+      "width": 824,
+      "height": 42
+     },
+     "line": 114,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "9136ad64ba894caf8c1612a4066e0016",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "We use two metrics for evaluation, the relative runtime",
+     "text_display": "\n\nWe use two metrics for evaluation, the relative runtime",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       1934
+      ],
+      [
+       1944,
+       1934
+      ],
+      [
+       1944,
+       1979
+      ],
+      [
+       1087,
+       1979
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 1933,
+      "width": 858,
+      "height": 46
+     },
+     "line": 115,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "397011d0abe043cbb6a7fb9e61298132",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "difference and the relative difference in number of explored",
+     "text_display": " difference and the relative difference in number of explored",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       1972
+      ],
+      [
+       1944,
+       1972
+      ],
+      [
+       1944,
+       2013
+      ],
+      [
+       1087,
+       2013
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 1972,
+      "width": 858,
+      "height": 42
+     },
+     "line": 116,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "18052ff1a9a84459ba85284ccd091fec",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "nodes. For methods A and B , the relative runtime difference",
+     "text_display": " nodes. For methods A and B , the relative runtime difference",
+     "confidence": 0.9951171875,
+     "confidence_rate": 0.9999364335480074
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       2011
+      ],
+      [
+       1944,
+       2011
+      ],
+      [
+       1944,
+       2052
+      ],
+      [
+       1087,
+       2052
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 2010,
+      "width": 858,
+      "height": 42
+     },
+     "line": 117,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "ccd98bf8af684b4db3130f54a1fdb748",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "on a particular dataset is computed as \\(\\operatorname{rrd}(A, B)=\\left(\\tau_{A}-\\right.\\)",
+     "text_display": " on a particular dataset is computed as \\(\\operatorname{rrd}(A, B)=\\left(\\tau_{A}-\\right.",
+     "confidence": 0.99951171875,
+     "confidence_rate": 0.9999926000198329
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       2050
+      ],
+      [
+       1944,
+       2050
+      ],
+      [
+       1944,
+       2090
+      ],
+      [
+       1087,
+       2090
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 2049,
+      "width": 858,
+      "height": 42
+     },
+     "line": 118,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "2e927f64ebac4195ba292a9426570050",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "\\(\\left.\\tau_{B}\\right) / \\max \\left(\\tau_{A}, \\tau_{B}\\right)\\), where \\(\\tau_{A}\\) and \\(\\tau_{B}\\) are the run times for",
+     "text_display": " \\left.\\tau_{B}\\right) / \\max \\left(\\tau_{A}, \\tau_{B}\\right)\\), where \\(\\tau_{A}\\) and \\(\\tau_{B}\\) are the run times for",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       2086
+      ],
+      [
+       1944,
+       2086
+      ],
+      [
+       1944,
+       2129
+      ],
+      [
+       1087,
+       2129
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 2086,
+      "width": 858,
+      "height": 44
+     },
+     "line": 119,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "f3802f0dd35b4a3ab37d597749ba5aa8",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "A and B respectively. The rrd score lies in \\([-1,1]\\), where",
+     "text_display": " A and B respectively. The rrd score lies in \\([-1,1]\\), where",
+     "confidence": 0.9936623573303223,
+     "confidence_rate": 0.9999140873287543
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       2127
+      ],
+      [
+       1944,
+       2127
+      ],
+      [
+       1944,
+       2168
+      ],
+      [
+       1087,
+       2168
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 2126,
+      "width": 858,
+      "height": 42
+     },
+     "line": 120,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "f7a82b96efcf4b9cbf7d69929bae771c",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "positive (negative) values indicate that B is proportionally",
+     "text_display": " positive (negative) values indicate that B is proportionally",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       2161
+      ],
+      [
+       1944,
+       2161
+      ],
+      [
+       1944,
+       2206
+      ],
+      [
+       1087,
+       2206
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 2161,
+      "width": 858,
+      "height": 46
+     },
+     "line": 121,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "14b98f0375674f128385936f31416ca3",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "faster (slower). For example, a rrd score of 0.5 corresponds to",
+     "text_display": " faster (slower). For example, a rrd score of 0.5 corresponds to",
+     "confidence": 0.99951171875,
+     "confidence_rate": 0.9999931211434043
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       2200
+      ],
+      [
+       1944,
+       2200
+      ],
+      [
+       1944,
+       2241
+      ],
+      [
+       1087,
+       2241
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 2200,
+      "width": 858,
+      "height": 41
+     },
+     "line": 122,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "aa80e16c9c25470896f6109ea0cfbda1",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "a factor of 2 speed-up, 0.66 to a factor of \\(3,0.75\\) to 4 etc. The",
+     "text_display": " a factor of 2 speed-up, 0.66 to a factor of \\(3,0.75\\) to 4 etc. The",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       2239
+      ],
+      [
+       1944,
+       2239
+      ],
+      [
+       1944,
+       2279
+      ],
+      [
+       1087,
+       2279
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 2238,
+      "width": 858,
+      "height": 42
+     },
+     "line": 123,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "ce4f53b8b1364a288fee8019a0d8ea0f",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "relative nodes explored difference rnd is defined similarly. For",
+     "text_display": " relative nodes explored difference rnd is defined similarly. For",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       2277
+      ],
+      [
+       1944,
+       2277
+      ],
+      [
+       1944,
+       2318
+      ],
+      [
+       1087,
+       2318
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 2277,
+      "width": 858,
+      "height": 42
+     },
+     "line": 124,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "8467cd87df77461c913eebf1a1451fbe",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "both scores, we consider \\((-0.5,0.5)\\) to be a region of practical",
+     "text_display": " both scores, we consider \\((-0.5,0.5)\\) to be a region of practical",
+     "confidence": 0.841796875,
+     "confidence_rate": 0.9975773543551671
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       2316
+      ],
+      [
+       1944,
+       2316
+      ],
+      [
+       1944,
+       2357
+      ],
+      [
+       1087,
+       2357
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 2316,
+      "width": 858,
+      "height": 41
+     },
+     "line": 125,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "8f9a9b7b5aea4e8c849eef59d1a128b7",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "equivalence, i.e., a factor of 2 of improvement is required to",
+     "text_display": " equivalence, i.e., a factor of 2 of improvement is required to",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1087,
+       2350
+      ],
+      [
+       1480,
+       2350
+      ],
+      [
+       1480,
+       2391
+      ],
+      [
+       1087,
+       2391
+      ]
+     ],
+     "region": {
+      "top_left_x": 1087,
+      "top_left_y": 2350,
+      "width": 394,
+      "height": 42
+     },
+     "line": 126,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "3f117c18140343d894e6adecd68cc8ec",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "text": "consider a method \"better\".",
+     "text_display": " consider a method \"better\".",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1126,
+       2398
+      ],
+      [
+       1674,
+       2398
+      ],
+      [
+       1674,
+       2456
+      ],
+      [
+       1126,
+       2456
+      ]
+     ],
+     "region": {
+      "top_left_x": 1125,
+      "top_left_y": 2397,
+      "width": 549,
+      "height": 59
+     },
+     "line": 127,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "f5c0a207b6c7417ba0656d082e9a7c3c",
+     "type": "footnote",
+     "conversion_output": false,
+     "parent_id": "2fe4f5738e6844bba6ba3fb506fecec4",
+     "children_ids": [
+      "47cd5f5a5475486ba038e4b4d09d5b74"
+     ],
+     "text": "",
+     "text_display": ""
+    },
+    {
+     "cnt": [
+      [
+       1134,
+       2402
+      ],
+      [
+       1669,
+       2402
+      ],
+      [
+       1669,
+       2451
+      ],
+      [
+       1134,
+       2451
+      ]
+     ],
+     "region": {
+      "top_left_x": 1134,
+      "top_left_y": 2401,
+      "width": 536,
+      "height": 51
+     },
+     "line": 128,
+     "column": 2,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "47cd5f5a5475486ba038e4b4d09d5b74",
+     "type": "text",
+     "conversion_output": true,
+     "parent_id": "f5c0a207b6c7417ba0656d082e9a7c3c",
+     "text": "\\({ }^{1}\\) https://github.com/pmandros/fodiscovery",
+     "text_display": "\n\n\\footnotetext{\n\\({ }^{1}\\) https://github.com/pmandros/fodiscovery\n}",
+     "confidence": 1,
+     "confidence_rate": 1
+    },
+    {
+     "cnt": [
+      [
+       1023,
+       2591
+      ],
+      [
+       1100,
+       2591
+      ],
+      [
+       1100,
+       2625
+      ],
+      [
+       1023,
+       2625
+      ]
+     ],
+     "region": {
+      "top_left_x": 1022,
+      "top_left_y": 2591,
+      "width": 78,
+      "height": 35
+     },
+     "line": 129,
+     "column": 0,
+     "font_size": 28,
+     "is_printed": true,
+     "is_handwritten": false,
+     "id": "ec5cf8af60cb47c69d4ba2ff6b09fecf",
+     "type": "page_info",
+     "conversion_output": false,
+     "text": "6208",
+     "text_display": "",
+     "confidence": 1,
+     "confidence_rate": 1
+    }
+   ],
+   "page_height": 2750,
+   "page_width": 2125,
+   "languages_detected": []
+  }
+ ]
+}
