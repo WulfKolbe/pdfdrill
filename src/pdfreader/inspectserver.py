@@ -269,8 +269,21 @@ class Pages:
             w, h = pg.get("page_width"), pg.get("page_height")
             if w and h:
                 self.dims[int(n)] = (float(w), float(h))
-            if "px_per_pt" in pg:
-                self.px_per_pt[int(n)] = float(pg["px_per_pt"])
+            # A READING THAT DECLARES NOTHING IS NOT A READING THAT
+            # DECLARES NULL. Testing `"px_per_pt" in pg` and calling
+            # `float()` on the value raised TypeError on every lines.json in
+            # the corpus: the key is PRESENT with value None on all 1317
+            # pages of the ten-document Gemma4 set and on the MathPix
+            # references too, so this server could not start against any real
+            # reading. Bad data in an input is declined, never raised -- the
+            # scale then stays unknown and the ratio measured from the image
+            # below decides, which is what it is there for.
+            ppp = pg.get("px_per_pt")
+            if ppp is not None:
+                try:
+                    self.px_per_pt[int(n)] = float(ppp)
+                except (TypeError, ValueError):
+                    pass
             img = pg.get("image_id")
             if img:
                 self.id_page[str(img)] = int(n)
