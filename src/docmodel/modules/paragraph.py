@@ -177,6 +177,65 @@ def _column_body_edge(x: float, cols: list, em: float, lines_at: dict):
         return None
     return ranked[0]
 
+#: T-0154 -- A PRINTED ENVIRONMENT OPENER. LaTeX sets an environment's FIRST
+#: line flush left, with no `\parindent`, so "Theorem 0.0.1 (Landweber Exact
+#: Functor Theorem).", "Definition 1.", "Remark 1.1.2." and
+#: "Example 0.0.6 (Lubin-Tate Spectra)." stand ON their column's body edge
+#: while being genuine paragraph starts. Nothing in the geometry can tell
+#: them from a continuation; the printed label can, and the page prints it.
+#: Of the reading's markers that `_column_states_an_indent` would otherwise
+#: overrule, this keeps 65 on lib:c9daf79960c3, 46 on lib:d68e0271bd4d and
+#: all 8 on 0864, and it matches NOTHING in lib:008d43e5db48's 181 German
+#: prose lines -- which is the whole reason both halves of the rule exist.
+_ENV_OPENER = re.compile(
+    r"^\*{0,2}([A-Z][a-zA-Z]+(?:\s+[a-z]+)?)\s+(\d+(?:\.\d+)*)\s*\.?\s*[.(]")
+
+
+def _column_states_an_indent(x, page, edges: dict) -> bool:
+    r"""Does this line's COLUMN state an indent convention?
+
+    True when the column owns two or more recurring edges AND
+    `_column_body_edge` decides between them. The page then says where its
+    paragraphs begin, by indenting them, and a line sitting ON the body edge
+    is a continuation by the page's own evidence.
+
+    Used for ONE thing: to overrule the reading's block marker where the page
+    contradicts it. lib:008d43e5db48 p117 is the case -- body edge 464 with
+    17 lines, indent 512 with 3, and a marked line at x = 465 that is the
+    second sentence of a paragraph, not a new one. Measured over the markers
+    the plain marker rule newly splits, this is true for 181 of 424 on that
+    book and every one of the 181 is such a sentence.
+
+    It is deliberately the SAME grouping and the SAME abstention as
+    `_is_first_line` uses, so the two cannot disagree about which column a
+    line is in or whether its evidence decides. Where the body edge is
+    undecided (three edges and no majority -- lib:008d43e5db48 p292) this is
+    False and the marker stands, because then the page states no convention
+    to overrule it with.
+    """
+    if x is None or page not in edges:
+        return False
+    rec = edges[page]
+    cols, em = rec[0], rec[1]
+    lines_at = rec[3] if len(rec) > 3 else {}
+    if not cols or not em:
+        return False
+    groups: list[list[float]] = []
+    for e in sorted(cols):
+        if groups and e - groups[-1][-1] <= 2.0 * em:
+            groups[-1].append(e)
+        else:
+            groups.append([e])
+    best = None
+    for g in groups:
+        d = min(abs(e - float(x)) for e in g)
+        if best is None or d < best[0]:
+            best = (d, g)
+    if best is None or len(best[1]) < 2:
+        return False
+    return _column_body_edge(float(x), cols, em, lines_at) is not None
+
+
 class ParagraphProcessor(BaseModule):
     def find_items(self, doc: Document) -> list[dict[str, Any]]:
         if self.LINES_STREAM not in doc.streams:
@@ -297,6 +356,11 @@ class ParagraphProcessor(BaseModule):
             # The `footnote` record this line is a child of, stamped by
             # FootnoteProcessor (procOrder 2). See the chain below.
             block = payload.get("_footnote_block")
+            # T-0154 -- THE READING SAYS A BLOCK BEGINS HERE. A leading "\n\n"
+            # in `text_display` is the reader's own statement, named as such
+            # in `text_utils.join_stated`. See the chain below for why it
+            # beats a `subtype` that claims a continuation.
+            marks_block = (payload.get("text_display") or "").startswith("\n\n")
             region = payload.get("region") or {}
             y, h = region.get("top_left_y"), region.get("height")
             x0 = region.get("top_left_x")
@@ -343,6 +407,52 @@ class ParagraphProcessor(BaseModule):
                     # brace. That happened to 76 of 156 blocks on that book
                     # alone, and the cleanup abstained on every one of them.
                     pass
+                elif marks_block and not (
+                        _column_states_an_indent(x0, page, edges)
+                        and not _ENV_OPENER.match(stripped)):
+                    # T-0154 -- THE READING'S OWN STATEMENT, BEFORE OUR
+                    # GEOMETRY. The reader marks the line that begins a
+                    # block, and until now nothing read that mark: on the
+                    # ten-document Gemma4 set 1757 marked lines were placed
+                    # MID paragraph (lib:c9daf79960c3 471, lib:d68e0271bd4d
+                    # 467, lib:008d43e5db48 424, BH3 284, 2312.11532 62,
+                    # 1805.01788 30, 0864 8, US6100897A 6,
+                    # lib:5a5c76391c9c 5).
+                    #
+                    # IT BEATS A STATED CONTINUATION, which is the whole
+                    # difficulty: the same record often says BOTH, and 407
+                    # of c9's 471 are that contradictory cell rather than
+                    # the clean one. The marker is the specific claim and
+                    # the subtype is mechanical -- c9 stamps
+                    # `continues_line_space` on 5243 of its 7545 prose
+                    # lines, including every "Theorem 0.0.1 (...)" that
+                    # opens a numbered environment. 0864 p2 l61 is the
+                    # worked case: "Definition 1. Let \(A\) and \(B\) be
+                    # maps..." at x = 1094 against a body edge of 1095, so
+                    # no indent for `_is_first_line` to see, immediately
+                    # after its predecessor, so no gap either. One
+                    # Paragraph held MathPix's four units.
+                    #
+                    # The mark is read as a BOUNDARY and nobody's text is
+                    # rewritten. Stripping it was tried and cost 8 of
+                    # texbook Appendix G's 34 numbered rules their line in
+                    # the projection, which is why `join_stated` leaves a
+                    # line that states no join to its caller verbatim.
+                    #
+                    # A footnote block's children are decided ABOVE and
+                    # never reach here: their first child carries the
+                    # block's "\n\n" and the block's own edges already
+                    # flush, so this cannot cut one in half again.
+                    #: ...UNLESS THE PAGE ITSELF SAYS OTHERWISE. See
+                    #: `_column_states_an_indent` and `_ENV_OPENER`: where
+                    #: the column indents its paragraphs and this line sits
+                    #: on the body edge without a printed environment label,
+                    #: the page's own convention is the better evidence and
+                    #: the mark is overruled. Measured on all ten documents
+                    #: of the Gemma4 set; the table is in
+                    #: tests/test_the_reading_says_where_a_paragraph_starts.py
+                    flush()
+                    self.bump("paragraphs_started_by_the_readings_marker")
                 elif _is_first_line(x0, page, edges):
                     # the page's own indent says a new paragraph starts here
                     flush()

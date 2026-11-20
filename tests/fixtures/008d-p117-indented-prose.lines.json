@@ -1,0 +1,509 @@
+{
+ "source": "gemma4-ink-yolo",
+ "pages": [
+  {
+   "page": 117,
+   "image_id": null,
+   "page_width": 2125,
+   "page_height": 2750,
+   "lines": [
+    {
+     "id": "g4_p117_l1",
+     "line": 1,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 443,
+      "width": 1192,
+      "height": 31
+     },
+     "text": "nicht aktivierte Bereich des Gehirns unterscheiden, sondern auch den Grad der",
+     "text_display": "\nnicht aktivierte Bereich des Gehirns unterscheiden, sondern auch den Grad der",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 444,
+      "width": 1192,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p117_l2",
+     "line": 2,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 484,
+      "width": 1033,
+      "height": 32
+     },
+     "text": "Akcivierung unter bestimmten klar definierten Bedingungen messen.",
+     "text_display": " Akcivierung unter bestimmten klar definierten Bedingungen messen.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 485,
+      "width": 1033,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p117_l3",
+     "line": 3,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 517,
+      "top_left_y": 526,
+      "width": 1139,
+      "height": 26
+     },
+     "text": "Betrachten wir eine der mittlerweile zahlreichen Studien zur Aufmerksamkeit",
+     "text_display": "\n\nBetrachten wir eine der mittlerweile zahlreichen Studien zur Aufmerksamkeit",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 517,
+      "top_left_y": 527,
+      "width": 1139,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p117_l4",
+     "line": 4,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 467,
+      "top_left_y": 566,
+      "width": 1188,
+      "height": 34
+     },
+     "text": "(vgl. Abb. 8.3). Die Versuchsperson liegen im Scanner und betrachten Punkte.",
+     "text_display": " (vgl. Abb. 8.3). Die Versuchsperson liegen im Scanner und betrachten Punkte.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 467,
+      "top_left_y": 568,
+      "width": 1188,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p117_l5",
+     "line": 5,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 466,
+      "top_left_y": 609,
+      "width": 1190,
+      "height": 32
+     },
+     "text": "Sie haben die Aufgabe, auf die schwarzen Punkte besonders zu achten. Im Wech-",
+     "text_display": " Sie haben die Aufgabe, auf die schwarzen Punkte besonders zu achten. Im Wech",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "geometry_before": {
+      "top_left_x": 466,
+      "top_left_y": 610,
+      "width": 1190,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p117_l6",
+     "line": 6,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 650,
+      "width": 1191,
+      "height": 32
+     },
+     "text": "sel wurden dann stillstehende schwarze Punkte gezeigt oder schwarze und weiße",
+     "text_display": " sel wurden dann stillstehende schwarze Punkte gezeigt oder schwarze und weiße",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 651,
+      "width": 1191,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p117_l7",
+     "line": 7,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 692,
+      "width": 1190,
+      "height": 32
+     },
+     "text": "Punkte, wobei sich im Wechsel die weißen oder die schwarzen Punkte bewegten.",
+     "text_display": " Punkte, wobei sich im Wechsel die weißen oder die schwarzen Punkte bewegten.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 693,
+      "width": 1190,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p117_l8",
+     "line": 8,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 734,
+      "width": 1192,
+      "height": 32
+     },
+     "text": "Verglichen wurde dann die Aktivität der Gehirnrinde während des Betrachtens",
+     "text_display": " Verglichen wurde dann die Aktivität der Gehirnrinde während des Betrachtens",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 735,
+      "width": 1192,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p117_l9",
+     "line": 9,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 775,
+      "width": 1190,
+      "height": 32
+     },
+     "text": "ruhender Punkte mit der Aktivität während des Betrachtens bewegter Punkte.",
+     "text_display": " ruhender Punkte mit der Aktivität während des Betrachtens bewegter Punkte.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 776,
+      "width": 1190,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p117_l10",
+     "line": 10,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 817,
+      "width": 1192,
+      "height": 32
+     },
+     "text": "Man erhält dann das Areal, das für die Verarbeitung von Bewegung zuständig",
+     "text_display": "\n\nMan erhält dann das Areal, das für die Verarbeitung von Bewegung zuständig",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 818,
+      "width": 1192,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p117_l11",
+     "line": 11,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 859,
+      "width": 1193,
+      "height": 31
+     },
+     "text": "ist. Damit war man also so weit, wie man bereits durch die Untersuchung von",
+     "text_display": " ist. Damit war man also so weit, wie man bereits durch die Untersuchung von",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 859,
+      "width": 1193,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p117_l12",
+     "line": 12,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 900,
+      "width": 384,
+      "height": 32
+     },
+     "text": "Ausfällen gekommen war.",
+     "text_display": " Ausfällen gekommen war.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 901,
+      "width": 384,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p117_l13",
+     "line": 13,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 517,
+      "top_left_y": 941,
+      "width": 1141,
+      "height": 32
+     },
+     "text": "Man konnte nun jedoch die Auswertung noch weiter trciben. Betrachtet man",
+     "text_display": "\n\nMan konnte nun jedoch die Auswertung noch weiter trciben. Betrachtet man",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 517,
+      "top_left_y": 942,
+      "width": 1141,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p117_l14",
+     "line": 14,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 983,
+      "width": 1191,
+      "height": 32
+     },
+     "text": "die Aktivität im Bewegungsareal über die Zeit des Experiments hinweg, so fällt",
+     "text_display": " die Aktivität im Bewegungsareal über die Zeit des Experiments hinweg, so fällt",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 984,
+      "width": 1191,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p117_l15",
+     "line": 15,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 1024,
+      "width": 1192,
+      "height": 32
+     },
+     "text": "nicht nur auf, dass erwartungsgemäß beim Betrachten bewegter Stimuli mehr",
+     "text_display": " nicht nur auf, dass erwartungsgemäß beim Betrachten bewegter Stimuli mehr",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 1025,
+      "width": 1192,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p117_l16",
+     "line": 16,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 1066,
+      "width": 1191,
+      "height": 32
+     },
+     "text": "Aktivierung vorliegt. Man sieht zudem, dass beim Zuwenden der Aufmerk-",
+     "text_display": " Aktivierung vorliegt. Man sieht zudem, dass beim Zuwenden der Aufmerk",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 1067,
+      "width": 1191,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p117_l17",
+     "line": 17,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 1106,
+      "width": 1191,
+      "height": 34
+     },
+     "text": "samkeit auf die bewegen Punkte (was immer dann der Fall war, wenn sich die",
+     "text_display": " samkeit auf die bewegen Punkte (was immer dann der Fall war, wenn sich die",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 1108,
+      "width": 1191,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p117_l18",
+     "line": 18,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 1149,
+      "width": 1190,
+      "height": 32
+     },
+     "text": "schwarzen Punkte, auf die ja während des gesamten Experiments zu achten war,",
+     "text_display": " schwarzen Punkte, auf die ja während des gesamten Experiments zu achten war,",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 1150,
+      "width": 1190,
+      "height": 30
+     }
+    },
+    {
+     "id": "g4_p117_l19",
+     "line": 19,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 1189,
+      "width": 976,
+      "height": 34
+     },
+     "text": "bewegten) im Bewegungsareal mehr Aktivierung vorhanden war.",
+     "text_display": " bewegten) im Bewegungsareal mehr Aktivierung vorhanden war.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 1191,
+      "width": 976,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p117_l20",
+     "line": 20,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 517,
+      "top_left_y": 1232,
+      "width": 1139,
+      "height": 32
+     },
+     "text": "Das Experiment zeigt also die Auswirkung der Zuwendung der Aufmerk-",
+     "text_display": "\n\nDas Experiment zeigt also die Auswirkung der Zuwendung der Aufmerk-",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "geometry_before": {
+      "top_left_x": 517,
+      "top_left_y": 1233,
+      "width": 1139,
+      "height": 24
+     }
+    }
+   ],
+   "source": "gemma4-ink-yolo"
+  }
+ ]
+}

@@ -288,8 +288,19 @@ def test_a_line_that_states_no_join_keeps_its_own_layout():
     13a, 15b, 15c, 15e, 18b, 18c, 18e, 18f -- stopped beginning a line in the
     projection and stood mid-paragraph after the rule above them. Only a
     STATED join is normalized; a line that states nothing is joined verbatim.
+
+    T-0154 CHANGED THE MECHANISM AND KEPT THE GUARANTEE. This used to assert
+    that the "\n\n" SURVIVES INSIDE one Paragraph's text, because all 34
+    rules were welded into one Paragraph and that embedded break was the only
+    thing putting each rule on its own line. The reading's block marker is now
+    a paragraph BOUNDARY (`_ENV_OPENER` / `_column_states_an_indent` in
+    modules/paragraph.py), so rule 13a gets a Paragraph of its own and begins
+    a line structurally, in every projection, with nothing depending on a
+    whitespace sequence inside a composed string. The regression this test
+    was written for -- a rule standing mid-paragraph after the rule above it
+    -- is now impossible by construction, and that is what is asserted.
     """
-    text = _text([
+    doc = _compose([
         {"text": "13. If the current item is an Op atom, mark it",
          "text_display": "13. If the current item is an Op atom, mark it"},
         {"text": "and continue",
@@ -297,7 +308,10 @@ def test_a_line_that_states_no_join_keeps_its_own_layout():
         {"text": "13a. If limits are not to be typeset",
          "text_display": "\n\n13a. If limits are not to be typeset"},
     ])
-    # the stated join is normalized to one space ...
-    assert "mark it and continue" in text
-    # ... and the block break the next line declares survives
-    assert "\n\n13a." in text, repr(text)
+    texts = [o.props["text"] for o in doc.objects_of_type("Paragraph")]
+    # the stated join inside rule 13 is still normalized to one space ...
+    assert any("mark it and continue" in t for t in texts), repr(texts)
+    # ... and rule 13a begins its own paragraph instead of riding rule 13's
+    assert len(texts) == 2, repr(texts)
+    assert texts[1].startswith("13a."), repr(texts)
+    assert "13a." not in texts[0], repr(texts)

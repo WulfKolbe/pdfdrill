@@ -1,0 +1,3584 @@
+{
+ "source": "gemma4-ink-yolo",
+ "pages": [
+  {
+   "page": 2,
+   "image_id": null,
+   "page_width": 2125,
+   "page_height": 2750,
+   "lines": [
+    {
+     "id": "g4_p2_l1",
+     "line": 1,
+     "column": 0,
+     "type": "page_info",
+     "region": {
+      "top_left_x": 438,
+      "top_left_y": 129,
+      "width": 1241,
+      "height": 28
+     },
+     "text": "Proceedings of the Twenty-Eighth International Joint Conference on Artificial Intelligence (IJCAI-19)",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "geometry_before": {
+      "top_left_x": 438,
+      "top_left_y": 129,
+      "width": 1241,
+      "height": 21
+     }
+    },
+    {
+     "id": "g4_p2_c1",
+     "line": 2,
+     "column": 0,
+     "type": "column",
+     "text": "",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "text-extent",
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 198,
+      "width": 849,
+      "height": 2248
+     },
+     "children_ids": [
+      "g4_p2_l2",
+      "g4_p2_l3",
+      "g4_p2_l4",
+      "g4_p2_l5",
+      "g4_p2_l6",
+      "g4_p2_l7",
+      "g4_p2_l8",
+      "g4_p2_l9",
+      "g4_p2_l10",
+      "g4_p2_l11",
+      "g4_p2_l12",
+      "g4_p2_l13",
+      "g4_p2_l14",
+      "g4_p2_l15",
+      "g4_p2_l16",
+      "g4_p2_l17",
+      "g4_p2_l18",
+      "g4_p2_l19",
+      "g4_p2_l20",
+      "g4_p2_l21",
+      "g4_p2_l22",
+      "g4_p2_l23",
+      "g4_p2_l24",
+      "g4_p2_l25",
+      "g4_p2_l26",
+      "g4_p2_l27",
+      "g4_p2_l28",
+      "g4_p2_l29",
+      "g4_p2_l30",
+      "g4_p2_l31",
+      "g4_p2_l32",
+      "g4_p2_l33",
+      "g4_p2_l34",
+      "g4_p2_l35",
+      "g4_p2_l36",
+      "g4_p2_l37",
+      "g4_p2_l38",
+      "g4_p2_l39",
+      "g4_p2_l40",
+      "g4_p2_l41",
+      "g4_p2_l42",
+      "g4_p2_l43",
+      "g4_p2_l44",
+      "g4_p2_l45",
+      "g4_p2_l46",
+      "g4_p2_l47",
+      "g4_p2_l48",
+      "g4_p2_l49",
+      "g4_p2_l50",
+      "g4_p2_l51",
+      "g4_p2_l52",
+      "g4_p2_l53",
+      "g4_p2_l54"
+     ]
+    },
+    {
+     "id": "g4_p2_l2",
+     "line": 3,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 196,
+      "width": 843,
+      "height": 31
+     },
+     "text": "the reliable fraction of information [Mandros et al., 2017;",
+     "text_display": "\n\nthe reliable fraction of information [Mandros et al., 2017;",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 198,
+      "width": 843,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p2_l3",
+     "line": 4,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 187,
+      "top_left_y": 234,
+      "width": 389,
+      "height": 31
+     },
+     "text": "Vinh et al., 2010] defined as",
+     "text_display": " Vinh et al., 2010] defined as",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 187,
+      "top_left_y": 236,
+      "width": 389,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p2_l4",
+     "line": 5,
+     "column": 1,
+     "type": "math",
+     "region": {
+      "top_left_x": 323,
+      "top_left_y": 292,
+      "width": 571,
+      "height": 42
+     },
+     "text": "\\[\n\\hat{F}_0(\\mathcal{X}; Y) = \\hat{F}(\\mathcal{X}; Y) - \\hat{E}_0(\\hat{F}(\\mathcal{X}; Y)) ,\n\\]",
+     "text_display": "\n\\[\n\\hat{F}_0(\\mathcal{X}; Y) = \\hat{F}(\\mathcal{X}; Y) - \\hat{E}_0(\\hat{F}(\\mathcal{X}; Y)) ,\n\\]",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "yolo",
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 323,
+      "top_left_y": 286,
+      "width": 576,
+      "height": 54
+     }
+    },
+    {
+     "id": "g4_p2_l5",
+     "line": 6,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 187,
+      "top_left_y": 368,
+      "width": 844,
+      "height": 42
+     },
+     "text": "where \\(\\hat{E}_0(\\hat{F}(\\mathcal{X}; Y)) = \\sum_{\\sigma \\in S_n} \\hat{F}(\\mathcal{X}; Y_\\sigma) / n!\\) is the expected",
+     "text_display": "\n\nwhere \\(\\hat{E}_0(\\hat{F}(\\mathcal{X}; Y)) = \\sum_{\\sigma \\in S_n} \\hat{F}(\\mathcal{X}; Y_\\sigma) / n!\\) is the expected",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 284,
+       "top_left_y": 364,
+       "width": 511,
+       "height": 50
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 187,
+      "top_left_y": 375,
+      "width": 844,
+      "height": 34
+     }
+    },
+    {
+     "id": "g4_p2_l6",
+     "line": 7,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 188,
+      "top_left_y": 413,
+      "width": 847,
+      "height": 41
+     },
+     "text": "value of \\(\\hat{F}\\) under the permutation model [Lancaster, 1969, p.",
+     "text_display": " value of \\(\\hat{F}\\) under the permutation model [Lancaster, 1969, p.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 303,
+       "top_left_y": 411,
+       "width": 31,
+       "height": 39
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 188,
+      "top_left_y": 422,
+      "width": 847,
+      "height": 26
+     }
+    },
+    {
+     "id": "g4_p2_l7",
+     "line": 8,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 457,
+      "width": 840,
+      "height": 35
+     },
+     "text": "214], i.e., under the operation of permuting the empirical \\(Y\\)",
+     "text_display": " 214], i.e., under the operation of permuting the empirical \\(Y\\)",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1001,
+       "top_left_y": 456,
+       "width": 32,
+       "height": 32
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 460,
+      "width": 840,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p2_l8",
+     "line": 9,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 190,
+      "top_left_y": 497,
+      "width": 842,
+      "height": 33
+     },
+     "text": "samples with a random permutation \\(\\sigma \\in S_n\\). This estimator",
+     "text_display": " samples with a random permutation \\(\\sigma \\in S_n\\). This estimator",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 700,
+       "top_left_y": 493,
+       "width": 108,
+       "height": 37
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 190,
+      "top_left_y": 498,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l9",
+     "line": 10,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 534,
+      "width": 841,
+      "height": 35
+     },
+     "text": "can be computed efficiently in \\(O(nk)\\) for \\(\\mathcal{X}\\) with domain size",
+     "text_display": " can be computed efficiently in \\(O(nk)\\) for \\(\\mathcal{X}\\) with domain size",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 607,
+       "top_left_y": 530,
+       "width": 96,
+       "height": 41
+      },
+      {
+       "top_left_x": 758,
+       "top_left_y": 532,
+       "width": 34,
+       "height": 32
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 536,
+      "width": 841,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l10",
+     "line": 11,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 190,
+      "top_left_y": 574,
+      "width": 841,
+      "height": 32
+     },
+     "text": "\\(k\\). Moreover, the maximization problem Eq. (1) can be solved",
+     "text_display": " \\(k\\). Moreover, the maximization problem Eq. (1) can be solved",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 185,
+       "top_left_y": 569,
+       "width": 24,
+       "height": 33
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 190,
+      "top_left_y": 575,
+      "width": 841,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p2_l11",
+     "line": 12,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 612,
+      "width": 846,
+      "height": 32
+     },
+     "text": "effectively by a branch-and-bound scheme: the maximally at-",
+     "text_display": " effectively by a branch-and-bound scheme: the maximally at",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 613,
+      "width": 846,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p2_l12",
+     "line": 13,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 656,
+      "width": 842,
+      "height": 32
+     },
+     "text": "tainable \\(\\hat{F}_0\\) for supersets of some solution \\(\\mathcal{X}\\) can be bounded",
+     "text_display": " tainable \\(\\hat{F}_0\\) for supersets of some solution \\(\\mathcal{X}\\) can be bounded",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 303,
+       "top_left_y": 644,
+       "width": 42,
+       "height": 44
+      },
+      {
+       "top_left_x": 774,
+       "top_left_y": 651,
+       "width": 33,
+       "height": 33
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 656,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l13",
+     "line": 14,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 690,
+      "width": 842,
+      "height": 42
+     },
+     "text": "by the function \\(\\bar{f}_{\\text{mon}}(\\mathcal{X}) = 1 - \\hat{E}_0(\\hat{F}(\\mathcal{X}; Y))\\), derived from",
+     "text_display": " by the function \\(\\bar{f}_{\\text{mon}}(\\mathcal{X}) = 1 - \\hat{E}_0(\\hat{F}(\\mathcal{X}; Y))\\), derived from",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 410,
+       "top_left_y": 687,
+       "width": 421,
+       "height": 47
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 697,
+      "width": 842,
+      "height": 34
+     }
+    },
+    {
+     "id": "g4_p2_l14",
+     "line": 15,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 742,
+      "width": 787,
+      "height": 35
+     },
+     "text": "the monotonicity of \\(\\hat{E}_0(\\hat{F}(\\cdot; Y))\\) [Mandros et al., 2017].",
+     "text_display": " the monotonicity of \\(\\hat{E}_0(\\hat{F}(\\cdot; Y))\\) [Mandros et al., 2017].",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "math_regions": [
+      {
+       "top_left_x": 463,
+       "top_left_y": 734,
+       "width": 188,
+       "height": 46
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 742,
+      "width": 787,
+      "height": 33
+     }
+    },
+    {
+     "id": "g4_p2_l15",
+     "line": 16,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 222,
+      "top_left_y": 783,
+      "width": 809,
+      "height": 32
+     },
+     "text": "This, however, is a rather simplistic bounding function that",
+     "text_display": "\n\nThis, however, is a rather simplistic bounding function that",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 222,
+      "top_left_y": 783,
+      "width": 809,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l16",
+     "line": 17,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 821,
+      "width": 840,
+      "height": 32
+     },
+     "text": "leaves room for substantial improvements. Moreover, it is",
+     "text_display": " leaves room for substantial improvements. Moreover, it is",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 822,
+      "width": 840,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p2_l17",
+     "line": 18,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 859,
+      "width": 846,
+      "height": 32
+     },
+     "text": "unclear whether one has to rely on exponential-time worst-",
+     "text_display": " unclear whether one has to rely on exponential-time worst",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 860,
+      "width": 846,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p2_l18",
+     "line": 19,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 897,
+      "width": 845,
+      "height": 32
+     },
+     "text": "case branch-and-bound algorithms in the first place. Finally,",
+     "text_display": " case branch-and-bound algorithms in the first place. Finally,",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 897,
+      "width": 845,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l19",
+     "line": 20,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 935,
+      "width": 846,
+      "height": 32
+     },
+     "text": "the option of heuristic optimization has not yet been explored.",
+     "text_display": " the option of heuristic optimization has not yet been explored.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 935,
+      "width": 846,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l20",
+     "line": 21,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 222,
+      "top_left_y": 975,
+      "width": 812,
+      "height": 32
+     },
+     "text": "To this end, this paper provides the following contributions:",
+     "text_display": "\n\nTo this end, this paper provides the following contributions:",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 222,
+      "top_left_y": 975,
+      "width": 812,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l21",
+     "line": 22,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 217,
+      "top_left_y": 1029,
+      "width": 814,
+      "height": 32
+     },
+     "text": "1. We show that the problem of maximizing the reliable",
+     "text_display": " 1. We show that the problem of maximizing the reliable",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 217,
+      "top_left_y": 1029,
+      "width": 814,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l22",
+     "line": 23,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 258,
+      "top_left_y": 1067,
+      "width": 479,
+      "height": 24
+     },
+     "text": "fraction of information is NP-hard.",
+     "text_display": " fraction of information is NP-hard.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c1"
+    },
+    {
+     "id": "g4_p2_l23",
+     "line": 24,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 214,
+      "top_left_y": 1121,
+      "width": 818,
+      "height": 32
+     },
+     "text": "2. We then greatly improve the practical performance for",
+     "text_display": " 2. We then greatly improve the practical performance for",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c1"
+    },
+    {
+     "id": "g4_p2_l24",
+     "line": 25,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 258,
+      "top_left_y": 1159,
+      "width": 772,
+      "height": 32
+     },
+     "text": "both optimization styles by deriving a novel bounding",
+     "text_display": " both optimization styles by deriving a novel bounding",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 258,
+      "top_left_y": 1159,
+      "width": 772,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l25",
+     "line": 26,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 258,
+      "top_left_y": 1191,
+      "width": 774,
+      "height": 40
+     },
+     "text": "function \\(\\bar{f}_{\\text{spc}}(\\mathcal{X})\\), which has an unbounded potential for",
+     "text_display": " function \\(\\bar{f}_{\\text{spc}}(\\mathcal{X})\\), which has an unbounded potential for",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 380,
+       "top_left_y": 1188,
+       "width": 110,
+       "height": 45
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 258,
+      "top_left_y": 1197,
+      "width": 774,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p2_l26",
+     "line": 27,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 258,
+      "top_left_y": 1235,
+      "width": 727,
+      "height": 32
+     },
+     "text": "additional pruning over the previously proposed one.",
+     "text_display": " additional pruning over the previously proposed one.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 258,
+      "top_left_y": 1236,
+      "width": 727,
+      "height": 31
+     }
+    },
+    {
+     "id": "g4_p2_l27",
+     "line": 28,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 214,
+      "top_left_y": 1289,
+      "width": 816,
+      "height": 32
+     },
+     "text": "3. Finally, we report extensive empirical results evaluating",
+     "text_display": " 3. Finally, we report extensive empirical results evaluating",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 214,
+      "top_left_y": 1289,
+      "width": 816,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p2_l28",
+     "line": 29,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 258,
+      "top_left_y": 1327,
+      "width": 661,
+      "height": 32
+     },
+     "text": "the proposed bounding function and algorithms.",
+     "text_display": " the proposed bounding function and algorithms.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 258,
+      "top_left_y": 1328,
+      "width": 661,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p2_l29",
+     "line": 30,
+     "column": 1,
+     "type": "section_header",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1409,
+      "width": 617,
+      "height": 38
+     },
+     "text": "2 Reliable Dependency Discovery",
+     "text_display": "\n\n2 Reliable Dependency Discovery",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p2_c1"
+    },
+    {
+     "id": "g4_p2_l30",
+     "line": 31,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1467,
+      "width": 842,
+      "height": 35
+     },
+     "text": "Let us denote by \\([n]\\) the set of positive integers up to \\(n\\). We",
+     "text_display": "\n\nLet us denote by \\([n]\\) the set of positive integers up to \\(n\\). We",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 431,
+       "top_left_y": 1462,
+       "width": 42,
+       "height": 42
+      },
+      {
+       "top_left_x": 940,
+       "top_left_y": 1471,
+       "width": 25,
+       "height": 26
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1469,
+      "width": 842,
+      "height": 32
+     }
+    },
+    {
+     "id": "g4_p2_l31",
+     "line": 32,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1506,
+      "width": 841,
+      "height": 35
+     },
+     "text": "assume a set of discrete random variables \\(\\mathcal{A} = \\mathcal{I} \\cup \\{Y\\}\\) is",
+     "text_display": " assume a set of discrete random variables \\(\\mathcal{A} = \\mathcal{I} \\cup \\{Y\\}\\) is",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 790,
+       "top_left_y": 1501,
+       "width": 208,
+       "height": 41
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1508,
+      "width": 841,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l32",
+     "line": 33,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1544,
+      "width": 840,
+      "height": 35
+     },
+     "text": "given along with an empirical sample \\(\\mathbf{D}_n = \\{\\mathbf{d}_1, \\dots, \\mathbf{d}_n\\}\\)",
+     "text_display": " given along with an empirical sample \\(\\mathbf{D}_n = \\{\\mathbf{d}_1, \\dots, \\mathbf{d}_n\\}\\)",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 734,
+       "top_left_y": 1541,
+       "width": 299,
+       "height": 40
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1546,
+      "width": 840,
+      "height": 32
+     }
+    },
+    {
+     "id": "g4_p2_l33",
+     "line": 34,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1584,
+      "width": 841,
+      "height": 32
+     },
+     "text": "of their joint distribution. For a variable \\(X\\) we denote its",
+     "text_display": " of their joint distribution. For a variable \\(X\\) we denote its",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 790,
+       "top_left_y": 1580,
+       "width": 36,
+       "height": 32
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1584,
+      "width": 841,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l34",
+     "line": 35,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1620,
+      "width": 841,
+      "height": 35
+     },
+     "text": "domain, called categories (or distinct values), by \\(V(X)\\) but",
+     "text_display": " domain, called categories (or distinct values), by \\(V(X)\\) but",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 889,
+       "top_left_y": 1616,
+       "width": 89,
+       "height": 41
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1622,
+      "width": 841,
+      "height": 30
+     }
+    },
+    {
+     "id": "g4_p2_l35",
+     "line": 36,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 187,
+      "top_left_y": 1658,
+      "width": 845,
+      "height": 35
+     },
+     "text": "we also write \\(x \\in X\\) instead of \\(x \\in V(X)\\) whenever clear",
+     "text_display": " we also write \\(x \\in X\\) instead of \\(x \\in V(X)\\) whenever clear",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 386,
+       "top_left_y": 1655,
+       "width": 105,
+       "height": 35
+      },
+      {
+       "top_left_x": 649,
+       "top_left_y": 1654,
+       "width": 158,
+       "height": 41
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 187,
+      "top_left_y": 1660,
+      "width": 845,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p2_l36",
+     "line": 37,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1698,
+      "width": 842,
+      "height": 32
+     },
+     "text": "from the context. We identify a random variable \\(X\\) with the",
+     "text_display": " from the context. We identify a random variable \\(X\\) with the",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 874,
+       "top_left_y": 1693,
+       "width": 35,
+       "height": 34
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1698,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l37",
+     "line": 38,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1734,
+      "width": 845,
+      "height": 35
+     },
+     "text": "labeling \\(X : [n] \\to V(X)\\) it induces on the data sample, i.e.,",
+     "text_display": " labeling \\(X : [n] \\to V(X)\\) it induces on the data sample, i.e.,",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 312,
+       "top_left_y": 1730,
+       "width": 242,
+       "height": 41
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1736,
+      "width": 845,
+      "height": 31
+     }
+    },
+    {
+     "id": "g4_p2_l38",
+     "line": 39,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1772,
+      "width": 845,
+      "height": 35
+     },
+     "text": "\\(X(i) = \\mathbf{d}_i(X)\\). Moreover, for a set \\(\\mathcal{S} = \\{S_1, \\dots, S_l\\}\\) of",
+     "text_display": " \\(X(i) = \\mathbf{d}_i(X)\\). Moreover, for a set \\(\\mathcal{S} = \\{S_1, \\dots, S_l\\}\\) of",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 186,
+       "top_left_y": 1769,
+       "width": 223,
+       "height": 40
+      },
+      {
+       "top_left_x": 726,
+       "top_left_y": 1767,
+       "width": 266,
+       "height": 43
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1772,
+      "width": 845,
+      "height": 34
+     }
+    },
+    {
+     "id": "g4_p2_l39",
+     "line": 40,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1810,
+      "width": 842,
+      "height": 35
+     },
+     "text": "labelings over \\([n]\\), we define the corresponding vector-valued",
+     "text_display": " labelings over \\([n]\\), we define the corresponding vector-valued",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 389,
+       "top_left_y": 1808,
+       "width": 42,
+       "height": 37
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1813,
+      "width": 842,
+      "height": 28
+     }
+    },
+    {
+     "id": "g4_p2_l40",
+     "line": 41,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1848,
+      "width": 841,
+      "height": 35
+     },
+     "text": "labeling by \\(\\mathcal{S}(i) = (S_1(i), \\dots, S_l(i))\\). With \\(X_{\\mathcal{Q}}\\) for a subset",
+     "text_display": " labeling by \\(\\mathcal{S}(i) = (S_1(i), \\dots, S_l(i))\\). With \\(X_{\\mathcal{Q}}\\) for a subset",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 350,
+       "top_left_y": 1843,
+       "width": 361,
+       "height": 43
+      },
+      {
+       "top_left_x": 805,
+       "top_left_y": 1845,
+       "width": 58,
+       "height": 39
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 1848,
+      "width": 841,
+      "height": 34
+     }
+    },
+    {
+     "id": "g4_p2_l41",
+     "line": 42,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 192,
+      "top_left_y": 1886,
+      "width": 756,
+      "height": 35
+     },
+     "text": "\\(\\mathcal{Q} \\subseteq [n]\\), we denote the map \\(X\\) restricted to domain \\(\\mathcal{Q}\\).",
+     "text_display": " \\(\\mathcal{Q} \\subseteq [n]\\), we denote the map \\(X\\) restricted to domain \\(\\mathcal{Q}\\).",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "math_regions": [
+      {
+       "top_left_x": 186,
+       "top_left_y": 1882,
+       "width": 116,
+       "height": 41
+      },
+      {
+       "top_left_x": 586,
+       "top_left_y": 1886,
+       "width": 35,
+       "height": 31
+      },
+      {
+       "top_left_x": 912,
+       "top_left_y": 1883,
+       "width": 32,
+       "height": 36
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 192,
+      "top_left_y": 1888,
+      "width": 756,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p2_l42",
+     "line": 43,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 222,
+      "top_left_y": 1925,
+      "width": 809,
+      "height": 35
+     },
+     "text": "We define \\(c_X : V(X) \\to \\mathbb{Z}_+\\) to be the empirical counts",
+     "text_display": "\n\nWe define \\(c_X : V(X) \\to \\mathbb{Z}_+\\) to be the empirical counts",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 373,
+       "top_left_y": 1920,
+       "width": 268,
+       "height": 40
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 222,
+      "top_left_y": 1927,
+      "width": 809,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p2_l43",
+     "line": 44,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 1963,
+      "width": 846,
+      "height": 35
+     },
+     "text": "of \\(X\\), i.e., \\(c_X(x) = |\\{i \\in [n] : X(i) = x\\}|\\). We fur-",
+     "text_display": " of \\(X\\), i.e., \\(c_X(x) = |\\{i \\in [n] : X(i) = x\\}|\\). We fur",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "math_regions": [
+      {
+       "top_left_x": 228,
+       "top_left_y": 1960,
+       "width": 36,
+       "height": 34
+      },
+      {
+       "top_left_x": 352,
+       "top_left_y": 1959,
+       "width": 535,
+       "height": 41
+      }
+     ],
+     "parent_id": "g4_p2_c1"
+    },
+    {
+     "id": "g4_p2_l44",
+     "line": 45,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 2001,
+      "width": 840,
+      "height": 35
+     },
+     "text": "ther denote with \\(\\hat{p}_X : V(X) \\to [0, 1]\\), where $\\hat{p}_X(x) =",
+     "text_display": " ther denote with \\(\\hat{p}_X : V(X) \\to [0, 1]\\), where $\\hat{p}_X(x) =",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 441,
+       "top_left_y": 2000,
+       "width": 330,
+       "height": 38
+      },
+      {
+       "top_left_x": 892,
+       "top_left_y": 1997,
+       "width": 142,
+       "height": 41
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 2001,
+      "width": 840,
+      "height": 34
+     }
+    },
+    {
+     "id": "g4_p2_l45",
+     "line": 46,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 2039,
+      "width": 843,
+      "height": 35
+     },
+     "text": "c_X(x)/n\\(, the empirical distribution of\\)X$. Given another",
+     "text_display": " c_X(x)/n\\(, the empirical distribution of\\)X$. Given another",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 186,
+       "top_left_y": 2034,
+       "width": 102,
+       "height": 42
+      },
+      {
+       "top_left_x": 756,
+       "top_left_y": 2037,
+       "width": 34,
+       "height": 33
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 2041,
+      "width": 843,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p2_l46",
+     "line": 47,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 2077,
+      "width": 846,
+      "height": 36
+     },
+     "text": "random variable \\(Z\\), \\(\\hat{p}_{Z|X=x} : V(Z) \\to [0, 1]\\) is the **em-",
+     "text_display": " random variable \\(Z\\), \\(\\hat{p}_{Z|X=x} : V(Z) \\to [0, 1]\\) is the **em",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "math_regions": [
+      {
+       "top_left_x": 436,
+       "top_left_y": 2073,
+       "width": 434,
+       "height": 41
+      },
+      {
+       "top_left_x": 436,
+       "top_left_y": 2074,
+       "width": 30,
+       "height": 35
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 2079,
+      "width": 846,
+      "height": 31
+     }
+    },
+    {
+     "id": "g4_p2_l47",
+     "line": 48,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 2117,
+      "width": 842,
+      "height": 32
+     },
+     "text": "pirical conditional distribution** of \\(Z\\) given \\(X = x\\), with",
+     "text_display": " pirical conditional distribution** of \\(Z\\) given \\(X = x\\), with",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 702,
+       "top_left_y": 2115,
+       "width": 30,
+       "height": 30
+      },
+      {
+       "top_left_x": 830,
+       "top_left_y": 2113,
+       "width": 117,
+       "height": 34
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 2117,
+      "width": 842,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p2_l48",
+     "line": 49,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 187,
+      "top_left_y": 2153,
+      "width": 844,
+      "height": 36
+     },
+     "text": "\\(\\hat{p}_{Z|X=x}(z) = c_{X \\cup Z}(x, z) / c_X(x)\\) for \\(z \\in Z\\). However, we use",
+     "text_display": " \\(\\hat{p}_{Z|X=x}(z) = c_{X \\cup Z}(x, z) / c_X(x)\\) for \\(z \\in Z\\). However, we use",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 184,
+       "top_left_y": 2149,
+       "width": 408,
+       "height": 41
+      },
+      {
+       "top_left_x": 653,
+       "top_left_y": 2150,
+       "width": 102,
+       "height": 35
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 187,
+      "top_left_y": 2154,
+      "width": 844,
+      "height": 31
+     }
+    },
+    {
+     "id": "g4_p2_l49",
+     "line": 50,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 187,
+      "top_left_y": 2192,
+      "width": 848,
+      "height": 35
+     },
+     "text": "\\(\\hat{p}(x)\\) and \\(\\hat{p}(z|x)\\) respectively whenever clear from the context.",
+     "text_display": " \\(\\hat{p}(x)\\) and \\(\\hat{p}(z|x)\\) respectively whenever clear from the context.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 185,
+       "top_left_y": 2190,
+       "width": 67,
+       "height": 39
+      },
+      {
+       "top_left_x": 313,
+       "top_left_y": 2189,
+       "width": 106,
+       "height": 40
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 187,
+      "top_left_y": 2194,
+      "width": 848,
+      "height": 32
+     }
+    },
+    {
+     "id": "g4_p2_l50",
+     "line": 51,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 186,
+      "top_left_y": 2232,
+      "width": 849,
+      "height": 32
+     },
+     "text": "These empirical probabilities give rise to the **empirical con-",
+     "text_display": " These empirical probabilities give rise to the **empirical con",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 186,
+      "top_left_y": 2232,
+      "width": 849,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p2_l51",
+     "line": 52,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 2267,
+      "width": 845,
+      "height": 45
+     },
+     "text": "ditional entropy** \\(\\hat{H}(Y|X) = \\sum_{x \\in X} \\hat{p}(x) \\hat{H}(Y|X=x)\\),",
+     "text_display": " ditional entropy** \\(\\hat{H}(Y|X) = \\sum_{x \\in X} \\hat{p}(x) \\hat{H}(Y|X=x)\\),",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 438,
+       "top_left_y": 2264,
+       "width": 589,
+       "height": 49
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 2273,
+      "width": 845,
+      "height": 35
+     }
+    },
+    {
+     "id": "g4_p2_l52",
+     "line": 53,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 2322,
+      "width": 839,
+      "height": 35
+     },
+     "text": "the empirical mutual information \\(\\hat{I}(X; Y) = \\hat{H}(Y) -\\)",
+     "text_display": " the empirical mutual information \\(\\hat{I}(X; Y) = \\hat{H}(Y) -\\)",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 713,
+       "top_left_y": 2312,
+       "width": 325,
+       "height": 48
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 2324,
+      "width": 839,
+      "height": 31
+     }
+    },
+    {
+     "id": "g4_p2_l53",
+     "line": 54,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 2367,
+      "width": 842,
+      "height": 35
+     },
+     "text": "\\(\\hat{H}(Y|X)\\), and the empirical fraction of information",
+     "text_display": " \\(\\hat{H}(Y|X)\\), and the empirical fraction of information",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 186,
+       "top_left_y": 2356,
+       "width": 140,
+       "height": 47
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 2369,
+      "width": 842,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p2_l54",
+     "line": 55,
+     "column": 1,
+     "type": "text",
+     "region": {
+      "top_left_x": 189,
+      "top_left_y": 2412,
+      "width": 842,
+      "height": 35
+     },
+     "text": "\\(\\hat{F}(X; Y) = \\hat{I}(X; Y) / \\hat{H}(Y)\\). We abbreviate the correc-",
+     "text_display": " \\(\\hat{F}(X; Y) = \\hat{I}(X; Y) / \\hat{H}(Y)\\). We abbreviate the correc",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "math_regions": [
+      {
+       "top_left_x": 185,
+       "top_left_y": 2401,
+       "width": 406,
+       "height": 46
+      }
+     ],
+     "parent_id": "g4_p2_c1",
+     "geometry_before": {
+      "top_left_x": 189,
+      "top_left_y": 2412,
+      "width": 842,
+      "height": 34
+     }
+    },
+    {
+     "id": "g4_p2_c2",
+     "line": 56,
+     "column": 0,
+     "type": "column",
+     "text": "",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "text-extent",
+     "region": {
+      "top_left_x": 1094,
+      "top_left_y": 196,
+      "width": 849,
+      "height": 2243
+     },
+     "children_ids": [
+      "g4_p2_l55",
+      "g4_p2_l56",
+      "g4_p2_l57",
+      "g4_p2_l58",
+      "g4_p2_l59",
+      "g4_p2_l60",
+      "g4_p2_l61",
+      "g4_p2_l62",
+      "g4_p2_l63",
+      "g4_p2_l64",
+      "g4_p2_l65",
+      "g4_p2_l66",
+      "g4_p2_l67",
+      "g4_p2_l68",
+      "g4_p2_l69",
+      "g4_p2_l70",
+      "g4_p2_l71",
+      "g4_p2_l72",
+      "g4_p2_l73",
+      "g4_p2_l74",
+      "g4_p2_l75",
+      "g4_p2_l76",
+      "g4_p2_l77",
+      "g4_p2_l78",
+      "g4_p2_l79",
+      "g4_p2_l80",
+      "g4_p2_l81",
+      "g4_p2_l82",
+      "g4_p2_l83",
+      "g4_p2_l84",
+      "g4_p2_l85",
+      "g4_p2_l86",
+      "g4_p2_l87",
+      "g4_p2_l88",
+      "g4_p2_l89",
+      "g4_p2_l90",
+      "g4_p2_l91",
+      "g4_p2_l92",
+      "g4_p2_l93",
+      "g4_p2_l94",
+      "g4_p2_l95",
+      "g4_p2_l96",
+      "g4_p2_l97",
+      "g4_p2_l98",
+      "g4_p2_l99",
+      "g4_p2_l100",
+      "g4_p2_l101",
+      "g4_p2_l102",
+      "g4_p2_l103",
+      "g4_p2_l104",
+      "g4_p2_l105"
+     ]
+    },
+    {
+     "id": "g4_p2_l55",
+     "line": 57,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 196,
+      "width": 847,
+      "height": 35
+     },
+     "text": "tion term \\(\\hat{E}_0(\\hat{F}(X; Y))\\) as \\(\\hat{b}_0(X, Y, n)\\) and the unnormalized ver-",
+     "text_display": " tion term \\(\\hat{E}_0(\\hat{F}(X; Y))\\) as \\(\\hat{b}_0(X, Y, n)\\) and the unnormalized ver",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "math_regions": [
+      {
+       "top_left_x": 1171,
+       "top_left_y": 184,
+       "width": 198,
+       "height": 50
+      },
+      {
+       "top_left_x": 1413,
+       "top_left_y": 185,
+       "width": 163,
+       "height": 47
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 196,
+      "width": 847,
+      "height": 34
+     }
+    },
+    {
+     "id": "g4_p2_l56",
+     "line": 58,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1096,
+      "top_left_y": 234,
+      "width": 576,
+      "height": 42
+     },
+     "text": "sion as \\(\\hat{m}_0(X, Y, n) = \\hat{b}_0(X, Y, n) \\hat{H}(Y)\\).",
+     "text_display": " sion as \\(\\hat{m}_0(X, Y, n) = \\hat{b}_0(X, Y, n) \\hat{H}(Y)\\).",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "math_regions": [
+      {
+       "top_left_x": 1196,
+       "top_left_y": 232,
+       "width": 471,
+       "height": 48
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1096,
+      "top_left_y": 241,
+      "width": 576,
+      "height": 34
+     }
+    },
+    {
+     "id": "g4_p2_l57",
+     "line": 59,
+     "column": 2,
+     "type": "section_header",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 311,
+      "width": 835,
+      "height": 34
+     },
+     "text": "2.1 Specializations and Labeling Homomorphisms",
+     "text_display": "\n\n2.1 Specializations and Labeling Homomorphisms",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 311,
+      "width": 835,
+      "height": 27
+     }
+    },
+    {
+     "id": "g4_p2_l58",
+     "line": 60,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 362,
+      "width": 847,
+      "height": 25
+     },
+     "text": "Since we identified sets of random variables with their corre-",
+     "text_display": "\n\nSince we identified sets of random variables with their corre",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 362,
+      "width": 847,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l59",
+     "line": 61,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1096,
+      "top_left_y": 400,
+      "width": 841,
+      "height": 32
+     },
+     "text": "sponding sample-index-to-value map, they are subject to the",
+     "text_display": " sponding sample-index-to-value map, they are subject to the",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1096,
+      "top_left_y": 401,
+      "width": 841,
+      "height": 31
+     }
+    },
+    {
+     "id": "g4_p2_l60",
+     "line": 62,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 438,
+      "width": 822,
+      "height": 32
+     },
+     "text": "following general relations of maps with common domains.",
+     "text_display": " following general relations of maps with common domains.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 438,
+      "width": 822,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l61",
+     "line": 63,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 490,
+      "width": 842,
+      "height": 32
+     },
+     "text": "Definition 1. Let \\(A\\) and \\(B\\) be maps defined on a common",
+     "text_display": "\n\nDefinition 1. Let \\(A\\) and \\(B\\) be maps defined on a common",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1352,
+       "top_left_y": 486,
+       "width": 31,
+       "height": 34
+      },
+      {
+       "top_left_x": 1454,
+       "top_left_y": 486,
+       "width": 32,
+       "height": 34
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 491,
+      "width": 842,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p2_l62",
+     "line": 64,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1094,
+      "top_left_y": 528,
+      "width": 843,
+      "height": 32
+     },
+     "text": "domain \\(N\\). We say that \\(A\\) is equivalent to \\(B\\), denoted as",
+     "text_display": " domain \\(N\\). We say that \\(A\\) is equivalent to \\(B\\), denoted as",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1210,
+       "top_left_y": 524,
+       "width": 35,
+       "height": 33
+      },
+      {
+       "top_left_x": 1454,
+       "top_left_y": 525,
+       "width": 31,
+       "height": 33
+      },
+      {
+       "top_left_x": 1730,
+       "top_left_y": 525,
+       "width": 30,
+       "height": 33
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1094,
+      "top_left_y": 529,
+      "width": 843,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p2_l63",
+     "line": 65,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 565,
+      "width": 843,
+      "height": 35
+     },
+     "text": "\\(A \\equiv B\\), if for all \\(i, j \\in N\\) it holds that \\(A(i) = A(j)\\) if and",
+     "text_display": " \\(A \\equiv B\\), if for all \\(i, j \\in N\\) it holds that \\(A(i) = A(j)\\) if and",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1092,
+       "top_left_y": 561,
+       "width": 108,
+       "height": 36
+      },
+      {
+       "top_left_x": 1343,
+       "top_left_y": 562,
+       "width": 127,
+       "height": 38
+      },
+      {
+       "top_left_x": 1657,
+       "top_left_y": 561,
+       "width": 188,
+       "height": 41
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 566,
+      "width": 843,
+      "height": 32
+     }
+    },
+    {
+     "id": "g4_p2_l64",
+     "line": 66,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 603,
+      "width": 845,
+      "height": 35
+     },
+     "text": "only if \\(B(i) = B(j)\\). We say that \\(B\\) is a specialization of \\(A\\),",
+     "text_display": " only if \\(B(i) = B(j)\\). We say that \\(B\\) is a specialization of \\(A\\),",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1191,
+       "top_left_y": 600,
+       "width": 187,
+       "height": 39
+      },
+      {
+       "top_left_x": 1570,
+       "top_left_y": 601,
+       "width": 31,
+       "height": 32
+      },
+      {
+       "top_left_x": 1908,
+       "top_left_y": 601,
+       "width": 29,
+       "height": 34
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 605,
+      "width": 845,
+      "height": 31
+     }
+    },
+    {
+     "id": "g4_p2_l65",
+     "line": 67,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1094,
+      "top_left_y": 641,
+      "width": 844,
+      "height": 35
+     },
+     "text": "denoted as \\(A \\preceq B\\), if for all \\(i, j \\in N\\) with \\(A(i) \\neq A(j)\\) it",
+     "text_display": " denoted as \\(A \\preceq B\\), if for all \\(i, j \\in N\\) with \\(A(i) \\neq A(j)\\) it",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1256,
+       "top_left_y": 640,
+       "width": 109,
+       "height": 33
+      },
+      {
+       "top_left_x": 1511,
+       "top_left_y": 638,
+       "width": 129,
+       "height": 39
+      },
+      {
+       "top_left_x": 1718,
+       "top_left_y": 637,
+       "width": 221,
+       "height": 42
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1094,
+      "top_left_y": 642,
+      "width": 844,
+      "height": 32
+     }
+    },
+    {
+     "id": "g4_p2_l66",
+     "line": 68,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 679,
+      "width": 334,
+      "height": 35
+     },
+     "text": "holds that \\(B(i) \\neq B(j)\\).",
+     "text_display": " holds that \\(B(i) \\neq B(j)\\).",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "math_regions": [
+      {
+       "top_left_x": 1238,
+       "top_left_y": 675,
+       "width": 185,
+       "height": 42
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 679,
+      "width": 334,
+      "height": 34
+     }
+    },
+    {
+     "id": "g4_p2_l67",
+     "line": 69,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1094,
+      "top_left_y": 733,
+      "width": 842,
+      "height": 32
+     },
+     "text": "A special case of specializations is given by the subset relation",
+     "text_display": "\n\nA special case of specializations is given by the subset relation",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1094,
+      "top_left_y": 733,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l68",
+     "line": 70,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 770,
+      "width": 842,
+      "height": 34
+     },
+     "text": "of variable sets, e.g., if \\(\\mathcal{X} \\subseteq \\mathcal{X}' \\subseteq \\mathcal{I}\\) then \\(\\mathcal{X} \\preceq \\mathcal{X}'\\). The",
+     "text_display": " of variable sets, e.g., if \\(\\mathcal{X} \\subseteq \\mathcal{X}' \\subseteq \\mathcal{I}\\) then \\(\\mathcal{X} \\preceq \\mathcal{X}'\\). The",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1437,
+       "top_left_y": 765,
+       "width": 210,
+       "height": 40
+      },
+      {
+       "top_left_x": 1725,
+       "top_left_y": 765,
+       "width": 130,
+       "height": 39
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 770,
+      "width": 842,
+      "height": 31
+     }
+    },
+    {
+     "id": "g4_p2_l69",
+     "line": 71,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1096,
+      "top_left_y": 810,
+      "width": 842,
+      "height": 32
+     },
+     "text": "specialization relation implies some important properties for",
+     "text_display": " specialization relation implies some important properties for",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1096,
+      "top_left_y": 810,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l70",
+     "line": 72,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 848,
+      "width": 823,
+      "height": 32
+     },
+     "text": "empirical probabilities and information-theoretic quantities.",
+     "text_display": " empirical probabilities and information-theoretic quantities.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 848,
+      "width": 823,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l71",
+     "line": 73,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1094,
+      "top_left_y": 900,
+      "width": 846,
+      "height": 31
+     },
+     "text": "Proposition 1. Given variables \\(X, Z\\) and \\(Y\\), with \\(X \\preceq Z\\),",
+     "text_display": "\n\nProposition 1. Given variables \\(X, Z\\) and \\(Y\\), with \\(X \\preceq Z\\),",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1552,
+       "top_left_y": 893,
+       "width": 84,
+       "height": 38
+      },
+      {
+       "top_left_x": 1553,
+       "top_left_y": 895,
+       "width": 33,
+       "height": 33
+      },
+      {
+       "top_left_x": 1603,
+       "top_left_y": 895,
+       "width": 31,
+       "height": 33
+      },
+      {
+       "top_left_x": 1704,
+       "top_left_y": 895,
+       "width": 30,
+       "height": 33
+      },
+      {
+       "top_left_x": 1823,
+       "top_left_y": 893,
+       "width": 113,
+       "height": 40
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1094,
+      "top_left_y": 900,
+      "width": 846,
+      "height": 28
+     }
+    },
+    {
+     "id": "g4_p2_l72",
+     "line": 74,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 938,
+      "width": 414,
+      "height": 31
+     },
+     "text": "the following statements hold:",
+     "text_display": " the following statements hold:",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 938,
+      "width": 414,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l73",
+     "line": 75,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1117,
+      "top_left_y": 988,
+      "width": 821,
+      "height": 35
+     },
+     "text": "a) there is a projection \\(\\pi : V(Z) \\to V(X)\\), s.t. for all",
+     "text_display": " a) there is a projection \\(\\pi : V(Z) \\to V(X)\\), s.t. for all",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1464,
+       "top_left_y": 983,
+       "width": 300,
+       "height": 40
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1117,
+      "top_left_y": 990,
+      "width": 821,
+      "height": 31
+     }
+    },
+    {
+     "id": "g4_p2_l74",
+     "line": 76,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1164,
+      "top_left_y": 1026,
+      "width": 720,
+      "height": 43
+     },
+     "text": "\\(x \\in V(X)\\), it holds that \\(\\hat{p}_X(x) = \\sum_{z \\in \\pi^{-1}(x)} \\hat{p}_Z(z)\\),",
+     "text_display": " \\(x \\in V(X)\\), it holds that \\(\\hat{p}_X(x) = \\sum_{z \\in \\pi^{-1}(x)} \\hat{p}_Z(z)\\),",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1160,
+       "top_left_y": 1022,
+       "width": 152,
+       "height": 42
+      },
+      {
+       "top_left_x": 1501,
+       "top_left_y": 1022,
+       "width": 380,
+       "height": 49
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1164,
+      "top_left_y": 1026,
+      "width": 720,
+      "height": 37
+     }
+    },
+    {
+     "id": "g4_p2_l75",
+     "line": 77,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1118,
+      "top_left_y": 1087,
+      "width": 262,
+      "height": 41
+     },
+     "text": "b) \\(\\hat{H}(X) \\le \\hat{H}(Z)\\)",
+     "text_display": " b) \\(\\hat{H}(X) \\le \\hat{H}(Z)\\)",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1159,
+       "top_left_y": 1081,
+       "width": 227,
+       "height": 51
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1118,
+      "top_left_y": 1093,
+      "width": 262,
+      "height": 35
+     }
+    },
+    {
+     "id": "g4_p2_l76",
+     "line": 78,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1120,
+      "top_left_y": 1153,
+      "width": 366,
+      "height": 35
+     },
+     "text": "c) \\(\\hat{H}(Y|Z) \\le \\hat{H}(Y|X)\\),",
+     "text_display": " c) \\(\\hat{H}(Y|Z) \\le \\hat{H}(Y|X)\\),",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1159,
+       "top_left_y": 1140,
+       "width": 328,
+       "height": 52
+      }
+     ],
+     "parent_id": "g4_p2_c2"
+    },
+    {
+     "id": "g4_p2_l77",
+     "line": 79,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1117,
+      "top_left_y": 1212,
+      "width": 330,
+      "height": 35
+     },
+     "text": "d) \\(\\hat{I}(X; Y) \\le \\hat{I}(Z; Y)\\),",
+     "text_display": " d) \\(\\hat{I}(X; Y) \\le \\hat{I}(Z; Y)\\),",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p2_c2"
+    },
+    {
+     "id": "g4_p2_l78",
+     "line": 80,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1129,
+      "top_left_y": 1266,
+      "width": 813,
+      "height": 32
+     },
+     "text": "In order to analyze monotonicity properties of the permuta-",
+     "text_display": "\n\nIn order to analyze monotonicity properties of the permuta",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1129,
+      "top_left_y": 1267,
+      "width": 813,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p2_l79",
+     "line": 81,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1304,
+      "width": 769,
+      "height": 32
+     },
+     "text": "tion model, the following additional definition is useful.",
+     "text_display": " tion model, the following additional definition is useful.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1304,
+      "width": 769,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l80",
+     "line": 82,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1357,
+      "width": 847,
+      "height": 31
+     },
+     "text": "Definition 2. We call a labeling \\(X\\) homomorphic to a label-*",
+     "text_display": "\n\nDefinition 2. We call a labeling \\(X\\) homomorphic to a label-*",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1550,
+       "top_left_y": 1352,
+       "width": 34,
+       "height": 34
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1357,
+      "width": 847,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p2_l81",
+     "line": 83,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1096,
+      "top_left_y": 1394,
+      "width": 847,
+      "height": 33
+     },
+     "text": "ing \\(Z\\) (w.r.t. the target variable \\(Y\\)), denoted as \\(X \\precsim Z\\), if",
+     "text_display": " ing \\(Z\\) (w.r.t. the target variable \\(Y\\)), denoted as \\(X \\precsim Z\\), if",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1148,
+       "top_left_y": 1390,
+       "width": 30,
+       "height": 34
+      },
+      {
+       "top_left_x": 1556,
+       "top_left_y": 1391,
+       "width": 33,
+       "height": 33
+      },
+      {
+       "top_left_x": 1783,
+       "top_left_y": 1388,
+       "width": 163,
+       "height": 42
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1096,
+      "top_left_y": 1395,
+      "width": 847,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p2_l82",
+     "line": 84,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1432,
+      "width": 722,
+      "height": 30
+     },
+     "text": "there exists \\(\\sigma \\in S_n\\) with \\(Y \\equiv Y_\\sigma\\) such that \\(X \\preceq Z_\\sigma\\).",
+     "text_display": " there exists \\(\\sigma \\in S_n\\) with \\(Y \\equiv Y_\\sigma\\) such that \\(X \\preceq Z_\\sigma\\).",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "math_regions": [
+      {
+       "top_left_x": 1254,
+       "top_left_y": 1429,
+       "width": 107,
+       "height": 36
+      },
+      {
+       "top_left_x": 1434,
+       "top_left_y": 1428,
+       "width": 116,
+       "height": 37
+      },
+      {
+       "top_left_x": 1691,
+       "top_left_y": 1428,
+       "width": 121,
+       "height": 38
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1433,
+      "width": 722,
+      "height": 26
+     }
+    },
+    {
+     "id": "g4_p2_l83",
+     "line": 85,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1129,
+      "top_left_y": 1485,
+      "width": 812,
+      "height": 32
+     },
+     "text": "Importantly, the inequality of mutual information for spe-",
+     "text_display": "\n\nImportantly, the inequality of mutual information for spe",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1129,
+      "top_left_y": 1485,
+      "width": 812,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p2_l84",
+     "line": 86,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1523,
+      "width": 841,
+      "height": 32
+     },
+     "text": "cializations (Prop. 1d) carries over to homomorphic variables",
+     "text_display": " cializations (Prop. 1d) carries over to homomorphic variables",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1523,
+      "width": 841,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l85",
+     "line": 87,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1561,
+      "width": 497,
+      "height": 24
+     },
+     "text": "and in turn to their correction terms.",
+     "text_display": " and in turn to their correction terms.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1562,
+      "width": 497,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p2_l86",
+     "line": 88,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1094,
+      "top_left_y": 1612,
+      "width": 846,
+      "height": 33
+     },
+     "text": "Proposition 2. Given variables \\(X, Z\\) and \\(Y\\), with \\(X \\precsim Z\\),",
+     "text_display": "\n\nProposition 2. Given variables \\(X, Z\\) and \\(Y\\), with \\(X \\precsim Z\\),",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1553,
+       "top_left_y": 1607,
+       "width": 81,
+       "height": 36
+      },
+      {
+       "top_left_x": 1704,
+       "top_left_y": 1608,
+       "width": 30,
+       "height": 34
+      },
+      {
+       "top_left_x": 1822,
+       "top_left_y": 1606,
+       "width": 114,
+       "height": 42
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1094,
+      "top_left_y": 1613,
+      "width": 846,
+      "height": 28
+     }
+    },
+    {
+     "id": "g4_p2_l87",
+     "line": 89,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1651,
+      "width": 414,
+      "height": 31
+     },
+     "text": "the following statements hold:",
+     "text_display": " the following statements hold:",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1651,
+      "width": 414,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l88",
+     "line": 90,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1117,
+      "top_left_y": 1707,
+      "width": 322,
+      "height": 35
+     },
+     "text": "a) \\(\\hat{I}(X; Y) \\le \\hat{I}(Z; Y)\\)",
+     "text_display": " a) \\(\\hat{I}(X; Y) \\le \\hat{I}(Z; Y)\\)",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c2"
+    },
+    {
+     "id": "g4_p2_l89",
+     "line": 91,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1118,
+      "top_left_y": 1760,
+      "width": 434,
+      "height": 35
+     },
+     "text": "b) \\(\\hat{m}_o(X, Y, n) \\le \\hat{m}_o(Z, Y, n)\\)",
+     "text_display": " b) \\(\\hat{m}_o(X, Y, n) \\le \\hat{m}_o(Z, Y, n)\\)",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "math_regions": [
+      {
+       "top_left_x": 1157,
+       "top_left_y": 1754,
+       "width": 403,
+       "height": 45
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1118,
+      "top_left_y": 1760,
+      "width": 434,
+      "height": 34
+     }
+    },
+    {
+     "id": "g4_p2_l90",
+     "line": 92,
+     "column": 2,
+     "type": "section_header",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1829,
+      "width": 387,
+      "height": 34
+     },
+     "text": "2.2 Search Algorithms",
+     "text_display": "\n\n2.2 Search Algorithms",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1829,
+      "width": 387,
+      "height": 27
+     }
+    },
+    {
+     "id": "g4_p2_l91",
+     "line": 93,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1881,
+      "width": 845,
+      "height": 32
+     },
+     "text": "Effective algorithms for maximizing the reliable fraction of",
+     "text_display": "\n\nEffective algorithms for maximizing the reliable fraction of",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1881,
+      "width": 845,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l92",
+     "line": 94,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1919,
+      "width": 842,
+      "height": 34
+     },
+     "text": "information over all subsets \\(\\mathcal{X} \\subseteq \\mathcal{I}\\) are enabled by the concept",
+     "text_display": " information over all subsets \\(\\mathcal{X} \\subseteq \\mathcal{I}\\) are enabled by the concept",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1473,
+       "top_left_y": 1914,
+       "width": 102,
+       "height": 36
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1920,
+      "width": 842,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p2_l93",
+     "line": 95,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1957,
+      "width": 842,
+      "height": 32
+     },
+     "text": "of bounding functions. A function \\(\\bar{f}\\) is called an admissible",
+     "text_display": " of bounding functions. A function \\(\\bar{f}\\) is called an admissible",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1583,
+       "top_left_y": 1948,
+       "width": 25,
+       "height": 43
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1957,
+      "width": 842,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p2_l94",
+     "line": 96,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 1995,
+      "width": 842,
+      "height": 32
+     },
+     "text": "bounding function for an optimization function \\(f\\) if for all",
+     "text_display": " bounding function for an optimization function \\(f\\) if for all",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1786,
+       "top_left_y": 1991,
+       "width": 24,
+       "height": 36
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 1995,
+      "width": 842,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p2_l95",
+     "line": 97,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 2027,
+      "width": 843,
+      "height": 39
+     },
+     "text": "candidate solutions \\(\\mathcal{X} \\subseteq \\mathcal{I}\\), it holds that \\(\\bar{f}(\\mathcal{X}) \\ge f(\\mathcal{X}')\\) for",
+     "text_display": " candidate solutions \\(\\mathcal{X} \\subseteq \\mathcal{I}\\), it holds that \\(\\bar{f}(\\mathcal{X}) \\ge f(\\mathcal{X}')\\) for",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1374,
+       "top_left_y": 2027,
+       "width": 104,
+       "height": 37
+      },
+      {
+       "top_left_x": 1671,
+       "top_left_y": 2025,
+       "width": 217,
+       "height": 44
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 2033,
+      "width": 843,
+      "height": 31
+     }
+    },
+    {
+     "id": "g4_p2_l96",
+     "line": 98,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 2069,
+      "width": 842,
+      "height": 34
+     },
+     "text": "all \\(\\mathcal{X}'\\) with \\(\\mathcal{X} \\subseteq \\mathcal{X}' \\subseteq \\mathcal{I}\\). Such functions allow to prune all",
+     "text_display": " all \\(\\mathcal{X}'\\) with \\(\\mathcal{X} \\subseteq \\mathcal{X}' \\subseteq \\mathcal{I}\\). Such functions allow to prune all",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1135,
+       "top_left_y": 2065,
+       "width": 44,
+       "height": 35
+      },
+      {
+       "top_left_x": 1257,
+       "top_left_y": 2065,
+       "width": 191,
+       "height": 38
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 2069,
+      "width": 842,
+      "height": 26
+     }
+    },
+    {
+     "id": "g4_p2_l97",
+     "line": 99,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1096,
+      "top_left_y": 2103,
+      "width": 841,
+      "height": 39
+     },
+     "text": "supersets \\(\\mathcal{X}'\\) of \\(\\mathcal{X}\\) whenever \\(\\bar{f}(\\mathcal{X}) \\le f(\\mathcal{X}^*)\\) for the current",
+     "text_display": " supersets \\(\\mathcal{X}'\\) of \\(\\mathcal{X}\\) whenever \\(\\bar{f}(\\mathcal{X}) \\le f(\\mathcal{X}^*)\\) for the current",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "math_regions": [
+      {
+       "top_left_x": 1231,
+       "top_left_y": 2104,
+       "width": 42,
+       "height": 33
+      },
+      {
+       "top_left_x": 1318,
+       "top_left_y": 2105,
+       "width": 34,
+       "height": 32
+      },
+      {
+       "top_left_x": 1504,
+       "top_left_y": 2101,
+       "width": 221,
+       "height": 44
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1096,
+      "top_left_y": 2109,
+      "width": 841,
+      "height": 32
+     }
+    },
+    {
+     "id": "g4_p2_l98",
+     "line": 100,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 2147,
+      "width": 770,
+      "height": 32
+     },
+     "text": "best solution \\(\\mathcal{X}^*\\) found during the optimization process.",
+     "text_display": " best solution \\(\\mathcal{X}^*\\) found during the optimization process.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "math_regions": [
+      {
+       "top_left_x": 1275,
+       "top_left_y": 2142,
+       "width": 49,
+       "height": 34
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 2147,
+      "width": 770,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l99",
+     "line": 101,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1129,
+      "top_left_y": 2185,
+      "width": 807,
+      "height": 32
+     },
+     "text": "Branch-and-bound, as the name suggests, combines this",
+     "text_display": "\n\nBranch-and-bound, as the name suggests, combines this",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1129,
+      "top_left_y": 2185,
+      "width": 807,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p2_l100",
+     "line": 102,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 2223,
+      "width": 846,
+      "height": 32
+     },
+     "text": "concept with a branching scheme that completely (and non-",
+     "text_display": " concept with a branching scheme that completely (and non",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 2224,
+      "width": 846,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p2_l101",
+     "line": 103,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 2256,
+      "width": 846,
+      "height": 37
+     },
+     "text": "redundantly) enumerates the search space \\(2^{\\mathcal{I}}\\). In addi-",
+     "text_display": " redundantly) enumerates the search space \\(2^{\\mathcal{I}}\\). In addi",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "math_regions": [
+      {
+       "top_left_x": 1734,
+       "top_left_y": 2253,
+       "width": 40,
+       "height": 38
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 2261,
+      "width": 846,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l102",
+     "line": 104,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 2299,
+      "width": 842,
+      "height": 32
+     },
+     "text": "tion, branch-and-bound can trade optimality for efficiency",
+     "text_display": " tion, branch-and-bound can trade optimality for efficiency",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 2299,
+      "width": 842,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p2_l103",
+     "line": 105,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1094,
+      "top_left_y": 2335,
+      "width": 847,
+      "height": 35
+     },
+     "text": "with parameter \\(\\alpha \\in (0, 1]\\) governing the desired approx-",
+     "text_display": " with parameter \\(\\alpha \\in (0, 1]\\) governing the desired approx",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "math_regions": [
+      {
+       "top_left_x": 1323,
+       "top_left_y": 2331,
+       "width": 165,
+       "height": 41
+      }
+     ],
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1094,
+      "top_left_y": 2337,
+      "width": 847,
+      "height": 32
+     }
+    },
+    {
+     "id": "g4_p2_l104",
+     "line": 106,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1095,
+      "top_left_y": 2375,
+      "width": 847,
+      "height": 32
+     },
+     "text": "imation guarantee. Here, we consider optimized pruning",
+     "text_display": " imation guarantee. Here, we consider optimized pruning",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1095,
+      "top_left_y": 2375,
+      "width": 847,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p2_l105",
+     "line": 107,
+     "column": 2,
+     "type": "text",
+     "region": {
+      "top_left_x": 1094,
+      "top_left_y": 2414,
+      "width": 846,
+      "height": 31
+     },
+     "text": "for unordered search (OPUS), an advanced variant of",
+     "text_display": " for unordered search (OPUS), an advanced variant of",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p2_c2",
+     "geometry_before": {
+      "top_left_x": 1094,
+      "top_left_y": 2414,
+      "width": 846,
+      "height": 25
+     }
+    },
+    {
+     "id": "g4_p2_l106",
+     "line": 108,
+     "column": 0,
+     "type": "page_info",
+     "region": {
+      "top_left_x": 1027,
+      "top_left_y": 2597,
+      "width": 64,
+      "height": 21
+     },
+     "text": "6207",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink"
+    }
+   ],
+   "source": "gemma4-ink-yolo"
+  }
+ ]
+}
