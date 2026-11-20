@@ -294,6 +294,9 @@ class ParagraphProcessor(BaseModule):
                 continue
 
             group = (payload.get("block_num"), payload.get("par_num"))
+            # The `footnote` record this line is a child of, stamped by
+            # FootnoteProcessor (procOrder 2). See the chain below.
+            block = payload.get("_footnote_block")
             region = payload.get("region") or {}
             y, h = region.get("top_left_y"), region.get("height")
             x0 = region.get("top_left_x")
@@ -322,7 +325,25 @@ class ParagraphProcessor(BaseModule):
                 continue
 
             if current is not None:
-                if _is_first_line(x0, page, edges):
+                if block != current.get("footnote_block"):
+                    # A BLOCK THE READING BRACKETED IS NOT CUT BY A LAYOUT
+                    # RULE, AND IT DOES NOT WELD TO WHAT IS AROUND IT.
+                    # Leaving a block changes the group, so flush; entering
+                    # one does too. Going from one block straight into the
+                    # next (two footnotes of one page) is the same change.
+                    flush()
+                elif block is not None:
+                    # Inside one block: the reading already said these lines
+                    # belong together, so none of the rules below gets a
+                    # vote. On lib:d68e0271bd4d p18 the three children stand
+                    # at x = 171, 185 and 208 while the page's body edge is
+                    # 170.5 with an em of 31, so `_is_first_line` read the
+                    # third as an indent 37 px deep and started a paragraph
+                    # there -- cutting the `\footnotetext{` from its closing
+                    # brace. That happened to 76 of 156 blocks on that book
+                    # alone, and the cleanup abstained on every one of them.
+                    pass
+                elif _is_first_line(x0, page, edges):
                     # the page's own indent says a new paragraph starts here
                     flush()
                     self.bump("paragraphs_started_by_an_indent")
@@ -380,6 +401,7 @@ class ParagraphProcessor(BaseModule):
                     "from_line_index": payload.get("_line_index"),
                     "to_line_index": payload.get("_line_index"),
                     "group": group,
+                    "footnote_block": block,
                     "kind": ("caption" if _CAPTION_START.match(stripped)
                              else "prose"),
                     "_last_y": y,

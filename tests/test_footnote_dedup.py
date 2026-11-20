@@ -597,7 +597,6 @@ def test_extract_shortens_text_and_narrows_the_realization():
     `footnote_extracted` is NOT needed (the realization itself is now
     accurate, so the ordinary render path is safe)."""
     doc = _built(_mathpix_block_with_trailing_prose())
-    para_before = doc.objects_of_type("Paragraph")[0]
     st = doc.streams["mathpix_lines"]
     p1_anchor = next(a for a in st.anchors if st.payload[a].get("id") == "p1")
 
@@ -611,7 +610,20 @@ def test_extract_shortens_text_and_narrows_the_realization():
     surface = next(r for r in p.realizations
                    if r.stream == "mathpix_lines" and r.role == "surface")
     assert surface.start == p1_anchor and surface.end == p1_anchor
-    assert para_before.id == p.id                          # same object, in place
+    # THE PROSE NOW HAS ITS OWN OBJECT FROM THE START, so the ending this
+    # test used to assert — `para_before.id == p.id`, the one welded
+    # Paragraph edited in place — no longer happens, and the narrowing it
+    # needed is not needed. `_footnote_block` keeps the block's CHILD lines
+    # in one Paragraph and flushes when the block ends, so the `p1` prose
+    # line that follows the block was never joined to it. The surviving
+    # Paragraph is `p1` alone, the Paragraph over the block's children is
+    # emptied by the extraction and dropped, and both of this test's real
+    # claims still hold: the prose keeps its text and a realization scoped
+    # to its own line. The narrowing path itself is still reached — and
+    # still measured — wherever the footnotetext and the prose really do
+    # share one line or one block child (`_mathpix_block_footnotetext_mid_
+    # line`, `_mathpix_block_with_sub_line_tail_fragment`).
+    assert p.props.get("num_lines") == 1
     # the footnote was ADOPTED (FootnoteProcessor's own object), not doubled
     assert len(_fn(doc)) == 1
 

@@ -47,6 +47,33 @@ class FootnoteProcessor(BaseModule):
             payload = stream.payload[anchor]
             if payload.get("type") != "footnote":
                 continue
+            # THE BLOCK IS A FACT OF THE READING, AND THE PARAGRAPH BUILDER
+            # HAS TO KNOW IT. The reading hangs the footnote's words off this
+            # record as children and spells the `\footnotetext{...}` wrapper
+            # ACROSS them: the opening brace in the first child's
+            # `text_display`, the closing one in the last child's. So the
+            # span is balanced only over the whole block, and a layout rule
+            # that cuts between two children leaves no Paragraph holding a
+            # balanced span -- `heading_cleanup.extract_footnote_paragraphs`
+            # then abstains on the group and the footnote's words stay in the
+            # model twice. Measured on the Gemma4 ten-document set before
+            # this stamp existed: of 171 blocks with children, 78 were cut
+            # and 93 survived whole -- and the 93 are exactly the 91 the
+            # cleanup adopted plus the 2 whose span it could not locate,
+            # while NOT ONE of the 78 cut blocks was ever adopted
+            # (tests/test_a_footnote_block_is_not_cut_in_two.py has the
+            # table). The stamp only keeps the block together; it does NOT
+            # claim the records, because 637's adoption needs the Paragraph
+            # to exist in order to adopt it.
+            #
+            # Written for every `footnote` record with children, before the
+            # refnum test below: whether a Footnote OBJECT is made is a
+            # separate question from whether the reading bracketed the lines.
+            block_id = payload.get("id") or anchor.id
+            for cid in (payload.get("children_ids") or []):
+                kid = anchor_by_id.get(cid)
+                if kid is not None:
+                    stream.payload[kid]["_footnote_block"] = block_id
             pieces = self._block_pieces(anchor, payload, anchor_by_id, stream)
             full_text = "".join(t for _a, t in pieces)
             refnum = self._refnum(full_text)

@@ -1,0 +1,333 @@
+{
+ "source": "gemma4-ink-yolo",
+ "pages": [
+  {
+   "page": 18,
+   "image_id": null,
+   "page_width": 1494,
+   "page_height": 2292,
+   "lines": [
+    {
+     "id": "g4_p18_l21",
+     "line": 21,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 171,
+      "top_left_y": 1614,
+      "width": 1149,
+      "height": 31
+     },
+     "text": "sition, font choice and characteristics, or page breaks. We will speak of **pre-",
+     "text_display": " sition, font choice and characteristics, or page breaks. We will speak of **pre",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "geometry_before": {
+      "top_left_x": 171,
+      "top_left_y": 1615,
+      "width": 1149,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p18_l22",
+     "line": 22,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 171,
+      "top_left_y": 1656,
+      "width": 1150,
+      "height": 31
+     },
+     "text": "sentation markup** for such markup schemes. They are perfectly sufficient",
+     "text_display": " sentation markup** for such markup schemes. They are perfectly sufficient",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 171,
+      "top_left_y": 1656,
+      "width": 1149,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p18_l23",
+     "line": 23,
+     "column": 0,
+     "type": "text",
+     "region": null,
+     "text": "for producing high-quality presentations on paper or on screen, but for in-",
+     "text_display": " for producing high-quality presentations on paper or on screen, but for in",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "unplaced",
+     "subtype": "continues_line_no_hyphen"
+    },
+    {
+     "id": "g4_p18_l24",
+     "line": 24,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 171,
+      "top_left_y": 1697,
+      "width": 1148,
+      "height": 31
+     },
+     "text": "stance it does not support document reuse (in other contexts or across the",
+     "text_display": " stance it does not support document reuse (in other contexts or across the",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 171,
+      "top_left_y": 1698,
+      "width": 1148,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p18_l25",
+     "line": 25,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 171,
+      "top_left_y": 1738,
+      "width": 1150,
+      "height": 33
+     },
+     "text": "development cycle of a text). The problem is that these approaches concen-",
+     "text_display": " development cycle of a text). The problem is that these approaches concen",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "geometry_before": {
+      "top_left_x": 171,
+      "top_left_y": 1742,
+      "width": 1150,
+      "height": 21
+     }
+    },
+    {
+     "id": "g4_p18_l26",
+     "line": 26,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 171,
+      "top_left_y": 1778,
+      "width": 1148,
+      "height": 34
+     },
+     "text": "trate on the form and not the function of text elements. Think e.g. of the",
+     "text_display": " trate on the form and not the function of text elements. Think e.g. of the",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 171,
+      "top_left_y": 1780,
+      "width": 1148,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p18_l27",
+     "line": 27,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 171,
+      "top_left_y": 1822,
+      "width": 1150,
+      "height": 31
+     },
+     "text": "notorious section renumbering problems in early (WYSIWYG\\(^1\\)) text proces-",
+     "text_display": " notorious section renumbering problems in early (WYSIWYG\\(^1\\)) text proces",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "geometry_before": {
+      "top_left_x": 171,
+      "top_left_y": 1822,
+      "width": 1150,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p18_l28",
+     "line": 28,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 171,
+      "top_left_y": 1859,
+      "width": 1149,
+      "height": 36
+     },
+     "text": "sors. Here, the text form of a numbered section heading was used to express",
+     "text_display": " sors. Here, the text form of a numbered section heading was used to express",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "geometry_before": {
+      "top_left_x": 171,
+      "top_left_y": 1859,
+      "width": 1149,
+      "height": 29
+     }
+    },
+    {
+     "id": "g4_p18_l29",
+     "line": 29,
+     "column": 0,
+     "type": "footnote",
+     "region": {
+      "top_left_x": 171,
+      "top_left_y": 1905,
+      "width": 1151,
+      "height": 122
+     },
+     "text": "",
+     "text_display": "",
+     "conversion_output": false,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "children_ids": [
+      "g4_p18_l30",
+      "g4_p18_l31",
+      "g4_p18_l32"
+     ],
+     "geometry_before": {
+      "top_left_x": 171,
+      "top_left_y": 1906,
+      "width": 1151,
+      "height": 115
+     }
+    },
+    {
+     "id": "g4_p18_l30",
+     "line": 30,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 171,
+      "top_left_y": 1905,
+      "width": 1151,
+      "height": 31
+     },
+     "text": "\\( { }^{1} \\) “What you see is what you get”; in the context of markup languages this means",
+     "text_display": "\n\n\\footnotetext{\n\\( { }^{1} \\) “What you see is what you get”; in the context of markup languages this means",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p18_l29",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 171,
+      "top_left_y": 1906,
+      "width": 1151,
+      "height": 23
+     }
+    },
+    {
+     "id": "g4_p18_l31",
+     "line": 31,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 185,
+      "top_left_y": 1961,
+      "width": 1136,
+      "height": 33
+     },
+     "text": "that the document markup codes are hidden from the user, who is presented",
+     "text_display": " that the document markup codes are hidden from the user, who is presented",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p18_l29",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 212,
+      "top_left_y": 1967,
+      "width": 1109,
+      "height": 22
+     }
+    },
+    {
+     "id": "g4_p18_l32",
+     "line": 32,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 208,
+      "top_left_y": 1999,
+      "width": 1113,
+      "height": 28
+     },
+     "text": "with a presentation form of the text even during authoring.",
+     "text_display": " with a presentation form of the text even during authoring.\n}",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "parent_id": "g4_p18_l29",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 208,
+      "top_left_y": 2000,
+      "width": 1113,
+      "height": 21
+     }
+    },
+    {
+     "id": "g4_p18_l33",
+     "line": 33,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 208,
+      "top_left_y": 2033,
+      "width": 831,
+      "height": 28
+     },
+     "text": "M. Kohlhase: OMDoc, LNAI 4180, pp. 3–11, 2006.",
+     "text_display": " M. Kohlhase: OMDoc, LNAI 4180, pp. 3–11, 2006.",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "geometry_before": {
+      "top_left_x": 208,
+      "top_left_y": 2034,
+      "width": 831,
+      "height": 21
+     }
+    }
+   ],
+   "source": "gemma4-ink-yolo"
+  }
+ ]
+}
