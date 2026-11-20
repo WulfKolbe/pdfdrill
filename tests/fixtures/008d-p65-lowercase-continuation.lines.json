@@ -1,0 +1,312 @@
+{
+ "source": "gemma4-ink-yolo",
+ "pages": [
+  {
+   "page": 65,
+   "image_id": null,
+   "page_width": 2125,
+   "page_height": 2750,
+   "lines": [
+    {
+     "id": "g4_p65_l1",
+     "line": 1,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 444,
+      "width": 1191,
+      "height": 31
+     },
+     "text": "Können über, das jederzeit wieder aktualisiert werden kann. Betrachten wir ab-",
+     "text_display": "\nKönnen über, das jederzeit wieder aktualisiert werden kann. Betrachten wir ab",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 444,
+      "width": 1191,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p65_l2",
+     "line": 2,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 484,
+      "width": 1192,
+      "height": 32
+     },
+     "text": "schließend ein Beispiel: Schreiben Sie doch bitte einmal all das, was Sie während",
+     "text_display": " schließend ein Beispiel: Schreiben Sie doch bitte einmal all das, was Sie während",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 485,
+      "width": 1192,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p65_l3",
+     "line": 3,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 526,
+      "width": 1193,
+      "height": 32
+     },
+     "text": "Ihrer gesamten Schulzeit in Mathematik gelernt haben, auf einen Zettel. - Ich",
+     "text_display": " Ihrer gesamten Schulzeit in Mathematik gelernt haben, auf einen Zettel. - Ich",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 527,
+      "width": 1193,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p65_l4",
+     "line": 4,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 568,
+      "width": 1191,
+      "height": 31
+     },
+     "text": "wette, dass ein recht kleiner Zettel genügt. War also jahrelanger Mathematikun-",
+     "text_display": " wette, dass ein recht kleiner Zettel genügt. War also jahrelanger Mathematikun",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 568,
+      "width": 1191,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p65_l5",
+     "line": 5,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 609,
+      "width": 1192,
+      "height": 32
+     },
+     "text": "terricht völlig umsonst? - Keineswegs! Auch derjenige, der nicht einmal mehr",
+     "text_display": " terricht völlig umsonst? - Keineswegs! Auch derjenige, der nicht einmal mehr",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 610,
+      "width": 1192,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p65_l6",
+     "line": 6,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 650,
+      "width": 1190,
+      "height": 32
+     },
+     "text": "die binomischen Formeln oder den Satz des Pythagoras auf seinem Zettel hat,",
+     "text_display": " die binomischen Formeln oder den Satz des Pythagoras auf seinem Zettel hat,",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 651,
+      "width": 1182,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p65_l7",
+     "line": 7,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 692,
+      "width": 1193,
+      "height": 32
+     },
+     "text": "weiß, wie man an einen Sachverhalt mathematisch herangeht, was es heißt, einen",
+     "text_display": " weiß, wie man an einen Sachverhalt mathematisch herangeht, was es heißt, einen",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 693,
+      "width": 1193,
+      "height": 30
+     }
+    },
+    {
+     "id": "g4_p65_l8",
+     "line": 8,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 466,
+      "top_left_y": 734,
+      "width": 1190,
+      "height": 32
+     },
+     "text": "Sachverhalt zu quantifizieren oder eine Abhängigkeit zweier Variablen zu for-",
+     "text_display": " Sachverhalt zu quantifizieren oder eine Abhängigkeit zweier Variablen zu for",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "geometry_before": {
+      "top_left_x": 466,
+      "top_left_y": 735,
+      "width": 1190,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p65_l9",
+     "line": 9,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 775,
+      "width": 1191,
+      "height": 32
+     },
+     "text": "malisieren. Selbst dann, wenn Sie jetzt sagen „das weiß ich aber gar nicht“, so",
+     "text_display": " malisieren. Selbst dann, wenn Sie jetzt sagen „das weiß ich aber gar nicht“, so",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 776,
+      "width": 1191,
+      "height": 31
+     }
+    },
+    {
+     "id": "g4_p65_l10",
+     "line": 10,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 817,
+      "width": 1191,
+      "height": 26
+     },
+     "text": "können Sie es. Warum würden Sie sich sonst an der Tankstelle über Benzin-",
+     "text_display": "\n\nkönnen Sie es. Warum würden Sie sich sonst an der Tankstelle über Benzin",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_no_hyphen",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 818,
+      "width": 1191,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p65_l11",
+     "line": 11,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 858,
+      "width": 1192,
+      "height": 32
+     },
+     "text": "preiserhöhungen ärgern und das Argument „macht nichts, ich tanke immer nur",
+     "text_display": " preiserhöhungen ärgern und das Argument „macht nichts, ich tanke immer nur",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "subtype": "continues_line_space",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 859,
+      "width": 1192,
+      "height": 24
+     }
+    },
+    {
+     "id": "g4_p65_l12",
+     "line": 12,
+     "column": 0,
+     "type": "text",
+     "region": {
+      "top_left_x": 465,
+      "top_left_y": 900,
+      "width": 361,
+      "height": 26
+     },
+     "text": "für 20 Euro“ verwerfen?",
+     "text_display": " für 20 Euro“ verwerfen?",
+     "conversion_output": true,
+     "is_printed": true,
+     "is_handwritten": false,
+     "geometry": "ink",
+     "geometry_before": {
+      "top_left_x": 465,
+      "top_left_y": 900,
+      "width": 361,
+      "height": 25
+     }
+    }
+   ],
+   "source": "gemma4-ink-yolo"
+  }
+ ]
+}

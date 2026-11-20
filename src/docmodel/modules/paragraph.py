@@ -191,6 +191,34 @@ _ENV_OPENER = re.compile(
     r"^\*{0,2}([A-Z][a-zA-Z]+(?:\s+[a-z]+)?)\s+(\d+(?:\.\d+)*)\s*\.?\s*[.(]")
 
 
+def _begins_a_sentence(text: str) -> bool:
+    r"""Could this line begin a paragraph at all?
+
+    A sentence does not begin with a lowercase letter. Listing the paragraph
+    starts the reading's marker ADDS showed this is the whole difference
+    between the documents it helps and the one it hurts: of 244 added starts
+    on lib:008d43e5db48, 116 begin lowercase -- "können Sie es. Warum würden
+    Sie sich sonst...", "sen wiederum waren 32 selektiv für..." (a
+    hyphenation fragment) -- against 17 of 395 on lib:c9daf79960c3, and
+    c9's are continuations too ("thereby reduce to the case where \(R\) is a
+    (reduced) local...").
+
+    German makes the test stronger, not weaker: it capitalises its nouns, so
+    a lowercase first letter is not a sentence's first word there either.
+
+    A line that opens with markup, maths or a digit states nothing about
+    case, so it is not refused here -- `\(()\) For every prime number`,
+    `* If \(A\) is an \(\mathbb{E}_\infty\)-ring` and `23 OMDoc Resources`
+    all begin blocks. Only an actual lowercase LETTER is evidence.
+    """
+    for ch in (text or "").lstrip("*_ \t"):
+        if ch.isalpha():
+            return not ch.islower()
+        if ch.isdigit() or ch in "\\$([{<\u2018\u201c\u201e\"'":
+            return True                  # markup, maths or a number: no claim
+    return True                          # nothing to judge
+
+
 def _column_states_an_indent(x, page, edges: dict) -> bool:
     r"""Does this line's COLUMN state an indent convention?
 
@@ -407,7 +435,7 @@ class ParagraphProcessor(BaseModule):
                     # brace. That happened to 76 of 156 blocks on that book
                     # alone, and the cleanup abstained on every one of them.
                     pass
-                elif marks_block and not (
+                elif marks_block and _begins_a_sentence(stripped) and not (
                         _column_states_an_indent(x0, page, edges)
                         and not _ENV_OPENER.match(stripped)):
                     # T-0154 -- THE READING'S OWN STATEMENT, BEFORE OUR

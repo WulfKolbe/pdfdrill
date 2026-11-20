@@ -240,3 +240,78 @@ def test_the_indent_itself_still_starts_a_paragraph():
     doc = _built_indented()
     starts = {ids[0] for _pid, ids in _paragraph_lines(doc)}
     assert "g4_p117_l3" in starts and "g4_p117_l13" in starts
+
+
+#: ------------------------------------------------------------------
+#: AND A SENTENCE DOES NOT BEGIN WITH A LOWERCASE LETTER.
+#:
+#: Four geometric discriminators were measured and three of them died: "the
+#: previous line ends mid-sentence" (lib:008d43e5db48 31 %, lib:c9daf79960c3
+#: 32 %, indistinguishable, and lib:d68e0271bd4d is 47 % and improves), "the
+#: column states no indent convention" on its own (removes ~40 % of the good
+#: markers and ~40 % of the bad), and "the DOCUMENT states an indent
+#: convention" (d68e states it on 59.6 % of its pages and improves; 008d on
+#: 47.3 % and regresses). None of them separates the document the marker
+#: hurts from the ones it helps.
+#:
+#: Listing the paragraph starts the rule ADDS does separate them, with no
+#: hypothesis needed:
+#:
+#:     added start                 lib:008d43e5db48   lib:c9daf79960c3
+#:     begins LOWERCASE                     116                 17
+#:     numbered environment label             0                215
+#:     begins with a capital                 81                 88
+#:     other (list and enum markers)         28                 74
+#:     a page number or stray token          15                  1
+#:
+#: and the lowercase ones are continuations on BOTH documents, so refusing
+#: them is not a trade: 008d's are "können Sie es. Warum würden Sie sich
+#: sonst..." and "sen wiederum waren 32 selektiv für..." (a hyphenation
+#: fragment), c9's are "thereby reduce to the case where \(R\) is a (reduced)
+#: local..." and "complete the proof by establishing the following...".
+#:
+#: German makes this stronger rather than weaker: it capitalises its nouns,
+#: so a lowercase first letter cannot be a sentence's first word there
+#: either. Refusing the marker is CONSERVATIVE -- it falls back to what the
+#: build did before, so the indent rule and the blank-band rule can still
+#: start a paragraph on that line if the page says so.
+
+FIXTURE_LOWER = (Path(__file__).parent / "fixtures"
+                 / "008d-p65-lowercase-continuation.lines.json")
+
+
+def _built_lower():
+    doc = Document()
+    doc.meta["bibkey"] = "T"
+    ingest_lines_json(doc, json.loads(FIXTURE_LOWER.read_text("utf-8")))
+    ParagraphProcessor(ModuleConfig(title="ParagraphProcessor",
+                                    classname="ParagraphProcessor",
+                                    proc_order=13), "T").process_document(doc)
+    return doc
+
+
+def test_that_fixture_isolates_the_lowercase_rule():
+    """Not vacuous, and not testing the OTHER filter by accident: the column
+    owns a single edge, so `_column_states_an_indent` is False and only the
+    lowercase refusal can decide `l10`."""
+    from docmodel.modules.paragraph import (_PROSE_TYPES,
+                                            _column_states_an_indent)
+    from docmodel.page_edges import _body_edges
+    doc = _built_lower()
+    st = doc.stream("mathpix_lines")
+    edges = _body_edges(st, _PROSE_TYPES)
+    assert edges[65][0] == [464.0]
+    pay = next(st.payload[a] for a in st.anchors
+               if st.payload[a].get("id") == "g4_p65_l10")
+    assert (pay.get("text_display") or "").startswith("\n\n")
+    assert _column_states_an_indent(465, 65, edges) is False
+    assert (pay.get("text") or "").startswith("können")
+
+
+def test_a_marked_line_beginning_lowercase_is_a_continuation():
+    doc = _built_lower()
+    by_first = {ids[0]: ids for _pid, ids in _paragraph_lines(doc)}
+    assert "g4_p65_l10" not in by_first, \
+        "a lowercase line began a paragraph"
+    assert by_first.get("g4_p65_l1") == [
+        "g4_p65_l%d" % k for k in range(1, 13)]
