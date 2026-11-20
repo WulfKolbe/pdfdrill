@@ -97,7 +97,7 @@ def clear_embedded_images(doc: Document) -> None:
     """Remove a prior run (EmbeddedImage objects, the stream, image_region edges)."""
     drop = [oid for oid, o in doc.objects.items() if o.type == "EmbeddedImage"]
     for oid in drop:
-        doc.objects.pop(oid, None)
+        doc.remove(oid)
     doc.streams.pop(PDF_IMAGES_STREAM, None)
     doc.alignments = [a for a in doc.alignments if a.kind != "image_region"]
 

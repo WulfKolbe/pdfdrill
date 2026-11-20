@@ -101,7 +101,7 @@ def drop_ownerless_stubs(doc) -> int:
         and not any((r.stream, r.start, r.end) in still_cited for r in o.realizations)
     ]
     for oid in to_drop:
-        doc.objects.pop(oid, None)
+        doc.remove(oid)
     return len(to_drop)
 
 

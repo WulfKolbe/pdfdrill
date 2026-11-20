@@ -506,7 +506,10 @@ def extract_footnote_paragraphs(doc) -> int:
     for fn in add:
         doc.add(fn)
     for pid in drop:
-        doc.objects.pop(pid, None)
+        # `remove`, not `pop`: an emptied Paragraph is
+        # still listed by its Section and still in the flow chain. 155 of
+        # lib:d68e0271bd4d's dangling child ids came from this line.
+        doc.remove(pid)
     if orphan:
         doc.meta["footnote_orphan_tail"] = \
             int(doc.meta.get("footnote_orphan_tail") or 0) + orphan
@@ -698,7 +701,7 @@ def clean_heading_residuals(doc, promote: bool = True) -> int:
     for s in add:
         doc.add(s)
     for oid in drop:
-        doc.objects.pop(oid, None)
+        doc.remove(oid)
     # Appendix marker for a MathPix model (no `\appendix` signal): a top-level
     # Section whose caption is LETTER-numbered (A., B., …) is an appendix — lift the
     # letter into refnum + flag is_appendix, so it's treated like a chapter heading.

@@ -156,7 +156,7 @@ def absorb_stub(doc: Document, stub: DocObject, into: DocObject,
         props["citekey"] = into_key
         if add_cites_alignment(doc, a.left, target, props) is not None:
             moved += 1
-    doc.objects.pop(stub.id, None)
+    doc.remove(stub.id)
     return moved
 
 

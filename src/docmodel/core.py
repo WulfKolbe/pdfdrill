@@ -340,6 +340,88 @@ class Document:
         parent.children.append(child.id)
         self.add(child)
 
+    def remove(self, oid: str) -> Optional[DocObject]:
+        r"""Remove one object AND every reference to it. Returns it, or None.
+
+        `doc.objects.pop(oid, None)` removes the map entry and leaves the
+        pointers: eleven sites did that, and on the ten-document Gemma4 set
+        170 ids were still listed as a Section's child while absent from
+        `doc.objects` -- lib:d68e0271bd4d alone had 155, with exactly 155
+        dangling `prev_in_flow` and 155 dangling `next_in_flow`, the equality
+        that says the three have one cause. `parent` and
+        `props["parent_section"]` were clean, because the structure pass
+        (procOrder 999) only fills live objects and the pops run after it.
+
+        Nothing raised on any of it. A tree walk that descends by `children`
+        just skips the hole, and a reader that follows the flow chain stops
+        at it -- content silently lost, which is the failure class this
+        repository keeps paying for.
+
+        What this maintains, in the order the damage was measured:
+
+          * no object lists it as a child any more;
+          * the flow chain CLOSES over the gap, so its `prev_in_flow` and
+            `next_in_flow` neighbours point at each other instead of at a
+            hole. A removal is an edit to a sequence; leaving a one-way link
+            would just move the dangling pointer;
+          * its OWN children are reparented to its parent, not orphaned and
+            not deleted. Dropping them to `parent=None` hides them from
+            every tree walk and deleting them loses content the removal
+            never meant to touch;
+          * anything naming it in `parent` or `props["parent_section"]`
+            follows the same reparenting.
+
+        Forgiving about an absent id, because every call site it replaces was
+        `pop(oid, None)` and a pass that removes the same object twice must
+        not start raising.
+        """
+        obj = self.objects.pop(oid, None)
+        if obj is None:
+            return None
+        new_parent = obj.parent if obj.parent in self.objects else None
+        # the flow chain closes over the gap
+        prev_id = obj.props.get("prev_in_flow")
+        next_id = obj.props.get("next_in_flow")
+        prev_o = self.objects.get(prev_id) if prev_id else None
+        next_o = self.objects.get(next_id) if next_id else None
+        if prev_o is not None:
+            prev_o.props["next_in_flow"] = next_id if next_o is not None else None
+            if prev_o.props["next_in_flow"] is None:
+                prev_o.props.pop("next_in_flow", None)
+        if next_o is not None:
+            next_o.props["prev_in_flow"] = prev_id if prev_o is not None else None
+            if next_o.props["prev_in_flow"] is None:
+                next_o.props.pop("prev_in_flow", None)
+        # its own children are reparented, never orphaned
+        for cid in (obj.children or []):
+            child = self.objects.get(cid)
+            if child is None:
+                continue
+            child.parent = new_parent
+            if child.props.get("parent_section") == oid:
+                child.props["parent_section"] = new_parent
+                if new_parent is None:
+                    child.props.pop("parent_section", None)
+            if new_parent is not None:
+                holder = self.objects[new_parent]
+                if cid not in holder.children:
+                    holder.children.append(cid)
+        # and nobody lists or names it any more
+        for other in self.objects.values():
+            if other.children and oid in other.children:
+                other.children = [c for c in other.children if c != oid]
+            if other.parent == oid:
+                other.parent = new_parent
+            if other.props.get("parent_section") == oid:
+                if new_parent is None:
+                    other.props.pop("parent_section", None)
+                else:
+                    other.props["parent_section"] = new_parent
+            for k in ("prev_in_flow", "next_in_flow"):
+                if other.props.get(k) == oid:
+                    other.props.pop(k, None)
+        return obj
+
     def objects_of_type(self, t: str) -> list[DocObject]:
         return [o for o in self.objects.values() if o.type == t]
 

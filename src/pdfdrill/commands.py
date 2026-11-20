@@ -8089,7 +8089,7 @@ def cmd_bibsource(pdf: Path, bib_path: str | None = None,
     # instead of creating a duplicate for the same key.
     for oid in [oid for oid, o in doc.objects.items()
                 if o.type == "Reference" and not o.props.get("stub")]:
-        doc.objects.pop(oid, None)
+        doc.remove(oid)
     drop_dangling_cites(doc)
     doc.streams.pop("references", None)
 
@@ -12680,17 +12680,14 @@ def cmd_lists(pdf: Path, force: bool = False) -> str:
     if existing and not force:
         return _format_lists(sc)
     if force and existing:
-        ids = {o.id for o in existing}
         for o in existing:
-            doc.objects.pop(o.id, None)
-        for o in doc.objects.values():          # detach children/parents
-            o.children = [c for c in o.children if c not in ids]
-            if o.parent in ids:
-                o.parent = None
+            # `remove` detaches children and parents AND closes the flow
+            # chain, which the hand-rolled loop here did not.
+            doc.remove(o.id)
         # drop previously geometry-resplit items so we don't accumulate
         for o in [o for o in doc.objects.values()
                   if o.type == "ListItem" and o.props.get("provenance") == "geometry_resplit"]:
-            doc.objects.pop(o.id, None)
+            doc.remove(o.id)
 
     # Recover bullets the OCR merged onto one line, using pdftotext y-breaks.
     resplit = resplit_list_items_by_geometry(doc)
@@ -12801,13 +12798,8 @@ def cmd_algorithms(pdf: Path, force: bool = False) -> str:
     if existing and not force:
         return _format_algorithms(doc)
     if force and existing:
-        ids = {o.id for o in existing}
         for o in existing:
-            doc.objects.pop(o.id, None)
-        for o in doc.objects.values():
-            o.children = [c for c in o.children if c not in ids]
-            if o.parent in ids:
-                o.parent = None
+            doc.remove(o.id)
 
     mp = doc.stream("mathpix_lines") if "mathpix_lines" in doc.streams else None
     if mp is None:
@@ -15385,7 +15377,7 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
 
         for o in [o for o in doc.objects.values()
                   if o.type in ("Citation", "Reference") and _retract(o)]:
-            doc.objects.pop(o.id, None)
+            doc.remove(o.id)
         drop_dangling_cites(doc)
         # 639 -- a stub Reference that predates `added_by` (built between
         # db66ff0 and daf1657) is invisible to the provenance retraction
@@ -16159,9 +16151,8 @@ def cmd_annotate(pdf: Path, force: bool = False) -> str:
     if existing and not force:
         return _format_annotations(sc)
     if force and existing:
-        ids = {o.id for o in existing}
         for o in existing:
-            doc.objects.pop(o.id, None)
+            doc.remove(o.id)
         # 010 fix round 4 -- retract only THIS command's own edges. `annotate`'s
         # `cites` edges run Link -> Citation and are anchored on the `links`
         # stream; the model-build Citation -> Reference `cites` edges are a
