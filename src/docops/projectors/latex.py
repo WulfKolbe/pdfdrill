@@ -135,6 +135,41 @@ _DEFAULT_PREAMBLE = (
     # later load is the one that wins.
     "\\usepackage{stmaryrd}\n"
     "\\usepackage{extarrows}\n"
+    # T-0156 — A COMMAND THE AUTHOR'S CLASS PROVIDES AND WE DO NOT.
+    #
+    # `\dvtx` is imsart's spaced colon for "a function from … to …", and
+    # arxiv.0912.2444 writes `$H_i\dvtx [q^-]\rightarrow\mathbb{R}$` in its
+    # body maths. We keep our own `article`, so it arrived undefined: 16 of
+    # that document's errors, every one "Undefined control sequence".
+    #
+    # THE DEFINITION IS THE CLASS'S OWN, not a guess — arximspdf.cls:1110,
+    # copied including the `\mathchoice`, which is what gives the script sizes
+    # a wider gap than the text ones:
+    #
+    #     \def\dvtx{%
+    #       \mathchoice{\nobreak\,\colon\relax}%
+    #                  {\nobreak\,\colon\relax}%
+    #                  {\nobreak\,\colon\;\relax}%
+    #                  {\nobreak\,\colon\;\relax}}
+    #
+    # UNCONDITIONAL AND `\providecommand`, for the reason this preamble gives
+    # two entries up: "a symbol the projection can write and the preamble
+    # cannot resolve is not a rendering problem, it is a compile failure".
+    # `\providecommand` is a no-op where the real class is loaded, so this
+    # cannot override an author who has it.
+    #
+    # NOT A GENERAL RULE, and that was measured before it was written. Taking
+    # the bundled class's definition for every command the body uses and the
+    # preamble does not define reaches `\begin` 129 times and `\end` 129 on
+    # this same document — `\def\begin#1{\@ifundefined{pseudo@#1}...}`,
+    # which depends on `\org@begin` the class sets up elsewhere — plus
+    # `\section`, `\author` and `\address`. A class REDEFINES the kernel,
+    # and lifting that wholesale would replace LaTeX's own commands with
+    # fragments of someone else's class. So this is a named entry with a cited
+    # line, and it grows one measured entry at a time.
+    "\\providecommand{\\dvtx}{\\mathchoice{\\nobreak\\,\\colon\\relax}"
+    "{\\nobreak\\,\\colon\\relax}{\\nobreak\\,\\colon\\;\\relax}"
+    "{\\nobreak\\,\\colon\\;\\relax}}\n"
 )
 
 
