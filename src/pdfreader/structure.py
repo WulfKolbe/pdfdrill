@@ -103,6 +103,206 @@ _TERM_SEPARATORS = frozenset(",;")
 _TERM_BASELINE_EM = 0.25
 
 
+#: T-0154 — when two baselines inside one construct are two ROWS rather than a
+#: base and its script. MEASURED on lib:c57ac038ae5f p293: the entries of
+#: `[1 / -1/2]` sit 6.6 apart at one size (7.6) in one column; a superscript
+#: sits to the RIGHT of its base and is smaller.
+_ROW_GAP_EM = 0.35
+_ROW_OVERLAP = 0.5
+_ROW_SIZE_RATIO = 0.85
+#: How close to the row's own baseline counts as ON it. MEASURED on
+#: p293: a column vector's entries sit 0.26 em and 0.40 em off the row
+#: baseline, while an ordinary bracketed expression has body glyphs at
+#: 0.00. The first version reused _ROW_GAP_EM (0.35) and refused the
+#: vector itself, so the two constants are separate on purpose.
+_ON_BASELINE_EM = 0.1
+
+
+#: T-0154 — the sized delimiter commands `texmap._SIZE_CMD` builds, by side.
+_SIZED_LEFT = (r"\Biggl", r"\biggl", r"\Bigl", r"\bigl")
+_SIZED_RIGHT = (r"\Biggr", r"\biggr", r"\Bigr", r"\bigr")
+
+
+def _unsized(latex: str, sides) -> "str | None":
+    r"""`\bigl[` -> `[`, or None when it is not a sized delimiter of that side.
+
+    Longest prefix first, so `\Biggl` is not read as `\Bigg` + `l`.
+    """
+    for prefix in sides:
+        if latex.startswith(prefix):
+            return latex[len(prefix):]
+    return None
+
+
+def _merge_stacked_delimiters(glyphs: list[GlyphNode], depth: int):
+    r"""A sized delimiter pair holding stacked rows is an ARRAY.
+
+    `lib:c57ac038ae5f` p293 sets `t_0 = 3[1 / -1/2]` as `1` OVER `-1/2` inside
+    one big bracket. Read in x order the two rows interleave to `−11/2`, which
+    is what the reading carried, and the row then refused as a whole. MathPix
+    writes `\left[\begin{array}{c} 1 \\ -1/2 \end{array}\right]`.
+
+    `\left`/`\right` replaces the page's own `\big` size, because the array
+    sets its own height and a fixed size would no longer fit it.
+
+    ABSTAINS COMPLETELY rather than partly: if any row refuses, the whole run
+    is left as it was, so the caller still sees the delimiters and the glyphs
+    and can fall back. A half-built array would be `\begin{array}` with a
+    missing row — valid LaTeX saying something else.
+    """
+    gs = sorted(glyphs, key=lambda g: g.rect[0])
+    size = _row_size(gs)
+    #: The row's own baseline, by the vote `split_terms` uses: only the
+    #: full-size glyphs, because a script cannot outvote its base.
+    _full = [x for x in gs if x.size >= 0.85 * size] or gs
+    _votes: dict[float, int] = {}
+    for x in _full:
+        _votes[round(x.baseline, 1)] = _votes.get(round(x.baseline, 1), 0) + 1
+    row_baseline = (max(_votes.items(), key=lambda kv: kv[1])[0]
+                    if _votes else None)
+    out: list[GlyphNode] = []
+    i = 0
+    while i < len(gs):
+        g = gs[i]
+        lat = (g.tex.latex or "") if g.tex else ""
+        opener = _unsized(lat, _SIZED_LEFT) if (
+            g.tex and g.tex.kind == "delimiter") else None
+        if opener is None:
+            out.append(g)
+            i += 1
+            continue
+        #: THE MATCHING CLOSER, BY NESTING DEPTH — not the last one in the
+        #: row. Taking the outermost `\bigr]` let the first `\bigl[` of
+        #: p293's row swallow the three terms after it, because that row
+        #: carries four bracketed terms in a line. Depth-matching is what
+        #: makes a pair a pair.
+        j = closer = None
+        level = 0
+        for k in range(i + 1, len(gs)):
+            o = gs[k]
+            if not (o.tex and o.tex.kind == "delimiter"):
+                continue
+            if _unsized((o.tex.latex or ""), _SIZED_LEFT) is not None:
+                level += 1
+                continue
+            c = _unsized((o.tex.latex or ""), _SIZED_RIGHT)
+            if c is None:
+                continue
+            if level:
+                level -= 1
+                continue
+            j, closer = k, c
+            break
+        rows = (_stacked_rows(gs[i + 1:j], size, row_baseline)
+                if j is not None else None)
+        if not rows:
+            out.append(g)
+            i += 1
+            continue
+        parts = []
+        for r in rows:
+            one = to_tex(list(r), [], depth + 1)
+            if one is None:
+                parts = None
+                break
+            parts.append(one)
+        if not parts:
+            out.append(g)
+            i += 1
+            continue
+        body = r"\left%s\begin{array}{c}%s\end{array}\right%s" % (
+            opener, " \\\\ ".join(parts), closer)
+        inner = gs[i:j + 1]
+        #: IT SITS ON THE ROW'S BASELINE, NOT THE BRACKET'S. A big delimiter
+        #: is drawn raised — p293's `bracketleftbig` has baseline 106.9 in a
+        #: row whose baseline is 98.9 — so an atom that inherited the
+        #: bracket's baseline stood 8pt above its row at full size, which is
+        #: neither a script nor a sibling, and `_attach_scripts` refused the
+        #: whole row. The array behaves as one large symbol on the row's own
+        #: baseline; its height is in the rect. Only the full-size glyphs
+        #: OUTSIDE the delimiters vote, for the reason `split_terms` gives.
+        _outside = [x for x in gs if x not in inner]
+        _full = [x for x in _outside if x.size >= 0.85 * size] or _outside
+        _votes: dict[float, int] = {}
+        for x in _full:
+            _votes[round(x.baseline, 1)] = _votes.get(round(x.baseline, 1), 0) + 1
+        _base = (max(_votes.items(), key=lambda kv: kv[1])[0] if _votes
+                 else g.baseline)
+        out.append(GlyphNode(
+            id=g.id, page=g.page,
+            rect=(g.rect[0], min(x.rect[1] for x in inner),
+                  gs[j].rect[2], max(x.rect[3] for x in inner)),
+            text="", cid=-1, glyphname=None,
+            fontname="<array>", family="math-extension", size=size,
+            tex=TexToken(body, "atom", None, "corpus"),
+            matrix=(size, 0, 0, size, g.rect[0], _base),
+            # 733 — the synthesised atom keeps the EARLIEST stream index of
+            # the glyphs it replaces, as a fraction's does.
+            stream=min((x.stream for x in inner if x.stream >= 0), default=-1),
+        ))
+        i = j + 1
+    return out
+
+
+def _stacked_rows(glyphs, size: float, row_baseline: float | None = None):
+    r"""The rows of a stacked construct, TOP FIRST, or None if it is one row.
+
+    A higher baseline is a higher row: the y axis grows upward here, which the
+    fraction pass already relies on — `\alpha_0 = \frac{1}{2}` comes from `1`
+    at baseline 105.9 over `2` at 91.8.
+
+    TWO TESTS, BECAUSE A SCRIPT ALSO MAKES A SECOND BASELINE. `[x^2]` is one
+    row and `[1 / -1/2]` is two, and what separates them is not the baseline
+    gap:
+
+      * a stacked entry shares its sibling's COLUMN — the x-ranges overlap, as
+        a fraction's numerator and denominator overlap their bar;
+      * a stacked entry is the same SIZE as its sibling, where a script is
+        smaller than its base.
+
+    Both are required. Without the first, every parenthesised power becomes a
+    one-column array; without the second, a raised limit beside a full-size
+    operand does.
+    """
+    if not glyphs or size <= 0:
+        return None
+    bands: list[list[GlyphNode]] = []
+    for g in sorted(glyphs, key=lambda g: -g.baseline):
+        if bands and abs(bands[-1][0].baseline - g.baseline) <= _ROW_GAP_EM * size:
+            bands[-1].append(g)
+        else:
+            bands.append([g])
+    if len(bands) < 2:
+        return None
+    #: AND NOTHING MAY SIT ON THE ROW'S OWN BASELINE. This is the test that
+    #: separates a column vector from an ordinary parenthesised expression,
+    #: and it was missing: `\biggl(-\epsilon e_i^T r(y)) + \frac{1}{2}
+    #: \epsilon^2 e_i^T Ae_i\biggr)` on p293 line 8 also puts glyphs on two
+    #: bands of similar size in overlapping columns, so it was read as a
+    #: 2-row array and a line that had assembled CORRECTLY —
+    #: `\lim\limits_{\epsilon\rightarrow0} \frac{1}{\epsilon} ...` —
+    #: flattened instead. Measured as 4 lost `\epsilon` on the board.
+    #:
+    #: A stacked entry is NOT on the row's baseline: `3[1 / -1/2]` has its
+    #: two entries at 96.3 and 102.9 inside a row at 98.9, and nothing at
+    #: 98.9 between the brackets. An ordinary bracketed expression has its
+    #: body ON the baseline, with scripts and fractions around it.
+    if row_baseline is not None:
+        for b in bands:
+            if abs(b[0].baseline - row_baseline) <= _ON_BASELINE_EM * size:
+                return None
+    for a, b in zip(bands, bands[1:]):
+        ax0, ax1 = min(g.rect[0] for g in a), max(g.rect[2] for g in a)
+        bx0, bx1 = min(g.rect[0] for g in b), max(g.rect[2] for g in b)
+        over = min(ax1, bx1) - max(ax0, bx0)
+        if over < _ROW_OVERLAP * min(ax1 - ax0, bx1 - bx0):
+            return None                   # side by side: a script, not a row
+        sa, sb = max(g.size for g in a), max(g.size for g in b)
+        if min(sa, sb) < _ROW_SIZE_RATIO * max(sa, sb):
+            return None                   # one is smaller: a script
+    return [sorted(b, key=lambda g: g.rect[0]) for b in bands]
+
+
 def split_terms(glyphs: list[GlyphNode],
                 rules: list[RuleNode] | None = None) -> list[list[GlyphNode]]:
     r"""A display row's independent terms, left to right.
@@ -1190,6 +1390,11 @@ def to_tex(glyphs: list[GlyphNode], rules: list[RuleNode] | None = None,
     rules = [r for r in rules if r.role not in ("separator", "underscore")]
     if any(r.role not in ("fraction",) for r in rules):
         return None
+
+    # T-0154 — a delimiter pair holding stacked rows becomes one array
+    # atom before anything else reads the row, so its entries are never
+    # walked in x order and interleaved.
+    glyphs = _merge_stacked_delimiters(glyphs, depth)
 
     fracs, rest = _split_fractions(glyphs, rules)
 
