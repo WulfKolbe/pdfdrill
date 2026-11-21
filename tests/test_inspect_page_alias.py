@@ -47,7 +47,14 @@ def _fake_rasterize(tmp, w, h):
     the alias appears to update itself and the test passes while the product is
     broken. It did, on the first version of this file.
     """
-    def _r(pdf, out_dir, *, pages=None, dpi=400, fmt="png"):
+    def _r(pdf, out_dir, *, pages=None, dpi=400, fmt="png", gray=False,
+           use_cropbox=False):
+        # The double carries the REAL signature, and the frame is asserted
+        # rather than accepted: `_inspect_pages_dir` is this double's only
+        # caller and the inspector's boxes are in CropBox coordinates, so a
+        # render of the MediaBox puts every box beside its ink (d68e p24).
+        assert use_cropbox is True, \
+            "the inspector's page image must be the CropBox"
         out_dir = Path(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
         made = []

@@ -177,14 +177,23 @@ for ((p = first; p <= last; p++)); do
     [ -f "$target" ] && continue
     # png16m: Ghostscript does not halftone truecolour, so the image carries
     # the document's content rather than the rasterizer's dithering
-    gs -q -dNOPAUSE -dBATCH -dSAFER -sDEVICE=png16m -r"$DPI" \
+    #
+    # -dUseCropBox: the reading is in CropBox coordinates and the crop links
+    # divide by the page's declared width, so a MediaBox render puts every crop
+    # beside its ink. lib:d68e0271bd4d p24 is MediaBox 0 0 595 842 against
+    # CropBox 43 87 473 747 — two frames differing by a scale AND an origin. A
+    # page that declares no CropBox is unaffected.
+    gs -q -dNOPAUSE -dBATCH -dSAFER -sDEVICE=png16m -r"$DPI" -dUseCropBox \
        -dFirstPage="$p" -dLastPage="$p" \
        -sOutputFile="$target" "$PDF"
 done
 rendered=$(ls -1 "$PAGEDIR"/p*.png 2>/dev/null | wc -l)
 echo "   $rendered page image(s) in $PAGEDIR"
 # A manifest lets the image server check it was pointed at the right folder.
-printf '{"document": "%s", "dpi": %s, "pages": %s}\n' \
+# `frame` says which page box the images are of; `pdfdrill inspect`, the other
+# renderer of this folder, re-renders rather than reuse pages that do not say
+# "cropbox", so a MediaBox render made before the fix is never served again.
+printf '{"document": "%s", "dpi": %s, "pages": %s, "frame": "cropbox"}\n' \
     "$STEM" "$DPI" "$rendered" > "$PAGEDIR/manifest.json"
 
 # ---- 3. report ------------------------------------------------------------

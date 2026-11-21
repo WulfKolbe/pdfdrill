@@ -12113,7 +12113,13 @@ def _pages_on_disk(out: Path, pdf: Path, want: "list[int] | None",
         track the rasterizer rather than freeze at the DPI first used (the
         2409.18839 defect: canonical 5100x6600, alias still 3400x4400);
       * 819e — the manifest names the document its pages came from, because one
-        folder's crops once answered under another book's caption.
+        folder's crops once answered under another book's caption;
+      * the FRAME is the same kind of input as the DPI. Every render made before
+        the CropBox fix is a MediaBox render of the right document at the right
+        dpi, so without this it would be reused forever and the fix would reach
+        no folder that already holds pages — including the inspect sets a
+        rebuild is meant to correct. An absent `frame` is a render that did not
+        say, which is not the same as a render that said cropbox.
 
     The manifest is the only record of what the folder holds and both renderers
     write it (`inspect` here, `pdf2mmd.sh` there), so "no manifest" means
@@ -12132,6 +12138,8 @@ def _pages_on_disk(out: Path, pdf: Path, want: "list[int] | None",
         return {}                                  # 819e: another document's pages
     if int(man.get("dpi") or 0) != int(src_dpi):
         return {}
+    if man.get("frame") != "cropbox":
+        return {}                                  # a MediaBox render, or unsaid
     try:
         pdf_mtime = pdf.stat().st_mtime
     except OSError:
@@ -12169,6 +12177,19 @@ def _inspect_pages_dir(pdf: Path, sc: "Sidecar", pages: str | None,
 
     `reason` names what stopped a render, for the caller to report. A document
     with no page images is a FAILED inspector, not a quieter one.
+
+    THE FRAME IS THE CROPBOX, and this call rendered the MediaBox. The reading
+    is in CropBox coordinates — `test_a_page_is_its_cropbox_not_its_mediabox`
+    established that for the very same document — and the inspector scales a
+    render by `naturalWidth / page_width` with NO origin term
+    (`docinspect.py:1627`), so the two frames must be the same one. On
+    lib:d68e0271bd4d p24, MediaBox 0 0 595 842 against CropBox 43 87 473 747,
+    that scale was 3306/1494 = 2.21 where the truth is 1.60, and every drawn box
+    sat away from its ink. A page with no declared CropBox is unaffected, which
+    is why the other nine board documents do not move.
+
+    `dpi` is FLOORED TO 400 by `rasterize`, so a src_dpi below that renders
+    higher than the number returned here. `cmd_inspect` passes 400.
     """
     import os
     from . import pdf_reading
@@ -12190,7 +12211,8 @@ def _inspect_pages_dir(pdf: Path, sc: "Sidecar", pages: str | None,
         return out, src_dpi, ""                    # nothing left to render
     missing = [n for n in want if n not in have] if want is not None else None
     try:
-        imgs = pdf_reading.rasterize(pdf, out, pages=missing, dpi=src_dpi)
+        imgs = pdf_reading.rasterize(pdf, out, pages=missing, dpi=src_dpi,
+                                     use_cropbox=True)
     except RuntimeError as e:                      # gs missing
         if have:
             _write_pages_manifest(out, pdf, src_dpi)
@@ -12249,6 +12271,11 @@ def _write_pages_manifest(out: Path, pdf: Path, dpi: int) -> None:
       `coord`      [width, height] of the lines.json coordinate space, which is
                    what `scale()` divides the image dimensions by
 
+    `frame` states WHICH PAGE BOX the images are of. It is always "cropbox"
+    now; it exists so that a MediaBox render made before the fix is not reused
+    as though it were one (`_pages_on_disk`). `pdf2mmd.sh`, the other renderer
+    of this folder, writes the same field.
+
     Written by whoever rendered the pages, which is the only place that knows
     both. Rewritten on every `inspect` run, so a regenerated lines.json cannot
     leave it stale. Never fatal: a missing manifest costs a warning, and failing
@@ -12259,7 +12286,8 @@ def _write_pages_manifest(out: Path, pdf: Path, dpi: int) -> None:
         # keeps beside the aliases, so it counted every page twice (38 for a
         # 19-page paper). The aliases are what a server serves.
         n = len([q for q in out.glob("p[0-9]*.png")])
-        man = {"document": pdf.stem, "dpi": int(dpi), "pages": n}
+        man = {"document": pdf.stem, "dpi": int(dpi), "pages": n,
+               "frame": "cropbox"}
         ids, coord = _lines_image_index(pdf)
         if ids:
             man["image_ids"] = ids

@@ -142,8 +142,12 @@ def _doc_with_renders(d: Path, model: dict, rendered: "list[int]", *,
     for n in rendered:
         Image.new("RGB", (100, 140), (255, 255, 255)).save(pages / f"p{n}.png")
     if manifest:
+        # `frame` is what the renderers write now; without it the folder is a
+        # MediaBox render as far as `_pages_on_disk` is concerned and is
+        # re-rendered, which is the point of the field, not of this fixture.
         (pages / "manifest.json").write_text(json.dumps(
-            {"document": "demo", "dpi": dpi, "pages": len(rendered)}))
+            {"document": "demo", "dpi": dpi, "pages": len(rendered),
+             "frame": "cropbox"}))
     # the page count `_inspect_pages_dir` enumerates; pdfinfo cannot answer for
     # an 8-byte stub, and a real document carries it from the probe.
     sc = Sidecar(pdf)
@@ -278,7 +282,8 @@ def test_a_render_from_another_document_is_not_reused(monkeypatch):
         pdf = _doc_with_renders(Path(d), _model(), [1], n_pages=1)
         pages = Path(d) / "demo.pdf.drill" / "inspect" / "pages"
         (pages / "manifest.json").write_text(json.dumps(
-            {"document": "someone-elses-book", "dpi": 400, "pages": 1}))
+            {"document": "someone-elses-book", "dpi": 400, "pages": 1,
+             "frame": "cropbox"}))
         monkeypatch.setattr(C, "_stale_or_absent", lambda *a, **k: False)
         calls = _spy_rasterize(monkeypatch)
         cmd_inspect(pdf, embed=True, images=True)

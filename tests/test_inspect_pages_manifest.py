@@ -21,7 +21,8 @@ def test_the_manifest_names_the_document_and_counts_the_pages(tmp_path):
         (tmp_path / f"p{n}.png").write_bytes(b"x")
     _write_pages_manifest(tmp_path, Path("/lib/arxiv.2609.12039.pdf"), 400)
     got = json.loads((tmp_path / "manifest.json").read_text())
-    assert got == {"document": "arxiv.2609.12039", "dpi": 400, "pages": 3}
+    assert got == {"document": "arxiv.2609.12039", "dpi": 400, "pages": 3,
+                   "frame": "cropbox"}
 
 
 def test_the_page_count_does_not_double_count_the_originals(tmp_path):
@@ -36,11 +37,14 @@ def test_the_page_count_does_not_double_count_the_originals(tmp_path):
 
 def test_the_shape_is_the_one_the_servers_read(tmp_path):
     """`document` is what the server compares against its --pages/--lines
-    arguments; the other two are informational. Keys, not extras."""
+    arguments, and `frame` says which page box the images are of — the two
+    fields a consumer can be WRONG about. `dpi` and `pages` are informational.
+    Keys, not extras."""
     (tmp_path / "p1.png").write_bytes(b"x")
     _write_pages_manifest(tmp_path, Path("/lib/doc.pdf"), 250)
     got = json.loads((tmp_path / "manifest.json").read_text())
-    assert set(got) == {"document", "dpi", "pages"}
+    assert set(got) == {"document", "dpi", "pages", "frame"}
+    assert got["frame"] == "cropbox"
 
 
 def test_an_unwritable_folder_is_not_fatal(tmp_path):

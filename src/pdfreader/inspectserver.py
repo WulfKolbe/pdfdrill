@@ -298,17 +298,33 @@ class Pages:
         show a figure from an entirely different book under the right caption.
         The renderer now writes a manifest; this compares it with the PDF and
         the lines.json, and says so plainly when they disagree.
+
+        It also checks WHICH PAGE BOX the images are of. A reading is in CropBox
+        coordinates and every crop here divides by the page's declared width
+        with no origin term, so a MediaBox render puts each crop beside its ink
+        wherever the two boxes differ — lib:d68e0271bd4d is MediaBox
+        0 0 595 842 against CropBox 43 87 473 747 on 422 of its 425 pages. A
+        render made before that fix says nothing about its frame, and silence is
+        not "cropbox".
         """
         notes: list[str] = []
         man = os.path.join(self.root, "manifest.json")
         doc = None
+        frame = None
         if os.path.exists(man):
             try:
                 with open(man, encoding="utf-8") as fh:
                     info = json.load(fh)
                 doc = info.get("document")
+                frame = info.get("frame")
             except (OSError, ValueError):
                 doc = None
+        if doc is not None and frame != "cropbox":
+            notes.append(
+                f"these page images do not state that they are of the CropBox "
+                f"(frame={frame!r}). On a document whose CropBox differs from "
+                f"its MediaBox every crop will land off its ink. Re-render them "
+                f"(`pdfdrill inspect` or pdf2mmd.sh).")
 
         for src in (pdf, *(lines_paths or [])):
             if not src or not doc:
@@ -511,11 +527,18 @@ class Pages:
         png16m, not png256: Ghostscript does not halftone truecolour, so what
         reaches a topology pass is the document\'s own content rather than the
         rasterizer\'s dithering.
+
+        -dUseCropBox: this is the SAME FRAME question as the stored page
+        images. `rect` is in the rendered image\'s own pixels and a caller
+        computes it from the reading, which is in CropBox coordinates — so a
+        MediaBox render here crops the wrong part of the page wherever the two
+        boxes differ (lib:d68e0271bd4d, 422 of 425 pages). A page that declares
+        no CropBox is unaffected: the two boxes are the same one there.
         """
         if not self.pdf:
             raise ValueError("no --pdf given, so /render is unavailable")
         cmd = [self.gs, "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER",
-               f"-sDEVICE={device}", f"-r{dpi}",
+               f"-sDEVICE={device}", f"-r{dpi}", "-dUseCropBox",
                f"-dFirstPage={page}", f"-dLastPage={page}",
                "-sOutputFile=-", self.pdf]
         try:

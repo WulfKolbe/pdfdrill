@@ -232,12 +232,14 @@ class TestPageImagesBelongToTheDocument:
     renderer now namespaces by document and writes a manifest.
     """
 
-    def _dir(self, tmp_path, document="Alpha"):
+    def _dir(self, tmp_path, document="Alpha", frame="cropbox"):
         import json
         d = tmp_path / "pages"
         d.mkdir()
-        (d / "manifest.json").write_text(
-            json.dumps({"document": document, "dpi": 250, "pages": 2}))
+        man = {"document": document, "dpi": 250, "pages": 2}
+        if frame is not None:
+            man["frame"] = frame
+        (d / "manifest.json").write_text(json.dumps(man))
         return str(d)
 
     def test_mismatch_is_reported(self, tmp_path):
@@ -264,6 +266,27 @@ class TestPageImagesBelongToTheDocument:
         """Serving images alone, with nothing to check against, is fine."""
         p = inspectserver.Pages(self._dir(tmp_path), [], None, None, "gs")
         assert p.check_identity([], None) == []
+
+    def test_a_render_that_does_not_state_the_cropbox_is_reported(self, tmp_path):
+        """A reading is in CropBox coordinates and a crop divides by the page's
+        declared width with no origin term, so a MediaBox render lands beside
+        its ink wherever the two boxes differ (lib:d68e0271bd4d, 422 of 425
+        pages). A manifest written before that fix says nothing, and silence is
+        not "cropbox"."""
+        d = self._dir(tmp_path, frame=None)
+        p = inspectserver.Pages(d, [], None, None, "gs")
+        notes = p.check_identity([], "/somewhere/Alpha.pdf")
+        assert notes and "CropBox" in notes[0]
+
+    def test_a_mediabox_render_is_reported(self, tmp_path):
+        d = self._dir(tmp_path, frame="mediabox")
+        p = inspectserver.Pages(d, [], None, None, "gs")
+        notes = p.check_identity([], "/somewhere/Alpha.pdf")
+        assert notes and "mediabox" in notes[0]
+
+    def test_a_cropbox_render_is_silent_about_its_frame(self, tmp_path):
+        p = inspectserver.Pages(self._dir(tmp_path), [], None, None, "gs")
+        assert p.check_identity([], "/somewhere/Alpha.pdf") == []
 
 
 class TestACoordinateRatioIsNotAMismatch:
