@@ -3420,81 +3420,10 @@ def _split_at_columns(rows: list[list["GlyphNode"]],
     return out
 
 
-#: T-0154 — how far above or below its bar a fraction's operand may sit, and
-#: how much of the bar's x-span its row must stay inside. MEASURED on
-#: lib:c57ac038ae5f p293's `\alpha_1 = \frac{1}{2}`: bar at y 73.5 spanning
-#: x 181.7..186.7, numerator at baseline 78.1 (4.6 above), denominator at
-#: 64.1 (9.4 below), both at x 181.7 — inside the bar.
-_FRAC_OPERAND_EM = 1.3
-
-
-def _fold_fraction_operands(rows, rules, key):
-    r"""A fraction's numerator and denominator join the row its BAR sits in.
-
-    p293 writes `α1 = ,` — the value LOST — against MathPix's and reader B's
-    `\alpha_{1}=\frac{1}{2}`, because the three parts of that one fraction
-    landed on three different rows:
-
-        row 28   `α1 =` and the `,`   baseline 71.2    + the bar, y 73.5
-        row 29   `1`  the numerator   baseline 78.1
-        row 30   `2`  the denominator baseline 64.1
-
-    The script fold above cannot gather them: it folds a row only when the row
-    is CLEARLY SMALLER, and a display fraction's operands are FULL SIZE — 10.0
-    against the row's 10.0. With no glyph above or below it, `_rule_role` then
-    called the bar an `overline` and the merge produced nothing.
-
-    THE BAR'S X-SPAN IS THE EVIDENCE AND IT IS STRICT. A row lying ENTIRELY
-    within the bar's x-range, within `_FRAC_OPERAND_EM` of it in y, is an
-    operand. A row that extends past the bar is a line of the document that
-    merely passes above or below it, and folding such rows is how the two
-    earlier attempts recorded in `_group_lines` scrambled a page.
-
-    AND BOTH SIDES MUST BE THERE. A bar with an operand row on one side only
-    is an `\overline` or a minus sign, not a fraction, so nothing is folded —
-    which is also what `_rule_role` decides from.
-    """
-    if not rows or not rules:
-        return rows
-    out = [list(r) for r in rows]
-    for rule in rules:
-        if getattr(rule, "role", "") != "fraction":
-            continue
-        bx0, by0, bx1, by1 = rule.rect
-        bar_y = 0.5 * (by0 + by1)
-        host = above = below = None
-        host_d = None
-        for i, row in enumerate(out):
-            if not row:
-                continue
-            size = max(g.size for g in row) or 1.0
-            rx0 = min(g.rect[0] for g in row)
-            rx1 = max(g.rect[2] for g in row)
-            base = sum(key(g) for g in row) / len(row)
-            inside = rx0 >= bx0 - 1 and rx1 <= bx1 + 1
-            if inside and 0 < base - bar_y <= _FRAC_OPERAND_EM * size:
-                above = i if above is None else above
-            elif inside and 0 < bar_y - base <= _FRAC_OPERAND_EM * size:
-                below = i if below is None else below
-            elif rx1 > bx0 and rx0 < bx1:
-                #: the bar sits on the maths axis of its own row, about a
-                #: quarter of the type size above that row's baseline
-                d = abs(base + 0.25 * size - bar_y)
-                if d <= 0.75 * size and (host_d is None or d < host_d):
-                    host, host_d = i, d
-        if host is None or above is None or below is None:
-            continue                       # not a fraction across rows
-        for i in (above, below):
-            out[host].extend(out[i])
-            out[i] = []
-    return [r for r in out if r]
-
-
 def _group_lines(glyphs: list[GlyphNode],
                  tol_factor: float = 0.45,
                  rect: Rect | None = None,
-                 line_bands: list | None = None,
-                 rules: "list[RuleNode] | None" = None) -> list[list[GlyphNode]]:
+                 line_bands: list | None = None) -> list[list[GlyphNode]]:
     """Group glyphs into visual lines by BASELINE, not by box overlap.
 
     Box overlap fails on mathematics: a display equation is two or three times
@@ -3706,16 +3635,21 @@ def _group_lines(glyphs: list[GlyphNode],
     # by stream adjacency has to come first; then this line is uncommented.
     rows = _rejoin_accents(rows)
 
-    #: T-0154 — A FRACTION'S OPERANDS JOIN THE ROW ITS BAR SITS IN, after the
-    #: script fold, which cannot reach them: they are FULL SIZE. See
-    #: `_fold_fraction_operands` for p293's `\alpha_1 = \frac{1}{2}`, whose
-    #: value was lost entirely because its three parts lay on three rows.
-    if rules:
-        rows = _fold_fraction_operands(rows, rules, key)
+    #: T-0154 — A THIRD FOLD STOOD HERE AND IS GONE. `_fold_fraction_operands`
+    #: joined a fraction's operand rows to the row its bar sits in, added for
+    #: p293's `\alpha_1 = \frac{1}{2}` whose value was lost entirely. MEASURED
+    #: afterwards over all 30 board pages: with it disabled the projection is
+    #: IDENTICAL, p293's `\alpha_1 = \frac{1}{2}` included — though it did fire,
+    #: merging 24 rows across 6 pages, 6 of them on p293 itself. The merge at
+    #: `_near_rows` below already joins those same rows for every `fraction`
+    #: rule, so this was a stricter spelling of a job already done. α1 was
+    #: recovered by the `_rule_role` delimiter exclusion, which made that bar a
+    #: `fraction` in the first place; the fold rode along and took the credit.
+    #: Three folds have now stood in this spot and none of them survived.
 
-    # Again AFTER the fold: folding a script row into its base can bridge two
-    # runs the stream says were never together, putting the line numbers of
-    # one listing line onto the next.
+    # AFTER the script fold above: folding a script row into its base can
+    # bridge two runs the stream says were never together, putting the line
+    # numbers of one listing line onto the next.
     rows = _split_by_stream(rows)
     return [sorted(r, key=lambda g: g.rect[0]) for r in rows]
 
@@ -4043,8 +3977,7 @@ def build(path: str, pages: Iterable[int] | None = None, *,
         upright_glyphs = _merge_extenders(upright_glyphs)
         _bar_by_its_spacing(upright_glyphs)
         groups = _group_lines(upright_glyphs, rect=layout.bbox,
-                              line_bands=line_bands_by_page.get(pno),
-                              rules=rules)
+                              line_bands=line_bands_by_page.get(pno))
         groups = _split_local_columns(groups, layout.bbox)
         # THE GUTTER IS EVIDENCE, AND IT OUTRANKS EVERY MERGE BELOW.
         #
