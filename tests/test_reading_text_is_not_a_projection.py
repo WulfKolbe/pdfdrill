@@ -16,6 +16,14 @@ with `pdfdrill glyphlines` before and after the change:
 so `span_reading_text` returns the characters the page carries instead. The
 deferral is not lost: the line record already states it three ways
 (`deferred_glyphs`, `complete: false`, `confidence: 0.0`).
+
+T-0156 — AND THE READING ALSO CARRIES THE FACE. `span_reading_text` wraps a
+prose span in `\textbf`/`\textit`/`\texttt`/`\textsc` when every glyph of it
+agrees, because the ink judge sets each line from this field and takes only
+the font family from the page (`inkdrill judge.py:1269`). That makes the
+reading and `span_text` differ for prose, which they did not before; the
+equality test below now reads modulo those wrappers and still asserts the
+thing this file is about, which is that a reading is not a projection.
 """
 import sys
 from pathlib import Path
@@ -61,9 +69,24 @@ def test_the_markdown_projection_still_says_where_it_gave_up():
     assert "reason=" in out
 
 
-def test_prose_is_the_same_string_in_both():
+def test_prose_is_the_same_string_in_both_once_the_face_is_taken_off():
+    r"""T-0156 — the two strings were IDENTICAL for prose, and are no longer.
+    The reading now carries the face the page set a run in (`\textit{ab}`
+    here, because the fixture's `CMMI10` is an italic face), because the ink
+    judge sets each line from the reading and takes only the font family from
+    the page; the markdown projection does not, because `**bold**` is what
+    markdown would need and that is a separate change.
+
+    THE INVARIANT THIS TEST EXISTS FOR IS UNCHANGED, and is what is asserted
+    below: the reading is not a projection. It carries no `<!-- DEFERRED -->`
+    comment and no note to a reader — only the page's characters, now with
+    the page's face around them. Equality is therefore asserted modulo the
+    wrappers, not abandoned.
+    """
     sp = _span("text", [_glyph("a", 0, 6), _glyph("b", 7, 12)])
-    assert docmodel.span_reading_text(sp) == docmodel.span_text(sp)
+    reading = docmodel.span_reading_text(sp)
+    assert texmap.unwrap_emphasis(reading) == docmodel.span_text(sp)
+    assert "<!--" not in reading and "DEFERRED" not in reading, reading
 
 
 def test_typed_maths_is_the_same_string_in_both():
@@ -78,7 +101,7 @@ def test_typed_maths_is_the_same_string_in_both():
 if __name__ == "__main__":
     for fn in (test_the_reading_keeps_the_characters_the_page_carries,
                test_the_markdown_projection_still_says_where_it_gave_up,
-               test_prose_is_the_same_string_in_both,
+               test_prose_is_the_same_string_in_both_once_the_face_is_taken_off,
                test_typed_maths_is_the_same_string_in_both):
         fn()
     print("ok")

@@ -194,3 +194,113 @@ def test_the_two_reverted_families_are_still_not_detected():
         tex = M.to_latex([_page(font)], preamble=False)
         for cmd in (r"\textbf{", r"\textit{"):
             assert cmd not in tex, (font, cmd)
+
+
+#: ------------------------------------------------------------------
+#: AND THE READING CARRIES IT TOO, because the judge reads the READING.
+#:
+#: The judge sets each line from our `lines.json` text and takes only the font
+#: family from the page (`inkdrill judge.py:1269`), so wrappers that reached
+#: only the `.tex` could not move `style_rate` — the readings were
+#: byte-identical. `glyphlines` therefore writes them into the reading's own
+#: `text`/`text_display`, as it already writes maths as `$...$`.
+#:
+#: WHICH MEANS TWO SETS OF EYES READ THAT FIELD, and both had to be given the
+#: text without them. Measured on 0864 p4, before the unwrapping was added:
+#:
+#:   the reader   `generated_by` reads `rec["text"]` to spot a counter shape.
+#:                `\textbf{1.` is not one, so `list_item` went 76 -> 0 in the
+#:                reading itself and `text` 150 -> 226.
+#:   the model    three modules classify by the start of a line —
+#:                ListProcessor `list_items_created` 77 -> 1, HeaderProcessor
+#:                `levels_from_section_number` 5 -> 0, ParagraphProcessor
+#:                `paragraphs_created` 27 -> 45.
+#:
+#: So `texmap.unwrap_emphasis` serves the reader's own classifiers and
+#: `docmodel.text_utils.strip_face_wrappers` the model's ingest. The two are
+#: deliberately separate functions because pdfreader does not import docmodel.
+
+
+def test_the_reading_carries_the_wrappers():
+    """What the judge reads. `span_reading_text` is the single point where a
+    span becomes the reading's text."""
+    from pdfreader.docmodel_six import span_reading_text
+    page = _page("ABC+CMBX10")
+    sp = page.lines[0].spans[0]
+    assert span_reading_text(sp) == r"\textbf{abc}"
+
+
+def test_the_projection_for_people_does_not():
+    """`span_text` is the markdown/explanatory projection and is a different
+    function — the first edit of this change patched it by mistake, which
+    would have put LaTeX into the `.md`."""
+    from pdfreader.docmodel_six import span_text
+    page = _page("ABC+CMBX10")
+    assert span_text(page.lines[0].spans[0]) == "abc"
+
+
+def test_unwrapping_is_the_exact_inverse():
+    from pdfreader.texmap import unwrap_emphasis, wrap_emphasis
+    for text, faces in (("abc", {"A+CMBX10"}), ("abc", {"A+CMTI10"}),
+                        ("abc", {"A+CMTT8"}), ("x y", {"A+CMBXTI10"}),
+                        ("1.", {"A+CMBX10"}), ("plain", {"A+CMR10"})):
+        assert unwrap_emphasis(wrap_emphasis(text, faces)) == text, (text, faces)
+
+
+def test_unwrapping_keeps_the_texts_own_braces_and_maths():
+    from pdfreader.texmap import unwrap_emphasis
+    for s in (r"\frac{1}{2}", "a{b}c", r"$\textbf{x}$ is odd", "", "plain"):
+        if s == r"$\textbf{x}$ is odd":
+            assert unwrap_emphasis(s) == "$x$ is odd"
+        else:
+            assert unwrap_emphasis(s) == s, s
+
+
+def test_the_model_strips_them_at_ingest():
+    """The model is a different consumer and for it they are noise. Its own
+    emphasis comes from `fontspans`, which reads the glyph layer."""
+    from docmodel.core import Document
+    from docmodel.modules.page import ingest_lines_json
+    doc = Document()
+    ingest_lines_json(doc, {"pages": [{"page": 1, "lines": [
+        {"type": "text", "text": r"\textbf{3} RANKINGS",
+         "text_display": r"\textbf{3} RANKINGS"}]}]})
+    pl = list(doc.streams["mathpix_lines"].payload.values())[0]
+    assert pl["text"] == "3 RANKINGS", pl["text"]
+    assert pl["text_display"] == "3 RANKINGS", pl["text_display"]
+
+
+def test_the_model_leaves_real_latex_alone_at_ingest():
+    """Maths in a reading's text is the reading's content, not markup of
+    ours: `$\frac{1}{2}$` must survive ingest untouched."""
+    from docmodel.core import Document
+    from docmodel.modules.page import ingest_lines_json
+    doc = Document()
+    ingest_lines_json(doc, {"pages": [{"page": 1, "lines": [
+        {"type": "text", "text": r"let $\frac{1}{2}$ be"}]}]})
+    pl = list(doc.streams["mathpix_lines"].payload.values())[0]
+    assert pl["text"] == r"let $\frac{1}{2}$ be", pl["text"]
+
+
+def test_a_text_whose_braces_do_not_balance_is_not_wrapped():
+    r"""MEASURED on lib:025faeafae2f p153, one line of 189: the page prints a
+    literal `}` and the reading's text is `equate 2}!Jz by`. Wrapped, that
+    becomes `\textit{equate 2}!Jz by}` — the group closes at the page's own
+    brace and a stray `}` is left over. Malformed LaTeX, and it does not
+    survive the round trip either, which is how the board run found it.
+
+    Abstaining costs one line's emphasis across the whole board set."""
+    from pdfreader.texmap import unwrap_emphasis, wrap_emphasis
+    bad = "equate 2}!Jz by"
+    assert wrap_emphasis(bad, {"A+CMTI10"}) == bad
+    assert unwrap_emphasis(wrap_emphasis(bad, {"A+CMTI10"})) == bad
+    # and the balanced case is unaffected
+    assert wrap_emphasis("a{b}c", {"A+CMTI10"}) == r"\textit{a{b}c}"
+    assert unwrap_emphasis(r"\textit{a{b}c}") == "a{b}c"
+
+
+def test_an_unmatched_opening_brace_is_refused_too():
+    """Both directions of imbalance, not only the one the page showed."""
+    from pdfreader.texmap import wrap_emphasis
+    for bad in ("a{b", "{", "}", "a}b{c"):
+        assert wrap_emphasis(bad, {"A+CMBX10"}) == bad, bad

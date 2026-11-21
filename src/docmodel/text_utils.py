@@ -28,6 +28,71 @@ PRESERVE_PREFIXES = {
 }
 
 
+#: T-0156 — THE FACE WRAPPERS A READING MAY CARRY.
+#:
+#: `pdfdrill glyphlines` writes the face the page set a run in into the
+#: reading's own `text`, as it already writes maths as `$...$`, because the
+#: ink judge sets each line from that field and takes only the font family
+#: from the page (`inkdrill judge.py:1269`) — so a wrapper that reached only
+#: the `.tex` projection could not move `style_rate`.
+#:
+#: THE MODEL IS A DIFFERENT CONSUMER and for it they are noise. Measured on
+#: 0864 p4, building the model from a reading that carries them:
+#:
+#:     ListProcessor    list_items_created      77 -> 1
+#:     HeaderProcessor  levels_from_section_number 5 -> 0
+#:     ParagraphProcessor  paragraphs_created    27 -> 45
+#:
+#: because `\textbf{3} RANKINGS ...` does not start with a digit, a bullet or
+#: a capital any more. Three modules, and more would follow: every rule that
+#: pattern-matches the start of a line. So they come off ONCE, here, where
+#: the reading enters the model — not in each reader, and not by weakening
+#: any of those patterns.
+#:
+#: Nothing is lost: the model's own emphasis comes from `fontspans`, which
+#: reads the glyph layer directly, and the reading on disk keeps the
+#: wrappers for the judge and for the LaTeX projection.
+_FACE_WRAPPERS = ("\\textbf{", "\\textit{", "\\texttt{", "\\textsc{")
+
+
+def strip_face_wrappers(text: str) -> str:
+    r"""`text` with `\textbf{…}` and its siblings unwrapped, braces and all.
+
+    Brace-matched rather than regex-replaced, because the wrappers nest
+    (`\textbf{\textit{x}}`) and because a brace of the text's own must
+    survive: `a{b}c` is returned unchanged.
+    """
+    if not text or "\\text" not in text:
+        return text
+    out: list = []
+    opened: list = []          # the depths at which a wrapper's group opened
+    depth = 0
+    i = 0
+    n = len(text)
+    while i < n:
+        for cmd in _FACE_WRAPPERS:
+            if text.startswith(cmd, i):
+                opened.append(depth)
+                depth += 1
+                i += len(cmd)
+                break
+        else:
+            ch = text[i]
+            if ch == "{":
+                depth += 1
+                out.append(ch)
+            elif ch == "}":
+                depth -= 1
+                if opened and opened[-1] == depth:
+                    opened.pop()          # the wrapper's own closing brace
+                else:
+                    out.append(ch)
+            else:
+                out.append(ch)
+            i += 1
+    return "".join(out)
+
+
 def is_soft_break(tail_word: str, next_token: str) -> bool:
     """
     Decide whether `tail_word-` at end-of-line is a soft hyphen (should join)

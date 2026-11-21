@@ -2099,21 +2099,8 @@ def _emphasis(glyphs) -> list[str]:
     already know `NimbusRomNo9L-Medi` is Times bold (814) and `CMTT8` is a
     typewriter face.
     """
-    faces = {g.fontname for g in glyphs if (g.text or "").strip()}
-    if not faces:
-        return []
-    out = []
-    #: Typewriter outermost: it changes the family, and bold or italic then
-    #: selects within it (`\texttt{\textbf{x}}` is bold typewriter, while
-    #: `\textbf{\texttt{x}}` asks for the same thing the other way round and
-    #: is what LaTeX's own font-selection notes recommend against).
-    for test, cmd in ((texmap.is_monospace, r"\texttt"),
-                      (texmap.is_small_caps, r"\textsc"),
-                      (texmap.is_bold, r"\textbf"),
-                      (texmap.is_italic, r"\textit")):
-        if all(test(f) for f in faces):
-            out.append(cmd)
-    return out
+    return texmap.emphasis_for(
+        {g.fontname for g in glyphs if (g.text or "").strip()})
 
 
 def _style(rgb, bold: bool, italic: bool, name: str) -> str:

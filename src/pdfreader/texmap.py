@@ -384,6 +384,113 @@ def is_bold(fontname: str) -> bool:
     return bool(_BOLD_NAME.search(fontname.split("+")[-1]))
 
 
+def emphasis_for(fontnames) -> list:
+    r"""The LaTeX wrappers these faces call for, outermost first.
+
+    T-0156. Every face in `fontnames` must agree, or nothing is returned: one
+    letter from another subset must not set a whole word bold. See
+    `project_mmd._emphasis` for the measurement this comes from — 4,804 glyphs
+    on the board set that the ink sets emphasised and our output set plain.
+
+    Typewriter outermost, because it changes the family and bold or italic
+    then selects within it; small caps, bold, italic after it.
+
+    HERE rather than in either caller, because there are two: the LaTeX
+    projection and the READING's own `text`. The judge sets each line from the
+    reading (`judge.py:1269`), so a wrapper that reaches only the `.tex` is
+    invisible to it.
+    """
+    faces = {f for f in fontnames if f}
+    if not faces:
+        return []
+    out = []
+    for test, cmd in ((is_monospace, r"\texttt"),
+                      (is_small_caps, r"\textsc"),
+                      (is_bold, r"\textbf"),
+                      (is_italic, r"\textit")):
+        if all(test(f) for f in faces):
+            out.append(cmd)
+    return out
+
+
+def _braces_balance(text: str) -> bool:
+    """Does every `}` in `text` close a `{` of its own?
+
+    MEASURED on lib:025faeafae2f p153, one line of 189: the page prints a
+    literal `}` and the reading's text is `equate 2}!Jz by`. Wrapped, that
+    becomes `\textit{equate 2}!Jz by}` — the group closes at the page's own
+    brace and a stray `}` is left at the end, which is malformed LaTeX and
+    does not survive a round trip either.
+    """
+    depth = 0
+    for ch in text:
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth < 0:
+                return False
+    return depth == 0
+
+
+def wrap_emphasis(text: str, fontnames) -> str:
+    r"""`text` wrapped in the commands `emphasis_for` returns, or unchanged.
+
+    A text whose braces do not balance is NOT wrapped: see `_braces_balance`.
+    Abstaining costs one line's emphasis on the board set; wrapping it anyway
+    writes LaTeX that closes a group in the middle of the line.
+    """
+    if not text.strip() or not _braces_balance(text):
+        return text
+    for cmd in reversed(emphasis_for(fontnames)):
+        text = "%s{%s}" % (cmd, text)
+    return text
+
+
+def unwrap_emphasis(text: str) -> str:
+    r"""`text` with the face wrappers taken off again, braces and all.
+
+    The reading's `text` carries them for the judge, and the reader's OWN
+    classifiers read the start of that string — `\textbf{1.` is not a counter
+    shape, and 76 of 0864 p4's `list_item` lines came back as `text` until
+    this was applied. Brace-matched, because the wrappers nest and a brace of
+    the text's own must survive.
+
+    `docmodel.text_utils.strip_face_wrappers` is the same function on the
+    model's side of the seam; the two are deliberately independent, because
+    pdfreader does not import docmodel.
+    """
+    if not text or "\\text" not in text:
+        return text
+    out: list = []
+    opened: list = []
+    depth = 0
+    i = 0
+    n = len(text)
+    while i < n:
+        for cmd in (r"\textbf{", r"\textit{", r"\texttt{", r"\textsc{"):
+            if text.startswith(cmd, i):
+                opened.append(depth)
+                depth += 1
+                i += len(cmd)
+                break
+        else:
+            ch = text[i]
+            if ch == "{":
+                depth += 1
+                out.append(ch)
+            elif ch == "}":
+                depth -= 1
+                if opened and opened[-1] == depth:
+                    opened.pop()
+                else:
+                    out.append(ch)
+            else:
+                out.append(ch)
+            i += 1
+    return "".join(out)
+
+
 def family_of(fontname: str) -> str:
     base = fontname.split("+")[-1]
     for rx, label in FAMILY_RULES:

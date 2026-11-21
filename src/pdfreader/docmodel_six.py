@@ -5190,7 +5190,8 @@ def _mark_generated_text(out: dict) -> None:
     for page_rec in out.get("pages") or []:
         for rec in page_rec.get("lines") or []:
             if rec.get("type") == "section_header":
-                scope = _gt.section_generator(rec.get("text") or "")
+                scope = _gt.section_generator(
+                    texmap.unwrap_emphasis(rec.get("text") or ""))
                 if scope:
                     rec["generated_scope"] = scope
                     rec["latex"] = _gt.GENERATOR_LATEX.get(scope)
@@ -5198,7 +5199,13 @@ def _mark_generated_text(out: dict) -> None:
             if rec.get("type") == "equation_number":
                 g = "equation_number"
             else:
-                g = _gt.generated_by(rec.get("text") or "",
+                # T-0156 — WITHOUT THE FACE WRAPPERS. `rec["text"]`
+                # now carries them for the judge, and this test reads
+                # the START of the line: `\textbf{1.` is not a
+                # counter shape, so 76 of 0864 p4's list items came
+                # back as `text` and its model lost them all.
+                g = _gt.generated_by(
+                    texmap.unwrap_emphasis(rec.get("text") or ""),
                                      line_type=rec.get("type") or "") or scope
             if not g:
                 continue
@@ -5845,7 +5852,15 @@ def span_reading_text(sp: Span) -> str:
     reading is for; `to_markdown` keeps the explicit marker.
     """
     if sp.kind == "text":
-        return _run_text(sp.glyphs)
+        # T-0156 — AND THE FACE THE PAGE SET IT IN. The reading's `text`
+        # already carries LaTeX for maths (`$...$` below), and the judge sets
+        # each line from THIS field (`judge.py:1269`), taking only the font
+        # family from the page — so a wrapper that reaches only the `.tex`
+        # projection cannot move `style_rate`. Same rule as the projection:
+        # every face in the span must agree (`texmap.emphasis_for`).
+        return texmap.wrap_emphasis(
+            _run_text(sp.glyphs),
+            {g.fontname for g in sp.glyphs if (g.text or "").strip()})
     tex = span_latex(sp)
     if tex is not None:
         return f"${tex}$"

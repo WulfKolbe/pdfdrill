@@ -167,6 +167,9 @@ def _extract_publisher(lines_json: dict) -> tuple:
     return "", ""
 
 
+from ..text_utils import strip_face_wrappers  # noqa: E402
+
+
 def ingest_lines_json(doc: Document, lines_json: dict) -> None:
     """
     Populate the `mathpix_lines` stream and store page-level metadata on
@@ -196,6 +199,12 @@ def ingest_lines_json(doc: Document, lines_json: dict) -> None:
         })
         for line_index, line in enumerate(page.get("lines", [])):
             payload = dict(line)  # shallow copy of MathPix line
+            # T-0156 — the reading may carry the FACE in its text (see
+            # `text_utils.strip_face_wrappers`). The model classifies by the
+            # start of a line, so the wrappers come off once, here.
+            for _f in ("text", "text_display"):
+                if isinstance(payload.get(_f), str):
+                    payload[_f] = strip_face_wrappers(payload[_f])
             payload["_page"] = page_no
             payload["_line_index"] = line_index
             payload["_image_id"] = page.get("image_id")
