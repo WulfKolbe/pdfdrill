@@ -142,7 +142,7 @@ def _assemble_latex(
                 in_sup = False
 
         # Check for multi-char operator names (log, sin, cos, etc.)
-        op_match = _match_operator_name(text, i, end)
+        op_match = _match_operator_name(text, i, end, start)
         if op_match:
             op_name, op_len = op_match
             parts.append(f"\\{op_name}")
@@ -177,8 +177,26 @@ _OPERATOR_NAMES = {
 }
 
 
-def _match_operator_name(text: str, pos: int, end: int) -> tuple[str, int] | None:
-    """Check if text at pos starts with a known math operator name."""
+def _match_operator_name(text: str, pos: int, end: int,
+                         start: int = 0) -> tuple[str, int] | None:
+    r"""The operator name standing at `pos`, as a WHOLE word, or None.
+
+    `start`/`end` bound the math span inside `text`; a boundary is required
+    on both sides of the name, and only a LETTER fails to be one.
+
+    The left-hand test used to be missing. The caller walks the span one
+    character at a time, so after emitting `k` it asks again from the next
+    position: in `klim` the tail `lim` satisfied the right-hand guard (nothing
+    follows it) and the span was written `k\lim` — an upright operator with
+    operator spacing in the middle of an identifier. Every name in the table
+    has that shape, and they are exactly the short letter runs most likely to
+    end a subscripted identifier (`xlog`, `Nmax`, `vdim`).
+
+    A digit is a boundary on either side, because it already was on the
+    right: `lim2` was `\lim 2`, so `2lim` is `2\lim`.
+    """
+    if pos > start and text[pos - 1].isalpha():
+        return None
     for name in sorted(_OPERATOR_NAMES, key=len, reverse=True):
         if pos + len(name) <= end and text[pos:pos + len(name)] == name:
             after = pos + len(name)
