@@ -1340,6 +1340,13 @@ def _off_row_by_rule(g, rules: list, span_pt: float) -> bool:
                for r in rules)
 
 
+#: T-0154 — the widest bar whose operands may be plain, non-mathematical
+#: glyphs, in em. See `_rule_role` for the measurement this comes from: real
+#: fractions over digits and upright letters reach 2.0 em, and the table and
+#: footnote rules misread as fractions start at 6.2 em.
+_PLAIN_OPERAND_EM = 4.0
+
+
 def _rule_role(node: RuleNode, glyphs: list[GlyphNode],
                size: float = 10.0, others: "list[RuleNode]" = (),
                page_width: "float | None" = None) -> str:
@@ -1433,6 +1440,65 @@ def _rule_role(node: RuleNode, glyphs: list[GlyphNode],
             above_b.append(g.baseline)
         elif -window < d < 0:
             below_b.append(g.baseline)
+    # T-0154 — A FRACTION BAR'S OPERANDS ARE MATHEMATICS.
+    #
+    # Neither width test above reaches a table's row rule when the table is
+    # narrower than half the page: 2312.11532 p7 prints Table 3 with a rule
+    # 0.38 of the page wide at 26 em, so the page-share guard misses it, and
+    # a table's row spans its rule end to end, so the reach test below passes
+    # it. The two rows of the table were merged into one line 83 units tall,
+    # `Codebook 106 money, ... Codebook 176 life, ...`, on a board page.
+    #
+    # So the evidence is not the width. It is what sits over and under the
+    # bar. MEASURED over the 24 board-14 extracts, 140 rules classified
+    # `fraction`, of which 50 carry no mathematical glyph on either side:
+    #
+    #     23.2 em  2312.11532 p7   'Codebook106money / Codebook176life'  table
+    #     20.3 em  2311.09533v3    'Bay,Alaska[3].The / ExamplefromASQA' table
+    #     18.5 em  RE4B-DE p559    'buggeroderDBIzu / 5DynamicBinary'    footnote
+    #     13.7 em  2311.09533v3    'ascaptured...The / datawascaptured'  table
+    #     11.7 em  0864 p4         '10aaaab / 11bcccc'                   table
+    #     11.7 em  0864 p4         '5a5a5a / 6aaaab'                     table
+    #      7.2 em  2311.09533v3    'WithTTAprior / ,a7.8strike-slip'     table
+    #      7.2 em  2311.09533v3    'to...priorunsup / tencewasconfirmed' table
+    #      6.2 em  lib:69bc5c71b881 'https://iddp.is/ / urOlafFridleifss' footnote
+    #     ----------------------------------------------------------- gap
+    #      2.0 em  lib:3c16fac66fdd 'qge„ / 4m'
+    #      1.5 em  lib:3c16fac66fdd '@ / @xj'      a partial derivative
+    #      1.2 em  1805.01788       'ai1 / ri1'
+    #      0.5 em  and below        '1 / 2', '1 / e', '3 / 4'
+    #       ...    41 in all, every one under 2.1 em
+    #
+    # Above the gap: nine table and footnote rules. Below it: forty-one real
+    # fractions whose operands are plain digits or upright letters, which
+    # carry no maths font and therefore no `is_math`. Nothing lies between
+    # 2.0 and 6.2 em, so every threshold in that range answers identically
+    # and `_PLAIN_OPERAND_EM` is not tuned.
+    #
+    # AND AT THE REACH TEST'S WIDTH, BOTH SIDES. Six more rules on that page
+    # are the axis rules of Figure 3's plots with the tick labels under them
+    # — `k=1` above, `100 200 300` below, 12.7 em — one maths glyph above and
+    # none beneath, so the test above passes them. Past 12 em a fraction may
+    # be required to have mathematics on BOTH sides, because every digit-only
+    # fraction measured is under 2.1 em. The set's one genuine wide display
+    # fraction keeps its role: lib:3fe71b4ef018 p328, 15.1 em, nine maths
+    # glyphs above and five below.
+    #
+    # STILL OPEN: two of 0864 p4's four table rules carry mathematics on ONE
+    # side (`X1X2X3X4Y / 11a11a`) at 11.7 em, under the both-sides width, so
+    # neither test reaches them and that table stays partly merged.
+    _above_math = any(g.is_math for g in glyphs
+                      if (x0 - 1 <= 0.5 * (g.rect[0] + g.rect[2]) <= x1 + 1)
+                      and 0 < g.baseline - mid < window)
+    _below_math = any(g.is_math for g in glyphs
+                      if (x0 - 1 <= 0.5 * (g.rect[0] + g.rect[2]) <= x1 + 1)
+                      and -window < g.baseline - mid < 0)
+    _w_em = (x1 - x0) / max(size, 1.0)
+    if _w_em > _PLAIN_OPERAND_EM and not _above_math and not _below_math:
+        return "separator"
+    if _w_em > 12.0 and not (_above_math and _below_math):
+        return "separator"
+
     # A frame rule is not a fraction bar. The border of a code listing runs
     # the width of the text block with code above and below it, which is
     # exactly the geometry of a fraction -- and merging those two rows glued
