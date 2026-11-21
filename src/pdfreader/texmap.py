@@ -324,6 +324,17 @@ def is_monospace(fontname: str) -> bool:
 _SMALLCAPS_NAME = re.compile(r"smallcap|small-cap|\bsc\d*$|-sc\b|csc\d*\b",
                              re.I)
 
+#: T-0156 — Linux Libertine and the Computer Modern SANS members.
+#: The `libertine` package ships `LinLibertineT` (upright text),
+#: `LinLibertineTI`, `LinLibertineTB`, `LinLibertineTBI`, plus the bare
+#: `LinLibertineI`/`B`; the SUFFIX carries the face, so the family name alone
+#: must not match. `sfbx`/`sfti` are the sans members of the family whose
+#: `cmbx`/`cmti` members `_BOLD_NAME`/`_ITALIC_NAME` already knew.
+_LIBERTINE_ITALIC = re.compile(r"linlibertinet?b?i\d*$", re.I)
+_LIBERTINE_BOLD = re.compile(r"linlibertinet?bi?\d*$", re.I)
+_CM_SANS_ITALIC = re.compile(r"sf(ti|sl)\d*", re.I)
+_CM_SANS_BOLD = re.compile(r"sf(bx|b)\d*", re.I)
+
 #: A SUBSET TAG WITH NO `+`. Producers are supposed to write `ABCDEF+Name`,
 #: and `split("+")[-1]` handles that. Some write the six letters with no
 #: separator: the board's own judge output carries `WrcvyxSFBX0900` and
@@ -345,7 +356,8 @@ def _faces(fontname: str) -> tuple:
 
 def is_italic(fontname: str) -> bool:
     """True if this font is an italic or slanted face."""
-    return bool(_ITALIC_NAME.search(fontname.split("+")[-1]))
+    return any(rx.search(b) for b in _faces(fontname)
+               for rx in (_ITALIC_NAME, _LIBERTINE_ITALIC, _CM_SANS_ITALIC))
 
 
 def is_small_caps(fontname: str) -> bool:
@@ -381,7 +393,8 @@ _BOLD_NAME = re.compile(
 
 def is_bold(fontname: str) -> bool:
     """True if this font is a bold face."""
-    return bool(_BOLD_NAME.search(fontname.split("+")[-1]))
+    return any(rx.search(b) for b in _faces(fontname)
+               for rx in (_BOLD_NAME, _LIBERTINE_BOLD, _CM_SANS_BOLD))
 
 
 def emphasis_for(fontnames) -> list:

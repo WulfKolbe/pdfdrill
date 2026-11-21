@@ -2605,6 +2605,34 @@ def _title_lines(pages: list[PageNode]) -> set:
     Abstains when the page has no size contrast — a page set entirely in one
     size has no title to find, and calling its first lines a title would delete
     them from the prose.
+
+    AND ABSTAINS WHEN THE LARGEST LINE OPENS WITH A SECTION NUMBER, because
+    then it is a heading and the page has no title. `_front_matter` bounds the
+    author block by the first heading AFTER the title, so a heading taken for
+    a title makes every line between it and the next heading an `authors`
+    line.
+
+    MEASURED on the 24 board-14 extracts: 11 of them are given a title and
+    ALL ELEVEN ARE WRONG — every one is a mid-document extract with no title
+    on it. Seven open with a section number:
+
+        '3 Hardness of Optimization'          0864 p4        -> 20 `authors`
+        '2 EQUITY-OF-ATTENTION FAIRNESS'      1805.01788 p3  ->  4 `authors`
+        '5.1.2 GCC'                           RE4B-DE p559   ->  2 `authors`
+        '195 Fernsehen macht Gewalt'          lib:008d p272
+        '14.4.1 NUT Solution with Dual Mass'  lib:3fe71b p328
+        '2 Related work'                      lib:5a5c76 p4
+        '2.2 Innovations Needed for '         lib:69bc5c p16
+
+    and the other four do not, so they stay: 'Index', 'Chapter 37',
+    'DIETARY NITRATE AND CARDIOVASCULAR …' (84 `authors` lines) and
+    'pm :4 34. 44,'. Those need a different rule and are left alone here.
+
+    THE COST IS ASYMMETRIC, which is why the refusal is worth a false one. A
+    title refused leaves the line `text`, which is what it already was. A
+    heading accepted as a title costs every line after it, up to 84 of them,
+    exported in the wrong field. A real title that opens with a number
+    ('1000 Genomes …') loses its `title` type and nothing else.
     """
     for p in pages:
         sizes = [line_size(ln) for ln in p.lines if ln.glyphs and not ln.rotated]
@@ -2616,6 +2644,10 @@ def _title_lines(pages: list[PageNode]) -> set:
         if top < 1.15 * body:
             return set()              # no contrast: nothing here is a title
         run, started = set(), False
+        #: A section counter: digits, optionally dotted, then a SPACE and a
+        #: word. `3D Convolutional …` has no space after the digit and is
+        #: therefore not one.
+        secnum = re.compile(r"^\s*\d+(?:\.\d+)*\s+\S")
         for i, ln in enumerate(p.lines):
             if not ln.glyphs or ln.rotated:
                 continue
@@ -2626,6 +2658,9 @@ def _title_lines(pages: list[PageNode]) -> set:
             if not docmodel._run_text(ln.glyphs).strip():
                 continue
             if line_size(ln) >= 0.95 * top:
+                if not started and secnum.match(
+                        docmodel._run_text(ln.glyphs).strip()):
+                    return set()      # a heading, so this page has no title
                 run.add((p.page, i))
                 started = True
             elif started:

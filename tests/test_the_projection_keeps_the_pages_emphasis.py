@@ -185,122 +185,116 @@ def test_the_emphasis_commands_need_no_package():
         assert not T.packages_for(cmd), (cmd, T.packages_for(cmd))
 
 
-def test_the_two_reverted_families_are_still_not_detected():
-    """Pins the revert, so the regression cannot come back by accident:
-    these faces stay plain until the heading-classification effect has been
-    measured in a commit of its own."""
-    for font in ("ABC+LinLibertineTB", "ABC+LinLibertineTI", "ABC+SFBX1440",
-                 "ABC+SFTI1000"):
-        tex = M.to_latex([_page(font)], preamble=False)
-        for cmd in (r"\textbf{", r"\textit{"):
-            assert cmd not in tex, (font, cmd)
+def test_linux_libertine_italic_and_bold_are_recognised():
+    """T-0156, second commit. 589 glyphs on the board set, 560 of them on
+    1805.01788 p3. The `libertine` package's suffix carries the face."""
+    assert r"\textit{" in M.to_latex([_page("ABC+LinLibertineTI")],
+                                     preamble=False)
+    assert r"\textbf{" in M.to_latex([_page("ABC+LinLibertineTB")],
+                                     preamble=False)
+    assert r"\textit{" in M.to_latex([_page("ABC+LinLibertineI")],
+                                     preamble=False)
+
+
+def test_the_libertine_upright_text_face_is_not_emphasised():
+    """`LinLibertineT` is the upright text face. A rule on the family name
+    alone would set the whole document bold."""
+    tex = M.to_latex([_page("ABC+LinLibertineT")], preamble=False)
+    for cmd in (r"\textbf{", r"\textit{"):
+        assert cmd not in tex, (cmd, tex)
+
+
+def test_the_cm_sans_members_are_recognised():
+    """`sfbx`/`sfti` are the sans members of the family whose `cmbx`/`cmti`
+    the regexes already knew. `SFRM` is the upright sans and stays plain."""
+    assert r"\textbf{" in M.to_latex([_page("ABC+SFBX1440")], preamble=False)
+    assert r"\textit{" in M.to_latex([_page("ABC+SFTI1000")], preamble=False)
+    tex = M.to_latex([_page("ABC+SFRM1000")], preamble=False)
+    assert r"\textbf{" not in tex and r"\textit{" not in tex, tex
+
+
+def test_a_subset_prefix_without_a_plus_is_still_read():
+    """Some producers write the subset tag with no `+`; the board's judge
+    output carries `WrcvyxSFBX0900`, which `split("+")[-1]` cannot help
+    with. Both forms are offered and a match on either counts, because
+    stripping six letters unconditionally would turn
+    `NimbusRomNo9L-Medi` into `RomNo9L-Medi` and lose the one entry written
+    for it (814)."""
+    assert r"\textbf{" in M.to_latex([_page("WrcvyxSFBX0900")],
+                                     preamble=False)
+    assert r"\textbf{" in M.to_latex([_page("ABC+NimbusRomNo9L-Medi")],
+                                     preamble=False)
 
 
 #: ------------------------------------------------------------------
-#: AND THE READING CARRIES IT TOO, because the judge reads the READING.
+#: AND THE TITLE RULE, because widening `is_bold` reached it.
 #:
-#: The judge sets each line from our `lines.json` text and takes only the font
-#: family from the page (`inkdrill judge.py:1269`), so wrappers that reached
-#: only the `.tex` could not move `style_rate` — the readings were
-#: byte-identical. `glyphlines` therefore writes them into the reading's own
-#: `text`/`text_display`, as it already writes maths as `$...$`.
+#: `_front_matter` bounds the author block by the first heading AFTER the
+#: title, so a heading taken for a title makes every line between it and the
+#: next heading an `authors` line. Recognising Libertine bold gave
+#: 1805.01788 p3 a heading it had not had, and 4 lines of body prose became
+#: `authors`.
 #:
-#: WHICH MEANS TWO SETS OF EYES READ THAT FIELD, and both had to be given the
-#: text without them. Measured on 0864 p4, before the unwrapping was added:
-#:
-#:   the reader   `generated_by` reads `rec["text"]` to spot a counter shape.
-#:                `\textbf{1.` is not one, so `list_item` went 76 -> 0 in the
-#:                reading itself and `text` 150 -> 226.
-#:   the model    three modules classify by the start of a line —
-#:                ListProcessor `list_items_created` 77 -> 1, HeaderProcessor
-#:                `levels_from_section_number` 5 -> 0, ParagraphProcessor
-#:                `paragraphs_created` 27 -> 45.
-#:
-#: So `texmap.unwrap_emphasis` serves the reader's own classifiers and
-#: `docmodel.text_utils.strip_face_wrappers` the model's ingest. The two are
-#: deliberately separate functions because pdfreader does not import docmodel.
+#: MEASURED on the 24 board-14 extracts: 11 are given a title and ALL ELEVEN
+#: ARE WRONG — every one is a mid-document extract with no title on it, and
+#: the defect is pre-existing, not the widening's. 0864 p4 was already
+#: exporting 20 `authors` lines and lib:88d76967110e p170 eighty-four.
+#: Seven of the 11 open with a section number and are refused here; the other
+#: four ('Index', 'Chapter 37', 'DIETARY NITRATE AND CARDIOVASCULAR …',
+#: 'pm :4 34. 44,') need a different rule and are left alone.
 
 
-def test_the_reading_carries_the_wrappers():
-    """What the judge reads. `span_reading_text` is the single point where a
-    span becomes the reading's text."""
-    from pdfreader.docmodel_six import span_reading_text
-    page = _page("ABC+CMBX10")
-    sp = page.lines[0].spans[0]
-    assert span_reading_text(sp) == r"\textbf{abc}"
+def _sized_page(lines):
+    """A page of (text, size) lines, in one column, top to bottom."""
+    page = D.PageNode(page=1, rect=(0, 0, 612, 792))
+    out, y = [], 700.0
+    for text, size in lines:
+        gl, x = [], 100.0
+        for c in text:
+            gl.append(D.GlyphNode(
+                id=f"g{y}{x}", page=1, rect=(x, y, x + size * 0.5, y + size),
+                text=c, cid=0, glyphname=None, fontname="ABC+CMR10",
+                family="text", size=size, tex=project("text", None),
+                matrix=(size, 0, 0, size, x, y)))
+            x += size * 0.5
+        out.append(D.LineNode(id=f"l{y}", page=1,
+                              rect=(100, y, x, y + size), type="text",
+                              glyphs=gl))
+        y -= size * 2
+    page.lines = out
+    return page
 
 
-def test_the_projection_for_people_does_not():
-    """`span_text` is the markdown/explanatory projection and is a different
-    function — the first edit of this change patched it by mistake, which
-    would have put LaTeX into the `.md`."""
-    from pdfreader.docmodel_six import span_text
-    page = _page("ABC+CMBX10")
-    assert span_text(page.lines[0].spans[0]) == "abc"
+def _body(n):
+    return [("some running prose on this line here", 10.0) for _ in range(n)]
 
 
-def test_unwrapping_is_the_exact_inverse():
-    from pdfreader.texmap import unwrap_emphasis, wrap_emphasis
-    for text, faces in (("abc", {"A+CMBX10"}), ("abc", {"A+CMTI10"}),
-                        ("abc", {"A+CMTT8"}), ("x y", {"A+CMBXTI10"}),
-                        ("1.", {"A+CMBX10"}), ("plain", {"A+CMR10"})):
-        assert unwrap_emphasis(wrap_emphasis(text, faces)) == text, (text, faces)
+def test_a_largest_line_opening_with_a_section_number_is_no_title():
+    """'2 EQUITY-OF-ATTENTION FAIRNESS' on 1805.01788 p3, and six more."""
+    from pdfreader.project_mmd import _title_lines
+    page = _sized_page([("2 EQUITY OF ATTENTION FAIRNESS", 14.0)] + _body(6))
+    assert _title_lines([page]) == set()
 
 
-def test_unwrapping_keeps_the_texts_own_braces_and_maths():
-    from pdfreader.texmap import unwrap_emphasis
-    for s in (r"\frac{1}{2}", "a{b}c", r"$\textbf{x}$ is odd", "", "plain"):
-        if s == r"$\textbf{x}$ is odd":
-            assert unwrap_emphasis(s) == "$x$ is odd"
-        else:
-            assert unwrap_emphasis(s) == s, s
+def test_a_dotted_section_number_too():
+    """'5.1.2 GCC' and '14.4.1 NUT Solution with Dual Mass'."""
+    from pdfreader.project_mmd import _title_lines
+    page = _sized_page([("5.1.2 GCC and more words", 14.0)] + _body(6))
+    assert _title_lines([page]) == set()
 
 
-def test_the_model_strips_them_at_ingest():
-    """The model is a different consumer and for it they are noise. Its own
-    emphasis comes from `fontspans`, which reads the glyph layer."""
-    from docmodel.core import Document
-    from docmodel.modules.page import ingest_lines_json
-    doc = Document()
-    ingest_lines_json(doc, {"pages": [{"page": 1, "lines": [
-        {"type": "text", "text": r"\textbf{3} RANKINGS",
-         "text_display": r"\textbf{3} RANKINGS"}]}]})
-    pl = list(doc.streams["mathpix_lines"].payload.values())[0]
-    assert pl["text"] == "3 RANKINGS", pl["text"]
-    assert pl["text_display"] == "3 RANKINGS", pl["text_display"]
+def test_a_real_title_is_still_found():
+    """The rule must not cost a document its title."""
+    from pdfreader.project_mmd import _title_lines
+    page = _sized_page([("Equity of Attention in Rankings", 14.0)] + _body(6))
+    assert _title_lines([page]) == {(1, 0)}
 
 
-def test_the_model_leaves_real_latex_alone_at_ingest():
-    """Maths in a reading's text is the reading's content, not markup of
-    ours: `$\frac{1}{2}$` must survive ingest untouched."""
-    from docmodel.core import Document
-    from docmodel.modules.page import ingest_lines_json
-    doc = Document()
-    ingest_lines_json(doc, {"pages": [{"page": 1, "lines": [
-        {"type": "text", "text": r"let $\frac{1}{2}$ be"}]}]})
-    pl = list(doc.streams["mathpix_lines"].payload.values())[0]
-    assert pl["text"] == r"let $\frac{1}{2}$ be", pl["text"]
-
-
-def test_a_text_whose_braces_do_not_balance_is_not_wrapped():
-    r"""MEASURED on lib:025faeafae2f p153, one line of 189: the page prints a
-    literal `}` and the reading's text is `equate 2}!Jz by`. Wrapped, that
-    becomes `\textit{equate 2}!Jz by}` — the group closes at the page's own
-    brace and a stray `}` is left over. Malformed LaTeX, and it does not
-    survive the round trip either, which is how the board run found it.
-
-    Abstaining costs one line's emphasis across the whole board set."""
-    from pdfreader.texmap import unwrap_emphasis, wrap_emphasis
-    bad = "equate 2}!Jz by"
-    assert wrap_emphasis(bad, {"A+CMTI10"}) == bad
-    assert unwrap_emphasis(wrap_emphasis(bad, {"A+CMTI10"})) == bad
-    # and the balanced case is unaffected
-    assert wrap_emphasis("a{b}c", {"A+CMTI10"}) == r"\textit{a{b}c}"
-    assert unwrap_emphasis(r"\textit{a{b}c}") == "a{b}c"
-
-
-def test_an_unmatched_opening_brace_is_refused_too():
-    """Both directions of imbalance, not only the one the page showed."""
-    from pdfreader.texmap import wrap_emphasis
-    for bad in ("a{b", "{", "}", "a}b{c"):
-        assert wrap_emphasis(bad, {"A+CMBX10"}) == bad, bad
+def test_a_title_that_merely_starts_with_a_digit_is_still_a_title():
+    """`3D Convolutional Networks` has no space after the digit, so it is
+    not a section counter. This is the false refusal the pattern is scoped
+    to avoid."""
+    from pdfreader.project_mmd import _title_lines
+    page = _sized_page([("3D Convolutional Networks for Video", 14.0)]
+                       + _body(6))
+    assert _title_lines([page]) == {(1, 0)}
