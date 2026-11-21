@@ -4,11 +4,14 @@
 #: pdfdrill's own suite can measure the board's model counts from a fresh
 #: clone, with no file from outside git (group rule 7).
 #:
-#: Pinned 2026-11-20 at drillgroup deab8a0, "pagecheck: a model object
-#: without a box takes part in the text match; --words reads pinned word
-#: boxes instead of the PDF". Not edited: a divergence is resolved by
-#: RE-PINNING, never by patching this file, because a ratchet that measures
-#: something other than the board measures nothing.
+#: Pinned 2026-11-21 at drillgroup fed0bef, "pagecheck: MathPix's page is
+#: scaled into our page's pixel frame before the box, column and margin
+#: checks (they compared raw pixels across 250/400 dpi frames)". Not edited:
+#: a divergence is resolved by RE-PINNING, never by patching this file,
+#: because a ratchet that measures something other than the board measures
+#: nothing. The pin before this one was 2026-11-20 at deab8a0, whose body
+#: this file matched byte for byte when it was replaced -- checked, not
+#: assumed, because a pin that has drifted measures neither repository.
 #:
 #: It is stdlib EXCEPT for one optional accelerator -- `rapidfuzz` for the
 #: Levenshtein distance, guarded by `try/except ImportError` with a
@@ -89,8 +92,11 @@ import sys
 import unicodedata
 from collections import Counter, defaultdict
 
-TEXTY = {"text", "section_header", "title", "authors", "abstract", "footnote", "figure_label", "page_info"}
-CONTAINERS = {"section_header", "footnote", "title", "authors", "abstract", "figure_label"}
+TEXTY = {"text", "section_header", "title", "authors", "abstract", "footnote", "figure_label", "page_info",
+         # contents entries in MathPix's form (GLYPHDRILL3 cf892ba writes them too): the item and its page number are
+         # checked as lines, and their row is one unit, so a contents page is not dropped from the check
+         "table_of_contents_item", "table_of_contents_number", "table_of_contents_row"}
+CONTAINERS = {"section_header", "footnote", "title", "authors", "abstract", "figure_label", "table_of_contents_row"}
 MODEL_TEXT = {"Paragraph": "text", "Section": "caption", "Footnote": "content", "ListItem": "content"}
 MODEL_LEAVES = {"Paragraph", "Section", "Footnote", "ListItem", "Equation", "Diagram", "Picture", "Table"}
 CMD = re.compile(r"\\[a-zA-Z@]+\*?")
@@ -324,6 +330,27 @@ def check_overlap(units: list[dict]) -> list[dict]:
     return found
 
 
+def in_frame(mp_page: dict, our_page: dict) -> dict:
+    """MathPix's page with every region scaled into OUR page's pixel frame (coordinator, 2026-11-21). The checks below
+    compare MathPix boxes with ours; they were compared raw, which holds only when both readings share a page size.
+    MathPix reads at 250 dpi, gd3 at 400 dpi, Gemma4 at its own size: without this, box matches land on the wrong
+    units (Lurie p1, gd3 3400 px against MathPix 2125 px)."""
+    pw, ph = float(our_page.get("page_width") or 0), float(our_page.get("page_height") or 0)
+    mw, mh = float(mp_page.get("page_width") or 0), float(mp_page.get("page_height") or 0)
+    if not (pw and ph and mw and mh) or (abs(pw - mw) < 0.5 and abs(ph - mh) < 0.5):
+        return mp_page
+    kx, ky = pw / mw, ph / mh
+    q = dict(mp_page, page_width=pw, page_height=ph, lines=[])
+    for l in mp_page.get("lines") or []:
+        r = l.get("region")
+        if isinstance(r, dict):
+            r = dict(r, top_left_x=float(r.get("top_left_x") or 0) * kx, top_left_y=float(r.get("top_left_y") or 0) * ky,
+                     width=float(r.get("width") or 0) * kx, height=float(r.get("height") or 0) * ky)
+            l = dict(l, region=r)
+        q["lines"].append(l)
+    return q
+
+
 def check_paragraphs(mp_units: list[dict], ours: list[dict]) -> dict:
     """Assign MathPix lines to our units by text and by box; classify each MathPix text unit."""
     ours = [u for u in ours if u.get("texty", u["kind"] in TEXTY)]
@@ -533,11 +560,12 @@ def main() -> int:
                                                if born else "NOT RUN: no text layer")
             rec["checks"]["overlap_model"] = check_overlap(mu)
         if n in mp:
-            mpu = line_units(mp[n])
-            rec["checks"]["columns_lines"] = check_columns(page, units, mp[n], "lines.json")
-            rec["checks"]["margin_lines"] = check_margin(page, mp[n])
+            mq = in_frame(mp[n], page)              # MathPix's boxes in our page's pixel frame
+            mpu = line_units(mq)
+            rec["checks"]["columns_lines"] = check_columns(page, units, mq, "lines.json")
+            rec["checks"]["margin_lines"] = check_margin(page, mq)
             if a.model:
-                rec["checks"]["columns_model"] = check_columns(page, mu, mp[n], "docmodel")
+                rec["checks"]["columns_model"] = check_columns(page, mu, mq, "docmodel")
             rec["paragraphs_lines"] = check_paragraphs(mpu, units)
             if a.model:
                 rec["paragraphs_model"] = check_paragraphs(mpu, mu)
