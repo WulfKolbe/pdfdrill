@@ -112,3 +112,50 @@ def test_a_column_vector_clear_of_the_baseline_is_still_an_array():
           _g(107.2, "1", 102.9, 7.6)]
     rows = S._stacked_rows(gs, 10.0, 98.9)
     assert rows is not None and len(rows) == 2
+
+
+#: ------------------------------------------------------------------
+#: AND A SCRIPT-SIZE MATRIX IS A `smallmatrix`.
+#:
+#: Board state 45 scored 7de82d7a: p293 went 0.0791 -> 0.0668, rules invented
+#: 7 -> 2, flagged 30 -> 21 — but unpaired went 3/22 -> 5/24, and the two new
+#: ones are THE SAME GLYPHS ON BOTH SIDES:
+#:
+#:     side A (ink)   + L30 "2"   + L31 "/"
+#:     side B (ours)  + L30 "2"   + L31 "/"
+#:
+#: A glyph unpaired on both sides is a pairing failure, not a loss: it is in
+#: the ink and in our rendering, at positions that do not match. They are the
+#: `/` and `2` of a `1/2` entry on the two matrix rows.
+#:
+#: MEASURED, all 12 arrays on p293: entries 7.57 against a row of 9.96 —
+#: ratio 0.760, every one of them. The page sets these matrices at SCRIPT
+#: size and we set `array` at full size, so LaTeX positions `1/2` by its own
+#: metrics and those glyphs land off the ink.
+#:
+#: Same discriminator as `\tfrac` (`_is_text_style`): the entries' size
+#: against the row's full-size glyphs. `smallmatrix` needs amsmath, which the
+#: preamble loads and which was verified for `\tfrac`.
+#:
+#: NOTE: `smallmatrix` takes NO column specification, so the `{c}` that
+#: `array` carries must be dropped rather than passed on — otherwise it is
+#: typeset as the body's first characters.
+
+
+def test_script_size_entries_choose_smallmatrix():
+    """p293's ratio: 7.57 entries in a 9.96 row."""
+    assert S._matrix_env(7.57, 9.96) == "smallmatrix"
+
+
+def test_full_size_entries_keep_array():
+    assert S._matrix_env(9.96, 9.96) == "array"
+
+
+def test_the_boundary_belongs_to_array():
+    """0.85 exactly is not script size — the same edge as `_is_text_style`."""
+    assert S._matrix_env(8.5, 10.0) == "array"
+
+
+def test_an_unknown_row_size_keeps_array():
+    """No row to compare against: do not guess a smaller environment."""
+    assert S._matrix_env(7.57, 0.0) == "array"

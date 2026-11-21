@@ -134,6 +134,31 @@ def _unsized(latex: str, sides) -> "str | None":
     return None
 
 
+def _matrix_env(entry_size: float, row_size: float) -> str:
+    r"""`smallmatrix` where the page set the matrix at SCRIPT size, else `array`.
+
+    Board state 45 scored the array commit: p293 0.0791 -> 0.0668, rules
+    invented 7 -> 2, flagged 30 -> 21 — but unpaired 3/22 -> 5/24, and the two
+    new ones are THE SAME GLYPHS ON BOTH SIDES, a `2` and a `/` on the two
+    matrix rows. A glyph unpaired on both sides is a pairing failure, not a
+    loss: it is in the ink and in our rendering, at positions that do not
+    match.
+
+    MEASURED, all 12 arrays on p293: entries 7.57 against a row of 9.96 —
+    ratio 0.760, every one. The page sets these matrices at script size and
+    `array` sets them full size, so LaTeX positions `1/2` by its own metrics
+    and those glyphs land off the ink.
+
+    Same discriminator as `\tfrac` (`_is_text_style`): the entries' size
+    against the row's full-size glyphs, same 0.85. `smallmatrix` is amsmath's,
+    which the preamble loads — verified for `\tfrac`, and the second time that
+    dependency paid for being checked rather than assumed.
+    """
+    if row_size <= 0:
+        return "array"
+    return "smallmatrix" if entry_size < _TFRAC_NUMERAL * row_size else "array"
+
+
 def _merge_stacked_delimiters(glyphs: list[GlyphNode], depth: int):
     r"""A sized delimiter pair holding stacked rows is an ARRAY.
 
@@ -210,8 +235,13 @@ def _merge_stacked_delimiters(glyphs: list[GlyphNode], depth: int):
             out.append(g)
             i += 1
             continue
-        body = r"\left%s\begin{array}{c}%s\end{array}\right%s" % (
-            opener, " \\\\ ".join(parts), closer)
+        #: `smallmatrix` TAKES NO COLUMN SPECIFICATION, so the `{c}` that
+        #: `array` needs must be dropped for it rather than carried over —
+        #: passed on, it is typeset as the body's first characters.
+        _env = _matrix_env(max(g.size for r in rows for g in r), size)
+        _spec = "{c}" if _env == "array" else ""
+        body = r"\left%s\begin{%s}%s%s\end{%s}\right%s" % (
+            opener, _env, _spec, " \\\\ ".join(parts), _env, closer)
         inner = gs[i:j + 1]
         #: IT SITS ON THE ROW'S BASELINE, NOT THE BRACKET'S. A big delimiter
         #: is drawn raised — p293's `bracketleftbig` has baseline 106.9 in a
@@ -234,7 +264,9 @@ def _merge_stacked_delimiters(glyphs: list[GlyphNode], depth: int):
                   gs[j].rect[2], max(x.rect[3] for x in inner)),
             text="", cid=-1, glyphname=None,
             fontname="<array>", family="math-extension", size=size,
-            tex=TexToken(body, "atom", None, "corpus"),
+            tex=TexToken(body, "atom",
+                         "amsmath" if _env == "smallmatrix" else None,
+                         "corpus"),
             matrix=(size, 0, 0, size, g.rect[0], _base),
             # 733 — the synthesised atom keeps the EARLIEST stream index of
             # the glyphs it replaces, as a fraction's does.
