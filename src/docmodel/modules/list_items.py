@@ -33,6 +33,7 @@ from typing import Any, Optional
 
 from ..base_module import BaseModule
 from ..core import Document, DocObject, Realization
+from ..page_edges import _body_edges
 from ..text_utils import STATED_JOIN, join_stated_lines
 
 
@@ -119,6 +120,34 @@ def _split_bullets(text: str) -> list[tuple[str, str]]:
     return []
 
 
+#: T-0154 — HOW FAR LEFT OF ITS MARKER A CONTINUATION MAY STAND, in em.
+#:
+#: A list item's continuation hangs under its marker, or at the marker's own
+#: edge. It is never many em to the LEFT. The reading says otherwise where it
+#: stamps `continues_line_*` across a centred heading onto the body column
+#: beneath it, and the tail walk below believed it: on BH3 p37 the ListItem
+#: read "Projektionen in Zeit und Raum Aus der Exponentenmenge ..." and 48 of
+#: that page's lines sat inside two items.
+#:
+#: MEASURED over the ten-document Gemma4 set at 6980ef0, all 24 lexical items
+#: with a stated tail: 18.8, 10.3 and 9.5 em of outdent (a running head with
+#: its folio, and two chapter headings), then a gap, then 1.8 em and below for
+#: the remaining 21 — real bullets, real hanging indents, real sub-lists.
+#: Nothing lies between 1.8 and 9.5 em, so every threshold in that range
+#: answers identically and this one is not tuned.
+#:
+#: Only the TAIL is refused. The marker line stays a one-line item and the
+#: prose goes back to `ParagraphProcessor`, which has its own measured rules
+#: for where a paragraph begins. Whether a centred `1. ` line is a heading
+#: rather than a list item at all is a separate question, left open.
+_OUTDENT_EM = 4.0
+
+#: What `ParagraphProcessor` counts as prose when it measures a page's edges.
+#: Named here rather than imported so this module does not depend on that one;
+#: `docmodel.page_edges` is the shared measurement both of them read.
+_PROSE_TYPES = {"text", "title", "quote"}
+
+
 class ListProcessor(BaseModule):
     def find_items(self, doc: Document) -> list[dict[str, Any]]:
         if self.LINES_STREAM not in doc.streams:
@@ -126,6 +155,15 @@ class ListProcessor(BaseModule):
         stream = doc.stream(self.LINES_STREAM)
         items: list[dict[str, Any]] = []
         global_index = 0
+        # T-0154 — the page's own em, for the outdent test on the tail walk
+        # below. `_body_edges` is keyed by page and abstains where a page has
+        # too few prose lines to measure; `_em_of` then answers None and the
+        # test is not applied.
+        page_edges = _body_edges(stream, _PROSE_TYPES)
+
+        def _em_of(page) -> "float | None":
+            e = page_edges.get(page)
+            return float(e[1]) if e and e[1] else None
 
         # ---- 248: the typed containers first --------------------------------
         by_id: dict[str, dict] = {}
@@ -246,6 +284,19 @@ class ListProcessor(BaseModule):
                 nxt_text = (nxt.get("text_display") or nxt.get("text") or "").strip()
                 if not nxt_text or _split_bullets(nxt_text):
                     break        # a new item starts here; it is not our tail
+                # T-0154 — AND IT DOES NOT STAND LEFT OF THE MARKER. See
+                # `_OUTDENT_EM`: a continuation hangs under its marker or at
+                # the marker's edge, never many em to its left. The reading
+                # stamps the join across a centred heading onto the body
+                # column under it, and believing that took the whole rest of
+                # the page into the item.
+                em = _em_of(payload.get("_page"))
+                mx = (payload.get("region") or {}).get("top_left_x")
+                nx = (nxt.get("region") or {}).get("top_left_x")
+                if (em and mx is not None and nx is not None
+                        and float(mx) - float(nx) > _OUTDENT_EM * em):
+                    self.bump("tails_refused_left_of_their_marker")
+                    break
                 tail.append((nxt_text, nxt.get("subtype") or ""))
                 tail_end = nxt_anchor
                 if nxt.get("id"):
