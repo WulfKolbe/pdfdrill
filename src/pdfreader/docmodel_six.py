@@ -3101,8 +3101,29 @@ def _compose_text_accents(rows: list[list["GlyphNode"]]) -> list[list["GlyphNode
             if len(composed) != 1:
                 new.append(g)          # no precomposed character exists
                 continue
+            #: AND ITS LaTeX, or a MATHS span loses the accent.
+            #:
+            #: This used to set `text` alone. A prose span is written from
+            #: `text` and was right; a maths span is written from
+            #: `tex.latex`, which still said `x`. MEASURED on
+            #: lib:6d90e8d27b8b p174, whose derivatives are dotted: pdfminer
+            #: gives 22 `˙` glyphs, this pass composes them into `ẋ` x18 and
+            #: `ċ` x4, their `tex.latex` stayed `x` and `c`, and the reading
+            #: held 0 `\dot` against MathPix's 22 `\dot{x}`. The composition
+            #: was working and its result never reached the reading.
+            #:
+            #: The accent glyph already carries the command (`_TEXT_ACCENT`
+            #: gives `dotaccent` the token `\dot`), so the composed token is
+            #: that command applied to the base's own LaTeX, and nothing is
+            #: invented. Where the accent has no command, the base's token
+            #: is kept rather than a guess made.
+            _acc_cmd = (g.tex.latex or "").strip()
+            _base_tex = (base.tex.latex or bt)
+            _tex = (TexToken("%s{%s}" % (_acc_cmd, _base_tex), "atom",
+                             base.tex.package, base.tex.confidence)
+                    if _acc_cmd.startswith("\\") else base.tex)
             new.append(replace(
-                base, text=composed,
+                base, text=composed, tex=_tex,
                 rect=(min(g.rect[0], base.rect[0]), min(g.rect[1], base.rect[1]),
                       max(g.rect[2], base.rect[2]), max(g.rect[3], base.rect[3]))))
             skip = i + 1
