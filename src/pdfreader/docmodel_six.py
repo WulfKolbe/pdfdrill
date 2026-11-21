@@ -250,11 +250,12 @@ _LIGATURES = {
 }
 
 
-def _spell_glyph(text: str, glyphname: "str | None") -> str:
+def _spell_glyph(text: str, glyphname: "str | None", cid: int = -1) -> str:
     r"""A glyph's text, with a ligature CHARACTER or a composite NAME spelled
-    out in the letters it stands for.
+    out in the letters it stands for, and a Cyrillic name on a Latin code
+    read as the Latin letter.
 
-    Two rules, and the character one runs first because it is the one the
+    Three rules, and the character one runs first because it is the one the
     fonts state properly.
 
     1. A LIGATURE CHARACTER. `_spell_ligature`, from d1e73fe2: pdfminer
@@ -266,6 +267,30 @@ def _spell_glyph(text: str, glyphname: "str | None") -> str:
        font's ToUnicode maps it to a single `q` — so 1805.01788 p3 reads
        `Eqity` four times against `Equity` six. A dropped letter is a GLYPH
        finding, not a style one.
+
+    3. A CYRILLIC LETTER ON A LATIN LETTER'S CODE. 1805.01788 sets `log` in
+       LinLibertine italic, and the subset names the `g` glyph
+       `afii10069.ital` -- the AFII name for Cyrillic `de`, whose italic is
+       drawn like a Latin g. pdfminer trusts the NAME, so the reading said
+       `loд`: a wrong character, and worse, one `glyph_latex` cannot emit
+       (its letter path requires `isascii`), so the whole maths span deferred
+       and the fraction it sat in was never built. The FONT'S OWN CODE says
+       103, which is `g`, and the ink is a `g`.
+
+       MEASURED, because the obvious general rule is wrong: across the ten
+       documents of the inspect set, 620 glyphs decode to a non-Latin
+       character sitting on a printable ASCII code, and nearly all are
+       CORRECT -- TeX's quotes (`'` -> U+2019), CMSY's `p` -> U+221A,
+       `2` -> U+2208. Preferring the code would have broken every one. Only
+       FOUR decode to CYRILLIC, all four this same `д` on cid 103 in
+       LinLibertineI on 1805.01788, every one of them a Latin g.
+
+       So the rule is Cyrillic-only. It is still a rule about evidence, not
+       about this font: a Cyrillic glyph NAME on a code that a Latin encoding
+       already spells is a naming artefact of the subset. A genuinely
+       Cyrillic document encodes its text at the Cyrillic code points, where
+       this does not fire -- but one that put `afii10069` at code 103 through
+       a /Differences array would be read as `g`, and that is the risk.
 
     ONLY WHERE THE TEXT IS SHORTER THAN THE PARTS. MEASURED over the 24
     board-14 extracts, every underscore-named glyph: `f_i` 29 -> 'fi',
@@ -281,6 +306,9 @@ def _spell_glyph(text: str, glyphname: "str | None") -> str:
     one that is missing. One glyph keeps one box either way.
     """
     text = _spell_ligature(text or "")
+    if (len(text) == 1 and 0x400 <= ord(text) <= 0x4FF
+            and 33 <= cid <= 126 and chr(cid).isalpha()):
+        return chr(cid)                   # rule 3, above
     if not glyphname or "_" not in glyphname:
         return text
     parts = glyphname.split("_")
@@ -1029,6 +1057,48 @@ def _spans(line: "LineNode") -> list[Span]:
         runs[i] = [g for g in runs[i] if g is not acc]
         runs[i + 1] = sorted(runs[i + 1] + [acc], key=lambda g: g.rect[0])
     runs = [r for r in runs if r]
+
+    # A RUN BOUNDARY MUST NOT FALL INSIDE A FRACTION BAR.
+    #
+    # A span claims a rule only when the rule lies ENTIRELY within it (see the
+    # note on `mine` below), so a bar cut across two runs is claimed by
+    # NEITHER, and the fraction is then lost without a word. Measured on
+    # 1805.01788 p3, whose DCG display came out
+    #
+    #     DCG@k $(r$ $) =$ $\sum^{k}$ i=1 2r ${}^{(i}$ ${}^{)} -$ 1loд2 $(i$ $+ 1)$
+    #
+    # -- every character present, the structure gone. The line carried the bar
+    # and not one of its eleven spans did.
+    #
+    # The whole-line guard above refuses this line because it is 43% letters
+    # (`DCG`, `log` and the variables), which is ordinary for a display. That
+    # guard protects prose from being swallowed and is left alone: the bar's
+    # OWN EXTENT is what needs protecting, not the line. Its x-range is what
+    # the typesetter drew -- the same evidence `_split_fractions` partitions by
+    # and the same one `split_terms` already refuses to cut a term on -- so the
+    # runs it straddles are joined, and exactly one run holds it.
+    for _r in line.rules:
+        if _r.role != "fraction":
+            continue
+        hit = [i for i, run in enumerate(runs)
+               if min(g.rect[0] for g in run) <= _r.rect[2] + 1
+               and max(g.rect[2] for g in run) >= _r.rect[0] - 1]
+        if len(hit) < 2:
+            continue                      # already whole, or not on this line
+        lo, hi = hit[0], hit[-1]
+        #: THE ORDER THE PDF DREW THEM IN, not x. A fraction's two halves
+        #: share a column, so x-order interleaves them -- the very defect the
+        #: whole-line branch above is written against. `to_tex` separates them
+        #: by the bar and does not care about the order; the FALLBACK does,
+        #: and it is what a reader sees when `to_tex` refuses. Sorted by x,
+        #: this line fell back to `$lo2дr2(i()i −+ 11)$`.
+        _merged = [g for run in runs[lo:hi + 1] for g in run]
+        runs[lo] = (sorted(_merged, key=lambda g: g.stream)
+                    if all(getattr(g, "stream", -1) >= 0 for g in _merged)
+                    else sorted(_merged, key=lambda g: g.rect[0]))
+        for _i in range(lo + 1, hi + 1):
+            runs[_i] = []
+        runs = [r for r in runs if r]
 
     dominant = max(g.size for g in line.glyphs)
     for n, run in enumerate(runs):
@@ -3828,7 +3898,7 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                     GlyphNode(
                         id=f"p{pno}g{n}", page=pno,
                         rect=_sane_rect(o.bbox, o.matrix[5], o.size),
-                        text=_spell_glyph(o.get_text(), gname),
+                        text=_spell_glyph(o.get_text(), gname, o.cid),
                         cid=o.cid, glyphname=gname,
                         fontname=o.fontname, family=fam, size=o.size,
                         tex=project(fam, gname, o.cid, o.fontname), matrix=o.matrix,
