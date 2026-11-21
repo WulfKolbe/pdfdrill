@@ -55,6 +55,48 @@ class Frac:
     den: list
 
 
+#: T-0156 — how much smaller than its neighbours a fraction's numerals must
+#: be before it is `\tfrac` rather than `\frac`, and how close to full size
+#: that neighbour must be. MEASURED on lib:6d90e8d27b8b p174: dominant size
+#: 9.6, numerals 6.7, neighbours 9.6 — 0.70, which is CMR6 against a 9.6 pt
+#: line. Over the 24 board-14 extracts the rule answers 49 of 118 fractions.
+_TFRAC_NUMERAL = 0.85
+_TFRAC_NEIGHBOUR = 0.9
+
+
+def _is_text_style(num, den, rest, size: float, depth: int) -> bool:
+    r"""Is this fraction set in TEXT style — script-size numerals?
+
+    inkdrill-10 on p174: the page sets `\tfrac` inside a display line and
+    our `\frac` sets it display-size, so the glyph findings on those numerals
+    are correct — the numbers really are the wrong size in our rendering.
+
+    THE NEAREST NEIGHBOUR DECIDES, not the page and not the largest glyph in
+    reach, and the first two versions of the measurement were wrong in
+    opposite directions because of it:
+
+      * against the PAGE's dominant size, a fraction inside a superscript
+        looks identical to a `\tfrac` — the whole subexpression is small.
+        That version counted 51 and could not see the difference.
+      * against the LARGEST neighbour within reach, a nested inner fraction
+        finds a full-size glyph a few em away and counts itself. p174 has
+        one, numerals at 4.8 inside an outer at 6.7.
+
+    AND ONLY THE OUTERMOST, which `depth` gives: an inner fraction inherits
+    its style, and `\tfrac` inside a `\tfrac` forces textstyle where the
+    context is already script, making the inner one too big.
+    """
+    if depth or not num or not den or not rest or size <= 0:
+        return False
+    small = max(g.size for g in num + den)
+    x0 = min(g.rect[0] for g in num + den)
+    x1 = max(g.rect[2] for g in num + den)
+    near = min(rest, key=lambda g: min(abs(g.rect[0] - x1), abs(x0 - g.rect[2])))
+    if near.size < _TFRAC_NEIGHBOUR * size:
+        return False                 # its own neighbourhood is small: a script
+    return small < _TFRAC_NUMERAL * near.size
+
+
 def _row_size(glyphs: list[GlyphNode]) -> float:
     return max(g.size for g in glyphs) if glyphs else 0.0
 
@@ -1105,14 +1147,18 @@ def to_tex(glyphs: list[GlyphNode], rules: list[RuleNode] | None = None,
             if num is None or den is None:
                 return None
             mid = 0.5 * (f.rule.rect[1] + f.rule.rect[3])
+            # T-0156 — `\tfrac` where the page set one; see `_is_text_style`.
+            _cmd = "tfrac" if _is_text_style(f.num, f.den, rest, size,
+                                             depth) else "frac"
             row.append(
                 GlyphNode(
                     id=f.rule.id, page=f.rule.page,
                     rect=(f.rule.rect[0], mid - size, f.rule.rect[2], mid + size),
                     text="", cid=-1, glyphname=None,
                     fontname="<fraction>", family="math-extension", size=size,
-                    tex=TexToken(rf"\frac{{{num}}}{{{den}}}", "atom", None,
-                                 "corpus"),
+                    tex=TexToken(
+                        rf"\{_cmd}{{{num}}}{{{den}}}", "atom",
+                        "amsmath" if _cmd == "tfrac" else None, "corpus"),
                     # the bar sits on the maths axis, about a quarter of the
                     # type size above the baseline it shares with its row
                     matrix=(size, 0, 0, size, f.rule.rect[0], mid - 0.25 * size),
