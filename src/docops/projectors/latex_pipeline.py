@@ -93,6 +93,66 @@ def _strip_math_delimiters(latex: str) -> str:
     return s
 
 
+#: The plain-TeX matrix forms amsmath REFUSES outright, and the names it wants
+#: instead. T-0156.
+#:
+#: amsmath answers `\pmatrix{a\cr b}` with "Package amsmath Error: Old form
+#: `\pmatrix' should be \begin{pmatrix}" and stops. arxiv.0912.2444 writes
+#: three of each:
+#:
+#:     \pmatrix{\lfloor cN \rfloor\cr\lfloor cN_2\rfloor}
+#:     \cases{ H(\mathbb{G}_0)+\beta, &\quad if … \cr H_{m+1}+\beta, &\quad …}
+#:
+#: 6 errors for the forms themselves and 9 more for the `\cr` inside them —
+#: measured, ALL NINE `\cr` in that document sit inside these six groups, so
+#: the two are one construct and not two classes.
+#:
+#: `\matrix`, `\eqalign` and `\atop` are NOT here: zero occurrences in the
+#: corpus, and a name added without one is a guess. `\over` IS there, 207
+#: times on the same document, and is deliberately left alone — amsmath
+#: accepts it, it raises no error, and rewriting it to `\frac` would mean
+#: parsing its two sides, which is a different job with its own failure mode.
+_PLAIN_TEX_MATRIX = {"pmatrix": "pmatrix", "cases": "cases"}
+
+
+def _plain_tex_matrices(latex: str) -> str:
+    r"""`\pmatrix{a\cr b}` -> `\begin{pmatrix}a\\b\end{pmatrix}`.
+
+    The row separator goes with the form: plain TeX breaks a row with `\cr`
+    and the amsmath environment with `\\`, so a conversion that kept `\cr`
+    would trade one error for another. Only the `\cr` INSIDE the group is
+    rewritten -- the rule is local, even though the measurement says every one
+    of them is inside.
+
+    A trailing separator is dropped: `\cases{a\cr b\cr}` would otherwise end in
+    an empty row, which amsmath reports as a misplaced `\noalign`.
+    """
+    for name, env in _PLAIN_TEX_MATRIX.items():
+        pat = re.compile(r"\\" + name + r"\s*\{")
+        while True:
+            m = pat.search(latex)
+            if not m:
+                break
+            open_at = m.end() - 1
+            depth, close = 0, None
+            for i in range(open_at, len(latex)):
+                if latex[i] == "{" and (i == 0 or latex[i - 1] != "\\"):
+                    depth += 1
+                elif latex[i] == "}" and latex[i - 1] != "\\":
+                    depth -= 1
+                    if depth == 0:
+                        close = i
+                        break
+            if close is None:
+                break                     # unbalanced: leave it for the crop
+            body = latex[open_at + 1:close]
+            body = re.sub(r"\\cr(?![A-Za-z])", r"\\\\", body)
+            body = re.sub(r"(?:\\\\\s*)+$", "", body)
+            latex = (latex[:m.start()] + "\\begin{" + env + "}" + body
+                     + "\\end{" + env + "}" + latex[close + 1:])
+    return latex
+
+
 def sanitize_math(latex: str) -> str:
     """Make a formula body compile in math mode: replace Unicode math operators
     (U+2212 minus, ×, ≤, Greek, …) with their LaTeX macros, DROP text-mode
@@ -102,6 +162,7 @@ def sanitize_math(latex: str) -> str:
     misplaced optional argument ('Bracket group … at formula start!')."""
     latex = _MATH_UNICODE_RE.sub(lambda m: _MATH_UNICODE[m.group(0)], latex)
     latex = _LEAKED_MATH_ENV.sub(" ", latex)      # drop leaked list/float envs
+    latex = _plain_tex_matrices(latex)            # \pmatrix{…} -> the environment
     latex = _strip_math_delimiters(latex)         # unwrap \[…\] / $…$ / …
     latex = _drop_dangling_backslash(latex)
     latex = _fix_text_mode_specials(latex)

@@ -1547,6 +1547,19 @@ class LaTeXProjector(BaseProjector):
         # `^`/`_` inside a `\text{…}` in an INLINE SPAN. Measured on BH2: one
         # such span at line 133 held xelatex to 4 pages out of 455.
         text = _pipe.fix_text_mode_in_math_spans(text)
+        # T-0156 — AND THE OLD-FORM MATRICES, which `sanitize_math` only
+        # reaches on `props['latex']`. The same split `fix_text_mode_in_math
+        # _spans` above exists for: of arxiv.0912.2444's three `\pmatrix` and
+        # three `\cases`, one of each is a Formula's own latex and TWO of each
+        # are inside a `\[…\]` in PROSE — one in a Paragraph, one in a
+        # `\begin{lemma}` statement. Converting only the first left 4 of the 6
+        # "Old form" errors and 6 of the 9 `\cr` standing.
+        #
+        # Applied to the whole block rather than span by span: the rule
+        # rewrites `\pmatrix{`/`\cases{` and nothing else, and it is
+        # idempotent, so there is no second pass to double. A `\pmatrix` that
+        # somehow stood OUTSIDE maths was an error either way.
+        text = _pipe._plain_tex_matrices(text)
         text = _balance_braces(text)                  # and a runaway brace
         # headings FIRST (so a leaked `## X` still matches — escaping `#` would
         # break it), THEN escape prose specials (`#`/`%`/`&` outside math).
