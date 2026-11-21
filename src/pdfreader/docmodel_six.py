@@ -2642,6 +2642,25 @@ def _merge_operator_names(glyphs: list["GlyphNode"]) -> list["GlyphNode"]:
     out: list[GlyphNode] = []
     i = 0
     while i < len(ordered):
+        # THE SAME QUESTION ON THE LEFT. The run-must-END-here guard below
+        # refuses `supp`, and said why: an upright roman letter glued to a
+        # name at a tight gap makes the whole thing a WORD. This walk
+        # advances one glyph at a time, so it also arrives at the `l` of
+        # `muslim`, where `lim` spells a name and nothing follows it --
+        # and 2312.11532 p7 came back as `$\mathrm{mus}\lim,$ turkish`
+        # (T-0154, seen on the board's own `glyphlines` route). `supp` was
+        # refused and `ppsup` was not, by the identical argument.
+        prv = ordered[i - 1] if i else None
+        if (prv is not None
+                and prv.family in ("text", "text-cm")
+                and len(prv.text) == 1 and prv.text.isalpha()
+                and abs(prv.size - ordered[i].size) <= 0.1
+                and abs(prv.baseline - ordered[i].baseline) <= 0.1
+                and ordered[i].rect[0] - prv.rect[2]
+                <= 0.12 * ordered[i].size):
+            out.append(ordered[i])
+            i += 1
+            continue
         best = None
         # a run is contiguous, same size, same baseline, all upright roman
         for j in range(i + 2, min(i + 10, len(ordered)) + 1):
