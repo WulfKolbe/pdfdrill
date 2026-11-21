@@ -2851,6 +2851,15 @@ def table_regions(page: PageNode) -> list:
     return out
 
 
+#: T-0156 — the longest an author block may be, in lines. MEASURED: the real
+#: blocks in reach are 5 lines (0864 page 1), 4 (1805.01788 page 1) and 2
+#: (`tests/test_line_types.py::TestFrontMatter`); the two runaway ones are 10
+#: and 84. Any value in 5..9 answers the same on that population, and a real
+#: block longer than this loses its `authors` type and stays `text`, which is
+#: what it was before the type existed.
+_AUTHORS_MAX = 8
+
+
 def _front_matter(pages: list[PageNode], fp, titles: set, running: set) -> tuple:
     """({authors lines}, {abstract lines}) — both bounded, or neither.
 
@@ -2869,6 +2878,36 @@ def _front_matter(pages: list[PageNode], fp, titles: set, running: set) -> tuple
     The abstract LABEL stays `section_header`. The heading is not the abstract,
     it names it, and a consumer that wants the heading gone can drop it —
     a consumer that needs it back cannot invent it.
+
+    AND AN AUTHOR BLOCK IS SHORT. "The first heading after the title" is a
+    weak bound: where the next heading is far down the page the block
+    swallows everything between. lib:88d76967110e p170 exported EIGHTY-FOUR
+    lines as `authors`, beginning "In 2006 Larsen et al. tested the effects
+    of …", which is body prose.
+
+    MEASURED, author-block length:
+
+        lib:88d76967110e p170   84 lines    body prose
+        lib:025faeafae2f p153   10 lines    body prose
+        0864 page 1              5 lines    a REAL author block
+        1805.01788 page 1        4 lines    a REAL author block
+        `TestFrontMatter`        2 lines    a REAL author block
+
+    so a block longer than `_AUTHORS_MAX` lines is not one, and the whole
+    block is refused rather than truncated at an arbitrary line. The failure
+    mode is benign and is the one this function already documents: the lines
+    stay `text`, which is what they were.
+
+    THE MARGIN WAS TRIED FIRST AND IS WRONG. An author block is centred on
+    the two real title pages in reach — 1805.01788 page 1 has its author
+    lines at x 238..388 against a margin of 186, and 0864 page 1 at 431..708
+    against 190, so 0 of 4 and 0 of 5 start at the margin while 80 of 84 of
+    lib:88d76967110e p170's do. It separates those perfectly and still
+    breaks, because a FLUSH-LEFT front matter sets its authors AT the margin:
+    `tests/test_line_types.py::TestFrontMatter` is exactly that document, and
+    the margin rule deleted its author block. Two positives were not enough
+    to see that; the suite was.
+
     """
     if not pages:
         return set(), set()
@@ -2921,8 +2960,13 @@ def _front_matter(pages: list[PageNode], fp, titles: set, running: set) -> tuple
         if runin_abstract is not None:
             stop = runin_abstract if stop is None else min(stop, runin_abstract)
         if stop is not None:                      # bounded below by a heading
-            authors = {(page.page, i) for i in after if i < stop
-                       and (page.page, i) not in running}
+            block = {(page.page, i) for i in after if i < stop
+                     and (page.page, i) not in running}
+            # ...AND IT HAS TO BE SHORT. See this function's docstring: a
+            # block of 84 lines is the body of the page, not an author list,
+            # and the whole block is refused rather than cut at an arbitrary
+            # line.
+            authors = block if len(block) <= _AUTHORS_MAX else set()
 
     abstract: set = set()
     if runin_abstract is not None:

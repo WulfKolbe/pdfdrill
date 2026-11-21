@@ -298,3 +298,70 @@ def test_a_title_that_merely_starts_with_a_digit_is_still_a_title():
     page = _sized_page([("3D Convolutional Networks for Video", 14.0)]
                        + _body(6))
     assert _title_lines([page]) == {(1, 0)}
+
+
+#: ------------------------------------------------------------------
+#: AND AN AUTHOR BLOCK IS SHORT.
+#:
+#: `_front_matter` bounds the block by the first heading AFTER the title, and
+#: where that heading is far down the page the block swallows everything
+#: between. lib:88d76967110e p170 exported EIGHTY-FOUR lines as `authors`,
+#: beginning "In 2006 Larsen et al. tested the effects of …".
+#:
+#: FIVE DISCRIMINATORS DIED BEFORE THE ONE THAT SHIPPED, measured, so they
+#: are not re-invented:
+#:
+#:   size contrast        real titles 1.91 and 1.43 x body; the spurious
+#:                        ones 1.76, 2.24, 2.07, 1.20 — `Index` and
+#:                        `Chapter 37` are MORE contrasty than either title
+#:   any number in a      a real title page carries them too: 1805 page 1
+#:   running line         prints "SIGIR '18, July 8-12, 2018"
+#:   a BARE folio         0864 page 1 prints `6208`, its folio in the
+#:                        proceedings, so this refuses a real title
+#:   `_is_not_a_sentence` needs no word of three letters; author names are
+#:                        long words
+#:   THE BODY MARGIN      separates the measured cases perfectly — 0 of 4 and
+#:                        0 of 5 real author lines start at the margin
+#:                        against 80 of 84 of p170's — and still breaks,
+#:                        because a FLUSH-LEFT front matter sets its authors
+#:                        AT the margin. `test_line_types.py::TestFrontMatter`
+#:                        is that document and the rule deleted its author
+#:                        block. Two positives could not see it; the suite
+#:                        could.
+#:
+#: What ships is a length cap, which is a threshold and is written as one:
+#: real blocks of 5, 4 and 2 lines against runaways of 10 and 84. A real
+#: block longer than the cap loses its `authors` type and stays `text`,
+#: which is what it was before the type existed.
+
+
+def test_an_author_block_of_eighty_four_lines_is_not_one():
+    """lib:88d76967110e p170's shape: a title, body prose, then a heading
+    far below. The block is refused whole, not cut at an arbitrary line."""
+    from pdfreader.project_mmd import (_front_matter, _title_lines,
+                                       _running_lines, profile)
+    page = _sized_page([("DIETARY NITRATE AND HEALTH", 14.0)]
+                       + [("In 2006 Larsen et al tested the effects", 10.0)] * 12
+                       + [("2 Methods and materials here", 14.0)]
+                       + _body(4))
+    pages = [page]
+    authors, _ = _front_matter(pages, profile(pages), _title_lines(pages),
+                               _running_lines(pages))
+    assert authors == set(), len(authors)
+
+
+def test_a_short_author_block_survives_even_flush_left():
+    """The shape the margin rule would have deleted: authors AT the margin.
+    `test_line_types.py::TestFrontMatter` is the same document and is what
+    caught that rule."""
+    from pdfreader.project_mmd import (_front_matter, _title_lines,
+                                       _running_lines, profile)
+    page = _sized_page([("A Title Set Large", 14.0),
+                        ("Ada Lovelace and Alan Turing", 10.0),
+                        ("Department of Computing Somewhere", 10.0),
+                        ("1 Introduction and related work", 14.0)]
+                       + _body(6))
+    pages = [page]
+    authors, _ = _front_matter(pages, profile(pages), _title_lines(pages),
+                               _running_lines(pages))
+    assert authors == {(1, 1), (1, 2)}, authors
