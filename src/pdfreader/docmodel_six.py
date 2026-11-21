@@ -250,6 +250,51 @@ _LIGATURES = {
 }
 
 
+def _spell_glyph(text: str, glyphname: "str | None") -> str:
+    r"""A glyph's text, with a ligature CHARACTER or a composite NAME spelled
+    out in the letters it stands for.
+
+    Two rules, and the character one runs first because it is the one the
+    fonts state properly.
+
+    1. A LIGATURE CHARACTER. `_spell_ligature`, from d1e73fe2: pdfminer
+       returns U+FB01 for an `fi` glyph and keeping it misspells every word
+       it stands in.
+
+    2. A COMPOSITE NAME WHOSE TEXT IS SHORT. Linux Libertine sets the
+       small-cap `Qu` of "Equity" as one glyph named `q.sc_u.sc`, and the
+       font's ToUnicode maps it to a single `q` — so 1805.01788 p3 reads
+       `Eqity` four times against `Equity` six. A dropped letter is a GLYPH
+       finding, not a style one.
+
+    ONLY WHERE THE TEXT IS SHORTER THAN THE PARTS. MEASURED over the 24
+    board-14 extracts, every underscore-named glyph: `f_i` 29 -> 'fi',
+    `f_f` 21 -> 'ff', `f_l` 6 -> 'fl', `t_t` 2 -> 'tt' — all correct
+    already — and `q.sc_u.sc` 2 -> 'q', the only short one. So 58 of the 60
+    composite glyphs on the whole set are untouched, and a rule that rewrote
+    every `X_Y` name from its parts would be a no-op for them and a risk for
+    any name whose parts are not plain letters.
+
+    AND EVERY PART MUST REDUCE TO ONE LETTER after its `.suffix` is dropped.
+    A part that does not — `dotlessi`, `ff`, a name never seen here — makes
+    the whole name abstain, because inventing characters is worse than the
+    one that is missing. One glyph keeps one box either way.
+    """
+    text = _spell_ligature(text or "")
+    if not glyphname or "_" not in glyphname:
+        return text
+    parts = glyphname.split("_")
+    if len(text) >= len(parts):
+        return text
+    letters = []
+    for part in parts:
+        base = part.split(".")[0]
+        if len(base) != 1 or not base.isalpha():
+            return text                   # not a letter: spell nothing
+        letters.append(base)
+    return "".join(letters)
+
+
 def _spell_ligature(text: str) -> str:
     """`text` with every Latin f/s ligature replaced by its letters.
 
@@ -3602,7 +3647,7 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                     GlyphNode(
                         id=f"p{pno}g{n}", page=pno,
                         rect=_sane_rect(o.bbox, o.matrix[5], o.size),
-                        text=_spell_ligature(o.get_text()),
+                        text=_spell_glyph(o.get_text(), gname),
                         cid=o.cid, glyphname=gname,
                         fontname=o.fontname, family=fam, size=o.size,
                         tex=project(fam, gname, o.cid, o.fontname), matrix=o.matrix,
