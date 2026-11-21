@@ -5160,8 +5160,9 @@ def to_lines_json(pages: list[PageNode],
                             "width": max(1, round((ln.rect[2] - ln.rect[0]) * k)),
                             "height": max(1, round((ln.rect[3] - ln.rect[1]) * k)),
                         },
-                        "text": (" ".join(span_reading_text(sp)
-                                          for sp in ln.spans)),
+                        "text": _as_display(
+                            " ".join(span_reading_text(sp) for sp in ln.spans),
+                            _mp_type(_line_type(p, i, ln)[0])),
                         # 844 — MathPix puts `text_display` on EVERY line and
                         # `inlinectx.load_spans` reads `text_display or text`
                         # (676 review B3). We emitted none, so a consumer that
@@ -5169,8 +5170,9 @@ def to_lines_json(pages: list[PageNode],
                         # `$…$` spans in `text`, so the two are the same string
                         # — emitting it is what makes that true rather than
                         # something a reader has to know.
-                        "text_display": (
-                            " ".join(span_reading_text(sp) for sp in ln.spans)),
+                        "text_display": _as_display(
+                            " ".join(span_reading_text(sp) for sp in ln.spans),
+                            _mp_type(_line_type(p, i, ln)[0])),
                         "complete": all(
                             sp.kind == "text" or span_latex(sp) is not None
                             for sp in ln.spans
@@ -5981,6 +5983,45 @@ def span_text(sp: Span) -> str:
         return f"${tex}$"
     return (f"<!-- DEFERRED {sp.id} rect={[round(v, 1) for v in sp.rect]} "
             f"reason={span_reason(sp)} -->")
+
+
+#: Line types the classifier establishes as a DISPLAY equation.
+_DISPLAY_TYPES = {"math", "equation"}
+
+
+def _as_display(text: str, line_type: str) -> str:
+    r"""A display equation written `\[...\]`, or `text` unchanged.
+
+    T-0154/T-0156. Every maths span is written `$...$` — inline maths —
+    whatever the line's type, so a line the classifier established as a
+    DISPLAY equation reached the reading in text style. A `\frac` is then set
+    small with its bar low, where the page sets it large with the bar high.
+
+    MEASURED on lib:6d90e8d27b8b p174, from the judge's rule findings: four
+    fraction bars the ink draws at y=1987 our LaTeX draws at 1970 (x2) and
+    2001 (x2) — 17 above and 14 below — so each counts twice, once missing
+    and once invented. The same on L3 (ink 638, ours 633) and L5 (959/943).
+    The CONTENT is not in question: our line and MathPix's are the same
+    equation with the same fractions in the same order, and only the
+    delimiters differ.
+
+    SCOPE over the 24 board-14 extracts: 128 of 131 lines typed `math` or
+    `equation` are written inline — p293 20, 0864 p4 18, p174 18, p154 16,
+    p118 13, and six more pages.
+
+    ONLY WHEN THE WHOLE LINE IS ONE MATHS SPAN. A sentence with maths in it
+    is not a display equation, and wrapping it would set its words in maths
+    mode; such a line keeps its `$...$` spans.
+    """
+    if line_type not in _DISPLAY_TYPES:
+        return text
+    body = (text or "").strip()
+    if len(body) < 3 or not body.startswith("$") or not body.endswith("$"):
+        return text
+    inner = body[1:-1]
+    if "$" in inner:
+        return text                      # several spans: a sentence, not a display
+    return "\\[\n%s\n\\]" % inner
 
 
 def span_reading_text(sp: Span) -> str:
