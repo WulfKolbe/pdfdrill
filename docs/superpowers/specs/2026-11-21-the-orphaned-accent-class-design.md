@@ -153,3 +153,41 @@ glyph finding. Worth settling before building, by reading the page.
 the alternative in §8 is a different idea that needs its own ten lines and a
 look at `structure._merge_accents` first. The class is 12 glyphs on 2 pages;
 the 30 lost glyphs on 0864 p4, next in the queue, are a larger population.
+
+---
+
+## 11. CORRECTED: they were never accents (same day)
+
+inkdrill-10 rendered the glyphs and the coordinator read them. The glyphs
+named `acute` and `circumflex` in `TUJKXG+Gdvdkgesint10` are **integral
+signs** from the `esint` package. The font carries no ToUnicode, so pdfminer
+falls back to a standard encoding and names whatever sits at those codes; the
+names are the subsetter's and they are wrong.
+
+**This explains §4's own measurement, which I had in hand and read wrongly.**
+"Every accent's stream neighbour is another accent at the same x, and the
+nearest non-accent glyph is 130 to 180 points away" is `∫ x dx = ∫` — two
+integrals — and "no base nearby" is simply what an integral looks like. I
+took the glyph names as the identity and reasoned about composition; the
+decisive evidence was already on the page and needed an outline, not more
+inference.
+
+So §1–§7 stand as a refutation of stream adjacency for accent composition,
+and their SUBJECT was wrong for p174: that page has no orphaned accents of
+this kind. What it has is
+
+1. 15 esint integrals read as bare `´`/`ˆ` — fixed in the commit that
+   carries this correction: the `esint` font is a maths-extension family and
+   its glyph names are not evidence, so cid 30 and cid 31, both verified by
+   rendering at 600 dpi, map to `\int`;
+2. 5 real dot accents in `JSLHNA+DlgbwdCMR9` (`dotaccent`), missing from the
+   reading — a separate class, not yet measured.
+
+§8's downward base search is **withdrawn** by the coordinator and replaced by
+those two. The board-wide "12 orphaned accent glyphs" of §1 is therefore also
+wrong: 10 of the 12 were these integrals.
+
+THE RULE THAT CAME OUT OF IT, and it is the useful part: where a glyph name
+and the printed outline disagree, **the outline decides**. Both of us
+inferred an identity from the name — I inferred "accent" and the coordinator
+first inferred "dot" — and only rendering settled it.

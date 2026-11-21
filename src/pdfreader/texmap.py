@@ -53,6 +53,11 @@ FAMILY_RULES = [
     (re.compile(r"MTMIB|MTMI", re.I), "math-italic"),         # MathTime italic
     (re.compile(r"MTSY|MTSYN|MTSYB", re.I), "math-symbol"),   # MathTime symbols
     (re.compile(r"BLEX|BLSY|MTEX", re.I), "math-extension"),  # Belleek/MathTime ext
+    # T-0156 — `esint` is a LARGE-SYMBOL maths font and was falling through
+    # to `text`, so its glyphs landed in prose spans and were written as the
+    # raw characters a fallback encoding gave them (`´`, `ˆ`). See
+    # `_ESINT_FONT`: the font holds integral signs and nothing else.
+    (re.compile(r"esint\d*", re.I), "math-extension"),
     (re.compile(r"RSFS\d*", re.I), "script"),
     # LATIN MODERN: Computer Modern's successor, and what every
     # lualatex/xelatex document ships. Its maths fonts were falling through
@@ -1137,6 +1142,43 @@ def cm_glyphname(fontname: str | None, cid: int) -> str | None:
     return CM_ENCODING.get(base, {}).get(cid)
 
 
+#: T-0156 — THE `esint` FONT HOLDS INTEGRAL SIGNS AND NOTHING ELSE.
+#:
+#: `esint10` is the `esint` package's `largesymbolsA`: every glyph in it is
+#: an integral variant. A subset of it carries no ToUnicode, so pdfminer
+#: falls back to a standard encoding and names the glyphs after whatever sits
+#: at those codes — on lib:6d90e8d27b8b p174, `TUJKXG+Gdvdkgesint10` gives
+#: cid 30 the name `acute` (x8) and cid 31 the name `circumflex` (x7). The
+#: reader believed them and wrote accents: that page's L2 reads `'$´ ´$'`.
+#:
+#: THE OUTLINE DECIDES. Rendered at 600 dpi with the project's own cutter and
+#: read: cid 31 is `∫ x dx = ∫ −t dt` and `∫ sin t dt`, cid 30 is
+#: `∫ dx/x = ∫ 2dt/t`. Both are a plain `\int` — the width difference, 5.33
+#: against 4.53 at 9.6 pt, is the display/text pair a `largesymbols` font
+#: keeps for ONE symbol, and in LaTeX one writes `\int` and lets TeX choose.
+#:
+#: ONLY TWO CIDS, because only two have been rendered and read. The names are
+#: the subsetter's and are wrong; the cids are codes in THIS document's
+#: encoding, so another producer's esint subset may number its glyphs
+#: differently. An esint cid that is not in this table keeps today's answer.
+#:
+#: THE REFUSAL IS GENERAL and does not depend on the table: a font that holds
+#: no accents is not evidence of an accent, whatever name a fallback encoding
+#: put on the glyph. That removes the `´`/`ˆ` from the reading even where the
+#: symbol cannot yet be named.
+_ESINT_FONT = re.compile(r"esint\d*$", re.I)
+
+#: cid -> LaTeX, for `esint` subsets, verified by rendering (see above).
+_ESINT_CID = {30: r"\int", 31: r"\int"}
+
+
+def _is_esint(fontname: "str | None") -> bool:
+    """True for the `esint` package's own font, by the name TeX gives it."""
+    if not fontname:
+        return False
+    return bool(_ESINT_FONT.search(fontname.split("+")[-1]))
+
+
 def project(family: str, glyphname: str | None,
             cid: int = -1, fontname: str | None = None) -> TexToken:
     r"""Map one glyph identity to a LaTeX token.
@@ -1157,6 +1199,12 @@ def project(family: str, glyphname: str | None,
     The base name is tried only AFTER the full name abstains, so a table that
     does know a variant keeps its own answer.
     """
+    if _is_esint(fontname):
+        # The font holds integral signs only; see `_ESINT_FONT`. A name from
+        # its fallback encoding is not evidence, so the cid decides or
+        # nothing does.
+        cmd = _ESINT_CID.get(cid)
+        return (TexToken(cmd, "bigop", "esint", "corpus") if cmd else UNKNOWN)
     tok = _project_name(family, glyphname, cid, fontname)
     if tok.latex is None and glyphname and "." in glyphname:
         base = glyphname.split(".", 1)[0]
