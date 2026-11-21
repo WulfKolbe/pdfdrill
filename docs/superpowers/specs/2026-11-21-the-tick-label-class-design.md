@@ -49,7 +49,7 @@ run's own baseline**?
 and they are chart furniture, nothing else: `k=1`, `k=3`, `k=5` (legend
 labels, 6 each), `0.05`, `0.15`, `0.75`, `1.0`, `−0.05` (tick labels).
 
-## 3. Why it happens
+## 3. Why it happens — FALSIFIED, see §11
 
 The fold's own guard already asks whether the host is near:
 
@@ -78,7 +78,7 @@ So this is not catching up with anybody. Our reader has these labels for free,
 because they are real text in the PDF's own layer, and both comparands discard
 them. That matters for what the gain can honestly be claimed to be (§6).
 
-## 5. The idea, and the mechanism
+## 5. The idea, and the mechanism — FALSIFIED, see §11
 
 **A run is a script only if the thing it is a script of is beside it.**
 Replace the host row's extent with the host row's glyphs in the nearness test:
@@ -141,9 +141,65 @@ case that produced `(a)45 /V/arTiil0i,ngj0a,ndi1p,arja1l;lelization.`). Any
 change here is pinned in the same commit by `tests/test_the_board_counts_only_improve.py`
 and by a word-by-word diff of all 24 extracts, both directions.
 
-## 10. Decision
+## 10. Decision — SUPERSEDED by §11
 
 Worth doing, on §2's evidence: one test changed, 1,900 right answers kept,
 82 wrong ones addressed, no threshold introduced — the census uses the em the
 page already states. **Not started in this session**, deliberately: rule 6 asks
 for these ten lines first and the coordinator asked for them explicitly.
+
+
+---
+
+## 11. FALSIFIED: the script fold is not what breaks the labels (same day)
+
+§3 and §5 named the fold's row-extent nearness test as the cause. That is
+wrong, and §7's "second cheapest experiment" was the wrong experiment: I
+checked that the proposed change would not harm scripts, and never checked
+that it addresses the defect. Six probes, in order:
+
+1. **`_group_lines` returns the labels INTACT.** Wrapping the three stages
+   (`_group_lines`, `_split_by_stream`, `_split_at_columns`) and asking after
+   each whether every glyph of a label is still in one row: `'0.25'` and
+   `'0.75'` come out `intact` from all three. The fold does not break them.
+
+2. **The script-band pass makes no difference.** `PDF2MMD_SCRIPTBAND=off`
+   gives byte-identical output on 0864 p4 — same 14 decimals, same 138 tiny
+   lines. So the stream-based per-glyph reattachment is not it either.
+
+3. **The labels are TRUNCATED, not shredded.** What survives is `0.05` -> `0.0`,
+   `0.15` -> `0.1`, `0.25` -> `0.2`, `0.75` -> `0.7`: the FINAL digit of each
+   label is dropped. That is why `5` is the most-lost character, 14 of them.
+
+4. **Every glyph is constructed.** Spying on `GlyphNode` creation: all 226
+   seven-point glyphs on page 2 are made. The 34 vanish afterwards —
+   `5`x14, `0`x8, `.`x5, `1`x5, `2`x2.
+
+5. **They are not set aside anywhere.** `LineNode.merged` is empty for the
+   whole page (0 dropped glyphs), `page.invisible` is False, the five
+   `page.diagrams` carry no glyphs, and only 3 lines on the page hold a digit
+   script — all of them real `\hat{F}_{0}`. So the digits are not deferred,
+   not whitened, not folded into a figure and not consumed as subscripts.
+
+6. **No merge pass accounts for them.** Wrapping `merge_fragments`,
+   `_compose_text_accents`, `_merge_enclosures`, `_merge_extenders` and
+   `_merge_operator_names` and counting seven-point glyphs in and out:
+   `_merge_operator_names` legitimately consumes 4 (a run becomes one head
+   glyph). The other 30 are lost by none of them.
+
+So the defect is real, the population in §2 stands as a measurement, and the
+MECHANISM IS STILL UNKNOWN. §2's census remains valid on its own terms — the
+fold is right about 1,900 scripts and 82 standalone runs do not survive
+intact — but "does not survive intact" turns out to include a loss the fold
+is not causing.
+
+**Not started, and not to be started on §5's reasoning.** The next step is to
+find where between `_group_lines` and `LineNode` a trailing glyph is dropped;
+the remaining unexamined code is the band-merge region of `build` (the `keep`
+/`remap` filtering, the rule attachment, `_off_row_by_rule`) and whatever
+reads `groups` after `_split_at_columns` returns. One more honest trace, not
+a guess.
+
+This note is left in place with §3 and §5 marked rather than rewritten,
+because the sequence is the useful part: a census that separates a class
+cleanly is not the same thing as a diagnosis, and I conflated them.
