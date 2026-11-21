@@ -163,6 +163,16 @@ def _author_list(authors) -> list[str]:
     return [one] if one else []
 
 
+def _with_addon(base: str, addon: str) -> str:
+    """`base` with the author's packages and macros after it, if there are any.
+
+    AFTER, not before: a `\\usepackage` that redefines one of the default's
+    symbols must be the later load to win, which is the same reason
+    `_DEFAULT_PREAMBLE` puts `stmaryrd` after `amssymb`.
+    """
+    return base if not addon else base.rstrip() + "\n" + addon + "\n"
+
+
 def _escape_text(s: str) -> str:
     """Escape the LaTeX specials in a caption/title/author. IDEMPOTENT (`(?<!\\\\)`):
     an already-escaped `C\\#` from the source is NOT doubled into `C\\\\#` (which is
@@ -754,12 +764,50 @@ class LaTeXProjector(BaseProjector):
         mode) for CROPPING figures in the SVG step, so `\\section` errors 'Not
         allowed in LR mode' in a full document. Fall back to the article default."""
         pre = meta.get("latex_preamble")
+        addon = ""
         if isinstance(pre, dict):
+            # T-0156 class B — THE AUTHOR'S PACKAGES AND MACROS, APPENDED.
+            #
+            # `latex_source.document_addon_preamble` holds the measurement:
+            # emitting the author's whole preamble LOSES (241 -> 384 over the
+            # seven that still compile, and the eighth produces no PDF at all,
+            # for three reasons that are all properties of the class and the
+            # page geometry), while keeping this preamble and appending the
+            # author's packages and macro bodies takes the eight e-prints
+            # 383 -> 297 with eight PDFs of eight.
+            #
+            # A MODEL WITHOUT THE KEY FALLS BACK EXPLICITLY. Every source model
+            # built before this stores no `packages_macros`, so `addon` stays
+            # "" and the preamble is exactly what it was. That is the
+            # difference between an older model and a model whose author
+            # loaded nothing -- `document_addon_preamble` returns "" for an
+            # absent preamble on purpose rather than its own `tikz` line.
+            addon = str(pre.get("packages_macros") or "").strip()
+            if not addon and str(pre.get("original") or "").strip():
+                # AND THE OTHER WRITER'S KEY. `cmd_injectlatex` stores the
+                # author's raw preamble as `original` (commands.py, beside
+                # `standalone`); `latex_source.build_from_source` stores
+                # `packages_macros`. Deriving from `original` here reaches
+                # every model that already carries the preamble WITHOUT a
+                # rebuild -- measured on the eight T-0156 e-prints, two of the
+                # six reading-built models hold `original` and one of them,
+                # 2102.08145, is where 20 of the experiment's 86 errors went.
+                # Only one of the eight is source-built AND improves, so a
+                # rule that read `packages_macros` alone would have reached a
+                # quarter of the measurement it was written from.
+                from pdfdrill.latex_source import document_addon_preamble
+                addon = document_addon_preamble(str(pre["original"])).strip()
             pre = pre.get("expanded") or pre.get("standalone") or pre.get("preamble")
         if not (isinstance(pre, str) and pre.strip()):
-            return _DEFAULT_PREAMBLE
+            return _with_addon(_DEFAULT_PREAMBLE, addon)
         if re.search(r"\\documentclass\s*(\[[^\]]*\])?\s*\{\s*standalone\s*\}", pre):
-            return _DEFAULT_PREAMBLE                 # figure-crop preamble → not a document
+            # figure-crop preamble → not a document; its packages and macros
+            # are still the author's, and they come back through `addon`.
+            return _with_addon(_DEFAULT_PREAMBLE, addon)
+        # A preamble `injectlatex` captured is a DOCUMENT preamble already and
+        # carries the author's packages itself; appending them again would load
+        # several of them twice, and a second load with different options is an
+        # "Option clash" rather than a no-op.
         return pre
 
     def _render_flow(self, items) -> list[str]:

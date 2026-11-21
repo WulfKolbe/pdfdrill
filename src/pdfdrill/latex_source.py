@@ -943,6 +943,71 @@ def _robustify_macro_defs(defs: list[str]) -> list[str]:
     return out
 
 
+def document_addon_preamble(preamble: str) -> str:
+    r"""The author's MACRO DEFINITIONS, for appending to a document preamble.
+
+    T-0156 class B. The author's macros were thrown away: `build_from_source`
+    stored only the `standalone` crop preamble, and the projector correctly
+    refuses that as a document preamble (it typesets in LR mode, so `\section`
+    errors "Not allowed in LR mode") and fell back to `_DEFAULT_PREAMBLE`. So
+    every `\gameval`, `\disc`, `\payoff`, `\edges`, `\PLS` arrived undefined.
+
+    DEFINITIONS ONLY, AND TWO WIDER VERSIONS WERE MEASURED AND REFUTED FIRST.
+    Recorded with their numbers, because each is correct in isolation and the
+    next reader will otherwise implement one again. Both were measured over the
+    audit's eight e-prints with the projection's own `\title` kept and every
+    half compiled from a CLEAN directory.
+
+    A, THE AUTHOR'S WHOLE PREAMBLE REPLACING OURS: 241 -> 384 over the seven
+    that still produced a PDF, and the eighth produced none.
+
+      * the tarball is not self-contained -- `arximspdf` is found and dies on
+        `File 'texsort.sty' not found` -> `Emergency stop`;
+      * the class changes what the body assumed -- under `acmart`,
+        `width=\linewidth` divides by zero and 20 crops fail to load, against
+        zero under ours;
+      * the author's preamble lacks what OUR projection needs -- a clean
+        compile collapsed into 82 misplaced `&`, 49 `\omit`, 34 `\span`.
+
+    B, OUR CLASS PLUS THE AUTHOR'S PACKAGES AND MACROS: it takes a PDF away.
+
+        1503.00301         0 PDF  ->    0 PDF
+        arxiv.0912.2444  142 PDF  ->  142 PDF
+        arxiv.2402.03975 187 PDF  ->   93 NO PDF
+
+      `amsaddr` is installed and was loaded, and nothing in the addon mentions
+      `\email`: amsaddr assumes an AMS document class, where `\email` IS a
+      class command, and we keep `article`. So a package the author loads needs
+      the class we refused -- the same family as A's three, and 93 errors with
+      no output loses to 187 with a 69-page document.
+
+    EVERY ONE OF THOSE FOUR MECHANISMS IS A PROPERTY OF A CLASS OR A
+    `\usepackage`. A `\newcommand` body has neither. So this is
+    `standalone_preamble`'s `defs` alone: no class, no packages, no `\input`,
+    no tikz libraries, no font primitives, no alphabet declarations.
+
+    `_robustify_macro_defs` is what makes that safe, and it is the same guard
+    the `\email` failure needed: each definition is emitted as
+    `\providecommand{\name}{}` followed by `\renewcommand`, so a macro whose
+    original definition depended on a package we do not load still defines
+    rather than erroring "Command \name undefined".
+
+    A definition whose NAME contains `@` is only legal between
+    `\makeatletter` and `\makeatother` -- 2208.01506 defines
+    `\appendix@section`, and lifted out bare the brace counting goes wrong and
+    LaTeX reports "Missing \begin{document}" a hundred lines later. Wrapped
+    here for the same reason `standalone_preamble` wraps it there.
+    """
+    if not preamble.strip():
+        return ""
+    defs = _robustify_macro_defs(_collect_macro_defs(strip_comments(preamble)))
+    if not defs:
+        return ""
+    if any("@" in _def_name(d) for d in defs):
+        defs = ["\\makeatletter", *defs, "\\makeatother"]
+    return "\n".join(defs).strip()
+
+
 def standalone_preamble(preamble: str) -> str:
     """A minimal `standalone` math preamble for the latex→dvi→dvisvgm step: the
     author's math/TikZ packages + their macro definitions — but NOT the document
@@ -2172,8 +2237,15 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
     doc = Document()
     doc.meta["bibkey"] = bibkey
     doc.meta["source_path"] = f"{main} (LaTeX source, no OCR)"
-    doc.meta["latex_preamble"] = {"main": main, "num_macros": len(macros),
-                                  "standalone": standalone_preamble(pre)}
+    doc.meta["latex_preamble"] = {
+        "main": main, "num_macros": len(macros),
+        "standalone": standalone_preamble(pre),
+        # T-0156 class B — the author's packages and macros, for APPENDING to
+        # the projection's own document preamble. A separate key from
+        # `standalone`, which stays what it is: the figure-crop preamble, and
+        # the projector is right to refuse it as a document preamble.
+        "packages_macros": document_addon_preamble(pre),
+    }
 
     # Capture the document `\title{…}` / `\author{…}` into meta (frontmatter),
     # so the projection emits a real `\title`+`\maketitle` instead of dragging a
