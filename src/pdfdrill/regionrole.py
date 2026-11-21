@@ -35,6 +35,8 @@ import json
 import re
 from pathlib import Path
 
+from pdfdrill import linesjson
+
 BODY, TOC, BIBLIOGRAPHY, INDEX = "body", "toc", "bibliography", "index"
 
 #: Anchored at the start and allowed a leading number, because a heading is
@@ -75,7 +77,9 @@ def roles_for(lines_path) -> list:
     j = json.loads(Path(lines_path).read_text(encoding="utf-8",
                                               errors="replace"))
     out, role = [], BODY
-    for page, pg in enumerate(j.get("pages") or [], 1):
+    for position, pg in enumerate(j.get("pages") or [], 1):
+        # T-0154 — the page the READING states, not its position in the list.
+        page = linesjson.page_number(pg, position)
         for i, ln in enumerate(pg.get("lines") or []):
             t = ln.get("type")
             if t == "section_header":

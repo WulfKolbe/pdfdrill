@@ -42,6 +42,8 @@ import json
 import re
 from pathlib import Path
 
+from pdfdrill import linesjson
+
 #: `$...$` or `\( ... \)`. A `\$` is an escaped dollar and never a delimiter.
 INLINE = re.compile(r"(?<!\\)\$(?!\$)(.+?)(?<!\\)\$|\\\((.+?)\\\)", re.S)
 
@@ -55,7 +57,11 @@ def load_spans(lines_path: "Path | str") -> list:
     j = json.loads(Path(lines_path).read_text(encoding="utf-8",
                                               errors="replace"))
     out = []
-    for page, pg in enumerate(j.get("pages") or [], 1):
+    for position, pg in enumerate(j.get("pages") or [], 1):
+        # T-0154 — the page the READING states, not its position in the list.
+        # This was `enumerate(..., 1)`, so a reading with a gap numbered every
+        # later page one too low and the FO row's crop came off the wrong page.
+        page = linesjson.page_number(pg, position)
         for line_index, ln in enumerate(pg.get("lines") or []):
             if ln.get("type") == "math":
                 continue
