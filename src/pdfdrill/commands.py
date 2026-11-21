@@ -12933,7 +12933,16 @@ def _compile_is_complete(pdf_words: int, tex_words: int) -> bool:
 
 
 def _pdf_word_count(pdf: Path) -> "int | None":
-    """Words `pdftotext` finds in `pdf`, or None when it cannot be asked."""
+    """Words `pdftotext` finds in `pdf`; None only when it cannot be ASKED.
+
+    THE TWO CASES ARE NOT THE SAME, and conflating them hid a state. A missing
+    `pdftotext` means the question cannot be put, so no verdict may rest on
+    it. A `pdftotext` that RAN and failed on the file means the PDF cannot be
+    read — 2102.08145 produces exactly that, a PDF of no pages — and a PDF
+    nobody can read carries no words, which is a fragment and not an unknown.
+    Returning None for both reported "the PDF's words could not be counted"
+    where the honest answer was "this is not the document".
+    """
     import shutil
     import subprocess
     if not shutil.which("pdftotext"):
@@ -12942,8 +12951,56 @@ def _pdf_word_count(pdf: Path) -> "int | None":
         out = subprocess.run(["pdftotext", str(pdf), "-"],
                              capture_output=True, text=True, timeout=120)
     except Exception:                                     # noqa: BLE001
-        return None
-    return len(out.stdout.split()) if out.returncode == 0 else None
+        return 0
+    return len(out.stdout.split())
+
+
+def _xelatex_error_count(log: Path) -> int:
+    r"""How many errors xelatex reported, from the `.log` it last wrote.
+
+    An error line begins with `!`. The LAST pass's log is the one on disk, and
+    it is the one quoted: a second pass can report more as `\cite` resolves
+    against the `.aux` the first wrote.
+    """
+    try:
+        text = log.read_text(encoding="utf-8", errors="replace")
+    except Exception:                                     # noqa: BLE001
+        return 0
+    return sum(1 for ln in text.splitlines() if ln.startswith("!"))
+
+
+def _compile_verdict(pdf_exists: bool, pdf_words: int, tex_words: int,
+                     errors: int) -> "tuple[bool, str]":
+    r"""Which of three things happened, and whether it may be called a success.
+
+    T-0156. Every run ends in exactly one of these, and each is a non-zero
+    exit while errors remain:
+
+        no PDF                    nothing was produced
+        fragment                  a PDF that is not the document (class G)
+        document with N errors    inspectable, and still not a clean compile
+
+    A clean compile is the only success. A share over 100% is normal, not an
+    error — the PDF renders bibliography and figure text that stripping the
+    source removes (0912.2444 is 168%), so the share is a FLOOR on content and
+    never an equality.
+    """
+    if not pdf_exists:
+        return False, ("xelatex produced no PDF at all (see the .log in the "
+                       f"env dir); {errors} error(s) reported")
+    if not _compile_is_complete(pdf_words, tex_words):
+        share = (f"{pdf_words / tex_words:.1%}" if tex_words > 0 else "n/a")
+        return False, (f"xelatex produced a PDF holding {pdf_words} of "
+                       f"{tex_words} words ({share}) — under "
+                       f"{_COMPILE_MIN_SHARE:.0%}, so it is a fragment, not "
+                       f"the document; {errors} error(s), see the .log")
+    if errors:
+        share = (f"{pdf_words / tex_words:.0%}" if tex_words > 0 else "n/a")
+        return False, (f"compiled with {errors} error(s) — the PDF holds "
+                       f"{pdf_words} of {tex_words} words ({share}) and can "
+                       f"be inspected, but the compile is not clean; see the "
+                       f".log")
+    return True, ""
 
 
 def _xelatex_compile(main_tex: Path) -> "tuple[bool, str]":
@@ -12961,7 +13018,13 @@ def _xelatex_compile(main_tex: Path) -> "tuple[bool, str]":
         return False, "xelatex not on PATH (install texlive-xetex)"
     try:
         for _pass in range(2):
-            subprocess.run(["xelatex", "-interaction=nonstopmode", "-halt-on-error",
+            #: NO `-halt-on-error`. T-0156: it stopped xelatex at the FIRST
+            #: error, so 7 of the audit's 8 e-prints produced no PDF at all.
+            #: Without it, five of the eight compile to a 22-69 page document
+            #: a person can open — and "no PDF" is nothing to inspect. The
+            #: errors are not hidden by this: `_compile_verdict` names the
+            #: count and the command still exits non-zero.
+            subprocess.run(["xelatex", "-interaction=nonstopmode",
                             main_tex.name], cwd=str(main_tex.parent),
                            capture_output=True, timeout=180)
             if not main_tex.with_suffix(".pdf").exists():
@@ -12969,8 +13032,14 @@ def _xelatex_compile(main_tex: Path) -> "tuple[bool, str]":
     except Exception as exc:                              # noqa: BLE001
         return False, f"xelatex failed: {type(exc).__name__}"
     pdf_out = main_tex.with_suffix(".pdf")
+    errors = _xelatex_error_count(main_tex.with_suffix(".log"))
+    #: EXISTENCE IS ASKED FIRST, so "no PDF" can still be said. The word count
+    #: was asked before it, and `_pdf_word_count` cannot read a file that is
+    #: not there, so every missing PDF reported "the PDF's words could not be
+    #: counted" and the no-PDF state was unreachable — measured on
+    #: 2507.21892v1 in the acceptance run.
     if not pdf_out.exists():
-        return False, "xelatex produced no PDF (see the .log in the env dir)"
+        return _compile_verdict(False, 0, 0, errors)
     #: T-0156 class G — AND THE PDF MUST BE THE DOCUMENT. A PDF that merely
     #: EXISTS was the whole test, so `--compile` printed "compiled ✓" for
     #: 2602.11699v3's one page holding 0.3% of the paper's words. See
@@ -12978,14 +13047,17 @@ def _xelatex_compile(main_tex: Path) -> "tuple[bool, str]":
     try:
         src = main_tex.read_text(encoding="utf-8", errors="replace")
     except Exception:                                     # noqa: BLE001
-        return True, ""
+        return (not errors), (f"compiled with {errors} error(s); see the .log"
+                              if errors else "")
     want = _tex_text_words(src)
     got = _pdf_word_count(pdf_out)
-    if got is None or _compile_is_complete(got, want):
-        return True, ""
-    return False, (f"xelatex produced a PDF holding {got} of {want} words "
-                   f"({got / want:.1%}) — under {_COMPILE_MIN_SHARE:.0%}, so "
-                   f"it is a fragment, not the document (see the .log)")
+    if got is None:
+        #: Without `pdftotext` the share cannot be asked, so the only claim
+        #: left is the error count — never a silent success.
+        return (not errors), (f"compiled with {errors} error(s) (the PDF's "
+                              f"words could not be counted); see the .log"
+                              if errors else "")
+    return _compile_verdict(pdf_out.exists(), got, want, errors)
 
 
 def _prefer_arxiv_source(pdf: Path, sc, key: str, doc, model_path: Path):
@@ -13314,7 +13386,16 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
         # "2 passes" is said out loud: a `\cite` resolves against the `\bibcite`
         # labels the FIRST pass writes to the `.aux`, so the recipe is part of
         # the result and not an implementation detail (642 fix round 1).
-        lines.append(f"  compiled: {'✓ ' + _artref(sc, pdf_out) + ' (xelatex, 2 passes)' if ok else '✗ ' + note}")
+        #: T-0156 — THE PDF IS NAMED WHENEVER THERE IS ONE, including on a
+        #: failure: a 22-69 page document that compiled with errors is
+        #: something the owner can open, and the path is how he opens it.
+        if ok:
+            _verdict = "✓ " + _artref(sc, pdf_out) + " (xelatex, 2 passes)"
+        elif pdf_out.exists():
+            _verdict = "✗ " + _artref(sc, pdf_out) + " — " + note
+        else:
+            _verdict = "✗ " + note
+        lines.append(f"  compiled: {_verdict}")
         #: T-0156 class G — AND A FAILED COMPILE EXITS NON-ZERO. This returned
         #: a plain string, so `--compile` exited 0 on 8 of 8 e-prints while
         #: producing NO PDF on 7 of them, and a caller that checks the status
@@ -13371,7 +13452,16 @@ def cmd_beamer(pdf: Path, force: bool = False, compile: bool = False) -> str:
     if compile:
         ok, note = _xelatex_compile(out)
         pdf_out = out.with_suffix(".pdf")
-        lines.append(f"  compiled: {'✓ ' + _artref(sc, pdf_out) + ' (xelatex, 2 passes)' if ok else '✗ ' + note}")
+        #: T-0156 — THE PDF IS NAMED WHENEVER THERE IS ONE, including on a
+        #: failure: a 22-69 page document that compiled with errors is
+        #: something the owner can open, and the path is how he opens it.
+        if ok:
+            _verdict = "✓ " + _artref(sc, pdf_out) + " (xelatex, 2 passes)"
+        elif pdf_out.exists():
+            _verdict = "✗ " + _artref(sc, pdf_out) + " — " + note
+        else:
+            _verdict = "✗ " + note
+        lines.append(f"  compiled: {_verdict}")
         #: T-0156 class G — AND A FAILED COMPILE EXITS NON-ZERO. This returned
         #: a plain string, so `--compile` exited 0 on 8 of 8 e-prints while
         #: producing NO PDF on 7 of them, and a caller that checks the status
