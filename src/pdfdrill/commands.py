@@ -12879,6 +12879,73 @@ def _format_algorithms(doc) -> str:
     )
 
 
+#: T-0156 class G — the share of its own source's words a PDF must hold before
+#: `--compile` may call it a success. MEASURED on the craft-libs audit's own
+#: copies (FINDINGS-T-0156, base 0be8abcf):
+#:
+#:     2602.11699v3  the PDF that printed "compiled ✓"    25 of 7369   0.0034
+#:     1909.00741    a complete compile, for calibration
+#:                   (xelatex exit 1, 344 errors, 24pp) 6695 of 7014   0.9545
+#:
+#: A complete compile scores 0.95 and a fragment 0.0034, two orders of
+#: magnitude apart, so half the words separates them with nothing tuned.
+#:
+#: IT IS NOT A QUALITY BAR. A document that compiles with errors but renders
+#: is a success — 1909.00741 above had 344 errors. This exists only to catch a
+#: PDF that is not the document at all.
+_COMPILE_MIN_SHARE = 0.5
+
+
+def _tex_text_words(tex: str) -> int:
+    """How many of the document's own words a `.tex` source carries.
+
+    Commands, comments, maths and verbatim blocks are markup, not words: a raw
+    `wc -w` of the source counts `\\documentclass{article}` as a word and makes
+    the share meaningless.
+    """
+    import re
+    tex = re.sub(r"(?s)\\begin\{(verbatim|lstlisting)\}.*?\\end\{\1\}", " ", tex)
+    tex = re.sub(r"(?m)^\s*%.*$", " ", tex)
+    tex = re.sub(r"(?s)\$\$.*?\$\$|\$[^$]*\$", " ", tex)
+    #: A STRUCTURAL COMMAND'S ARGUMENT IS MARKUP TOO, and stripping only the
+    #: command left it behind: `\documentclass{article}\begin{document}`
+    #: contributed the words `article` and `document`, so an almost-empty
+    #: preamble scored words it does not carry and every share was flattered.
+    tex = re.sub(r"\\(?:documentclass|usepackage|begin|end|label|ref|eqref|"
+                 r"cref|autoref|cite[a-z]*|input|include|includegraphics|"
+                 r"bibliography|bibliographystyle|newcommand|renewcommand|"
+                 r"definecolor|geometry|hypersetup|setlength|pagestyle)\*?"
+                 r"(?:\[[^\]]*\])*(?:\{[^{}]*\})*", " ", tex)
+    tex = re.sub(r"\\[A-Za-z@]+\*?", " ", tex)
+    tex = re.sub(r"[{}\[\]&~^_\\]", " ", tex)
+    return len([w for w in tex.split() if any(c.isalnum() for c in w)])
+
+
+def _compile_is_complete(pdf_words: int, tex_words: int) -> bool:
+    """Did the PDF keep enough of its source to be called that document?
+
+    With nothing to compare against, no verdict is invented: an empty source
+    returns True so that the PDF's existence remains the only claim made.
+    """
+    if tex_words <= 0:
+        return True
+    return pdf_words >= _COMPILE_MIN_SHARE * tex_words
+
+
+def _pdf_word_count(pdf: Path) -> "int | None":
+    """Words `pdftotext` finds in `pdf`, or None when it cannot be asked."""
+    import shutil
+    import subprocess
+    if not shutil.which("pdftotext"):
+        return None
+    try:
+        out = subprocess.run(["pdftotext", str(pdf), "-"],
+                             capture_output=True, text=True, timeout=120)
+    except Exception:                                     # noqa: BLE001
+        return None
+    return len(out.stdout.split()) if out.returncode == 0 else None
+
+
 def _xelatex_compile(main_tex: Path) -> "tuple[bool, str]":
     """Compile `main_tex` with **xelatex** (Unicode-native — MathPix LaTeX emits
     raw `≥ ✓ → ℃` that pdflatex/inputenc cannot map). Returns (ok, note).
@@ -12902,8 +12969,23 @@ def _xelatex_compile(main_tex: Path) -> "tuple[bool, str]":
     except Exception as exc:                              # noqa: BLE001
         return False, f"xelatex failed: {type(exc).__name__}"
     pdf_out = main_tex.with_suffix(".pdf")
-    return (pdf_out.exists(), "" if pdf_out.exists()
-            else "xelatex produced no PDF (see the .log in the env dir)")
+    if not pdf_out.exists():
+        return False, "xelatex produced no PDF (see the .log in the env dir)"
+    #: T-0156 class G — AND THE PDF MUST BE THE DOCUMENT. A PDF that merely
+    #: EXISTS was the whole test, so `--compile` printed "compiled ✓" for
+    #: 2602.11699v3's one page holding 0.3% of the paper's words. See
+    #: `_COMPILE_MIN_SHARE` for the measurement behind the threshold.
+    try:
+        src = main_tex.read_text(encoding="utf-8", errors="replace")
+    except Exception:                                     # noqa: BLE001
+        return True, ""
+    want = _tex_text_words(src)
+    got = _pdf_word_count(pdf_out)
+    if got is None or _compile_is_complete(got, want):
+        return True, ""
+    return False, (f"xelatex produced a PDF holding {got} of {want} words "
+                   f"({got / want:.1%}) — under {_COMPILE_MIN_SHARE:.0%}, so "
+                   f"it is a fragment, not the document (see the .log)")
 
 
 def _prefer_arxiv_source(pdf: Path, sc, key: str, doc, model_path: Path):
@@ -13233,6 +13315,15 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
         # labels the FIRST pass writes to the `.aux`, so the recipe is part of
         # the result and not an implementation detail (642 fix round 1).
         lines.append(f"  compiled: {'✓ ' + _artref(sc, pdf_out) + ' (xelatex, 2 passes)' if ok else '✗ ' + note}")
+        #: T-0156 class G — AND A FAILED COMPILE EXITS NON-ZERO. This returned
+        #: a plain string, so `--compile` exited 0 on 8 of 8 e-prints while
+        #: producing NO PDF on 7 of them, and a caller that checks the status
+        #: (a shell `&&`, a runner) went on as if a PDF were there. Same fix
+        #: as T-0153 for `glyphlines`. The line above already says what
+        #: happened, so the Report carries it unchanged.
+        if not ok:
+            from .cli import Report
+            return Report("\n".join(lines), exit_code=1)
     lines.append("  (`injectlatex` pulls a source INTO the model; `stex`/`scikgtex` "
                  "for enriched LaTeX.)")
     return "\n".join(lines)
@@ -13281,6 +13372,15 @@ def cmd_beamer(pdf: Path, force: bool = False, compile: bool = False) -> str:
         ok, note = _xelatex_compile(out)
         pdf_out = out.with_suffix(".pdf")
         lines.append(f"  compiled: {'✓ ' + _artref(sc, pdf_out) + ' (xelatex, 2 passes)' if ok else '✗ ' + note}")
+        #: T-0156 class G — AND A FAILED COMPILE EXITS NON-ZERO. This returned
+        #: a plain string, so `--compile` exited 0 on 8 of 8 e-prints while
+        #: producing NO PDF on 7 of them, and a caller that checks the status
+        #: (a shell `&&`, a runner) went on as if a PDF were there. Same fix
+        #: as T-0153 for `glyphlines`. The line above already says what
+        #: happened, so the Report carries it unchanged.
+        if not ok:
+            from .cli import Report
+            return Report("\n".join(lines), exit_code=1)
     return "\n".join(lines)
 
 
