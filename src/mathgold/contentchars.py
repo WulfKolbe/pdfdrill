@@ -44,6 +44,20 @@ _STRUCTURAL = re.compile(
     r"pagestyle)\*?(?:\[[^\]]*\])*(?:\{[^{}]*\})*")
 _CMD = re.compile(r"\\[A-Za-z]+")
 
+#: A FOURTH VARIANT: TWO COMMANDS THAT SET THE SAME CHARACTER. `floor`'s
+#: bridge holds what the TEXT LAYER emits, so it has `\hbar` for ℏ and not
+#: `\hslash`, which amssymb also sets as ℏ. Comparing a reading that writes
+#: `\hbar` with one that writes `\hslash` therefore reported 26 lost ℏ on
+#: lib:3fe71b4ef018 p328 where the character is in both. Measured there, and
+#: kept separate from `floor.LATEX_UNICODE` because that table's entries each
+#: record a MEASUREMENT of the text layer and these record an equivalence.
+_SYNONYM = {
+    r"\hslash": "ℏ",         # amssymb; `\hbar` in the bridge
+    r"\varnothing": "∅",     # `\emptyset`
+    r"\thetasym": "ϑ",       # `\vartheta`
+    r"\Alpha": "Α", r"\Beta": "Β",
+}
+
 
 def content_chars(text: str) -> "collections.Counter[str]":
     r"""The alphanumeric characters a reading CARRIES, markup excluded.
@@ -54,7 +68,9 @@ def content_chars(text: str) -> "collections.Counter[str]":
     """
     text = _ENV.sub(" ", text)
     text = _STRUCTURAL.sub(" ", text)
-    text = _CMD.sub(lambda m: LATEX_UNICODE.get(m.group(0), " "), text)
+    text = _CMD.sub(
+        lambda m: LATEX_UNICODE.get(m.group(0),
+                                    _SYNONYM.get(m.group(0), " ")), text)
     return collections.Counter(c for c in text if c.isalnum())
 
 

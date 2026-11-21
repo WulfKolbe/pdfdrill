@@ -54,3 +54,24 @@ def test_the_alpha_one_loss_that_is_still_open():
     r"""p293's real defect: `\alpha_{1}=\frac{1}{2}` against `α1 = ,`."""
     lost, _ = CC.content_delta(r"\alpha_{1}=\frac{1}{2}", "α1 = ,")
     assert lost == 2                       # the `1` and the `2` of the value
+
+
+#: ------------------------------------------------------------------
+#: A FOURTH VARIANT: TWO COMMANDS THAT SET THE SAME CHARACTER.
+#:
+#: `floor`'s bridge records what the TEXT LAYER emits, so it holds `\hbar`
+#: for ℏ and not `\hslash`, which amssymb also sets as ℏ. Comparing our
+#: reading (`\hbar`) with reader B's (`\hslash`) on lib:3fe71b4ef018 p328
+#: therefore reported 26 lost ℏ where the character is present in both.
+
+
+def test_a_synonym_command_is_not_a_loss():
+    r"""`\hbar` and `\hslash` both set ℏ."""
+    lost, _ = CC.content_delta(r"\hbar", r"\hslash")
+    assert lost == 0
+
+
+def test_the_p328_case_that_was_counted_lost():
+    before = r"\frac{2M \hbar}{M^{\ast2} c}"
+    after = r"\frac{2M\,\hslash}{M^{*2}c}"
+    assert CC.content_delta(before, after)[0] == 0
