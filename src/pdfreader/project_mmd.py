@@ -2099,8 +2099,12 @@ def _emphasis(glyphs) -> list[str]:
     already know `NimbusRomNo9L-Medi` is Times bold (814) and `CMTT8` is a
     typewriter face.
     """
+    live = [g for g in glyphs if (g.text or "").strip()]
     return texmap.emphasis_for(
-        {g.fontname for g in glyphs if (g.text or "").strip()})
+        {g.fontname for g in live},
+        [g.glyphname for g in live],
+        any((g.text or "").islower() and ".sc" not in (g.glyphname or "")
+            for g in live))
 
 
 def _style(rgb, bold: bool, italic: bool, name: str) -> str:

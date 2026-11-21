@@ -5903,9 +5903,13 @@ def span_reading_text(sp: Span) -> str:
         # family from the page — so a wrapper that reaches only the `.tex`
         # projection cannot move `style_rate`. Same rule as the projection:
         # every face in the span must agree (`texmap.emphasis_for`).
+        _live = [g for g in sp.glyphs if (g.text or "").strip()]
         return texmap.wrap_emphasis(
             _run_text(sp.glyphs),
-            {g.fontname for g in sp.glyphs if (g.text or "").strip()})
+            {g.fontname for g in _live},
+            [g.glyphname for g in _live],
+            any((g.text or "").islower() and ".sc" not in (g.glyphname or "")
+                for g in _live))
     tex = span_latex(sp)
     if tex is not None:
         return f"${tex}$"

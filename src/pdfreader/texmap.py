@@ -397,7 +397,7 @@ def is_bold(fontname: str) -> bool:
                for rx in (_BOLD_NAME, _LIBERTINE_BOLD, _CM_SANS_BOLD))
 
 
-def emphasis_for(fontnames) -> list:
+def emphasis_for(fontnames, glyphnames=(), has_lowercase: bool = True) -> list:
     r"""The LaTeX wrappers these faces call for, outermost first.
 
     T-0156. Every face in `fontnames` must agree, or nothing is returned: one
@@ -418,11 +418,30 @@ def emphasis_for(fontnames) -> list:
         return []
     out = []
     for test, cmd in ((is_monospace, r"\texttt"),
-                      (is_small_caps, r"\textsc"),
                       (is_bold, r"\textbf"),
                       (is_italic, r"\textit")):
         if all(test(f) for f in faces):
             out.append(cmd)
+    #: SMALL CAPS, which a font may carry in its NAME or in its glyph names.
+    #:
+    #: `libertine` has no separate small-caps font: `LinLibertineT` keeps them
+    #: as glyphs named `e.sc`, `i.sc`, `n.sc`. MEASURED on the board set, 54
+    #: such glyphs, all on 1805.01788 p3, in the heads of its two definitions.
+    #:
+    #: NOT "every glyph is `.sc`", which fails on the real shape. Those spans
+    #: read 'Definition 1 (Equity of Attention).' with names `D, e.sc, f.sc,
+    #: i.sc, n.sc, one, parenleft, E, q.sc_u.sc, …` — a small-cap word is set
+    #: with its first letter a FULL capital, which is exactly what `\textsc`
+    #: renders, leaving capitals, digits and punctuation alone.
+    #:
+    #: The test is: at least one `.sc` glyph and NO PLAIN LOWERCASE glyph,
+    #: since a lowercase letter cannot occur inside `\textsc` and one of them
+    #: contradicts the claim. Measured on those two spans: 23 and 31 `.sc`
+    #: glyphs and zero plain lowercase in either.
+    sc_by_name = any(".sc" in (n or "") for n in glyphnames)
+    if all(is_small_caps(f) for f in faces) or (sc_by_name
+                                                and not has_lowercase):
+        out.insert(1 if out and out[0] == r"\texttt" else 0, r"\textsc")
     return out
 
 
@@ -446,7 +465,8 @@ def _braces_balance(text: str) -> bool:
     return depth == 0
 
 
-def wrap_emphasis(text: str, fontnames) -> str:
+def wrap_emphasis(text: str, fontnames, glyphnames=(),
+                  has_lowercase: bool = True) -> str:
     r"""`text` wrapped in the commands `emphasis_for` returns, or unchanged.
 
     A text whose braces do not balance is NOT wrapped: see `_braces_balance`.
@@ -455,7 +475,7 @@ def wrap_emphasis(text: str, fontnames) -> str:
     """
     if not text.strip() or not _braces_balance(text):
         return text
-    for cmd in reversed(emphasis_for(fontnames)):
+    for cmd in reversed(emphasis_for(fontnames, glyphnames, has_lowercase)):
         text = "%s{%s}" % (cmd, text)
     return text
 
