@@ -1559,13 +1559,45 @@ def extract_sections(body: str) -> list[dict]:
 _ENV_NAME = r"[A-Za-z@][A-Za-z0-9@*]*"
 _BEGIN_ENV_RE = re.compile(r"\\begin\s*\{(" + _ENV_NAME + r")\}")
 # \newtheorem{name}{Title}[reset]  OR  \newtheorem{name}[shared]{Title}  (+ *)
+#: T-0156 — A DECLARATOR THAT MEANS `\newtheorem` IS ONE.
+#:
+#: arxiv.0912.2444 declares `remark` on line 26 of its preamble as
+#: `\newproclaim{remark}{Remark}`, and the class states what that means:
+#: `arximspdf.cls:1408`, `\def\newproclaim{\theoremstyle{proclaim}
+#: \old@newtheorem}` — a `\newtheorem` with a style. Matching only
+#: `\newtheorem` left `remark` out of `theorem_like`, so `extract_theorems`
+#: built no Theorem object for it and its content became PROSE with
+#: `\begin{remark}` embedded in a Paragraph: 8 undefined-environment errors,
+#: and four blocks that should have been objects.
+#:
+#: Measured over 2,717 library source documents, counting only a body that
+#: OPENS an environment this misses while the declaration text declares it,
+#: and excluding standard names a class merely redefines: 23 documents.
+#: `\newproclaim` 17 of them, `\newdefinition` 2. `\spnewtheorem` is not
+#: here — it added 14 documents before the standard names were excluded and
+#: none after, so every one of its payloads was `figure`, `table` or `proof`,
+#: which LaTeX already has.
 _NEWTHEOREM_RE = re.compile(
-    r"\\newtheorem(?P<star>\*)?\s*\{(?P<name>[^}]+)\}"
+    r"\\(?:newtheorem|newproclaim|newdefinition)(?P<star>\*)?"
+    r"\s*\{(?P<name>[^}]+)\}"
     r"(?:\s*\[(?P<shared>[^\]]+)\])?"
     r"\s*\{(?P<title>[^}]+)\}"
     r"(?:\s*\[(?P<reset>[^\]]+)\])?")
 _NEWENV_RE = re.compile(r"\\(?:re)?newenvironment\s*\*?\s*\{(?P<name>[^}]+)\}")
-_PROOF_ENVS = ("proof",)
+#: T-0156 — THE PROOF ENVIRONMENTS, not just LaTeX's own name for one.
+#:
+#: This was `("proof",)`, and `meta["environments"]["proof_blocks"]` therefore
+#: reported 0 on arxiv.0912.2444, a document with 14 proof blocks — while its
+#: own docstring advertises the field as "how many are actually USED" for "the
+#: theorem/proof structure a LEAN4 export needs". A number that reads zero
+#: where the truth is 14 is the defect, independently of any compile.
+#:
+#: `pf` and `pf*` are imsart's: `\newenvironment{pf}` at arximspdf.cls:1436
+#: and `\@namedef{pf*}` at :1441 — the starred form through a
+#: `\makeatletter` idiom no `\newenvironment` pattern can match, which is
+#: why the name is listed here rather than discovered. `pf*` is used in 14 of
+#: the 2,717 library source documents.
+_PROOF_ENVS = ("proof", "proof*", "pf", "pf*")
 
 
 def _local_style_text(base_dir: str) -> str:
@@ -1977,15 +2009,44 @@ def extract_theorems(body: str, theorem_envs, newtheorem_decls: list) -> dict:
     th_by_pos = sorted(theorems, key=lambda t: t["pos"])
     claimed: set = set()
     proofs = []
-    for b in sorted(_env_blocks(body, "proof"), key=lambda b: b["pos"]):
+    # T-0156 — EVERY PROOF ENVIRONMENT, not the one LaTeX happens to name.
+    # Hard-coded to "proof", this built no Proof object for imsart's `pf`/`pf*`,
+    # so 14 proofs on arxiv.0912.2444 became Paragraph prose with
+    # `\begin{pf*}{Proof of Theorem …}` embedded in the text — 22
+    # undefined-environment errors, and the objects the owner's second
+    # requirement asks for were never created.
+    _pblocks = [b for env in _PROOF_ENVS for b in _env_blocks(body, env)]
+    for b in sorted(_pblocks, key=lambda b: b["pos"]):
         start, code = b["pos"], b["code"]
-        inner = re.sub(r"^\\begin\{proof\}", "", code, count=1)
-        inner = re.sub(r"\\end\{proof\}\s*$", "", inner, count=1)
+        # ITS OWN DELIMITERS, not the word "proof". These two lines were
+        # hard-coded, so feeding them a `pf*` block left `\begin{pf*}{Proof of
+        # Theorem …}` INSIDE the statement: the projector then wrapped that in
+        # `\begin{proof}`, and arxiv.0912.2444 went 103 -> 123 with 18
+        # "\begin{proof} … ended by" and the `pf*` still undefined. The
+        # theorem branch above already strips `re.escape(env)`; this is the
+        # same line it has.
+        _env = b.get("env") or "proof"
+        inner = re.sub(r"^\\begin\{" + re.escape(_env) + r"\}", "", code,
+                       count=1)
+        inner = re.sub(r"\\end\{" + re.escape(_env) + r"\}\s*$", "", inner,
+                       count=1)
         mt = re.match(r"\s*\[([^\]]*)\]", inner)
         name = ""
         if mt:
             name = mt.group(1).strip()
             inner = inner[mt.end():]
+        elif _env.endswith("*"):
+            # A STARRED PROOF TAKES ITS TITLE AS A BRACE ARGUMENT. amsthm's
+            # `proof` takes `[name]`; imsart's starred form is declared
+            # `\@namedef{pf*}#1{…\def\proofname{#1}…}` (arximspdf.cls:1441) —
+            # one MANDATORY argument. Restricted to the starred envs because
+            # the class says so: an unstarred `proof` whose body opens with a
+            # group (`{\bf Proof.}`) must not lose it to a title.
+            mb = re.match(r"\s*\{", inner)
+            if mb:
+                grp, after = _unwrap_group(inner, mb.end() - 1)
+                name = grp.strip()
+                inner = inner[after:]
         rm = re.search(r"\\ref\{([^}]*)\}", name)
         of_label = rm.group(1).strip() if rm else ""
         of_pos = None
