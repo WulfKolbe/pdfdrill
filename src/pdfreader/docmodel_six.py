@@ -710,17 +710,11 @@ def _spans(line: "LineNode") -> list[Span]:
     for _op in ordered:
         if _op.tex.kind != "bigop":
             continue
-        # THE VARIANT SUFFIX. PostScript names a font's alternates
-        # `<name>.<variant>`, and `texmap.project` already falls back to the
-        # base name for exactly that reason -- but the two limit tables are
-        # keyed by the raw name, so `summationdisplay.1`, which is what
-        # txfonts gives every `\sum` on this document, answers False.
-        # Stripped HERE ONLY: the two call sites in `structure.py` pass the
-        # raw name, and making them strip it too changes the markup of every
-        # txfonts document (it adds `\limits`) without moving a content
-        # character, so it is a separate question with its own measurement.
-        if not texmap.may_take_limits(
-                _op.tex.latex, (_op.glyphname or "").split(".")[0] or None):
+        # The variant suffix is `may_take_limits`' own business now -- see
+        # `texmap._operator_basename`. It was stripped here for one commit,
+        # because `summationdisplay.1` is what txfonts names every `\sum` on
+        # 1805.01788 and the two tables are keyed by the base name.
+        if not texmap.may_take_limits(_op.tex.latex, _op.glyphname):
             continue
         _ox0, _ox1 = _op.rect[0], _op.rect[2]
         _ow = max(_ox1 - _ox0, 1.0)

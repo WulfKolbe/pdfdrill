@@ -122,6 +122,14 @@ def _groups_after(tex, cmd):
     if i < 0:
         return None, None
     i += len(cmd)
+    # `\limits` may stand between the operator and its scripts: the projector
+    # emits it when the scripts are measured UNDER the operator rather than
+    # beside it, which for a text-style `\sum` is the only way LaTeX can be
+    # told what the page shows. It says nothing about the groups.
+    for mod in ("\\limits", "\\nolimits"):
+        if tex.startswith(mod, i):
+            i += len(mod)
+            break
     found = {}
     while i < len(tex) and tex[i] in "_^":
         mark, i = tex[i], i + 1

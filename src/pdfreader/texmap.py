@@ -2030,6 +2030,48 @@ LARGE_OPERATORS_DISPLAY = frozenset(s + "display" for s in _LARGE_OP_STEMS)
 LARGE_OPERATORS_TEXT = frozenset(s + "text" for s in _LARGE_OP_STEMS)
 
 
+def _operator_basename(glyphname: "str | None") -> "str | None":
+    r"""A glyph name with its PostScript variant suffix removed.
+
+    T-0199. `project` states the rule and acts on it -- "A NAME WITH A VARIANT
+    SUFFIX IS THE SAME GLYPH", `<name>.<variant>` -- and the two limit tables
+    below did not, because they are keyed by the base name and were handed the
+    raw name. So `summationdisplay.1`, which is what `txexs` names every `\sum`
+    in a txfonts document, answered False to both questions and the limit
+    machinery in `structure.py` was simply OFF there: no limit claimed back
+    from the operator's left (741), no owner decided by the stream (760), no
+    `\limits` emitted where the page sets the condition underneath.
+
+    MEASURED, by asking pdfminer's font objects for the names the font itself
+    states -- not the PDF's /Encoding /Differences, which a txfonts subset does
+    not carry at all (the names are in the embedded CFF charset, and a census
+    that read the dictionary reported zero on the very page whose reading holds
+    nine `summationdisplay.1`):
+
+        board52      30 documents,    9 carry a large operator,   1 suffixed
+        library   5,445 documents, 4,245 carry a large operator,  98 suffixed
+
+    Every one of the 98 is `txexs`, the txfonts extension font, and 41 of them
+    are arXiv e-prints against 57 library books. So the class is real but
+    named: one font, 2.3% of the documents that have a large operator at all.
+    The suffixes it uses are `summationdisplay.1` (83 documents),
+    `summationtext.1` (77), `uniontext.1` (28), `productdisplay.1` (24) and
+    nine more -- `txexs` holds every sum-class operator twice.
+
+    The library population is every folder whose cached `pdffonts` probe names
+    a TeX maths extension font, plus the 544 with no probe: 5,310 documents, 20
+    unreadable. The 135 excluded documents that load an OpenType maths font
+    instead were scanned separately and none is suffixed -- those fonts name
+    glyphs by codepoint (`uni2211`), which `project` handles by another path.
+
+    A name with no suffix is returned unchanged, so nothing that worked before
+    takes a different path.
+    """
+    if not glyphname:
+        return None
+    return glyphname.split(".")[0] or None
+
+
 def may_take_limits(latex: str | None = None,
                     glyphname: str | None = None) -> bool:
     r"""COULD a script centred under this operator be one of its limits?
@@ -2049,8 +2091,9 @@ def may_take_limits(latex: str | None = None,
     """
     if latex and latex.lstrip("\\") in LIMIT_OPERATORS:
         return True
-    return bool(glyphname) and (glyphname in LARGE_OPERATORS_DISPLAY
-                                or glyphname in LARGE_OPERATORS_TEXT)
+    name = _operator_basename(glyphname)
+    return bool(name) and (name in LARGE_OPERATORS_DISPLAY
+                           or name in LARGE_OPERATORS_TEXT)
 
 
 def takes_limits(latex: str | None = None, glyphname: str | None = None) -> bool:
@@ -2063,7 +2106,8 @@ def takes_limits(latex: str | None = None, glyphname: str | None = None) -> bool
     """
     if latex and latex.lstrip("\\") in LIMIT_OPERATORS:
         return True
-    return bool(glyphname) and glyphname in LARGE_OPERATORS_DISPLAY
+    name = _operator_basename(glyphname)
+    return bool(name) and name in LARGE_OPERATORS_DISPLAY
 
 
 _BY_LENGTH = tuple(sorted(OPERATOR_NAMES, key=len, reverse=True))
