@@ -674,6 +674,69 @@ def _spans(line: "LineNode") -> list[Span]:
                 mathish.add(id(_n))
                 break
 
+    # 891 — A STACKED LIMIT IS PART OF ITS OPERATOR, AND IT NEVER TOUCHES IT.
+    #
+    # `_tight` -- the gate every absorption below passes through -- requires
+    # that two runs MEET ON THE PAGE, because a CMEX radical whose baseline is
+    # on this line draws its ink 30pt lower and so stole the `on` of `only`.
+    # A big operator's LOWER LIMIT has exactly that shape and is correct: TeX
+    # sets it below the operator's box, clear of it, by construction. The rule
+    # that protects prose from a radical therefore refuses every lower limit.
+    #
+    # Measured on 1805.01788 p3, `DCG@k(r) = \sum_{i=1}^{k}\frac{...}{...}`:
+    #
+    #     summationdisplay  x 437.2..449.0  y  99.96..111.61  base 102.65
+    #     k   upper limit   x 440.8..444.6  y 102.75..110.03  base 104.44
+    #     i = 1             x 437.6..448.5  y  81.24.. 88.52  base  82.93
+    #
+    # The upper limit overlaps the operator's box and was absorbed. The lower
+    # limit is 11.4pt clear of it and stayed TEXT, so the row read
+    # `$\sum^{k}$ i=1 $\frac{...}$` -- the condition outside the mathematics,
+    # in a page's worth of displays that all have this shape.
+    #
+    # NOTHING DOWNSTREAM NEEDED CHANGING. `structure.to_tex` on those same
+    # glyphs AS ONE GROUP already answers `\sum_{i=1}^{k}`, and on the page's
+    # other display `\sum_{i=1}^{n}|A_i - R_i| = ...` likewise. The span
+    # boundary was the whole defect, which is why this is a rule about what
+    # counts as mathematics and not a rule about limits.
+    #
+    # The evidence is the triple the band merge at 730/740 already uses to
+    # tell a limit from a second equation: SCRIPT SIZE, CENTRED ON THE
+    # OPERATOR'S COLUMN, and a baseline window scaled to the operator. A
+    # prose word fails the first; a neighbouring term fails the second.
+    # INTEGRALS ARE NOT IN THE CLASS and that is measured, not assumed --
+    # `\int` is `\nolimits` even in display, 2 under against 21 beside over
+    # the 102 documents, so `_LARGE_OP_STEMS` leaves it out.
+    for _op in ordered:
+        if _op.tex.kind != "bigop":
+            continue
+        # THE VARIANT SUFFIX. PostScript names a font's alternates
+        # `<name>.<variant>`, and `texmap.project` already falls back to the
+        # base name for exactly that reason -- but the two limit tables are
+        # keyed by the raw name, so `summationdisplay.1`, which is what
+        # txfonts gives every `\sum` on this document, answers False.
+        # Stripped HERE ONLY: the two call sites in `structure.py` pass the
+        # raw name, and making them strip it too changes the markup of every
+        # txfonts document (it adds `\limits`) without moving a content
+        # character, so it is a separate question with its own measurement.
+        if not texmap.may_take_limits(
+                _op.tex.latex, (_op.glyphname or "").split(".")[0] or None):
+            continue
+        _ox0, _ox1 = _op.rect[0], _op.rect[2]
+        _ow = max(_ox1 - _ox0, 1.0)
+        _win = 2.5 * max(_op.size, dom)
+        for _lim in ordered:
+            if _lim is _op:
+                continue
+            if _lim.size >= 0.95 * _op.size:
+                continue                  # a limit is set at script size
+            _c = 0.5 * (_lim.rect[0] + _lim.rect[2])
+            if not _ox0 - 0.75 * _ow <= _c <= _ox1 + 0.75 * _ow:
+                continue
+            if abs(_lim.baseline - _op.baseline) > _win:
+                continue
+            mathish.add(id(_lim))
+
     def _ismath(g) -> bool:
         return (g.is_math or id(g) in mathish) and id(g) not in textish
 
