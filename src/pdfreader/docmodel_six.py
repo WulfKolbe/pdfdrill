@@ -6021,6 +6021,15 @@ def _as_display(text: str, line_type: str) -> str:
     inner = body[1:-1]
     if "$" in inner:
         return text                      # several spans: a sentence, not a display
+    #: AND IT MUST HOLD SOMETHING READABLE. Board state 34: four lines of
+    #: 1805.01788 p3 whose whole body is the replacement character were
+    #: wrapped as displays, and pdflatex answered "Missing $ inserted" on
+    #: each — `not_compiled` 0 -> 4. Inline, the same body compiled. A line
+    #: the reader could not read is not an equation to set in display style;
+    #: it keeps the delimiters it had, and its `complete: false` and
+    #: `deferred_glyphs` already say what happened to it.
+    if not inner.replace("\ufffd", "").strip():
+        return text
     return "\\[\n%s\n\\]" % inner
 
 

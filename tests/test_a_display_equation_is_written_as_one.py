@@ -62,3 +62,36 @@ def test_an_empty_or_delimiterless_line_is_untouched():
 
 def test_a_display_is_not_wrapped_twice():
     assert D._as_display("\\[\nx = 1\n\\]", "math") == "\\[\nx = 1\n\\]"
+
+
+#: ------------------------------------------------------------------
+#: AND A LINE OF UNREADABLE GLYPHS IS NOT A DISPLAY.
+#:
+#: Board state 34 measured 62ef10f0 and 1805.01788 p3 went
+#: `not_compiled 0 -> 4`: four lines whose whole maths body is the
+#: replacement character were wrapped as displays —
+#:
+#:     \[
+#:     � �
+#:     \]
+#:
+#: and pdflatex answers "Missing $ inserted" on each. Inline, the same body
+#: compiled. A line the reader could not read is not an equation to set in
+#: display style; it keeps the delimiters it had, and its `complete: false`
+#: and `deferred_glyphs` already say what happened to it.
+
+
+def test_a_body_of_replacement_characters_is_not_a_display():
+    """The four lines on 1805.01788 p3, verbatim."""
+    assert D._as_display("$\ufffd \ufffd$", "math") == "$\ufffd \ufffd$"
+    assert D._as_display("$\ufffd$", "math") == "$\ufffd$"
+
+
+def test_a_body_with_one_readable_glyph_is_still_a_display():
+    """Abstention is for a line with NOTHING readable in it; a display that
+    holds one unmapped glyph among real maths is still a display."""
+    assert D._as_display("$x + \ufffd$", "math") == "\\[\nx + \ufffd\n\\]"
+
+
+def test_a_body_of_spaces_is_not_a_display():
+    assert D._as_display("$   $", "math") == "$   $"
