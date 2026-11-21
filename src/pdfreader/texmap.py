@@ -1190,11 +1190,20 @@ def project(family: str, glyphname: str | None,
     A NAME WITH A VARIANT SUFFIX IS THE SAME GLYPH. PostScript names a font's
     alternates `<name>.<variant>` — `summationtext.1`, `radical.alt` — and the
     tables here are keyed by the base name, so every variant abstained.
-    Measured on 1805.01788 p3 (txfonts): 21 glyphs named `summationtext.1` and
-    `summationdisplay.1` in `ERHUAP+txexs`, every one of them a `\sum`, each
-    answered UNKNOWN and then written into the reading as pdfminer's literal
-    placeholder text `(cid:205)`. 9 of the board's 24 born-digital pages carry
-    such placeholders, 61 in all; MathPix has none.
+    Measured on 1805.01788 p3 (txfonts) WHEN THIS WAS WRITTEN: 21 glyphs named
+    `summationtext.1` and `summationdisplay.1` in `ERHUAP+txexs`, every one of
+    them a `\sum`, each answered UNKNOWN and then written into the reading as
+    pdfminer's literal placeholder text `(cid:205)`. 9 of the board's 24
+    born-digital pages carried such placeholders, 61 in all; MathPix had none.
+
+    THAT IS THE DEFECT THIS RULE FIXED, NOT THE STATE OF THE PAGE. Re-measured
+    on 2026-11-21: the `.1` alternates map, and the only glyph on 1805.01788 p3
+    our reader still cannot name is `barex` in `txexs`, 12 of them — the
+    extension piece of a tall `|...|`. Two columns at x 482.8 and 536.5, six
+    pieces each, one per line: a single six-piece-high delimiter pair that the
+    line splitter cut across six lines. So `barex` must NOT be mapped to a bar
+    on its own — that would set six where the page draws one. The pieces at one
+    x, consecutive in y, are ONE delimiter, and the six lines are one row.
 
     The base name is tried only AFTER the full name abstains, so a table that
     does know a variant keeps its own answer.
