@@ -227,6 +227,45 @@ class GlyphNode:
         return self.matrix[5]
 
 
+#: T-0154 — THE LATIN f AND s LIGATURES, AND THE LETTERS THEY STAND FOR.
+#:
+#: A typeface sets `fi`, `ff`, `fl`, `ffi`, `ffl` as ONE glyph, and pdfminer
+#: returns that glyph's text as the Unicode ligature character. Kept verbatim
+#: it misspells every word it appears in — `Artiﬁcial`, `deﬁnition`,
+#: `Schefﬂer`, `eﬃcient` — against every reference that spells the letters
+#: out: the PDF's own text layer, MathPix, the author's LaTeX.
+#:
+#: MEASURED over the 24 board-14 extracts at d98fa365: 223 of these
+#: characters on 13 of the 24 pages (fi 172, fl 20, ff 19, ffi 12).
+#:
+#: `texmap._TEXT_MATHS` already decomposes them on the MATHS path, by glyph
+#: NAME, because "its ligatures stand for two letters". The prose path reads
+#: `glyph.text` and never passed through it.
+#:
+#: Only these seven. U+FB07 onwards is not Latin, and `ß`, `æ` and `œ` are
+#: letters of their own alphabets, not ligatures to be taken apart.
+_LIGATURES = {
+    "ﬀ": "ff", "ﬁ": "fi", "ﬂ": "fl",
+    "ﬃ": "ffi", "ﬄ": "ffl", "ﬅ": "ft", "ﬆ": "st",
+}
+
+
+def _spell_ligature(text: str) -> str:
+    """`text` with every Latin f/s ligature replaced by its letters.
+
+    ONE GLYPH KEEPS ONE BOX. The letters share the box the type was set in,
+    which is what the page contains; no glyph is invented and no `rect` is
+    split. A caller that wants a box per letter cannot have one here, and
+    would be measuring something the PDF does not state.
+    """
+    if not text:
+        return text
+    for lig, letters in _LIGATURES.items():
+        if lig in text:
+            text = text.replace(lig, letters)
+    return text
+
+
 @dataclass
 class RuleNode:
     id: str
@@ -3552,7 +3591,8 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                     GlyphNode(
                         id=f"p{pno}g{n}", page=pno,
                         rect=_sane_rect(o.bbox, o.matrix[5], o.size),
-                        text=o.get_text(), cid=o.cid, glyphname=gname,
+                        text=_spell_ligature(o.get_text()),
+                        cid=o.cid, glyphname=gname,
                         fontname=o.fontname, family=fam, size=o.size,
                         tex=project(fam, gname, o.cid, o.fontname), matrix=o.matrix,
                         # 778 -- A FLIPPED MATRIX IS NOT A ROTATION.
