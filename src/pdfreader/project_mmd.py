@@ -2074,6 +2074,48 @@ def _opt(key: str, value: str) -> str:
     return "%s=%s" % (key, value)
 
 
+def _emphasis(glyphs) -> list[str]:
+    r"""The LaTeX wrappers this span's FACE calls for, outermost first.
+
+    T-0156 — the projection carried no emphasis at all, so every bold
+    heading, italicised term and line of typewriter code rendered upright and
+    plain. MEASURED on the board-18 judge outputs, which flag a glyph whose
+    style in the ink differs from its style in the re-render: 4,804 glyphs
+    across the 21 judged pages are the ink emphasised and our render plain —
+    CMTT8 1,181 on one page of code, CMBX10 1,360 on another, CMTI10 170,
+    NimbusRomNo9L-ReguItal 330, Optima-Bold 70. `style` is the dominant part
+    of `flagged` on every page of the set, and on some the glyph term is 0.
+
+    IT MOVES NO RESIDUAL. The judge computes that from glyph findings,
+    unpaired glyphs and rules; `style` has a column of its own, `style_rate`.
+    The reason to carry emphasis is T-0156's requirement that the projection
+    be a faithful rendering of the page.
+
+    EVERY GLYPH OF THE SPAN MUST AGREE. Same shape as the colour test at the
+    emitter (`len(cols) == 1`): a property the whole span shares is wrapped
+    once, and a span whose glyphs disagree is left alone rather than guessed
+    at — otherwise one letter from a different subset sets a whole word bold.
+    `texmap.is_bold` / `is_italic` / `is_monospace` stay the authority; they
+    already know `NimbusRomNo9L-Medi` is Times bold (814) and `CMTT8` is a
+    typewriter face.
+    """
+    faces = {g.fontname for g in glyphs if (g.text or "").strip()}
+    if not faces:
+        return []
+    out = []
+    #: Typewriter outermost: it changes the family, and bold or italic then
+    #: selects within it (`\texttt{\textbf{x}}` is bold typewriter, while
+    #: `\textbf{\texttt{x}}` asks for the same thing the other way round and
+    #: is what LaTeX's own font-selection notes recommend against).
+    for test, cmd in ((texmap.is_monospace, r"\texttt"),
+                      (texmap.is_small_caps, r"\textsc"),
+                      (texmap.is_bold, r"\textbf"),
+                      (texmap.is_italic, r"\textit")):
+        if all(test(f) for f in faces):
+            out.append(cmd)
+    return out
+
+
 def _style(rgb, bold: bool, italic: bool, name: str) -> str:
     r"""A `listings` style, written the way listings writes one."""
     out = []
@@ -2266,6 +2308,12 @@ def to_latex(pages: list[PageNode], doc_id: str = "pdfdrill",
                     if len(cols) == 1 and txt.strip():
                         txt = (rf"\textcolor[rgb]{{{_tex_color(cols.pop())}}}"
                                rf"{{{txt}}}")
+                    # T-0156 — and the FACE the page set it in. See
+                    # `_emphasis`: the span is the unit and its glyphs must
+                    # agree, exactly as the colour above.
+                    if txt.strip():
+                        for _cmd in reversed(_emphasis(sp.glyphs)):
+                            txt = "%s{%s}" % (_cmd, txt)
                     back = _fill_under(p, sp.rect)
                     if back and txt.strip():
                         txt = (rf"\colorbox[rgb]{{{_tex_color(back)}}}"

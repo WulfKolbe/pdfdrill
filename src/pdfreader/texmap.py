@@ -296,9 +296,61 @@ def is_monospace(fontname: str) -> bool:
     return bool(_MONO_NAME.search(base))
 
 
+#: T-0156 — SMALL CAPS, AND A NOTE ON THE FACES THIS DOES *NOT* ADD.
+#:
+#: Measured on the board-18 judge outputs once the projection began carrying
+#: emphasis: 4,067 of the 4,804 glyphs the ink sets emphasised were already
+#: recognised by `is_bold`/`is_italic`/`is_monospace`. The other 737 are
+#: three naming conventions none of them covers:
+#:
+#:     LinLibertineTI 393, LinLibertineTB 138, LinLibertineI 58
+#:     SFBX1440/1200/1000/0900 103, SFTI1000 8
+#:     Times-RomanSmallCaps 45
+#:
+#: WIDENING `is_bold`/`is_italic` FOR THE FIRST TWO WAS TRIED HERE AND
+#: REVERTED, because those two functions are not the projection's alone — the
+#: reader's own classification asks them which lines are headings. Measured
+#: with the widening in: 1805.01788 p3 gained 9 CORRECT section headers
+#: (`2.1 Notation`, `3 RANKINGS WITH EQUITY OF ATTENTION`, …) and
+#: lib:5a5c76391c9c p4 gained 3 — and 1805 p3 ALSO typed four lines of body
+#: prose as `authors` and lost 936 characters of text. A gain and a
+#: regression in one change, so it belongs in its own commit with its own
+#: measurement, not inside a projection change.
+#:
+#: SMALL CAPS IS DIFFERENT and is added: `is_small_caps` is NEW, so nothing
+#: in the reader reads it and it cannot move a line's type. `\textsc` is the
+#: only wrapper here that is neither bold nor italic, so without it those 45
+#: glyphs stay plain however many faces the other tests learn.
+_SMALLCAPS_NAME = re.compile(r"smallcap|small-cap|\bsc\d*$|-sc\b|csc\d*\b",
+                             re.I)
+
+#: A SUBSET TAG WITH NO `+`. Producers are supposed to write `ABCDEF+Name`,
+#: and `split("+")[-1]` handles that. Some write the six letters with no
+#: separator: the board's own judge output carries `WrcvyxSFBX0900` and
+#: `NyjrspTimes-Italic`, where a pattern anchored on a word boundary before
+#: `SFBX` cannot match.
+#:
+#: Stripping six letters is NOT safe on its own — `NimbusRomNo9L-Medi` would
+#: become `RomNo9L-Medi` and lose the one entry written for it (814). So both
+#: forms are offered and a match on either counts.
+_SUBSET_TAG = re.compile(r"^[A-Za-z]{6}(?=[A-Z])")
+
+
+def _faces(fontname: str) -> tuple:
+    """The name to test, and the same name without an unseparated subset tag."""
+    base = (fontname or "").split("+")[-1]
+    stripped = _SUBSET_TAG.sub("", base)
+    return (base,) if stripped == base else (base, stripped)
+
+
 def is_italic(fontname: str) -> bool:
     """True if this font is an italic or slanted face."""
     return bool(_ITALIC_NAME.search(fontname.split("+")[-1]))
+
+
+def is_small_caps(fontname: str) -> bool:
+    """True if this font is a small-caps face. See `_SMALLCAPS_NAME`."""
+    return any(_SMALLCAPS_NAME.search(b) for b in _faces(fontname))
 
 
 #: 781e -- moved here from `project_mmd`, where `structure` and `listings`
