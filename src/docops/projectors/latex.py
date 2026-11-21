@@ -351,6 +351,15 @@ class LaTeXProjector(BaseProjector):
         gfx = _pipe.graphics_preamble(doc, body_text)
         if gfx:
             out += ["% graphics setup (tikz/pgfplots) carried from the source:", gfx]
+        # T-0156 — and a package the AUTHOR loaded whose commands the body
+        # still emits. Same body-first order and the same standard: a command
+        # the projection writes and the preamble cannot resolve is a compile
+        # failure. See `_AUTHOR_PACKAGES` for what is in it and why `cleveref`
+        # is not.
+        apkg = _pipe.author_package_preamble(doc, body_text)
+        if apkg:
+            out += ["% packages the author loaded that the body still uses:",
+                    apkg]
         out.append("")
         if self._formula_preamble:                # the formula ARRAY (readarray)
             out += ["% formula transclusion array (filecontents + readarray):",

@@ -962,6 +962,66 @@ def _balanced_block(text: str, cmd: str) -> list[str]:
         i = k if k > j else j + len(tok)
 
 
+#: T-0156 — A PACKAGE THE AUTHOR LOADED AND THE BODY STILL USES.
+#:
+#: Keyed by package, valued by the commands that justify loading it. Both
+#: conditions are required: the author's own preamble loads the package, AND
+#: the projected body emits one of its commands. The first says what the
+#: command means — a bare `\interval` could be anyone's macro — and the second
+#: keeps the preamble to what this document needs.
+#:
+#: MEASURED on arxiv.2402.03975's own projected .tex, two xelatex passes each,
+#: a PDF produced in every case:
+#:
+#:     baseline                     131
+#:     + \usepackage{interval}      112      -19, no new error class
+#:     + \usepackage{cleveref}      125       -6, and a NEW class appears
+#:     + both                       106
+#:
+#: `cleveref` IS DELIBERATELY NOT HERE, and that is the finding this table
+#: exists to record. It defines `\labelcref`, which takes 46 of the document's
+#: 64 undefined control sequences down to 27 — and then RUNS, resolving labels
+#: the projection does not emit, so `Missing \endcsname` rises 43 -> 49 and
+#: `Extra \endcsname` appears 6 times where there were none. A package can be
+#: installed, load cleanly, and still make things worse by executing against
+#: content we do not have. It waits for the `\label`/`\ref` work (the owner's
+#: fifth requirement), not for a preamble line.
+#:
+#: This is a NAMED TABLE, not a rule over every `\usepackage` the author wrote:
+#: emitting the author's whole package list was measured and refuted (it cost
+#: arxiv.2402.03975 its PDF through `amsaddr`, which assumes an AMS document
+#: class). One entry, one measurement.
+_AUTHOR_PACKAGES = {"interval": (r"\interval",)}
+
+
+def author_package_preamble(doc, body: str) -> str:
+    r"""`\usepackage` lines for the packages in `_AUTHOR_PACKAGES` that this
+    document's author loaded and whose commands the projected body emits.
+
+    Read from the captured `standalone` preamble, which keeps the author's
+    `\usepackage` lines; the body is the one this projector has just written,
+    so "uses" is what was actually emitted and not what the source contained.
+    """
+    pre = getattr(doc, "meta", {}).get("latex_preamble")
+    sa = pre.get("standalone", "") if isinstance(pre, dict) else ""
+    if not sa or not body:
+        return ""
+    out: list[str] = []
+    for pkg, commands in sorted(_AUTHOR_PACKAGES.items()):
+        if not re.search(r"\\usepackage[^{]*\{[^}]*\b" + re.escape(pkg)
+                         + r"\b[^}]*\}", sa):
+            continue
+        if not any(re.search(re.escape(c) + r"(?![A-Za-z])", body)
+                   for c in commands):
+            continue
+        from .latex import _DEFAULT_PREAMBLE as _DP
+        if re.search(r"\\usepackage[^{]*\{[^}]*\b" + re.escape(pkg) + r"\b",
+                     _DP):
+            continue                       # already ours
+        out.append("\\usepackage{%s}" % pkg)
+    return "\n".join(out)
+
+
 def graphics_preamble(doc, body: str) -> str:
     """Setup lines the PROJECTED body needs but the default article preamble
     lacks — pulled from the source model's captured `standalone` preamble
