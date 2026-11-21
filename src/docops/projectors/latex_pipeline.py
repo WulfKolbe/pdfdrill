@@ -512,6 +512,40 @@ _PROSE_ESCAPES = {"#": "\\#", "%": "\\%", "&": "\\&", "_": "\\_",
                   "^": "\\textasciicircum{}", "~": "\\textasciitilde{}"}
 _PROSE_SPECIALS = re.compile(r"(?<!\\)([#%&_^~])")
 
+#: T-0156 — A C STRING ESCAPE IS NOT A CONTROL SEQUENCE.
+#:
+#: `\n` has no meaning in LaTeX at all, so a `\n` in prose is the two
+#: characters the PAGE DRAWS. 2507.21892v1 is a paper about model reasoning
+#: and its figures print verbatim transcripts — `<think>\nTo answer the
+#: question, I need to identify the director …` — which the reading carries
+#: faithfully and the projector emitted unescaped. All 43 of that document's
+#: errors were this, every one "Undefined control sequence": `\n` x34,
+#: `\nTo` x4, `\nThe` x3, `\nFrom` x2, the glued forms being `\n` followed by
+#: the next word.
+#:
+#: THE NEGATIVE LOOKAHEAD IS THE WHOLE RULE. Every real LaTeX command
+#: beginning with `n` continues in lowercase, so measured over the eight
+#: T-0156 e-prints the commands actually used — `\nabla`, `\ne`, `\neg`,
+#: `\neq`, `\newtheorem`, `\nobreak`, `\node`, `\not`, `\notin`, `\npar`,
+#: `\nu` — are untouched, including the two `\nabla` in this very document.
+#: 86 occurrences matched across the eight projections and all 86 are in
+#: 2507.21892v1; the other seven have none.
+#:
+#: `\t` AND `\r` ARE DELIBERATELY NOT HERE. Both are real LaTeX accents —
+#: `\t{oo}` is the tie, `\r{a}` the ring — so the argument that makes `\n`
+#: unambiguous does not reach them, and guessing would cost a character the
+#: author wrote.
+#:
+#: NOT A GENERAL BACKSLASH ESCAPE, and that is on purpose. Prose here carries
+#: the model's own inline LaTeX (`\cite{…}`, `\(…\)`, `\emph{…}`), which is
+#: why `{ } $ \` are exempt above and why 24.5% of table cells hold `\(…\)`
+#: (see `_cell_tex`). Escaping every backslash would turn every citation into
+#: literal text. An UNDEFINED AUTHOR MACRO is also left alone on purpose: the
+#: answer to `\gameval` is to emit the author's preamble that defines it
+#: (T-0156 class B), and escaping it here would hide the error that class B's
+#: gate measures rather than fix it.
+_STRING_ESCAPE_N = re.compile(r"\\n(?![a-z])")
+
 
 def escape_prose_specials(text: str) -> str:
     r"""Escape the text-mode specials in the NON-math parts of prose.
@@ -536,6 +570,10 @@ def escape_prose_specials(text: str) -> str:
     """
     parts = _MATH_SPAN.split(text)
     for i in range(0, len(parts), 2):             # even indices = non-math text
+        # The string escape goes FIRST so the `\textbackslash{}` it inserts is
+        # the one the reader sees; `_PROSE_SPECIALS` touches neither backslash
+        # nor braces, so the order is free and this one reads better.
+        parts[i] = _STRING_ESCAPE_N.sub(r"\\textbackslash{}n", parts[i])
         parts[i] = _PROSE_SPECIALS.sub(
             lambda m: _PROSE_ESCAPES[m.group(1)], parts[i])
     return "".join(parts)
