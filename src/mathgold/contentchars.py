@@ -59,6 +59,24 @@ _SYNONYM = {
 }
 
 
+#: A FIFTH VARIANT: AN OPERATOR NAME IS ITS LETTERS. `\log` sets the three
+#: letters l, o, g, and this counted none of them -- `_CMD` strips a command
+#: it cannot resolve and `LATEX_UNICODE` holds characters, not words. Found
+#: on 1805.01788 p3, where reading the Libertine `g` correctly turned `loд`
+#: into `\log` twice and the counter called it six characters LOST, which is
+#: the opposite of what happened.
+#:
+#: This is the whole of TeX's log-like operator list plus amsmath's, taken
+#: from the definition rather than from this corpus, because the list is
+#: closed and a corpus-shaped subset would fail on the next document.
+_OPERATORS = (
+    "arccos arcsin arctan arg cos cosh cot coth csc deg det dim exp gcd hom "
+    "inf injlim ker lg lim liminf limsup ln log max min Pr projlim sec sin "
+    "sinh sup tan tanh varinjlim varliminf varlimsup varprojlim"
+).split()
+_OPERATOR = {"\\" + name: name for name in _OPERATORS}
+
+
 def content_chars(text: str) -> "collections.Counter[str]":
     r"""The alphanumeric characters a reading CARRIES, markup excluded.
 
@@ -69,8 +87,10 @@ def content_chars(text: str) -> "collections.Counter[str]":
     text = _ENV.sub(" ", text)
     text = _STRUCTURAL.sub(" ", text)
     text = _CMD.sub(
-        lambda m: LATEX_UNICODE.get(m.group(0),
-                                    _SYNONYM.get(m.group(0), " ")), text)
+        lambda m: LATEX_UNICODE.get(
+            m.group(0),
+            _SYNONYM.get(m.group(0),
+                         _OPERATOR.get(m.group(0), " "))), text)
     return collections.Counter(c for c in text if c.isalnum())
 
 
