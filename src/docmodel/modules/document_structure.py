@@ -40,8 +40,118 @@ class DocumentStructureProcessor(BaseModule):
         self._assign_section_numbers(sections, doc)
         self._assign_content_parent_sections(sections, doc)
         self._create_document_root(sections, doc)
+        # LAST, so the container it sets wins over the section parent above.
+        self._link_reading_children(doc)
 
     # ---------- helpers ----------
+
+    def _link_reading_children(self, doc: Document) -> None:
+        r"""Carry the READING'S OWN parent/child relation into the model.
+
+        A reading may state that some lines belong to another line: Gemma4
+        7bd3786 writes a figure's printed subcaptions as lines whose parent is
+        the diagram, in `children_ids`. `page.ingest` keeps every field of the
+        line (`payload = dict(line)`), so the relation is in the stream — and
+        nothing in `src/docmodel/` ever read it, so the objects came out as
+        SIBLINGS under the same Section.
+
+        MEASURED on 2312.11532 pp 6-7, Gemma4 b696b9f: the `diagram` line has
+        six `children_ids`, the subcaptions "(a) 20NG-NPMI." … "(f) NYT-TQ.",
+        and in the model
+
+            Diagram   obj_6f30000d6c74  children=[]  parent=<Section>
+            Paragraph obj_44b67bfedb32  parent=<the same Section>
+
+        `pagecheck.check_overlap` skips a pair where one unit's key is in the
+        other's `ancestors`, and `ancestors` walks a chain built from `parent`
+        and then OVERRIDDEN by `children` (drillgroup pagecheck.py 244-248,
+        281-287, 317). Siblings share no such chain, so every subcaption was
+        counted as overlapping its own diagram.
+
+        THE SHAPE IS THE ONE THE MODEL ALREADY USES. `Table` owns its
+        `TableCell`s exactly this way — 5 Tables and 90 cells on this document,
+        the cells' `parent` being the Table and not a Section — so a content
+        object owning content children is established here, not invented. The
+        subcaptions stay Paragraph objects rather than becoming the diagram's
+        own lines: a printed subcaption is text a reader cites, and the owner's
+        second requirement is that every drilled paragraph stay addressable.
+
+        `parent_section` is untouched: that prop, not `parent`, is what carries
+        a content object's section, so the section relation is not lost.
+        """
+        index = self.build_line_index(doc)
+        if not index or self.LINES_STREAM not in doc.streams:
+            return
+        stream = doc.stream(self.LINES_STREAM)
+        order = list(stream.anchors)
+        pos = {a: i for i, a in enumerate(order)}
+        # line id -> the object that realizes it, NARROWEST SPAN WINNING.
+        #
+        # A `Page` realization spans its whole page and `Document` the whole
+        # document, so "the first object that claims this line" is a container
+        # for every line — `owner[the diagram line]` came out as the Page, and
+        # with it `child is parent` for all six subcaptions and nothing linked
+        # at all. `unclaimed.py` records the same trap and skips a type list;
+        # the span is the sharper test, because it also prefers a TableCell to
+        # its Table without naming either.
+        owner: dict[str, DocObject] = {}
+        width: dict[str, int] = {}
+        for obj in doc.objects.values():
+            for rz in obj.realizations:
+                if rz.stream != self.LINES_STREAM:
+                    continue
+                i, j = pos.get(rz.start), pos.get(rz.end)
+                if i is None or j is None:
+                    continue
+                if j < i:
+                    i, j = j, i
+                span = j - i
+                for a in order[i:j + 1]:
+                    lid = stream.payload[a].get("id")
+                    if not lid:
+                        continue
+                    if lid not in owner or span < width[lid]:
+                        owner[lid], width[lid] = obj, span
+        for lid, payload in index.items():
+            kids = payload.get("children_ids")
+            if not kids or not isinstance(kids, (list, tuple)):
+                continue
+            parent = owner.get(lid)
+            if parent is None:
+                continue
+            for kid_id in kids:
+                child = owner.get(kid_id)
+                # A child line realized by the PARENT'S OWN object is not a
+                # relation — a container whose realization spans its children
+                # (a table's cells inside its own range) would otherwise be
+                # made its own parent and `_ancestors` would loop.
+                if child is None or child is parent:
+                    continue
+                # OWNERSHIP IS EXCLUSIVE, and this is the part that decides
+                # whether the relation is visible at all.
+                #
+                # `pagecheck` builds its chain as `parents[id] = o["parent"]`
+                # and then OVERWRITES it from every object's `children`, in
+                # document order — so when a Section and a Diagram both list
+                # the same Paragraph, the LAST one in the objects list wins.
+                # The Section won, and `ancestors` for each subcaption came out
+                # [Document, Section] with the Diagram nowhere in it: the
+                # overlap was still counted although the Diagram held all six
+                # children and each child's `parent` was the Diagram.
+                #
+                # Measured on 2312.11532 p6 (Gemma4 b696b9f, yolo): 5 overlaps
+                # before and 5 after, until the Paragraph was taken out of the
+                # Section's `children`. A content object has ONE owner; the
+                # section is still reachable through the Diagram and through
+                # `parent_section`, which this does not touch.
+                old_parent = doc.objects.get(child.parent) if child.parent else None
+                if old_parent is not None and old_parent is not parent:
+                    old_parent.children = [c for c in old_parent.children
+                                           if c != child.id]
+                if child.id not in parent.children:
+                    parent.children.append(child.id)
+                child.parent = parent.id
+
 
     @staticmethod
     def _flow_index(obj: DocObject) -> int:
