@@ -608,6 +608,42 @@ _PROSE_SPECIALS = re.compile(r"(?<!\\)([#%&_^~])")
 _STRING_ESCAPE_N = re.compile(r"\\n(?![a-z])")
 
 
+#: T-0156 — A NAME IS NOT PROSE.
+#:
+#: `escape_prose_specials` escapes `_` wherever it stands, and 822 gives the
+#: measured reason: prose holds CODE IDENTIFIERS (`read_inc`,
+#: `all_less_than`), and a bare `_` there is "Missing $ inserted" whatever we
+#: do. But a reference or a citation standing in prose has its ARGUMENT
+#: escaped with it, and an escaped name is a DIFFERENT name:
+#:
+#:     \label{main_algo}     emitted unescaped, from the object's prop
+#:     \cref{main\_algo}     escaped, because it stood in prose
+#:
+#: Measured on arxiv.2402.03975: 89 distinct citation keys against 89
+#: `\bibitem`s. 23 of the keys carry an escaped underscore and NOT ONE of them
+#: matches a bibitem; all 23 match once unescaped. Of the 66 keys without one,
+#: 65 match. So the escaping is the only systematic citation failure on that
+#: document, and it breaks 26% of its bibliography — the owner's third
+#: requirement is that every in-text citation resolves to its entry.
+#:
+#: Plus two references: `\cref{main\_algo}` and `\cref{conditioned\_discount}`
+#: against `\label{main_algo}` and `\label{conditioned_discount}`.
+#:
+#: THE EXPOSURE IS WIDER THAN THE EIGHT. Across 2,731 library source documents,
+#: 95,184 of 723,939 reference and label arguments (13%) hold an underscore in
+#: the name, in 1,250 documents (46%); and 7% of citation keys do. Only 25
+#: arguments bite today because so few references survive into prose at all
+#: (33 of 590) — which is why this is fixed BEFORE class F promotes 115 more,
+#: not after.
+#:
+#: Same family as the citation placed inside a maths span: a prose rule
+#: reaching into a command's argument.
+_NAME_ARG = re.compile(
+    r"\\(?:label|ref|eqref|autoref|cref|Cref|labelcref|pageref|vref|nameref"
+    r"|cite|citep|citet|citeauthor|citeyear|citealp|citealt|nocite|bibitem)"
+    r"\s*(?:\[[^\]]*\])?\s*\{[^{}]*\}")
+
+
 def escape_prose_specials(text: str) -> str:
     r"""Escape the text-mode specials in the NON-math parts of prose.
 
@@ -629,15 +665,29 @@ def escape_prose_specials(text: str) -> str:
     closed before this sees it, so a span meant as math is protected as math
     rather than escaped as text.
     """
+    # A NAME IS NOT PROSE: the arguments of the reference and citation
+    # commands are split out and put back untouched, the same way the maths
+    # spans are. See `_NAME_ARG`.
     parts = _MATH_SPAN.split(text)
     for i in range(0, len(parts), 2):             # even indices = non-math text
+        chunks = _NAME_ARG.split(parts[i])
+        names = _NAME_ARG.findall(parts[i])
+        if names:
+            parts[i] = "".join(
+                _escape_prose_run(c) + (names[j] if j < len(names) else "")
+                for j, c in enumerate(chunks))
+            continue
         # The string escape goes FIRST so the `\textbackslash{}` it inserts is
         # the one the reader sees; `_PROSE_SPECIALS` touches neither backslash
         # nor braces, so the order is free and this one reads better.
-        parts[i] = _STRING_ESCAPE_N.sub(r"\\textbackslash{}n", parts[i])
-        parts[i] = _PROSE_SPECIALS.sub(
-            lambda m: _PROSE_ESCAPES[m.group(1)], parts[i])
+        parts[i] = _escape_prose_run(parts[i])
     return "".join(parts)
+
+
+def _escape_prose_run(run: str) -> str:
+    """One stretch of real prose: the string escape, then the specials."""
+    run = _STRING_ESCAPE_N.sub(r"\\textbackslash{}n", run)
+    return _PROSE_SPECIALS.sub(lambda m: _PROSE_ESCAPES[m.group(1)], run)
 
 
 def clean_prose(text: str) -> str:
