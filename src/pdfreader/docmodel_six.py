@@ -1514,28 +1514,39 @@ def _rule_role(node: RuleNode, glyphs: list[GlyphNode],
     # 2.0 and 6.2 em, so every threshold in that range answers identically
     # and `_PLAIN_OPERAND_EM` is not tuned.
     #
-    # AND AT THE REACH TEST'S WIDTH, BOTH SIDES. Six more rules on that page
-    # are the axis rules of Figure 3's plots with the tick labels under them
-    # — `k=1` above, `100 200 300` below, 12.7 em — one maths glyph above and
-    # none beneath, so the test above passes them. Past 12 em a fraction may
-    # be required to have mathematics on BOTH sides, because every digit-only
-    # fraction measured is under 2.1 em. The set's one genuine wide display
-    # fraction keeps its role: lib:3fe71b4ef018 p328, 15.1 em, nine maths
-    # glyphs above and five below.
+    # ABOVE THAT BOUNDARY, MATHEMATICS ON BOTH SIDES. One side is not enough,
+    # and the 4-to-12 em band is where that was measured. All nine rules the
+    # board set calls `fraction` in it:
     #
-    # STILL OPEN: two of 0864 p4's four table rules carry mathematics on ONE
-    # side (`X1X2X3X4Y / 11a11a`) at 11.7 em, under the both-sides width, so
-    # neither test reaches them and that table stays partly merged.
+    #     11.7 em  0864 p4          one      'X1X2X3X4Y / 11a11a'
+    #     11.7 em  0864 p4          one      'ftheTwenty-Eighth / X1X2X3X4Y'
+    #     11.7 em  0864 p4       neither     '5a5a5a / 6aaaab'
+    #     11.7 em  0864 p4       neither     '10aaaab / 11bcccc'
+    #      7.2 em  2311.09533v3  neither x2   table rules
+    #      6.2 em  lib:69bc5c71 neither      footnote rule
+    #      5.1 em  1805.01788      both      'DCG@k(ρ∗) / DCG@k(ρ)'   GENUINE
+    #      4.1 em  1805.01788      both      '2rli−1 / loд2(j+1)'     GENUINE
+    #
+    # Both genuine fractions carry mathematics on BOTH sides; both
+    # maths-on-one-side cases are 0864 p4's own table rules, one side being
+    # the running head and the other the table's `X1 X2 X3 X4 Y` header set
+    # in maths italic. So the same boundary serves both halves of the test,
+    # and the earlier 12 em special case is gone: it had left those two
+    # rules alone and that table half-merged.
+    #
+    # It also catches the six axis rules of Figure 3's plots on 2312 p7 —
+    # `k=1` above, `100 200 300` below, 12.7 em, one maths glyph above and
+    # none beneath. The set's one genuine wide display fraction keeps its
+    # role: lib:3fe71b4ef018 p328, 15.1 em, nine maths glyphs above, five
+    # below.
     _above_math = any(g.is_math for g in glyphs
                       if (x0 - 1 <= 0.5 * (g.rect[0] + g.rect[2]) <= x1 + 1)
                       and 0 < g.baseline - mid < window)
     _below_math = any(g.is_math for g in glyphs
                       if (x0 - 1 <= 0.5 * (g.rect[0] + g.rect[2]) <= x1 + 1)
                       and -window < g.baseline - mid < 0)
-    _w_em = (x1 - x0) / max(size, 1.0)
-    if _w_em > _PLAIN_OPERAND_EM and not _above_math and not _below_math:
-        return "separator"
-    if _w_em > 12.0 and not (_above_math and _below_math):
+    if ((x1 - x0) / max(size, 1.0) > _PLAIN_OPERAND_EM
+            and not (_above_math and _below_math)):
         return "separator"
 
     # A frame rule is not a fraction bar. The border of a code listing runs

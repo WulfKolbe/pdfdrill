@@ -128,12 +128,42 @@ def test_a_wide_bar_over_mathematics_is_a_fraction():
 
 def test_a_wide_bar_with_mathematics_on_one_side_only_is_not_a_fraction():
     """Figure 3's six axis rules on 2312 p7: `k=1` above, tick labels below,
-    12.7 em. Past the reach test's width a fraction has operands on both
-    sides, and these have one."""
+    12.7 em. Past `_PLAIN_OPERAND_EM` a fraction has operands on both sides,
+    and these have one."""
     rule = _rule(50.0, 127.0, 100.0)
     glyphs = (_row(50.0, 127.0, 104.0, "k=1", family="math-italic")
               + _row(50.0, 127.0, 94.0, "100200300"))
     assert _rule_role(rule, glyphs, SIZE, (), 600.0) != "fraction"
+
+
+def test_the_half_merged_table_rule_is_caught_too():
+    """0864 p4's two surviving table rules, 11.7 em, one side the running
+    head and the other the table's own `X1 X2 X3 X4 Y` header in maths
+    italic. Under 12 em, so the earlier both-sides test at that width did
+    not reach them; the boundary is `_PLAIN_OPERAND_EM` for both halves of
+    the rule, which is what the 4-to-12 em band measures.
+
+    MEASURED, all nine rules the board set classifies `fraction` between 4
+    and 12 em: seven defects (four on 0864 p4, two table rules on
+    2311.09533v3, one footnote rule on lib:69bc5c71b881) and two genuine
+    fractions, `DCG@k(ρ∗) / DCG@k(ρ)` at 5.1 em and `2rli−1 / log2(j+1)` at
+    4.1 em. BOTH genuine ones carry mathematics on both sides; both
+    maths-on-one-side cases are 0864's table rules."""
+    rule = _rule(50.0, 117.0, 100.0)
+    glyphs = (_row(50.0, 117.0, 104.0, "X1X2X3X4Y", family="math-italic")
+              + _row(50.0, 117.0, 94.0, "11a11a"))
+    assert _rule_role(rule, glyphs, SIZE, (), 600.0) != "fraction"
+    rule2 = _rule(50.0, 117.0, 100.0)
+    glyphs2 = (_row(50.0, 117.0, 104.0, "ftheTwentyEighthInterna")
+               + _row(50.0, 117.0, 94.0, "X1X2X3X4Y", family="math-italic"))
+    assert _rule_role(rule2, glyphs2, SIZE, (), 600.0) != "fraction"
+
+
+def test_a_genuine_fraction_in_that_band_keeps_its_role():
+    """The two the band actually holds, at 5.1 em and 4.1 em. If this test
+    ever goes red the boundary has eaten real mathematics."""
+    assert _role_math(51.0, "DCGk", "DCGk") == "fraction"
+    assert _role_math(41.0, "2rli1", "log2j1") == "fraction"
 
 
 def test_the_page_share_guard_still_answers_first():
