@@ -6089,7 +6089,33 @@ def span_reading_text(sp: Span) -> str:
     #
     # Safe because a span of pure prose is no longer a maths span at all:
     # `_prose_is_not_maths` re-types it before this is ever reached.
-    body = _run_text(sp.glyphs, maths_mode=True)
+    #: T-0154 — AND A ROW THAT REFUSES IS STILL SEVERAL TERMS. Measured on
+    #: lib:c57ac038ae5f p293 rows 27 and 28: `to_tex` refuses both rows, yet
+    #: assembles the `\alpha_0` term ALONE as `\alpha_{0} = \frac{1}{2} ,`
+    #: — correct, subscript and fraction. One whole-row refusal was flattening
+    #: all eight terms to their characters, losing `t_0`'s subscript,
+    #: `\alpha_0`'s fraction and `-4^{-1}`'s exponent together. 1 of 8 terms
+    #: assembles on its own, so this is necessary and not sufficient; the rest
+    #: need the Above/Below relation (see the multi-baseline design).
+    #:
+    #: INSIDE THE ONE GROUP, for the reason the comment above gives: a term's
+    #: own `\bigl[` ... `\bigr]` stays in the same group as its match. A term
+    #: that still refuses is flattened exactly as the whole span was, so no
+    #: glyph is dropped and the character count cannot fall.
+    from pdfreader.structure import split_terms, to_tex
+
+    pieces: list[str] = []
+    terms = split_terms(sp.glyphs, sp.rules)
+    if len(terms) > 1:
+        for term in terms:
+            tx0 = min(g.rect[0] for g in term)
+            tx1 = max(g.rect[2] for g in term)
+            mine = [r for r in (sp.rules or [])
+                    if tx0 - 1 <= r.rect[0] and r.rect[2] <= tx1 + 1]
+            one = to_tex(list(term), mine)
+            pieces.append(one if one else _run_text(term, maths_mode=True))
+    body = (" ".join(x for x in pieces if x) if any(pieces)
+            else _run_text(sp.glyphs, maths_mode=True))
     return ("$" + body + "$") if body.strip() else body
 
 

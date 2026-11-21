@@ -97,6 +97,75 @@ def _is_text_style(num, den, rest, size: float, depth: int) -> bool:
     return small < _TFRAC_NUMERAL * near.size
 
 
+#: T-0154 — the separators that can end a term in a display row, and how far
+#: off the row's own baseline a glyph may sit and still count as one.
+_TERM_SEPARATORS = frozenset(",;")
+_TERM_BASELINE_EM = 0.25
+
+
+def split_terms(glyphs: list[GlyphNode],
+                rules: list[RuleNode] | None = None) -> list[list[GlyphNode]]:
+    r"""A display row's independent terms, left to right.
+
+    `lib:c57ac038ae5f` p293 sets four on one row —
+
+        t_0 = 3[1 / -1/2],  \alpha_0 = 1/2,  x_1 = -4^{-1}[1/2],  r_1 = ...
+
+    — and `to_tex` REFUSES the row while assembling the `\alpha_0` term alone
+    correctly (`\alpha_{0} = \frac{1}{2} ,`). Measured over rows 27 and 28 of
+    that page: 1 of 8 terms assembles on its own, and the single whole-row
+    refusal then flattens all eight to glyph text in x order, losing `t_0`'s
+    subscript, `\alpha_0`'s fraction and `-4^{-1}`'s exponent together.
+
+    A BOUNDARY IS A SEPARATOR ON THE ROW'S OWN BASELINE, OUTSIDE EVERY RULE.
+    Both halves of that are load-bearing, and each is a way to cut an
+    expression in half rather than between two expressions:
+
+      * `A_{i,j}` — the comma is a subscript. It sits off the dominant
+        baseline, so the baseline test rejects it.
+      * a vector `[1, 2]` over a fraction bar, or `\frac{a,b}{c}` — the comma
+        lies within the x-span of the rule that binds it, so the rule test
+        rejects it.
+
+    The dominant baseline is the most common one in the row, which is what
+    carries the terms; scripts and a fraction's operands are the minority by
+    construction.
+    """
+    if not glyphs:
+        return []
+    gs = sorted(glyphs, key=lambda g: g.rect[0])
+    size = _row_size(gs) or 1.0
+    #: ONLY THE FULL-SIZE GLYPHS VOTE on where the row's baseline is. Counting
+    #: every glyph let a subscript outvote its own base: `A_{i,j}` is one `A`
+    #: at the baseline against `i , j` raised above it, so the majority
+    #: baseline was the SUBSCRIPT's and the comma between two subscripts
+    #: became a term boundary, cutting `A_{i,j}` in half. A script is smaller
+    #: than its base by construction, so size settles it and a count cannot.
+    body = [g for g in gs if g.size >= 0.85 * size] or gs
+    counts: dict[float, int] = {}
+    for g in body:
+        counts[round(g.baseline, 1)] = counts.get(round(g.baseline, 1), 0) + 1
+    dom = max(counts.items(), key=lambda kv: (kv[1], -abs(kv[0])))[0]
+    spans = [(r.rect[0], r.rect[2]) for r in (rules or [])
+             if r.role in ("fraction", "radical", "overline")]
+    out: list[list[GlyphNode]] = []
+    cur: list[GlyphNode] = []
+    for g in gs:
+        cur.append(g)
+        if (g.text or "") not in _TERM_SEPARATORS:
+            continue
+        if abs(g.baseline - dom) > _TERM_BASELINE_EM * size:
+            continue                      # a script's comma, not a separator
+        mid = 0.5 * (g.rect[0] + g.rect[2])
+        if any(x0 - 1 <= mid <= x1 + 1 for x0, x1 in spans):
+            continue                      # bound by a rule: not top level
+        out.append(cur)
+        cur = []
+    if cur:
+        out.append(cur)
+    return out
+
+
 def _row_size(glyphs: list[GlyphNode]) -> float:
     return max(g.size for g in glyphs) if glyphs else 0.0
 
