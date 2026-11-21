@@ -363,6 +363,55 @@ def _numeric_source_in_context(text: str, at: int, source: str) -> bool:
     return text[j - 1] in _CITE_OPENERS
 
 
+#: T-0156 — A CITATION IS PROSE AND NEVER BELONGS INSIDE A MATHS SPAN.
+#:
+#: `apply_subs` places a group by LITERAL search for its source substring, and
+#: a bracket-inclusive numeric source is the string `[4]` — which also occurs
+#: inside the mathematics, where it means something else entirely. Measured on
+#: 1503.00301, whose paragraph reads
+#:
+#:     \(\varepsilon>4 / \sqrt[4]{|\boldsymbol{A}|+|\boldsymbol{B}|}\)
+#:
+#: and came out
+#:
+#:     \(\varepsilon>4 / \sqrt\cite{atre2010matrix}{|\boldsymbol{A}|+…}\)
+#:
+#: The `[4]` the search matched is `\sqrt`'s OPTIONAL ARGUMENT, the degree of
+#: a fourth root. Replacing it leaves `\sqrt` taking `\cite` as its argument
+#: and `{|A|+|B|}` stray, which is where that document's two baseline errors
+#: come from — `Missing { inserted` and `Missing } inserted` are one event.
+#: Under a preamble that loads `cite.sty` the same spans add six more, because
+#: that package's `\cite` touches `\spacefactor`, which is illegal in math
+#: mode: 2 errors became 8.
+#:
+#: `_numeric_source_in_context` already guards the BARE-digit case ("1" inside
+#: "Stein1970"). It never ran here, because `[4]` is not a bare digit — it is
+#: the bracket-inclusive form, which that test deliberately accepts anywhere.
+#: The missing rule is not about digits at all: it is that the maths is not
+#: prose, so no citation of any shape may be placed inside it.
+#:
+#: Two occurrences across the eight T-0156 e-prints, both on this document.
+#: The pattern mirrors `latex_pipeline._MATH_SPAN` -- the same four span forms
+#: this projector writes -- and is kept here because that module and this one
+#: do not import each other.
+_MATH_SPAN = re.compile(r"\$\$.*?\$\$|\\\[.*?\\\]|\$[^$]*\$|\\\(.*?\\\)", re.S)
+
+
+def _math_ranges(text: str) -> "list[tuple[int, int]]":
+    """The (start, end) of every maths span in `text`, computed once."""
+    return [(m.start(), m.end()) for m in _MATH_SPAN.finditer(text)]
+
+
+def _inside_math(ranges: "list[tuple[int, int]]", at: int, end: int) -> bool:
+    """True when [at, end) lies within one maths span.
+
+    Containment, not overlap: a source that straddles a span boundary is not a
+    citation inside the maths, it is a text that has moved, and `apply_subs`
+    already refuses to edit against a text that moved.
+    """
+    return any(a <= at and end <= b for a, b in ranges)
+
+
 def apply_subs(text: str, subs: list[Sub], *,
                on_missing=None) -> str:
     """Apply `subs` to `text` by LITERAL search, in order, from a moving cursor.
@@ -380,17 +429,29 @@ def apply_subs(text: str, subs: list[Sub], *,
     both reproduced end to end and pinned by
     `test_a_bare_numeric_source_skips_a_coincidental_digit_inside_a_token`
     and `..._skips_a_coincidental_bare_digit_in_prose`.
+   
+    T-0156 — AND NO SOURCE OF ANY SHAPE IS PLACED INSIDE A MATHS SPAN. See
+    `_MATH_SPAN` above: `[4]` is a citation in prose and the degree of a
+    fourth root inside `\\(…\\)`, and the bare-numeric guard cannot see it
+    because `[4]` is not a bare numeric.
     """
     out: list[str] = []
     cursor = 0
+    ranges = _math_ranges(text)
     for s in subs:
         if not s.source:
             continue
         numeric = bool(_BARE_NUMERIC_SOURCE.fullmatch(s.source.strip()))
         at = text.find(s.source, cursor)
-        if numeric:
-            while at >= 0 and not _numeric_source_in_context(text, at, s.source):
-                at = text.find(s.source, at + 1)
+        # ONE loop for both refusals, so neither can hand a match to the other
+        # that it would itself have rejected: keep searching forward while the
+        # match sits inside a maths span (every source, see `_inside_math`) or,
+        # for a bare digit, while its context says it is a coincidence.
+        while at >= 0 and (
+                _inside_math(ranges, at, at + len(s.source))
+                or (numeric
+                    and not _numeric_source_in_context(text, at, s.source))):
+            at = text.find(s.source, at + 1)
         if at < 0:
             if on_missing is not None:
                 on_missing(s)
