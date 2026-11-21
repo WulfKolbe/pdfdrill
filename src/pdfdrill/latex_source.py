@@ -86,7 +86,19 @@ def _brace_arg_after(text: str, cmd: str) -> str | None:
 _FRONT_STRIP = re.compile(
     r"\\(?:thanks|footnote|footnotemark|inst|orcid|email|affiliations?|affil"
     r"|IEEEauthorblock[AN]|IEEEauthorrefmark|corref|correfauthor|address"
-    r"|institute|institution)(?![a-zA-Z])\s*(?:\[[^\]]*\])?(?:\{[^}]*\})?")
+    r"|institute|institution"
+    # T-0156 class C — imsart's own author furniture. `\thanks` above does not
+    # reach `\thanksref` (the `(?![a-zA-Z])` guard stops it), and none of these
+    # was here, so `meta["authors"]` kept them and the projection emitted
+    #     \author{\fnms{Mohsen} \snm{Bayati}\thanksref{t1}\ead[label=e1]{…}}
+    # — 4 undefined control sequences on arxiv.0912.2444 at .tex l.26. They
+    # carry no field any requirement reads: the owner's six gates ask for
+    # addressable paragraphs, BibTeX references, equation numbers,
+    # cross-references and an AI review, and the TiddlyWiki projector's only
+    # `authors` field is written for a REFERENCE object, never for the
+    # document's own front matter.
+    r"|thanksref|ead|printead|runauthor|runtitle|kwd|dvtx|tnotetext|fntext"
+    r")(?![a-zA-Z])\s*(?:\[[^\]]*\])?(?:\{[^}]*\})?")
 
 
 # font-SIZE / case wrappers that carry text but must be UNWRAPPED (kept content,
@@ -99,7 +111,12 @@ _FRONT_SIZE = re.compile(
     r"(?![a-zA-Z])")
 _FRONT_WRAP = re.compile(
     r"\\(?:NoCaseChange|MakeUppercase|MakeLowercase|textbf|textit|textrm|texttt"
-    r"|textsc|textsf|textnormal|emph|mbox|text|uppercase|lowercase)\s*\{")
+    r"|textsc|textsf|textnormal|emph|mbox|text|uppercase|lowercase"
+    # T-0156 class C — imsart splits a name into `\fnms{Mohsen} \snm{Bayati}`.
+    # These are UNWRAPPED, not stripped: the name is the one thing in that
+    # front matter a requirement does read, through `meta["authors"]` and the
+    # `\author{…}` the projection emits from it.
+    r"|fnms|snm|suffix)\s*\{")
 
 
 def _unwrap_group(s: str, open_idx: int) -> tuple[str, int]:
@@ -2095,6 +2112,80 @@ _BLANKED = "\x01"
 _SPLIT_MIN_BODY = 2000
 
 
+#: T-0156 class C — the environments and commands a prose chunk may consist
+#: ENTIRELY of without being a paragraph.
+_FM_ENV = re.compile(
+    # The optional argument is part of it: imsart writes
+    # `\\begin{keyword}[class=AMS]`, and matching only `\\begin{keyword}` left
+    # `[class=AMS]` behind — three letters that made the chunk look like prose,
+    # so the whole keyword block survived and its `\\kwd` were still undefined.
+    r"\\(?:begin|end)\s*\{(?:frontmatter|aug|keyword|keywords)\}"
+    r"\s*(?:\[[^\]]*\])?")
+_FM_CMD = re.compile(
+    r"\\(?:author|affiliation|affil|address|institute|institution|runauthor"
+    r"|runtitle|and|thanksref|thanks|ead|printead|corref|correfauthor|fnms"
+    r"|snm|suffix|kwd|dvtx|tnotetext|fntext|title|date|maketitle|orcid"
+    r"|email|inst)(?![a-zA-Z])")
+
+
+def _front_matter_only(chunk: str) -> bool:
+    r"""True when `chunk` holds nothing but front-matter markup.
+
+    T-0156 class C. The author's front matter reached the body as PROSE, and
+    on arxiv.0912.2444 it arrived as three Paragraph objects:
+
+        '\begin{frontmatter}'
+        '\begin{aug}\n\author[A]{\fnms{Mohsen} \snm{Bayati}\thanksref{t1}…'
+        '\end{frontmatter}'
+
+    — 35 of that document's 142 errors, every one an undefined control
+    sequence, at .tex lines 40 to 62. Nothing in them is content the model
+    needs: the names are in `meta["authors"]`, and the abstract is its own
+    object (that document has one).
+
+    THE TEST IS SUBTRACTIVE, so it cannot delete prose. Each front-matter
+    construct is removed together with its brace-balanced arguments, and the
+    chunk is front matter only if NO letter or digit survives. A chunk with a
+    sentence in it keeps that sentence and is kept.
+
+    `\begin{abstract}` is deliberately NOT in `_FM_ENV`: an abstract is a
+    paragraph by the owner's second requirement, and it is captured as its own
+    object precisely because it is content.
+    """
+    rest = _FM_ENV.sub(" ", chunk)
+    out: list[str] = []
+    i = 0
+    while i < len(rest):
+        m = _FM_CMD.match(rest, i)
+        if not m:
+            out.append(rest[i])
+            i += 1
+            continue
+        i = m.end()
+        # the command's own arguments: an optional `[…]` then any `{…}` groups
+        while i < len(rest):
+            if rest[i] in " \t\n\r":
+                i += 1
+                continue
+            if rest[i] == "[":
+                depth = 0
+                while i < len(rest):
+                    if rest[i] == "[":
+                        depth += 1
+                    elif rest[i] == "]":
+                        depth -= 1
+                        if depth == 0:
+                            i += 1
+                            break
+                    i += 1
+                continue
+            if rest[i] == "{":
+                _, i = _unwrap_group(rest, i)
+                continue
+            break
+    return not re.search(r"[A-Za-z0-9]", "".join(out))
+
+
 def _prose_chunks(body: str):
     r"""Yield (pos, raw_prose) for each blank-line-separated prose block, with
     structural blocks blanked out (length preserved → positions stay valid).
@@ -2136,8 +2227,11 @@ def _prose_chunks(body: str):
     for m in re.finditer(r"(?s)[^\s" + _BLANKED + r"].*?(?=\n[ \t\r]*\n|\Z)",
                          cleaned):
         chunk = m.group(0).replace(_BLANKED, " ")
-        if chunk.strip():
-            yield m.start(), chunk
+        if not chunk.strip():
+            continue
+        if _front_matter_only(chunk):
+            continue                      # see `_front_matter_only`
+        yield m.start(), chunk
 
 
 def prose_split_failed(body: str, n_chunks: int) -> "str | None":
