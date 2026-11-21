@@ -745,6 +745,41 @@ def expand_prose(text: str, macros: dict, max_iter: int = 8) -> str:
     return "".join(out)
 
 
+#: Names a collected "definition" can only have by ACCIDENT. T-0156.
+#:
+#: `\csname` is the one the corpus shows, and it is how a 69-page document
+#: came out as no PDF at all. An author who builds commands by name writes
+#:
+#:     \newcommand\@newmathsfone[1]{
+#:       \expandafter\newcommand\csname #1\endcsname{\mathsf{#1}}
+#:     }
+#:
+#: and a collector scanning for `\newcommand` finds the INNER one, whose
+#: "name" is the primitive `\csname`. Emitted through `_robustify_macro_defs`
+#: that becomes `\providecommand{\csname}{}\renewcommand\csname ` -- TeX's own
+#: `\csname`, redefined to nothing -- and everything after it fails with
+#: "Missing control sequence inserted", "Extra \endcsname" and finally
+#: "Missing \begin{document}", naming neither the macro nor the line.
+#:
+#: NESTING ALONE CANNOT CATCH IT, which is why this list exists beside the
+#: span test rather than instead of it. Measured over 2,725 library source
+#: preambles, comment-stripped as both callers strip them: span membership
+#: catches 8 of the 13 documents that produce a `\csname` definition, because
+#: the outer construct is sometimes a `\newenvironment` or a `\tikzset{}`
+#: body, which are not `\newcommand` spans. A NAME TEST is complete where a
+#: structural test is partial, and nothing is lost by it: no author defines
+#: `\csname`.
+#:
+#: Kept to control sequences that are TeX's or the kernel's own and that a
+#: `\renewcommand` of would break the document outright. A name that merely
+#: belongs to a package is NOT here -- an author may legitimately redefine
+#: one, and `_robustify_macro_defs` already makes that safe.
+_NEVER_A_MACRO = frozenset({
+    "csname", "endcsname", "expandafter", "noexpand", "relax", "string",
+    "the", "let", "def", "edef", "gdef", "xdef", "par", "begin", "end",
+})
+
+
 def _collect_macro_defs(preamble: str) -> list[str]:
     """Full `\\newcommand`/`\\renewcommand`/`\\providecommand`/`\\DeclareMathOperator`
     and `\\def` definitions, with their (possibly multi-line, brace-balanced)
@@ -760,7 +795,66 @@ def _collect_macro_defs(preamble: str) -> list[str]:
             i += 1
         return i
 
+    def _depth_at(pos: int) -> int:
+        """Brace depth at `pos`, ignoring escaped braces."""
+        d = 0
+        for k in range(pos):
+            c = preamble[k]
+            if c in "{}" and (k == 0 or preamble[k - 1] != "\\"):
+                d += 1 if c == "{" else -1
+        return d
+
     for m in _DEF_START.finditer(preamble):
+        # T-0156 — A NESTED `\newcommand` IS PART OF A BODY, NOT A DEFINITION.
+        #
+        # The `\def` loop below has had both of these guards since 288. This
+        # loop never did, and the two shapes are the same shape. Measured on
+        # arxiv.2402.03975, whose preamble builds commands by name:
+        #
+        #     \newcommand\@newmathsfone[1]{
+        #       \expandafter\newcommand\csname #1\endcsname{\mathsf{#1}}
+        #     }
+        #
+        # The inner `\newcommand\csname` was collected as a definition of its
+        # own and emitted as `\providecommand{\csname}{}\renewcommand\csname `
+        # -- TeX's OWN `\csname` primitive, redefined to nothing. Everything
+        # after it fails: "Missing control sequence inserted", "Extra
+        # \endcsname", "Missing \begin{document}", and no PDF at all.
+        #
+        # IT IS ALREADY REACHING `standalone_preamble`, which is where this
+        # collector's output has always gone: every figure crop of a document
+        # whose preamble uses `\expandafter\newcommand\csname …\endcsname`
+        # has had `\csname` destroyed, with the error naming neither the macro
+        # nor the line. So this is not a class B fix, it is a defect class B
+        # walked into.
+        #
+        # SPAN MEMBERSHIP ONLY, and the brace-depth test the `\def` loop uses
+        # is DELIBERATELY NOT HERE. Measured over 2,725 library source
+        # preambles, comment-stripped exactly as both callers do:
+        #
+        #     span + depth   230 documents lose a collected definition
+        #     span only       ...of which only the genuinely nested ones
+        #
+        # `_depth_at` counts braces linearly from position 0, so ONE body it
+        # cannot balance by that count -- a `\def` whose body holds an
+        # unmatched `{`, a `\verb`, a listings block -- puts every later
+        # definition at depth > 0. It refused `\newcommand{\R}{{\rm I\!R}}`
+        # standing in a plain run of top-level definitions, which is a
+        # definition this function exists to collect.
+        #
+        # Span membership is exact: the spans are the extents `_balanced`
+        # actually measured, and they are recorded in source order, so an
+        # outer definition is always already in the list when its nested one
+        # is reached.
+        #
+        # THE KNOWN GAP, stated rather than hidden: a `\newcommand` inside a
+        # `\tikzset{}` or `\pgfextra{}` body is NOT in `spans`, because
+        # `standalone_preamble` collects those blocks separately. That is the
+        # case 288's depth test was added for, on the `\def` side. No document
+        # in the corpus exercises it for `\newcommand`, and a naive depth
+        # count costs more than it buys here.
+        if any(a <= m.start() < b for a, b in spans):
+            continue
         i = skip_ws(m.end())
         # macro name: `{\foo}` or `\foo`
         if i < n and preamble[i] == "{":
@@ -789,17 +883,12 @@ def _collect_macro_defs(preamble: str) -> list[str]:
         i = skip_ws(i)
         if i < n and preamble[i] == "{":
             i += len(_balanced(preamble, i))
-        out.append(preamble[m.start():i])
+        # The span is recorded even for a definition that is refused below, so
+        # anything nested INSIDE it is still seen as nested.
         spans.append((m.start(), i))
-
-    def _depth_at(pos: int) -> int:
-        """Brace depth at `pos`, ignoring escaped braces."""
-        d = 0
-        for k in range(pos):
-            c = preamble[k]
-            if c in "{}" and (k == 0 or preamble[k - 1] != "\\"):
-                d += 1 if c == "{" else -1
-        return d
+        if _def_name(preamble[m.start():i]) in _NEVER_A_MACRO:
+            continue                      # see `_NEVER_A_MACRO`
+        out.append(preamble[m.start():i])
 
     for m in re.finditer(r"\\def\\[A-Za-z@]+", preamble):
         # 288 — nesting is BRACE DEPTH, not "inside a span I already captured".
