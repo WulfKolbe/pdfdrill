@@ -1819,16 +1819,74 @@ def find_bib_resources(source_dir) -> dict:
     return {"bib": list(dict.fromkeys(bib)), "bbl": list(dict.fromkeys(bbl))}
 
 
+def _matching_close(s: str, open_at: int) -> int:
+    """Index of the `}` that closes the `{` at `open_at`, or -1."""
+    depth = 0
+    for j in range(open_at, len(s)):
+        if s[j - 1] == "\\" if j else False:
+            continue
+        if s[j] == "{":
+            depth += 1
+        elif s[j] == "}":
+            depth -= 1
+            if depth == 0:
+                return j
+    return -1
+
+
+def _unwrap_cmd(s: str, cmd: str, prefix: str) -> str:
+    r"""`\cmd{...}` -> `prefix...`, dropping the group's MATCHING close brace.
+
+    T-0156 — `re.sub(r"\\Comment\{", "// ", s)` dropped the OPENING brace and
+    left every close, so `\Comment{\textit{x}}` became `// \textit{x}}` with
+    one `}` too many. That surplus was then invisible, because the old
+    `.strip(" {}")` ate BOTH closes and left `\textit{` open — a runaway
+    argument that stops xelatex dead. See `_clean_step_text`.
+    """
+    pat = re.compile(r"\\" + cmd + r"\s*\{")
+    out: list[str] = []
+    i = 0
+    while True:
+        m = pat.search(s, i)
+        if not m:
+            out.append(s[i:])
+            return "".join(out)
+        close = _matching_close(s, m.end() - 1)
+        if close < 0:                      # unbalanced source: leave it alone
+            out.append(s[i:])
+            return "".join(out)
+        out.append(s[i:m.start()])
+        out.append(prefix)
+        out.append(s[m.end():close])
+        i = close + 1
+
+
+def _strip_wrapping_group(s: str) -> str:
+    r"""Drop a group that wraps the WHOLE string, never a brace that closes
+    something inside it.
+
+    `.strip(" {}")` is a character-class strip: it removed any run of braces at
+    either end whether or not they matched, which is how an unclosed
+    `\textit{` reached the projection and cost arxiv.2402.03975 its entire
+    bibliography (`! Emergency stop`, 0 `\bibcite` lines in the .aux, 162
+    citations undefined).
+    """
+    s = s.strip()
+    while s.startswith("{") and _matching_close(s, 0) == len(s) - 1:
+        s = s[1:-1].strip()
+    return s
+
+
 def _clean_step_text(s: str) -> str:
     """Light prettify of a step's content: drop the \\State carrier, lower a few
     very common inline keywords, collapse whitespace. Math is left verbatim."""
     s = re.sub(r"\\Return\b", "return", s)
-    s = re.sub(r"\\Comment\{", "// ", s).replace("\\Comment ", "// ")
+    s = _unwrap_cmd(s, "Comment", "// ").replace("\\Comment ", "// ")
     s = re.sub(r"\\(?:State|Statex)\b", " ", s)
     s = re.sub(r"\\label\{[^}]*\}", "", s)                       # drop \label anchors
     s = re.sub(r"\\(?:rm|bf|it|tt|sf|em|sl|sc|normalfont)\b", "", s)  # font switches
     s = s.replace("~", " ")
-    s = re.sub(r"\s+", " ", s).strip(" {}")
+    s = _strip_wrapping_group(re.sub(r"\s+", " ", s))
     return s.strip()
 
 
