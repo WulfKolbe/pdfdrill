@@ -15,6 +15,7 @@ enriched LaTeX (acronyms/glossary/index, ORKG metadata) see `stex` / `scikgtex`.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 from docmodel.core import Document
 from ..base import BaseProjector
@@ -351,6 +352,14 @@ class LaTeXProjector(BaseProjector):
         body_text, self._xref_counts = _pipe.resolve_xrefs(doc, body_text)
 
         preamble = self._doc_preamble(meta)
+        # T-0156 — the author's figures live with the author's source, and a
+        # missing image is FATAL under xelatex (xdvipdfmx aborts and xetex
+        # dies of the broken pipe). See `_pipe.add_source_graphicspath`.
+        # the folder the .tex is written beside: `crops_dir`'s parent is
+        # `sc.blob_dir`, which is exactly that folder.
+        _crops = self.params.get("crops_dir")
+        _doc_dir = Path(str(_crops)).parent if _crops else None
+        preamble = _pipe.add_source_graphicspath(preamble, meta, _doc_dir)
         out: list[str] = [preamble.rstrip()]
         # 893b — the theorem environments the body used. Same standard the
         # preamble already holds `listings` to: a block that reaches the .tex

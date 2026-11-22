@@ -681,6 +681,120 @@ _EMITTED_REF = re.compile(
     r"\\(ref|eqref|autoref|cref|Cref|labelcref)\s*\{([^{}]*)\}")
 
 
+#: T-0156 — THE AUTHOR'S FIGURES ARE WHERE THE AUTHOR'S SOURCE IS.
+#:
+#: `_DEFAULT_PREAMBLE` emits `\graphicspath{{./}{../}}`: `./` is the `latex/`
+#: directory the compile runs in, `../` is the document folder, where OUR OWN
+#: `report-crops/` live. That is why 2507.21892v1 compiles clean with 18
+#: `\includegraphics` — its images are ours. An author's path
+#: (`figures/DVS_image.png`) reaches neither, because the source is unpacked
+#: at `<doc>/texsrc/`.
+#:
+#: AND A MISSING IMAGE IS FATAL UNDER XELATEX. xetex pipes its DVI to
+#: xdvipdfmx, which aborts:
+#:
+#:     xdvipdfmx:fatal: Image inclusion failed. Could not find file: figures/…
+#:     No output PDF file written.
+#:
+#: so xetex dies of the broken pipe (rc -13) with its log truncated mid-word.
+#: 2102.08145 produced NO document at all for this reason, and its 34 errors
+#: and 0.0% word coverage were consequences. The last line of that truncated
+#: log named `\unitfrac`, which had nothing to do with it.
+#:
+#: MEASURED on the real .tex, one entry added:
+#:
+#:     plain     rc=-13   34 errors   NO pages    4 unable-to-load
+#:     withsrc   rc=1     30 errors   27 pages    0 unable-to-load
+#:
+#: RELATIVE WHEN THE LAYOUT HOLDS. `cmd_latex` writes the .tex to
+#: `<blob_dir>/latex/` and the source is unpacked under `<blob_dir>/`, so
+#: `../<name>/` is correct and keeps the file portable. The condition is
+#: CHECKED rather than assumed — the sibling `latex/` directory must exist —
+#: and a source somewhere else gets its absolute path, because a wrong
+#: relative path fails the same fatal way the missing figure did.
+_GRAPHICSPATH_CMD = re.compile(r"\\graphicspath\s*\{")
+
+
+def source_graphics_entry(meta, doc_dir=None) -> str:
+    r"""The `{…/}` entry for the author's own figure directory, or "".
+
+    `doc_dir` is the folder the .tex is written beside (pdfdrill passes it
+    from the projector's `crops_dir` param, whose parent IS that folder).
+    Without it nothing is emitted: the entry is a RELATIVE path, and a
+    relative path is only correct when the source sits beside the output.
+    """
+    src = (meta or {}).get("latex_source_dir")
+    if not src or not doc_dir:
+        return ""
+    try:
+        d = Path(str(src))
+        if not d.is_dir():
+            return ""
+        # THE TEST IS THE ONE THING WE KNOW EXACTLY, and it must hold AT
+        # PROJECTION TIME. The first version asked whether a sibling `latex/`
+        # directory existed — pdfdrill's own output directory, which
+        # `cmd_latex` creates on the line AFTER `projector.project(doc)` and
+        # which the audit runner removes first. So on a clean run that check
+        # ALWAYS failed and the entry was never emitted; it passed only when
+        # an earlier run had left `latex/` behind. It cost a wrong report: a
+        # measurement I declared void for concurrency was correct, and the
+        # single-document runs I "confirmed" against were the stale ones.
+        #
+        # `doc_dir` removes the guessing. The projector is told the folder it
+        # writes beside, so the condition is an equality rather than a probe:
+        # the source directory is a CHILD of that folder, hence `../<name>/`.
+        if d.parent == Path(str(doc_dir)):
+            return "{../%s/}" % d.name
+        # NO ABSOLUTE FALLBACK, and the reason is not portability alone.
+        #
+        # A source directory outside the document folder is a path on THIS
+        # machine, and for a library document it is a path THROUGH THE LIBRARY:
+        # `1503.00301`'s source dir is `pdfdrill-library/<folder>/<sub>`, so an
+        # absolute entry would write a library folder name into the projected
+        # .tex — an output file. The owner's rule keeps those names out of
+        # source, logs and messages, and a projection is the deliverable.
+        #
+        # Nothing is lost by refusing: the figures are not beside the document
+        # in that case either, so the fix there is to COPY them in, which is a
+        # different step with a different gate. Measured over the eight, the
+        # only document whose figures were unreachable (2102.08145) has its
+        # source under the document folder and gets the relative entry; the one
+        # document with an outside source (1503.00301) references no author
+        # figure at all, so it stays byte-identical.
+        return ""
+    except OSError:
+        return ""
+
+
+def add_source_graphicspath(preamble: str, meta, doc_dir=None) -> str:
+    r"""Put the author's source directory on the graphics search path."""
+    entry = source_graphics_entry(meta, doc_dir)
+    if not entry or entry in preamble:
+        return preamble
+    m = _GRAPHICSPATH_CMD.search(preamble)
+    if not m:
+        return preamble.rstrip("\n") + "\n\\graphicspath{{./}{../}%s}\n" % entry
+    close = _matching_brace(preamble, m.end() - 1)
+    if close < 0:
+        return preamble
+    return preamble[:close] + entry + preamble[close:]
+
+
+def _matching_brace(s: str, open_at: int) -> int:
+    """Index of the `}` closing the `{` at `open_at`, or -1."""
+    depth = 0
+    for i in range(open_at, len(s)):
+        if i and s[i - 1] == "\\":
+            continue
+        if s[i] == "{":
+            depth += 1
+        elif s[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return i
+    return -1
+
+
 def _body_spellings(source: str) -> "list[str]":
     """The spellings a flattened reference can carry in the rendered body.
 
