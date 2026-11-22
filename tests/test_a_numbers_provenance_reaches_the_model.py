@@ -1,6 +1,6 @@
 r"""An equation's number says where it came from.
 
-T-0156. `refnum_source` records WHICH path gave the number — "line" (an
+T-0156. `refnum_origin` records WHICH path gave the number — "line" (an
 `equation_number` line nearby), "gutter" (the row's own band, for a promoted
 row) or "absorbed" (split off the end of the maths). It was computed on all
 three branches and asserted by `test_absorbed_eqnum` — ON THE ITEM — and then
@@ -53,21 +53,21 @@ def test_a_number_from_a_line_says_so_on_the_object():
     ])
     assert eqs, "no Equation object built"
     assert eqs[0].props.get("refnum") == "204"
-    assert eqs[0].props.get("refnum_source") == "line"
+    assert eqs[0].props.get("refnum_origin") == "line"
 
 
 def test_an_absorbed_number_says_so_on_the_object():
     eqs = _equations([{"type": "math", "text": r"\[E = m c^{2} \quad (204)\]"}])
     assert eqs
     assert eqs[0].props.get("refnum") == "204"
-    assert eqs[0].props.get("refnum_source") == "absorbed"
+    assert eqs[0].props.get("refnum_origin") == "absorbed"
 
 
 def test_an_equation_with_no_number_records_an_empty_source():
     eqs = _equations([{"type": "math", "text": r"\[E = m c^{2}\]"}])
     assert eqs
     assert not eqs[0].props.get("refnum")
-    assert eqs[0].props.get("refnum_source") == ""
+    assert eqs[0].props.get("refnum_origin") == ""
 
 
 def test_the_prop_is_present_on_every_equation():
@@ -80,7 +80,7 @@ def test_the_prop_is_present_on_every_equation():
     ])
     assert eqs
     for e in eqs:
-        assert "refnum_source" in (e.props or {}), e.props
+        assert "refnum_origin" in (e.props or {}), e.props
 
 
 @pytest.mark.parametrize("source", ["line", "absorbed", ""])
@@ -120,3 +120,25 @@ def test_the_tiddler_display_guards_the_number_too():
     text = out if isinstance(out, str) else str(out)
     assert "(1.1)" in text, "a real number should still be printed"
     assert "left7" not in text, "mathematics must not be printed as a number"
+
+
+def test_the_prop_is_not_named_source():
+    r"""The NAME is load-bearing.
+
+    `_prefer_arxiv_source` decides whether to rebuild a model from the
+    author's LaTeX by scanning every object's props for a key ENDING IN
+    `_source` with a non-empty value — the mark of an enrichment a rebuild
+    cannot reproduce. Named `refnum_source`, this provenance field tripped
+    that heuristic: 8 equations on 1909.00741, which carries no `ref_source`,
+    made the projection refuse the author's own LaTeX where it had used it.
+    A prop name silently decided which document got built.
+    """
+    eqs = _equations([
+        {"type": "math", "text": r"\[E = m c^{2}\]"},
+        {"type": "equation_number", "text": "(204)"},
+    ])
+    assert eqs
+    for key in (eqs[0].props or {}):
+        assert not key.endswith("_source"), (
+            "a prop ending in _source is read by _prefer_arxiv_source as an "
+            "enrichment and refuses the author's LaTeX: %s" % key)

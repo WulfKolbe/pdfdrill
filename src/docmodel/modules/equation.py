@@ -791,7 +791,16 @@ class EquationProcessor(BaseModule):
                 #
                 # A provenance field that never reaches the model reads as
                 # evidence of nothing, and is worse than its absence.
-                "refnum_source": item.get("refnum_source") or "",
+                # NAMED `refnum_origin`, NOT `refnum_source`, and the name
+                # is load-bearing. `_prefer_arxiv_source` decides whether to
+                # rebuild a model from the author's LaTeX by scanning every
+                # object's props for a key ENDING IN `_source` with a
+                # non-empty value, as the mark of an enrichment a rebuild
+                # cannot reproduce. Carrying this through as `refnum_source`
+                # made 8 equations on 1909.00741 (which has no `ref_source`)
+                # refuse the author's source where it had been used — a prop
+                # NAME silently deciding which document gets built.
+                "refnum_origin": item.get("refnum_source") or "",
                 "latex": item["latex"],          # convenient copy
                 "latex_raw": item["latex_raw"],
                 "page": item["page"],

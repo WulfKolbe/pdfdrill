@@ -1205,6 +1205,61 @@ def _sanitize_bib_body(s: str) -> str:
     return _balance_braces(s)
 
 
+#: T-0156 — THE LINK THE READER CAN FOLLOW, from the record we already hold.
+#:
+#: The owner's third requirement asks for the reference's download link, and
+#: the model has it: of 256 References across the eight audit e-prints, 89
+#: carry a full `bibtex` record and 41 of those hold a DOI, 2 a url, 2 an
+#: eprint. None of it reached the page — 256 printed entries carried no link
+#: of any kind and both compiled PDFs held ZERO external URI annotations.
+#:
+#: `\url`, NOT `\href{…}{doi:…}`, and the difference was measured rather than
+#: reasoned. Adding `\href{https://doi.org/X}{doi:X}` to 40 entries of
+#: arxiv.2402.03975 took its errors 43 -> 55: a DOI like
+#: `10.1007/978-3-642-22006-7_13` puts an underscore in the DISPLAYED text and
+#: every one is "Missing $ inserted". `\url` handles the specials by catcode,
+#: and the same 40 entries give 40 links with the error count UNCHANGED.
+#:
+#: The .bib is NOT the mechanism and is not replaced: `_bibitem`'s own reason
+#: stands — a `.bib` needs a two-pass bibtex compile, so the self-contained
+#: `thebibliography` is the default. This adds the link to the printed entry.
+_BIB_DOI = re.compile(r"(?i)\bdoi\s*=\s*[{\"]\s*([^}\"]+?)\s*[}\"]")
+_BIB_URL = re.compile(r"(?i)\burl\s*=\s*[{\"]\s*([^}\"]+?)\s*[}\"]")
+_BIB_EPRINT = re.compile(r"(?i)\beprint\s*=\s*[{\"]\s*([^}\"]+?)\s*[}\"]")
+
+
+def reference_link(ref) -> str:
+    r"""`\url{…}` for a Reference that carries one, else "".
+
+    DOI first (it is the citable identifier), then an explicit url, then an
+    arXiv eprint. A STUB carries nothing and gets nothing: its entry stays the
+    visible `[unresolved: key]` that `_bibitem` prints, because a stub with a
+    link would read as a resolved entry.
+    """
+    props = getattr(ref, "props", None) or {}
+    if props.get("stub"):
+        return ""
+    record = str(props.get("bibtex") or "")
+    if not record:
+        return ""
+    m = _BIB_DOI.search(record)
+    if m:
+        doi = m.group(1).strip().rstrip(".,;")
+        if doi:
+            return "\\url{https://doi.org/%s}" % doi
+    m = _BIB_URL.search(record)
+    if m:
+        url = m.group(1).strip().rstrip(".,;")
+        if url.startswith(("http://", "https://")):
+            return "\\url{%s}" % url
+    m = _BIB_EPRINT.search(record)
+    if m:
+        eprint = m.group(1).strip().rstrip(".,;")
+        if eprint:
+            return "\\url{https://arxiv.org/abs/%s}" % eprint
+    return ""
+
+
 def _bibitem(ref) -> str:
     """A `\\bibitem` for one Reference. ALWAYS emitted (even for a ref carrying full
     `bibtex`): a `.bib` needs a 2-pass bibtex compile, so the self-contained
@@ -1227,7 +1282,9 @@ def _bibitem(ref) -> str:
     title = str(p.get("title") or p.get("titlefield") or "").strip()
     body = " ".join(x for x in (author, f"({year})" if year else "", title) if x) \
         or str(p.get("raw_text") or "").strip() or key
-    return f"\\bibitem{{{key}}} {_sanitize_bib_body(body)}"
+    link = reference_link(ref)
+    return (f"\\bibitem{{{key}}} {_sanitize_bib_body(body)}"
+            + (" " + link if link else ""))
 
 
 def bibliography_block(doc: Document) -> str:
