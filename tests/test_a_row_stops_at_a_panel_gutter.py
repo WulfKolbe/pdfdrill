@@ -180,3 +180,50 @@ def test_stacked_panels_yield_no_barrier_from_the_helper():
 def _panel_barriers_of(d):
     from pdfreader.docmodel_six import _panel_barriers
     return _panel_barriers(d)
+
+
+# ---------------------------------------------------------------------------
+# T-0156 — AND A SCRIPT DOES NOT ATTACH ACROSS A PANEL GUTTER.
+#
+# inkdrill-80 reported 2312 p7 rising 0.0394 -> 0.0454 after the split, with
+# two line boxes overlapping by 363 px: `(d) NYT-NPMI. 100 200 300` at
+# x 393..1308 running into `(e) NYT-Diversity. 100 200 300` at x 945..1877,
+# on one row. Its diagnosis was that each split piece inherits the pre-split
+# region and must recompute it from its own glyphs.
+#
+# THE REGION WAS NOT THE CAUSE. Traced with a logging list over `groups`, the
+# splitter emits `(d)NYT-NPMI.` and `(e)NYT-Diversity.` CLEAN, and the
+# script-absorption pass then puts the digits back one at a time —
+# `(d)NYT-NPMI.100` -> `...1002` -> `...10020` -> `...100200300` — because a
+# chart's legend digits are SMALLER than the caption beside them and so read
+# as scripts. Recomputing the regions would have shrunk the boxes while
+# leaving the wrong glyphs in them.
+#
+# It is also why those digits came out typed as maths (`$100 200$`): a script
+# is maths by construction. One cause, two symptoms, and the rider the
+# coordinator had already set aside closes with it.
+
+
+def test_a_script_does_not_cross_a_panel_gutter():
+    r"""The veto lives at the absorption site, so the barrier that governs
+    the split governs the rejoin AND the script move — the same rule as
+    `_panel_barriers` exists to state."""
+    import re
+    from pathlib import Path
+    src = Path("src/pdfreader/docmodel_six.py").read_text(encoding="utf-8")
+    # the absorption site's veto, keyed on the shared barrier list
+    body = src[src.index("a script sits beside its base"):]
+    body = body[:body.index("moved.append((dest, g))")]
+    assert "_bars" in body, "the script move must consult the panel barriers"
+    assert re.search(r"for _b in _bars", body)
+
+
+def test_the_barriers_are_one_definition_for_every_consumer():
+    r"""Split, rejoin sweep and script absorption all read
+    `_panel_barriers`. Three readers of one definition, because a barrier
+    honoured by two of them and ignored by the third is no barrier — which
+    is exactly how the split came undone."""
+    from pathlib import Path
+    src = Path("src/pdfreader/docmodel_six.py").read_text(encoding="utf-8")
+    assert src.count("_panel_barriers(") >= 2
+    assert src.count("for _b in _bars") >= 2

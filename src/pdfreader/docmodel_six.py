@@ -4911,6 +4911,29 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                           / len(groups[dest]))
                     if abs(db - g.baseline) > 2.0 * span_pt:
                         continue
+                    # AND NOT ACROSS A FIGURE PANEL'S GUTTER (T-0156).
+                    #
+                    # A chart's legend digits are SMALLER than the subfigure
+                    # caption beside them, so this pass reads them as scripts
+                    # and gives them to a base in the next panel's caption.
+                    # On 2312.11532 p7 that undid the panel split one digit
+                    # at a time — `(d)NYT-NPMI.` + `100` + `0` + `0` + `2` …
+                    # until the caption held `(d) NYT-NPMI. 100 200 300`,
+                    # whose own legend belongs to panel (e). The split itself
+                    # had emitted `(d)NYT-NPMI.` clean; this is what put it
+                    # back, and it is also why those digits came out typed as
+                    # MATHS (`$100 200$`) — a script is maths by construction.
+                    #
+                    # The symptom reported was two line boxes overlapping by
+                    # 363 px (x 393..1308 against 945..1877, same row), and
+                    # recomputing each piece's region from its own glyphs
+                    # would have shrunk the boxes while LEAVING the wrong
+                    # glyphs inside them. The region was never the cause.
+                    _dx0 = min(x.rect[0] for x in groups[dest])
+                    _dx1 = max(x.rect[2] for x in groups[dest])
+                    if any(max(_dx1, g.rect[2]) >= _b >= min(_dx0, g.rect[0])
+                           for _b in _bars):
+                        continue
                     moved.append((dest, g))
                 if not moved:
                     continue
