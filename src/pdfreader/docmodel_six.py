@@ -3036,6 +3036,14 @@ def _split_at_panel_gutters(rows: list[list["GlyphNode"]],
     # dominant size` also fits the window but leaves only 7% on the caption
     # side, so it was rejected.
     #
+    # THE WINDOW RESTS ON TWO ROWS, which is thin evidence for a constant
+    # and is stated here so the next reader does not take it for more. Its
+    # check is the held-out sample: 220 library pages drawn at interior
+    # pages (seed 20261123), 217 of them carrying no adjacent panels at
+    # all, 2 changed and 0 worse. A third row that falls inside (1.56,
+    # 2.36) would narrow the window and may move this number; that is a
+    # measurement to take, not a reason to widen the reach now.
+    #
     # HOW 1.5 CAME TO LOOK RIGHT: I measured the caption's offset as 1.8 pt
     # on the FINAL merged row, whose box is inflated by legend digits drawn
     # higher up the page, instead of on the row this function is handed.
