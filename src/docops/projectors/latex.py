@@ -136,6 +136,39 @@ _DEFAULT_PREAMBLE = (
     # later load is the one that wins.
     "\\usepackage{stmaryrd}\n"
     "\\usepackage{extarrows}\n"
+    # T-0156 — A JOURNAL CLASS'S FRONT MATTER, PROVIDED AND NEVER IMPOSED.
+    #
+    # A paper written for a journal calls its class's own commands, and we
+    # typeset in `article`: arxiv.0912.2444 (imsart) writes `\\thankstext`
+    # three times, `\\revised` and `\\received` once each, and opens four
+    # proofs with `\\begin{pf}`. That is 13 of the eight e-prints' errors —
+    # 5 undefined commands, and 8 from the environments, since an undefined
+    # `pf` also leaves its `\\end{pf}` to mismatch whatever is open.
+    #
+    # TYPESETTING IN THE AUTHOR'S CLASS INSTEAD WAS MEASURED AND LOST, and
+    # the measurement is in `latex_source.document_addon_preamble`: the
+    # author's preamble replacing ours went 241 -> 384, and under `acmart`
+    # `width=\\linewidth` divides by zero and 20 crops fail to load. That
+    # failure is a property of changing the class at all.
+    #
+    # `\\providecommand` NEVER OVERRIDES, so a document whose class does
+    # define these is untouched — this adds a floor, not a policy. The
+    # environments are guarded the same way with `\\@ifundefined`.
+    #
+    # The dates and the funding note are DROPPED rather than placed: they
+    # are front-matter metadata, and the alternatives (a `\\footnote` before
+    # `\\maketitle`, a `\\thanks` outside `\\title`) misbehave where they
+    # land. The content row — graphics, tikz, tabular, equation, figure — is
+    # unaffected, and this is a loss of two dates and a funding line, stated
+    # rather than hidden.
+    "\\providecommand{\\thankstext}[2]{}\n"
+    "\\providecommand{\\received}[1]{}\n"
+    "\\providecommand{\\revised}[1]{}\n"
+    "\\providecommand{\\corref}[1]{}\n"
+    "\\makeatletter\n"
+    "\\@ifundefined{pf}{\\newenvironment{pf}{\\begin{proof}}{\\end{proof}}}{}\n"
+    "\\@ifundefined{pf*}{\\newenvironment{pf*}{\\begin{proof}}{\\end{proof}}}{}\n"
+    "\\makeatother\n"
     # T-0156 — A COMMAND THE AUTHOR'S CLASS PROVIDES AND WE DO NOT.
     #
     # `\dvtx` is imsart's spaced colon for "a function from … to …", and
