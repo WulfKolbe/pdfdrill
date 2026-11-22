@@ -39,6 +39,29 @@ def font_flags(fontname: str) -> tuple[bool, bool]:
     return m, it
 
 
+def font_run_key(fontname: str, size: float) -> tuple:
+    """(family, size, bold, italic) — what a RUN of glyphs shares.
+
+    T-0156, the owner's rule of 2026-11-22: fix at the lowest level. The
+    weight was already here and was being thrown away. `_classify_font_family`
+    returns `(base_name, is_math, is_bold, is_italic)` and `font_flags`
+    unpacked `is_bold` into `_bd` and dropped it, per character, on the route
+    that reads the PDF's own TEXT LAYER — so every typer downstream worked
+    without it.
+
+    What that cost, each measured before this existed: a description-list rule
+    that could not tell a bold label from a heading and failed at precision
+    0.50; `refnum` holding mathematics, guarded at two display sites instead
+    of typed at the source; paragraphs merged 2.6 to one for want of a block.
+
+    RUNS, NOT ONE FONT PER LINE. A description label is a bold run at the
+    START of a body line, so the line's dominant font is the body's and a
+    per-line field would drop exactly the label it is wanted for.
+    """
+    base, _m, bold, italic = _classify_font_family(fontname or "")
+    return (base, round(float(size or 0.0), 1), bool(bold), bool(italic))
+
+
 def is_math_font(fontname: str) -> bool:
     """True if `fontname` is a MATH font (CM*/AMS/OpenSymbol/MT Extra/…).
 
@@ -265,6 +288,28 @@ def _line_columns(line: list[dict], split_x: float, gutter_min: float):
     return [(0, line)]                                 # spans the gutter → keep whole
 
 
+def _runs_of(chars: list[dict]) -> list[dict]:
+    """Consecutive glyphs sharing (family, size, bold, italic), as records.
+
+    `start` is the offset INSIDE this word's text; the line assembler shifts
+    it to the line's own offsets when it joins the words.
+    """
+    out: list[dict] = []
+    off = 0
+    for c in chars:
+        key = c.get("fr")
+        if out and out[-1]["_k"] == key:
+            off += len(c["t"])
+            continue
+        fam, size, bold, italic = key if key else ("", 0.0, False, False)
+        out.append({"start": off, "family": fam, "size": size,
+                    "bold": bold, "italic": italic, "_k": key})
+        off += len(c["t"])
+    for r in out:
+        r.pop("_k", None)
+    return out
+
+
 def _emit_words(line: list[dict], pg, li: int, out: list[dict]) -> None:
     """Group one (column-)line's chars into words on x-gaps; append to `out`."""
     line = sorted(line, key=lambda i: i["x0"])
@@ -292,6 +337,7 @@ def _emit_words(line: list[dict], pg, li: int, out: list[dict]) -> None:
             "math_chars": sum(1 for c in cur if c["mi"][0]),
             "italic_chars": sum(1 for c in cur if c["mi"][1]),
             "n_chars": len(cur),
+            "runs": _runs_of(cur),
         })
 
     prev_x1 = None
@@ -404,6 +450,8 @@ def _page_words(page: dict[str, Any]) -> list[dict[str, Any]]:
     items = [{"x0": float(c["x0"]), "x1": float(c["x1"]),
               "top": ph - float(c["y1"]), "bottom": ph - float(c["y0"]),
               "t": c["text"], "mi": font_flags(c.get("fontname") or ""),
+              # the run this glyph belongs to: (family, size, bold, italic)
+              "fr": font_run_key(c.get("fontname") or "", c.get("size") or 0.0),
               # A TURNED GLYPH IS NOT ON THIS LINE. `upright` is in the input
               # and was being dropped here; see `_turned_lines`.
               "up": bool(c.get("upright", True)),

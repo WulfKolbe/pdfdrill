@@ -52,13 +52,40 @@ _MATH_FONT_HINTS = (
 )
 
 
+#: TeX's own spellings of bold, which do not contain the word.
+_TEX_BOLD = re.compile(r"cmbx|cmb\d|cmbsy|-bx\b|bx\d|ptmb|phvb|pcrb|ncb\b")
+#: and TeX's spellings of italic/oblique, which do not contain the word.
+_TEX_ITALIC = re.compile(r"cmti|cmfi|cmbxti|ptmri|phvro|phvo\b|pcrro|-ri\b")
+
+
 def _classify_font_family(name: str) -> tuple[str, bool, bool, bool]:
     """Return (base_name, is_math, is_bold, is_italic) from a font name."""
     base = name.split("+", 1)[-1] if "+" in name else name
     low = base.lower()
     is_math = any(h in low for h in _MATH_FONT_HINTS)
-    is_bold = "bold" in low or "-bd" in low or "medi" in low
-    is_italic = ("ital" in low or "-it" in low) and not is_math
+    # T-0156 — AND TEX DOES NOT SPELL IT "BOLD". Computer Modern's bold is
+    # `CMBX10` (Bold Extended) and `CMB10`; the URW/Type-1 aliases are `ptmb`
+    # (Times), `phvb` (Helvetica), `pcrb` (Courier); a TeX subset may carry
+    # `-bx` or `bx12`. Measured over 40 library documents: 79 bold font names
+    # use one of those spellings and 62 say "Bold", so the old test MISSED 56%
+    # of the bold in this corpus — and the corpus is mostly LaTeX.
+    #
+    # It mattered because the flag was discarded anyway (`chars_to_lines`
+    # unpacked it into `_bd`), so nothing downstream could notice. A
+    # description-list rule then failed at precision 0.50 for want of exactly
+    # this bit, on a book whose labels are set in CMBX10.
+    is_bold = bool("bold" in low or "-bd" in low or "medi" in low
+                   or _TEX_BOLD.search(low))
+    # AND TEX DOES NOT SPELL ITALIC EITHER: `CMTI10` is Computer Modern TEXT
+    # Italic, `ptmri` Times Italic, `phvo` Helvetica Oblique. The math
+    # suppression stays and does the right thing on its own: `CMMI10` is
+    # Computer Modern MATH Italic and is already a math hint, so a maths
+    # variable is never reported as emphasis.
+    # `bool(...)`, because `re.search` returns a MATCH OR NONE and the
+    # signature promises a bool: `None` is falsy, so every `if` would behave,
+    # and a consumer testing `is False` would quietly get the wrong answer.
+    is_italic = bool(("ital" in low or "-it" in low
+                      or _TEX_ITALIC.search(low)) and not is_math)
     return base, is_math, is_bold, is_italic
 
 

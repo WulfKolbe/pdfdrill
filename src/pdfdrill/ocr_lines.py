@@ -207,10 +207,14 @@ def _group_lines(words: list[dict]) -> list[dict]:
     for w in words:
         g[(w["page"], w["block"], w["line"])].append(w)
     lines: list[dict] = []
-    for (page, _b, _l), ws in sorted(g.items()):
+    for (page, block, _l), ws in sorted(g.items()):
         ws.sort(key=lambda w: w["x0"])
         lines.append({
             "page": page,
+            # the reader's own layout block, the field `ParagraphProcessor`
+            # looks for and the born-digital route never set (it was a
+            # hardcoded 0 in `chars_to_lines._emit_words`).
+            "block": block,
             "x0": min(w["x0"] for w in ws),
             "x1": max(w["x1"] for w in ws),
             "y0": min(w["y0"] for w in ws),
@@ -225,7 +229,40 @@ def _group_lines(words: list[dict]) -> list[dict]:
             lines[-1]["n_chars"] = sum(w.get("n_chars", 0) for w in ws)
             lines[-1]["math_chars"] = sum(w.get("math_chars", 0) for w in ws)
             lines[-1]["italic_chars"] = sum(w.get("italic_chars", 0) for w in ws)
+            # T-0156 — the font RUNS of this line, offsets shifted from each
+            # word's own text to the joined line. Added under the same rule as
+            # the counts above: only when the caller supplied them, so a
+            # TSV-built lines.json stays byte-identical.
+            #
+            # RUNS, NOT ONE FONT PER LINE: a description label is a bold run at
+            # the START of a body line, so the line's dominant font is the
+            # body's and a per-line field would drop the label it is wanted for.
+            runs = _merge_runs(ws)
+            if runs:
+                lines[-1]["runs"] = runs
     return lines
+
+
+def _merge_runs(words: list[dict]) -> list[dict]:
+    """The words' font runs, as runs of the JOINED line text.
+
+    Words are joined with a single space, so each word's offsets shift by the
+    text written before it. A run that continues across a word boundary in the
+    same font is merged, which is what makes a bold LABEL one run rather than
+    one per word.
+    """
+    out: list[dict] = []
+    off = 0
+    for w in words:
+        for r in (w.get("runs") or []):
+            rec = dict(r)
+            rec["start"] = off + int(rec.get("start", 0))
+            if out and all(out[-1].get(k) == rec.get(k)
+                           for k in ("family", "size", "bold", "italic")):
+                continue                       # the same run, continued
+            out.append(rec)
+        off += len(w.get("text") or "") + 1    # the joining space
+    return out
 
 
 def lines_json_from_words(
@@ -261,6 +298,19 @@ def lines_json_from_words(
             by_page[pg][-1]["n_chars"] = ln["n_chars"]
             by_page[pg][-1]["math_chars"] = ln["math_chars"]
             by_page[pg][-1]["italic_chars"] = ln["italic_chars"]
+        # T-0156 — THE SEAM WHERE THE WEIGHT WAS LOST. This dict is rebuilt
+        # from scratch with five keys, so everything the line carried —
+        # including the font runs the chars route computes — stopped here.
+        # The owner's rule of 2026-11-22 is to fix at the lowest level, and
+        # this is the lowest: the reader knows the fonts and the serialiser
+        # dropped them.
+        #
+        # Added only when present, like the counts above, so a TSV-built
+        # lines.json stays byte-identical.
+        if ln.get("runs"):
+            by_page[pg][-1]["runs"] = ln["runs"]
+        if ln.get("block") is not None:
+            by_page[pg][-1]["block"] = ln["block"]
 
     try:  # optional pdfdrill-side margin tagging; absent standalone
         from semantic.geometry_columns import tag_out_of_column
