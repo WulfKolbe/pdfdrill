@@ -227,3 +227,35 @@ def test_the_barriers_are_one_definition_for_every_consumer():
     src = Path("src/pdfreader/docmodel_six.py").read_text(encoding="utf-8")
     assert src.count("_panel_barriers(") >= 2
     assert src.count("for _b in _bars") >= 2
+
+
+def test_the_absorption_veto_is_confined_to_the_figure_band():
+    r"""And the veto reaches only the panels' own band.
+
+    THIRD TIME FOR THIS OMISSION, which is why it is pinned. The
+    cross-panel detector ignored Y and flagged 60 prose lines; the split
+    ignored Y and cut `on the sign convention.` mid-word; this veto ignored
+    Y and detached scripts from their bases two pages away:
+
+        arxiv.1907.11795 p39  `\psi|_{K_{H} \times\{0\}}` lost its subscript
+                              to a display of its own
+        arxiv.2609.23822 p11  `$Q^{a-2} = Q^{0} = \{[v^{1,0}], [v^{0,1}]\}$`
+                              became `$Q = Q^{0} = \{[v], [v]\}$` with
+                              `$a-2$ $1,0$ $0,1$` stranded beside it
+
+    NEITHER PAGE LOST A CHARACTER (chars +0 on both), and both lost the
+    structure. That is the worse failure: every character count passes while
+    the mathematics is wrong. Measured against the PRE-VETO revision — not
+    against the broken one, which tells you what the bug did rather than
+    whether the fix is right — both pages are byte-identical again.
+    """
+    from pathlib import Path
+    src = Path("src/pdfreader/docmodel_six.py").read_text(encoding="utf-8")
+    body = src[src.index("a script sits beside its base"):]
+    body = body[:body.index("moved.append((dest, g))")]
+    # the band, from the diagrams' own extent, gating the barrier test
+    assert "_by0" in body and "_by1" in body, "the veto needs the figure band"
+    assert "g.baseline" in body, "the band is tested against the glyph's baseline"
+    # and the cheap test first, or an empty `diagrams` raises
+    assert body.index("if _bars:") < body.index("_by0 ="), \
+        "guard on _bars before computing the band: min() over no diagram raises"

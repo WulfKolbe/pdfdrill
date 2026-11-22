@@ -4929,11 +4929,38 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                     # recomputing each piece's region from its own glyphs
                     # would have shrunk the boxes while LEAVING the wrong
                     # glyphs inside them. The region was never the cause.
-                    _dx0 = min(x.rect[0] for x in groups[dest])
-                    _dx1 = max(x.rect[2] for x in groups[dest])
-                    if any(max(_dx1, g.rect[2]) >= _b >= min(_dx0, g.rect[0])
-                           for _b in _bars):
-                        continue
+                    # ...AND ONLY INSIDE THE FIGURE BAND. A barrier is
+                    # evidence about the panels' own strip of the page and
+                    # nothing else, exactly as in `_split_at_panel_gutters`.
+                    # Without the band this veto blocks ORDINARY scripts
+                    # whose base happens to lie across a barrier x: measured
+                    # on arxiv.1907.11795 p39, `\psi|_{K_{H} \times\{0\}}`
+                    # lost its subscript to a display of its own, and on
+                    # arxiv.2609.23822 p11 `$Q^{a-2} = Q^{0} = \{[v^{1,0}],
+                    # [v^{0,1}]\}$` became `$Q = Q^{0} = \{[v], [v]\}$`
+                    # with `$a-2$ $1,0$ $0,1$` stranded beside it. Neither
+                    # page lost a character, and both lost the structure,
+                    # which is the worse failure: the text reads right and
+                    # the mathematics is wrong.
+                    #
+                    # THIRD TIME FOR THIS ONE OMISSION. The cross-panel
+                    # detector ignored Y and flagged 60 prose lines; the
+                    # split ignored Y and cut a prose line mid-word; this
+                    # veto ignored Y and detached scripts. A barrier rule
+                    # without a band is the standing defect of this family,
+                    # and the band belongs in `_panel_barriers`' contract
+                    # rather than in each caller's memory.
+                    if _bars:
+                        _by0 = min(r[1] for r in diagrams)
+                        _by1 = max(r[3] for r in diagrams)
+                        _reach = 2.0 * max(g.size, span_pt)
+                        _dx0 = min(x.rect[0] for x in groups[dest])
+                        _dx1 = max(x.rect[2] for x in groups[dest])
+                        if (_by0 - _reach <= g.baseline <= _by1 + _reach
+                                and any(max(_dx1, g.rect[2]) >= _b
+                                        >= min(_dx0, g.rect[0])
+                                        for _b in _bars)):
+                            continue
                     moved.append((dest, g))
                 if not moved:
                     continue
