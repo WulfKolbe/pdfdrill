@@ -21999,6 +21999,23 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
     # become PAGES_DEFAULT (10) at the build_report call, so EVERY reporttex
     # build was silently bounded — including the measure build that 585
     # believed it had made unbounded.
+    # AN ARGUMENT IS CHECKED BEFORE ANY WORK, and `--ink` was not: it sat
+    # 130 lines down, past the tiddler load, so a user who mistyped the path
+    # waited through that work to be told the path was wrong. The `--pages`
+    # refusal below has always been at the top; this one joins it.
+    #
+    # EXIT 2, BECAUSE A REFUSAL IS AN ERROR. It returned a bare string,
+    # which `main` prints and exits 0 on, so a script could not tell "your
+    # report was built" from "your --ink does not exist". `Report` is a
+    # `str` subclass carrying `exit_code` and only `main` reads that
+    # attribute, so every caller treating this return as text is unaffected
+    # — including `_inkreport_chain`, which calls this as a function and
+    # reads the returned string, never a process exit. Precedent:
+    # EXIT_LANE_NOT_RUN, returned the same way by `cmd_inspect`.
+    if ink is not None and not Path(ink).is_file():
+        from .cli import Report
+        return Report(ink_missing_message(
+            pdf, ink, Sidecar(pdf).blob_dir / "report.ink.json"), 2)
     if pages is not None:
         try:
             _n = int(pages)
@@ -22113,14 +22130,10 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
     # silent fallback. Ignoring it would build a report saying "no residual
     # measurement has been run" to someone who just supplied one.
     if ink_path is not None and not ink_path.is_file():
-        # NAME THE COMMAND THAT MAKES THE FILE. The owner typed
-        # `reporttex --ink` from the help text, which lists the flag without
-        # saying that nothing creates its argument until the ink pass has
-        # run — so the first thing he met was a missing-file error for a file
-        # he had no way to have. `inkreport` is the whole chain and its step 5
-        # IS this build with the ink adopted.
-        return ink_missing_message(pdf, ink_path,
-                                   Sidecar(pdf).blob_dir / "report.ink.json")
+        # unreachable: `--ink` is validated at the top of this function,
+        # before any work. Kept as a belt, not a route.
+        return ink_missing_message(
+            pdf, ink_path, Sidecar(pdf).blob_dir / "report.ink.json")
     adopted = ""
     if ink_path is None:
         default_ink = sc.blob_dir / "report.ink.json"

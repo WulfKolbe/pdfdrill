@@ -99,3 +99,70 @@ def test_the_message_always_repeats_the_path_the_user_gave():
     for own in ("/nope/report.ink.json",):
         msg = ink_missing_message("doc.pdf", "mytypo.json", own)
         assert "mytypo.json" in msg
+
+
+# ---------------------------------------------------------------------------
+# A REFUSAL IS AN ERROR, SO IT EXITS 2.
+#
+# Both `--ink` refusals returned a bare string, which `main` prints and
+# exits 0 on — so a script could not tell "your report was built" from
+# "your --ink does not exist". `Report` is a `str` subclass carrying
+# `exit_code`; only `main` reads that attribute, so every caller that
+# treats the return as text is unaffected, `_inkreport_chain` included
+# (it calls the function and reads the string, never a process exit).
+#
+# Nothing outside tests and the CLI invokes `reporttex`: no shell script,
+# no Makefile, no CI workflow — grepped for *.sh, Makefile, *.mk, *.yml,
+# *.yaml, *.py before the change.
+#
+# The check also MOVED to the top of `cmd_reporttex`, beside the long
+# standing `--pages` refusal. It had sat 130 lines down, past the tiddler
+# load, so a mistyped path cost that work before the complaint. Validating
+# an argument before doing work is also what makes these tests cheap: a
+# 9-byte PDF reaches the refusal, as `test_reporttex_refuses_a_bound`
+# already relies on for `--pages`.
+
+import pathlib
+
+from pdfdrill import commands as C
+
+
+def _fake_pdf(tmp_path):
+    pdf = tmp_path / "x.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    return pdf
+
+
+def test_the_refusal_names_inkreport_AND_exits_2(tmp_path):
+    out = C.cmd_reporttex(_fake_pdf(tmp_path), ink="absent.json")
+    assert "pdfdrill inkreport x.pdf" in out
+    assert "absent.json does not exist" in out
+    assert getattr(out, "exit_code", 0) == 2, "a refusal a script cannot see"
+
+
+def test_the_refusal_names_the_documents_own_ink_AND_exits_2(tmp_path):
+    pdf = _fake_pdf(tmp_path)
+    own = pathlib.Path(str(pdf) + ".drill") / "report.ink.json"
+    _write_ink(own.parent)
+    out = C.cmd_reporttex(pdf, ink="mytypo.json")
+    assert str(own) in out
+    assert "omit --ink to adopt it" in out
+    assert "mytypo.json" in out
+    assert getattr(out, "exit_code", 0) == 2
+
+
+def test_the_refusal_is_still_a_str_so_every_caller_keeps_working(tmp_path):
+    """`_inkreport_chain` reads this return as text. A `Report` that was not
+    a `str` would break the chain while fixing the exit code."""
+    out = C.cmd_reporttex(_fake_pdf(tmp_path), ink="absent.json")
+    assert isinstance(out, str)
+    assert out.startswith("--ink ")
+    assert len(out.splitlines()) >= 1
+
+
+def test_no_ink_flag_at_all_does_not_refuse(tmp_path):
+    """Omitting --ink must adopt or proceed, never refuse: the refusal is
+    about a path the user GAVE that is not there."""
+    out = C.cmd_reporttex(_fake_pdf(tmp_path))
+    assert "does not exist" not in str(out)[:40]
+    assert getattr(out, "exit_code", 0) != 2
