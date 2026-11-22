@@ -1522,6 +1522,54 @@ def _has_born_digital_text(pdf: Path) -> bool:
     return len((out.stdout or "").strip()) >= 16
 
 
+def _glyph_reading(pdf: Path, key: str) -> "tuple":
+    """Read `pdf` with OUR glyph reader. Returns (pages, lines.json dict).
+
+    ONE reader, in ONE place. `cmd_glyphlines` and the born-digital default
+    (`_write_glyph_lines`, reached from `_write_born_digital_lines`) both read
+    through this. They cannot call each other: each holds the per-document
+    `O_EXCL` lock, so the second would refuse itself. A copy of the two reader
+    calls in both places is how two readings of one document start to differ,
+    which is the defect `model_io.save_model` exists to prevent one level up.
+
+    Raises on failure -- a caller that has another lane catches it and falls
+    through; `glyphlines`, which is the named command, reports it and exits
+    non-zero (T-0153).
+    """
+    from pdfreader import docmodel_six as _dm
+    pages = _dm.build(str(pdf))
+    return pages, _dm.to_lines_json(pages, doc_id=key)
+
+
+def _write_glyph_lines(pdf: Path) -> bool:
+    """The glyph reader's TYPED reading, as the born-digital default.
+
+    Same reader and same path as `glyphlines`; returns False on any failure so
+    the caller falls through to the chars route and then to the OCR lanes. A
+    document with no text layer yields no glyphs, so this declines it exactly
+    where the chars route does.
+
+    It never displaces a reading: `_write_born_digital_lines` is reached only
+    when no lines.json exists. `glyphlines` keeps what it displaces
+    (`.mathpix.bak.json`, `.chars.bak.json`); this path has nothing to keep.
+    """
+    if _lines_json_path(pdf).exists():
+        return False
+    try:
+        sc = Sidecar(pdf)
+        data = _glyph_reading(pdf, resolve_bibkey(pdf, None, sc))[1]
+    except Exception:                                # noqa: BLE001
+        return False                                 # reader unavailable or failed
+    if sum(len(pg.get("lines") or []) for pg in data.get("pages", [])) < 2:
+        return False                                 # no real text layer
+    try:
+        from . import model_io
+        model_io._atomic_write(_lines_json_path(pdf), json.dumps(data))
+    except Exception:                                # noqa: BLE001
+        return False
+    return True
+
+
 def _write_born_digital_lines(pdf: Path) -> bool:
     """Born-digital TEXT-LAYER route: read the PDF's own text layer with
     **pdfminer.six** (pdfplumber fallback) and write a MathPix-shape
@@ -1531,6 +1579,27 @@ def _write_born_digital_lines(pdf: Path) -> bool:
     caller falls through to the next free lane. This is what `route`'s
     "born-digital → text-layer (free)" promise resolves to inside `model`."""
     from . import chars_to_lines
+    # T-0156 — THE RICHER READER FIRST, THE CHARS ROUTE AS ITS FALLBACK.
+    #
+    # Two born-digital writers existed and this function chose the poorer one
+    # by default. `chars_to_lines` emits TWO line types, `text` and `math`,
+    # so the twenty modules in `docmodel/modules/` that build `Table`,
+    # `Diagram`, `CodeListing`, `Section` from typed lines had nothing to work
+    # with. `cmd_glyphlines` already wrote a typed reading to the SAME path,
+    # and `model` already prefers an existing lines.json — so the poorer
+    # writer was never chosen, it was reached, because nothing ran the richer
+    # one first.
+    #
+    # Measured, same document, same pipeline, from the PDF alone:
+    #
+    #   arxiv.0912.2444    2 types -> 8    errors 36 -> 36   content row identical
+    #   arxiv.2402.03975   2 types -> 10   errors 43 -> 43   content row identical
+    #
+    # and the extra characters are LaTeX, not duplication: with control words
+    # and delimiters stripped, both readings match the page's own text
+    # (pdftotext 65,939 / chars 65,920 / glyph 64,306 — ratios 1.00 and 0.98).
+    if _write_glyph_lines(pdf):
+        return True
     # PRODUCER POLICY (the cheapest signal — pdfinfo — decides the lane BEFORE
     # any parsing). Some writers emit font subsets this lane mishandles;
     # declining is correct, and the caller then falls through to the lanes that
@@ -17656,15 +17725,26 @@ def cmd_glyphlines(pdf: Path, force: bool = False) -> str:
             bak.write_bytes(lines_path.read_bytes())
         mathpix_backup = bak
 
+    # OUR OWN EARLIER READING IS ALSO DATA WE DID NOT CREATE. The clause
+    # above keeps a displaced MathPix reading; a displaced chars-route
+    # reading had no such keeping, and the owner's library holds those --
+    # `arxiv.0912.2444` and `arxiv.2402.03975` among the T-0156 eight were
+    # read that way and nothing else records what they said. Same
+    # convention, one name: `<stem>.lines.chars.bak.json`.
+    chars_backup = None
+    if lines_path.exists() and not _is_mathpix_lines(lines_path):
+        bak = lines_path.with_suffix(".chars.bak.json")
+        if not bak.exists():
+            bak.write_bytes(lines_path.read_bytes())
+        chars_backup = bak
+
     sc = Sidecar(pdf)
     key = resolve_bibkey(pdf, None, sc)
     # 834 — ONE READER, IN THIS TREE. No subprocess, no temp file, no
     # `$PDF2MMD_HOME`: the glyph model is `src/pdfreader/` and the patched
     # pdfminer it needs is the one this environment already has.
-    from pdfreader import docmodel_six as _dm
     try:
-        pages = _dm.build(str(pdf))
-        data = _dm.to_lines_json(pages, doc_id=key)
+        pages, data = _glyph_reading(pdf, key)
     except Exception as e:                                   # noqa: BLE001
         # T-0153 — A READER THAT FAILED EXITS NON-ZERO. This returned a plain
         # string, so the process exited 0 and a caller that checks the status
