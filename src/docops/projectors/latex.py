@@ -381,6 +381,11 @@ class LaTeXProjector(BaseProjector):
         if apkg:
             out += ["% packages the author loaded that the body still uses:",
                     apkg]
+        # T-0156 — the review's comments, if the body carries any. Same
+        # body-first order and the same reason: only the body knows.
+        todo = _pipe.todo_preamble(body_text)
+        if todo:
+            out += ["% the review's comments:", todo]
         out.append("")
         if self._formula_preamble:                # the formula ARRAY (readarray)
             out += ["% formula transclusion array (filecontents + readarray):",
@@ -1645,6 +1650,21 @@ class LaTeXProjector(BaseProjector):
         return "\n".join(_pipe.escape_prose_specials(ln) for ln in lines)
 
     def _render(self, obj) -> str:
+        # T-0156 — a review comment is attached to the OBJECT it is about, so
+        # it is emitted with that object wherever the object lands, whatever
+        # its type. `\todo`, not `\marginpar`: the latter is the DOCUMENT'S
+        # own margin note (a Sidenote), and a reviewer's comment set the same
+        # way would read as the author's.
+        #
+        # Wrapped at the ENTRY rather than beside one branch: `_render`
+        # returns from a dozen type branches and a hook placed among them
+        # reaches only the types below it — which is how the first version
+        # emitted nothing for a Paragraph.
+        body = self._render_inner(obj)
+        todo = _pipe.todo_markup(obj)
+        return (body + todo) if (body and todo) else (body or todo)
+
+    def _render_inner(self, obj) -> str:
         t, p = obj.type, obj.props
         # the page the `<sup>n</sup>` handler resolves against — the block being
         # emitted, which is where that marker is printed.

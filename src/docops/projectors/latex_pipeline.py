@@ -926,6 +926,54 @@ def resolve_xrefs(doc, body: str) -> "tuple[str, dict]":
     return body, counts
 
 
+#: T-0156 — THE REVIEW'S COMMENTS, the half `latexdiff` cannot produce.
+#:
+#: The owner's sixth requirement asks for an AI peer review as tracked changes
+#: AND comments. The changes come from `latexdiff` over two projections — it
+#: adds no errors, measured on arxiv.0912.2444's 125-equation projection: 36
+#: before, 36 after, with 35 `\DIFadd` and 46 `\DIFdel` visible in the PDF.
+#: A comment is not a difference, so it is carried separately, as a note
+#: attached to the OBJECT it is about.
+#:
+#: `\todo`, NOT `\marginpar`. The projector already emits `\marginpar` for a
+#: Sidenote — the DOCUMENT'S OWN margin note, which 638 exists to preserve —
+#: and a reviewer's comment set the same way would read as the author's. The
+#: `todonotes` package is the standard for the other thing and says so
+#: visually.
+#:
+#: LOADED ONLY WHEN THE BODY EMITS ONE, the same body-first order
+#: `graphics_preamble` and `author_package_preamble` use and for the same
+#: reason: only the body knows what it emitted.
+_TODO_CMD = re.compile(r"\\todo\s*(?:\[[^\]]*\])?\s*\{")
+
+
+def review_notes(obj) -> "list[str]":
+    """The review comments attached to this object, in order."""
+    props = getattr(obj, "props", None) or {}
+    raw = props.get("review_notes")
+    if isinstance(raw, str):
+        raw = [raw]
+    return [str(n).strip() for n in (raw or []) if str(n).strip()]
+
+
+def todo_markup(obj) -> str:
+    r"""`\todo{…}` for each comment on this object, or "".
+
+    The note is prose, so it is escaped like prose; a comment holding a `%`
+    would otherwise comment out the rest of the line it lands on.
+    """
+    out = []
+    for note in review_notes(obj):
+        out.append("\\todo{%s}" % escape_prose_specials(note))
+    return "".join(out)
+
+
+def todo_preamble(body: str) -> str:
+    r"""`\usepackage{todonotes}` when the body carries a note, else ""."""
+    return ("\\usepackage[textsize=footnotesize]{todonotes}"
+            if _TODO_CMD.search(body or "") else "")
+
+
 def escape_prose_specials(text: str) -> str:
     r"""Escape the text-mode specials in the NON-math parts of prose.
 
