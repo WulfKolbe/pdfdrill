@@ -49,6 +49,14 @@ want = %r
 ok = 0
 if want == "rotated":
     ok = int(any(getattr(ln, "rotated", False) for p in pages for ln in p.lines))
+elif want == "panels":
+    # T-0156: a page with two HORIZONTALLY ADJACENT figure panels, which is
+    # the only shape the panel-gutter split can act on. Stacked panels
+    # overlap in x and give no barrier, so they are not this shape.
+    for p in pages:
+        sp = sorted((r[0], r[2]) for r in (p.diagrams or []))
+        if any(b0 > a1 for (_, a1), (b0, _) in zip(sp, sp[1:])):
+            ok = 1
 elif want == "frac2x":
     rs = [r for p in pages for ln in p.lines for r in (ln.rules or [])
           if r.role == "fraction"]
@@ -166,7 +174,8 @@ def main() -> int:
     ap.add_argument("--require", default=None,
                     help="skip a page unless this expression is true of the "
                          "B-side reading: `frac2x` = two fraction rules "
-                         "overlapping in x, `rotated` = any rotated line")
+                         "overlapping in x, `rotated` = any rotated line, "
+                         "`panels` = two horizontally adjacent figure panels")
     a = ap.parse_args()
 
     jobs = [(os.path.splitext(os.path.basename(p))[0], os.path.abspath(p), a.page)

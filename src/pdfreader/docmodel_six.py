@@ -2936,6 +2936,119 @@ def _column_edge(rows: list[list["GlyphNode"]], rect: Rect) -> float | None:
     return None
 
 
+def _split_at_panel_gutters(rows: list[list["GlyphNode"]],
+                            diagrams: list[Rect]) -> list[list["GlyphNode"]]:
+    r"""Cut a row that reads across the gutter BETWEEN two figure panels.
+
+    T-0156 — THE BOARD'S WORST `ours` ROW, AND NOT A MISSING THRESHOLD.
+    2312.11532 p7 at judge 0.0454 has clean prose and 26 unpaired glyphs,
+    every one of them on two lines:
+
+        L6    0.050.25                                      6 unpaired on A
+        L55   (d)NYT-NPMI.100(e)NYT-Diversity.30000(f)...  10 A + 10 B
+
+    L6 loses the page's `k=3` and `k=1`; L55 carries the legend digits at
+    x 1348..2093 where the page has them at 1735..3004 — THE SAME
+    CHARACTERS IN THE WRONG PLACE. Three charts side by side put their tick
+    labels, legends and subfigure captions on one baseline each, and the row
+    grouper reads straight across:
+
+        '0.15 1.0 0.15'                      panels 0,1
+        '0.1 0.1'                            panels 0,1
+        '0.05 k=3 k=3 0.05 k=3'              panels 0,1,2   <- L6
+        '(d) NYT-NPMI. $100 200$ 300(e) ...' panels 0,1,2   <- L55
+
+    THE GAP RULE IS NOT THE PROBLEM, which is why nothing here is a new
+    number. Measured in each row's own type size, the gaps at the panel
+    boundaries are 15.2, 20.1, 20.7, 43.1 em against `_column_edge`'s 1.5 —
+    ten to thirty times over. What was missing is a BARRIER saying the gap
+    is a figure boundary and not word spacing.
+
+    WHY THE THREE EXISTING MECHANISMS DO NOT COVER IT, each checked before
+    this was written:
+
+      * `_spans_two_regions` already refuses a line drawn from two figures,
+        and its docstring names this very page. It requires the line to be
+        made ENTIRELY of glyphs INSIDE a region, and a chart's tick labels
+        and caption are drawn just OUTSIDE the plot rectangle: of the four
+        rows above, three have NO glyph in any region and the fourth has 8
+        outside. Correct for what it does, blind to this.
+      * `_column_edge` yields ONE page-level boundary, where the second
+        column starts. Three panels need two, and it ignores any row of 8
+        glyphs or fewer, which `'0.1 0.1'` is.
+      * `_split_local_columns` INFERS a gutter from 3+ wide rows banded by
+        vertical adjacency. The figure band holds four rows at four
+        different baselines, so the bands are too small and it returns
+        early.
+
+    So the barrier comes from the page's own figure geometry — the diagram
+    rectangles already detected and already kept on the page — and the
+    threshold stays `_column_edge`'s 1.5 type sizes. A row is cut where a
+    gap of at least 1.5 sizes CONTAINS the midpoint of a gutter between two
+    horizontally adjacent panels. Both conditions are needed: the gap alone
+    splits ordinary word spacing inside a wide caption, and the barrier
+    alone splits a caption that legitimately runs under all three panels.
+    """
+    if not diagrams or len(diagrams) < 2:
+        return rows
+    # The gutters between horizontally adjacent panels, as barrier x's. Two
+    # panels that overlap in x (stacked, not side by side) give no barrier.
+    spans = sorted((r[0], r[2]) for r in diagrams)
+    bars = [(a1 + b0) / 2.0 for (_, a1), (b0, _) in zip(spans, spans[1:])
+            if b0 > a1]
+    if not bars:
+        return rows
+    # AND THE BARRIER REACHES ONLY AS FAR AS THE FIGURES THEMSELVES.
+    # A gutter is evidence about the band the panels occupy and about
+    # nothing else on the page. Without a vertical test, prose that merely
+    # crosses a barrier x is cut: on arxiv.2609.23822 `on the sign
+    # convention.` became `on the sign conventi` + `on.` (the tail then
+    # typed as maths) and the regrouping cost `e^{n-1}` its exponent.
+    #
+    # THE REACH IS 1.5 OF THE ROW'S OWN TYPE SIZE — `_column_edge`'s
+    # number again, not a new one — and it is what separates the two
+    # measured cases:
+    #
+    #     2312.11532 p2  caption '(d) NYT-NPMI...'   1.8 pt below = 0.20 sizes  CUT
+    #     2609.23822     prose 'on the sign conv'   28.2 pt below = 2.80 sizes  KEPT
+    #
+    # 0.20 < 1.5 < 2.80, with 7.5x and 1.9x of margin. Per ROW, because a
+    # subfigure caption is set in the figure's type size and the prose
+    # below it is not; a fixed point reach cannot tell them apart.
+    # A FIRST VERSION REACHED A FULL PANEL HEIGHT (58.3 pt here) and still
+    # cut that prose line, by 4.7 pt.
+    band_y0 = min(r[1] for r in diagrams)
+    band_y1 = max(r[3] for r in diagrams)
+    out: list[list[GlyphNode]] = []
+    for row in rows:
+        if len(row) < 2:
+            out.append(row)
+            continue
+        ry0 = min(g.rect[1] for g in row)
+        ry1 = max(g.rect[3] for g in row)
+        reach = 1.5 * max((g.size for g in row), default=10.0)
+        if ry1 < band_y0 - reach or ry0 > band_y1 + reach:
+            out.append(row)
+            continue
+        ordered = sorted(row, key=lambda g: g.rect[0])
+        size = max((g.size for g in ordered), default=10.0)
+        parts, cur = [], [ordered[0]]
+        for prev, g in zip(ordered, ordered[1:]):
+            gap = g.rect[0] - prev.rect[2]
+            if gap >= 1.5 * size and any(prev.rect[2] <= b <= g.rect[0]
+                                         for b in bars):
+                parts.append(cur)
+                cur = [g]
+            else:
+                cur.append(g)
+        parts.append(cur)
+        # A row that did not cross a barrier is returned UNTOUCHED, in its
+        # original order, so this function is a no-op wherever it does not
+        # fire.
+        out.extend(parts if len(parts) > 1 else [row])
+    return out
+
+
 def _split_local_columns(rows: list[list["GlyphNode"]],
                         rect: Rect) -> list[list["GlyphNode"]]:
     """Split rows inside a full-width REGION that has its own columns.
@@ -4191,6 +4304,9 @@ def build(path: str, pages: Iterable[int] | None = None, *,
         groups = _group_lines(upright_glyphs, rect=layout.bbox,
                               line_bands=line_bands_by_page.get(pno))
         groups = _split_local_columns(groups, layout.bbox)
+        # The page's own figure geometry is a barrier: three charts side by
+        # side must not have their labels read across (T-0156).
+        groups = _split_at_panel_gutters(groups, diagrams)
         # THE GUTTER IS EVIDENCE, AND IT OUTRANKS EVERY MERGE BELOW.
         #
         # `_group_lines` separates the columns and hands back rows that each
