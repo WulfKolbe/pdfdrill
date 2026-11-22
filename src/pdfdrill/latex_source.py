@@ -2045,11 +2045,12 @@ def extract_theorems(body: str, theorem_envs, newtheorem_decls: list) -> dict:
         starred = d.get("starred", False)
         inner = re.sub(r"^\\begin\{" + re.escape(env) + r"\}", "", code, count=1)
         inner = re.sub(r"\\end\{" + re.escape(env) + r"\}\s*$", "", inner, count=1)
-        mt = re.match(r"\s*\[([^\]]*)\]", inner)
+        mt = _optional_arg(inner)
         bracket = ""
         if mt:
-            bracket = mt.group(1).strip()
-            inner = inner[mt.end():]
+            bracket, _end = mt
+            bracket = bracket.strip()
+            inner = inner[_end:]
         lm = re.search(r"\\label\{([^}]*)\}", inner)
         label = lm.group(1).strip() if lm else ""
         number = None
@@ -2232,6 +2233,44 @@ def _capture_ltx(text: str, bibkey: str, start_n: int) -> "tuple[str, list, int]
 #: unchanged, so nothing that reads prose today changes.
 _FLATTENED_XREF = re.compile(
     r"\\(?:eqref|ref|autoref|cref|Cref)\s*\{([^}]*)\}")
+
+
+def _optional_arg(s: str) -> "tuple[str, int] | None":
+    r"""LaTeX's own rule for an `[optional]` argument: it ends at the first
+    `]` AT BRACE DEPTH ZERO.
+
+    T-0156. This was `re.match(r"\s*\[([^\]]*)\]", inner)`, which stops at the
+    first `]` whatever encloses it. arxiv.2402.03975 writes
+
+        \begin{theorem}[{e.g., \cite[Section~2.2]{generic_uniqueness}}]
+
+    — braced, exactly as LaTeX requires — and the old scanner cut the title at
+    the `]` of `\cite[Section~2.2]`, storing `{e.g., \cite[Section 2.2` and
+    spilling `{generic_uniqueness}}]` into the statement. The projector then
+    emitted the theorem's `\label` INTO the middle of that broken title, so
+    the label never executed: 5 labels present in the .tex, 0 in the .aux, and
+    12 references to them undefined once this task promoted them to `\ref`.
+
+    Returns the argument's content and the index just past its `]`, or None
+    when there is no optional argument.
+    """
+    m = re.match(r"\s*\[", s)
+    if not m:
+        return None
+    depth = 0
+    for i in range(m.end(), len(s)):
+        c = s[i]
+        if c == "\\":                      # skip an escaped character
+            continue
+        if s[i - 1] == "\\":
+            continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+        elif c == "]" and depth <= 0:
+            return s[m.end():i], i + 1
+    return None
 
 
 def _flattened_xrefs(chunk: str) -> list[dict]:
