@@ -65,6 +65,10 @@ from ..page_edges import (  # noqa: E402
 # lines are often EMPTY): same column, same font, CONTINUOUS line numbering —
 # the only separators are this lexical pattern and the vertical gap after the
 # caption (1206.0238 p3: caption + next paragraph merged into one unit).
+#: A line break STATED AT THE HEAD of a line: `text_display` says it
+#: follows a break, which is nothing to say when the line starts a block.
+_LEADING_BREAK = re.compile(r"^\s*\\\\(?![A-Za-z])\s*")
+
 _CAPTION_START = re.compile(
     r"^(?:Figure|Fig\.?|Table|Tab\.?|Abbildung|Abb\.?|Tafel|Bild)"
     r"\s*\.?\s*\d+(?:\.\d+)*\s*[.:]", re.I)
@@ -530,6 +534,22 @@ class ParagraphProcessor(BaseModule):
                         flush()
 
             if current is None:
+                # T-0156 — A BREAK BEFORE THE FIRST LINE HAS NO LINE TO BREAK.
+                #
+                # `text_display` states the break that PRECEDES its line, so
+                # MathPix writes ` \\ sreyasi@mpi-inf.mpg.de` for a line that
+                # follows one. Kept verbatim at the head of a block that
+                # statement becomes a paragraph-leading `\\`, and LaTeX
+                # answers "There's no line here to end" — 15 of the eight
+                # e-prints' 146 errors, all in 1909.00741's author and
+                # affiliation block, where every line carries one.
+                #
+                # The break is meaningful BETWEEN lines and says nothing at
+                # the start of one, so it is dropped only there. The line's
+                # own text is untouched: the reading's `text` field for that
+                # line is `sreyasi@mpi-inf.mpg.de`, and this restores exactly
+                # that.
+                text = _LEADING_BREAK.sub("", text, count=1)
                 current = {
                     "page": page,
                     "start_anchor": anchor,
