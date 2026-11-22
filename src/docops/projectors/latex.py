@@ -209,6 +209,80 @@ def _with_addon(base: str, addon: str) -> str:
     return base if not addon else base.rstrip() + "\n" + addon + "\n"
 
 
+#: T-0156 — THE PREAMBLE LOADS WHAT THE BODY ACTUALLY USES.
+#:
+#: Each entry is a command this projector can emit and the package that
+#: defines it. The table is read against the .tex JUST WRITTEN, so a command
+#: first emitted next month brings its package with it instead of waiting for
+#: someone to notice an "Undefined control sequence" and lengthen a list.
+#:
+#: Measured on the eight T-0156 e-prints: of 146 xelatex errors, 74 were
+#: `Undefined control sequence`, and 33 of those were commands in the body
+#: that the fixed preamble did not provide — `\rowcolor` 19, `\unitfrac` 12,
+#: `\unit` 2. `xcolor` WAS loaded; `\rowcolor` comes from `colortbl`, which
+#: arrives with `\usepackage[table]{xcolor}`, so the package was right and
+#: the OPTION was missing.
+#:
+#: An unknown command stays an error. This resolves what it knows and hides
+#: nothing: a command with no entry reaches xelatex exactly as before.
+_BODY_PACKAGES: "tuple" = (
+    # command(s)                     what to add              replaces
+    ((r"\rowcolor", r"\cellcolor", r"\columncolor"),
+     "\\usepackage[table]{xcolor}", "xcolor"),
+    ((r"\unitfrac", r"\unitone", r"\unit"),
+     "\\usepackage{units}", None),
+)
+
+
+def _packages_the_body_needs(tex: str) -> str:
+    r"""Add the packages the emitted body's own commands require.
+
+    `replaces` names a package already in the preamble that this line
+    supersedes — `\usepackage[table]{xcolor}` must REPLACE a plain
+    `xcolor`, because loading it twice with different options is an
+    "Option clash" rather than a no-op, and that is a worse error than
+    the one being fixed.
+    """
+    import re as _re
+    at = tex.find("\\begin{document}")
+    if at < 0:
+        return tex
+    head, body = tex[:at], tex[at:]
+    for cmds, line, replaces in _BODY_PACKAGES:
+        if not any(_re.search(_re.escape(c) + r"(?![A-Za-z])", body) for c in cmds):
+            continue
+        if line in head:
+            continue
+        if replaces:
+            # IN PLACE, NOT AT THE END. The head is not only a package block:
+            # it carries the author's own `\definecolor`, `\newcommand` and
+            # the rest, and a package appended after them loads too late.
+            # Measured on 2507.21892v1, which defines eight colours in its
+            # preamble: appending `\usepackage[table]{xcolor}` at the end of
+            # the head moved xcolor BELOW `\definecolor{R1-Searcher}{HTML}
+            # {4DA5D9}` and took that document from 19 errors to 133.
+            pat = _re.compile(r"(\\usepackage(?:\[[^\]]*\])?\{)([^}]*)(\})")
+            placed = False
+
+            def _swap(m):
+                nonlocal placed
+                if placed:
+                    return m.group(0)
+                names = [n.strip() for n in m.group(2).split(",")]
+                if replaces not in names:
+                    return m.group(0)
+                placed = True
+                keep = [n for n in names if n != replaces]
+                rest = (m.group(1) + ",".join(keep) + m.group(3) + "\n") if keep else ""
+                return rest + line           # the option-bearing load, in place
+
+            head = pat.sub(_swap, head, count=0)
+            if placed:
+                continue                      # already inserted where it belongs
+        head = head.rstrip("\n") + "\n" + line + "\n"
+    return head + body
+
+
 def _escape_text(s: str) -> str:
     """Escape the LaTeX specials in a caption/title/author. IDEMPOTENT (`(?<!\\\\)`):
     an already-escaped `C\\#` from the source is NOT doubled into `C\\\\#` (which is
@@ -417,7 +491,7 @@ class LaTeXProjector(BaseProjector):
             out.append("")
 
         out.append("\\end{document}")
-        return "\n".join(out).rstrip() + "\n"
+        return _packages_the_body_needs("\n".join(out).rstrip() + "\n")
 
     # ── shared setup + rendering (reused by the beamer projector) ────────────
 
