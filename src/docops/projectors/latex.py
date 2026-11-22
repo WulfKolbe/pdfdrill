@@ -1424,6 +1424,54 @@ class LaTeXProjector(BaseProjector):
                 return f"{pre}:{ref}"
         return f"{pre}:{obj.id}"
 
+    def _equation_label(self, obj) -> str:
+        r"""A stable, addressable name for an equation.
+
+        T-0156, the owner's SECOND requirement. This used to be
+
+            label = p.get("label") or equation_label(obj)
+
+        and `common.equation_label` returns the `refnum` — so an equation's
+        PRINTED NUMBER was its IDENTIFIER. On 1503.00301 that put 31 labels in
+        the .tex, every one purely numeric and exactly the set of refnums. A
+        number used as a name is the error class that compiles and renders and
+        is wrong: `\eqref{1}` resolves only while LaTeX's own counter happens
+        to agree with the page's, and goes silently wrong when a section
+        renumbers. It is also where class F's false positives came from — the
+        parenthesised `(1)` and `(3)` in prose matched those "labels".
+
+        The scheme is `_figure_label`'s, which already says why: readable so
+        that a reader writing `\ref{eq:8}` can guess it, but checked for
+        uniqueness, because a duplicate label makes every reference resolve to
+        whichever came last, silently.
+
+        The order is measured. Over the eight audit e-prints' 254 equations:
+        29 carry the author's own `label` (all on the two source-built
+        documents, and it is what the author's own `\ref` points at), 12 carry
+        `eq_label` (the same thing promoted onto a reading-built object), and
+        78 carry a `refnum` — ALL 78 UNIQUE within their document. The rest
+        fall back to the object id, so every equation ends up addressable.
+        """
+        p = obj.props or {}
+        for key in ("label", "eq_label"):
+            v = str(p.get(key) or "").strip()
+            if v:
+                return v
+        ref = str(p.get("refnum") or "").strip()
+        if ref and _pipe.looks_like_a_printed_number(ref):
+            seen = getattr(self, "_eq_refnum_counts", None)
+            if seen is None:
+                seen = self._eq_refnum_counts = {}
+                for o in getattr(self, "_all_objects", []):
+                    if o.type != "Equation":
+                        continue
+                    r = str((o.props or {}).get("refnum") or "").strip()
+                    if r:
+                        seen[r] = seen.get(r, 0) + 1
+            if seen.get(ref, 0) == 1:
+                return "eq:%s" % ref
+        return "eq:%s" % obj.id
+
     def _math_token(self, title: str) -> str | None:
         """The array lookup first (`\\Expr{i}` — one slot per distinct body);
         failing that the object's own LaTeX inline, so an unindexed formula is
@@ -1630,7 +1678,7 @@ class LaTeXProjector(BaseProjector):
             latex = _pipe.sanitize_math((p.get("latex") or "").strip())
             if not latex:                                 # CDN-crop-only — nothing to typeset
                 return ""
-            label = p.get("label") or equation_label(obj)
+            label = self._equation_label(obj)
             lab = f"\n\\label{{{label}}}" if label else ""
             # T-0156 — THE PAGE'S OWN PRINTED NUMBER, as the owner's fourth
             # requirement asks. `refnum` already holds it: `number_bands` and

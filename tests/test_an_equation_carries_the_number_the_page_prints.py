@@ -124,13 +124,19 @@ def test_several_equations_each_keep_their_own_number():
     assert _tags(tex) == ["1", "2", "4"]
 
 
-def test_a_tag_and_a_label_can_stand_together():
-    """Today the refnum is ALSO emitted as a `\\label` — a number used as an
-    identifier, which is the next step's business. Both in one display is
-    legal, and this records the state the next step changes."""
+def test_a_tag_and_a_label_say_different_things():
+    r"""The number is the TAG; the name is the LABEL.
+
+    This test was written in the previous step to RECORD the state that step
+    would leave behind — the refnum emitted as `\label{7}`, a number used as
+    an identifier — and it failed the moment that changed, which is what it
+    was for. The label is now `eq:7`
+    (`test_an_equation_has_a_name_not_a_number` holds the scheme).
+    """
     tex = _project({"latex": "a = b", "refnum": "7"})
     assert "\\tag{7}" in tex
-    assert "\\label{7}" in tex
+    assert "\\label{eq:7}" in tex
+    assert "\\label{7}" not in tex
 
 
 def test_the_tag_survives_a_transcluded_body():
