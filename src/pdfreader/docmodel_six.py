@@ -1172,8 +1172,45 @@ def _spans(line: "LineNode") -> list[Span]:
         mine = [r for r in line.rules
                 if r.rect[0] >= rect[0] - 4 and r.rect[2] <= rect[2] + 4
                 and rect[1] - 0.5 * dominant <= 0.5 * (r.rect[1] + r.rect[3])
-                <= rect[3] + 0.5 * dominant] \
-            if kind == "math" else []
+                <= rect[3] + 0.5 * dominant]
+        # T-0156 — A RULE WITH INK ABOVE AND BELOW IT IS A FRACTION, WHATEVER
+        # FONT THE INK IS IN.
+        #
+        # The claim above was computed only `if kind == "math"`, and `kind`
+        # is decided by FONT FAMILY — so a fraction whose numerator and
+        # denominator are set in a TEXT font was prose, and the bar lying
+        # inside its own span was never handed to it.
+        #
+        # Measured on 1805.01788 p3, reference
+        # `\frac{a_{i1}}{r_{i1}}=\frac{a_{i2}}{r_{i2}}`:
+        #
+        #     the LINE carried 2 rules, the two bars
+        #     span 0 spanned x 136.2..147.1 and the bar at 136.5..147.6 was
+        #       INSIDE it, yet the span held 0 rules
+        #     every glyph was family `text`, so kind was `text`
+        #     `to_tex` returned None and the span was flattened to x-order,
+        #       numerator and denominator zipped: `arii11`
+        #
+        # `_split_fractions` was never at fault: given those rules it returns
+        # the two Fracs. It was never reached.
+        #
+        # And the flattening closed a loop with the display test: `ai1ri1`
+        # reads as a six-letter WORD, which is why `is_display` refused that
+        # same line as prose. The flattening made the line look like prose,
+        # which kept it from the pass that would have unflattened it.
+        #
+        # The promotion is NARROW: a rule claimed by this span must have the
+        # span's own ink both ABOVE and BELOW it. A rule with ink on one side
+        # only is an underline, a table border or a strike — not a fraction —
+        # and the span stays prose with no rules, exactly as before.
+        if kind != "math" and mine:
+            mid = [0.5 * (r.rect[1] + r.rect[3]) for r in mine]
+            above = any(g.rect[1] > m for g in run for m in mid)
+            below = any(g.rect[3] < m for g in run for m in mid)
+            if above and below:
+                kind = "math"
+        if kind != "math":
+            mine = []
         out.append(Span(id=f"{line.id}s{n}", kind=kind, rect=rect,
                         glyphs=run, rules=mine, line_size=dominant,
                         word_gap=wg))
