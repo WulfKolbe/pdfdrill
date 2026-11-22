@@ -173,6 +173,8 @@ def main():
               f"({type(_e).__name__}: {_e}); claims will be unattributed",
               sys.stderr)
 
+    global _CURRENT_CMD
+    _CURRENT_CMD = cmd
     try:
         result = HANDLERS[cmd](rest)
         # A MOVE THE USER DID NOT ASK FOR, REPORTED WHERE THEY WILL SEE IT.
@@ -427,6 +429,62 @@ def _probe_on_acquire(p: Path) -> Path:
     return p
 
 
+#: T-0159 — THE FLAGS A COMMAND DECLARES, FROM THE ONE SOURCE.
+#:
+#: MEASURED 2026-11-22: sixteen commands refused their own documented flags.
+#: `pdfdrill profile x.pdf --json`, `fonts … --force`, `formulas … --plain`
+#: all answered "`pdfdrill <cmd>` does not know <flag>". `_pdf` validates
+#: `args[1:]` on the principle that anything a handler did not strip was
+#: understood by nobody, and these handlers read their flag with
+#: `"--force" in args` and never removed it:
+#:
+#:     return cmd_glyphlines(_pdf(args), force="--force" in args)
+#:
+#: so it survived into the validator. Put the flag BEFORE the pdf and `_pdf`
+#: read it as the filename instead — both orders failed, by two routes.
+#: `commands.yaml` declared the flag and `skillsync` advertised it in the
+#: help: three sources of truth, and the one the user met said no.
+#:
+#: SO THE CALLER NO LONGER HAS TO REMEMBER. `_pdf` strips the flags the
+#: manifest declares for the command being run, and the validator still
+#: refuses everything else — the same remedy as putting the band inside the
+#: barrier contract rather than in each caller's memory. A handler that
+#: wants a flag's VALUE still reads it from `args` exactly as before.
+_DECLARED_FLAGS: "dict[str, frozenset] | None" = None
+
+
+def _declared_flags(cmd: str) -> frozenset:
+    """Every flag `commands.yaml` declares for `cmd`. Empty when unknown,
+    so a command absent from the manifest behaves exactly as before."""
+    global _DECLARED_FLAGS
+    if _DECLARED_FLAGS is None:
+        table: "dict[str, set]" = {}
+        try:
+            from .planner import load_manifest
+            raw = load_manifest() or {}
+            entries = raw.get("commands") if isinstance(raw, dict) else raw
+            for c in (entries or []):
+                name = c.get("name")
+                if not name:
+                    continue
+                flags = {f.get("flag") for f in (c.get("flags") or [])
+                         if (f.get("flag") or "").startswith("--")}
+                if flags:
+                    table[name] = flags
+        except Exception:
+            # The manifest is not required to be readable for the CLI to run
+            # — `doctor` must work on a broken install. Then nothing is
+            # stripped and the behaviour is today's.
+            table = {}
+        _DECLARED_FLAGS = {k: frozenset(v) for k, v in table.items()}
+    return _DECLARED_FLAGS.get(cmd, frozenset())
+
+
+#: The command being dispatched, so `_pdf` can ask what it declares without
+#: every handler having to pass it. Set by `main`; empty otherwise.
+_CURRENT_CMD = ""
+
+
 def _reject_unknown_flags(args: list[str], cmd: str = "") -> None:
     """Raise on a flag no handler recognised. One place, 169 commands.
 
@@ -459,11 +517,17 @@ def _reject_unknown_flags(args: list[str], cmd: str = "") -> None:
         f"  `pdfdrill help` lists the flags each command takes.")
 
 
-def _pdf(args: list[str]) -> Path:
+def _pdf(args: list[str], cmd: "str | None" = None) -> Path:
+    # T-0159: strip what this command DECLARES, then refuse the rest. `cmd`
+    # is explicit for tests; `main` records the command it is dispatching.
+    _cmd = _CURRENT_CMD if cmd is None else cmd
+    _known = _declared_flags(_cmd)
+    if _known:
+        args = [a for a in args if a not in _known]
     if not args:
         raise ValueError("No PDF file specified.")
     # Anything the handler did not strip and did not want is unknown.
-    _reject_unknown_flags(args[1:])
+    _reject_unknown_flags(args[1:], _cmd)
     arg = args[0]
     from . import sources
     # a file:// URI (from a browser / file manager) is a local file — decode it
