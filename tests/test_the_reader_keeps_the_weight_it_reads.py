@@ -23,8 +23,12 @@ and three heuristics were built on top of the hole:
 What that cost, each measured before this existed: a description-list rule
 that could not tell a bold label from a heading and failed at precision 0.50;
 `refnum` holding mathematics, guarded at two DISPLAY sites instead of typed at
-the source; paragraphs merged 2.6 into one for want of a block id, where
-`block` was a hardcoded 0 in `_emit_words`.
+the source. (The "paragraphs merged 2.6 into one" that first motivated a
+block id was a MISCOUNT, retracted: `ParagraphProcessor` honours a DOUBLE
+newline in `text_display`, and counted against that marker the model splits
+finer than the reading, 1,589 paragraphs to 1,136 markers. The single `\n`
+I counted is MathPix's BLOCK marker, which is not a paragraph break -- 8 of
+20 sampled were list items, footnotes, a bibliography entry, a title.)
 
 RUNS, NOT ONE FONT PER LINE. A description label is a bold run at the START of
 a body line, so the line's dominant font is the body's and a per-line field
@@ -129,6 +133,14 @@ def test_the_page_that_closed_the_description_list():
 
     lines = lines_json_streaming(pages(), source="pdfminer-chars")["pages"][0]["lines"]
     assert lines and all(l.get("runs") for l in lines)
-    assert all("block" in l for l in lines)
+    # `block` IS NOT EMITTED, and this assertion is the corrected one.
+    # 23a5effa carried a `block` into every line from the grouping key while
+    # `_emit_words` still wrote a hardcoded 0 -- so the field arrived the
+    # same on all 45 lines of lib:d68e0271bd4d p24, and this test pinned
+    # that constant as though it were evidence. A field with one value is
+    # evidence of nothing; it comes back when a reader measures a layout
+    # block. See `tests/test_a_number_is_emitted_once.py` for the same
+    # disease found at the serialiser.
+    assert not any("block" in l for l in lines)
     opens_bold = [l for l in lines if (l.get("runs") or [{}])[0].get("bold")]
     assert len(opens_bold) == 4, [l["text"][:30] for l in opens_bold]

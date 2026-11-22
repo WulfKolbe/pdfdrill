@@ -207,14 +207,10 @@ def _group_lines(words: list[dict]) -> list[dict]:
     for w in words:
         g[(w["page"], w["block"], w["line"])].append(w)
     lines: list[dict] = []
-    for (page, block, _l), ws in sorted(g.items()):
+    for (page, _b, _l), ws in sorted(g.items()):
         ws.sort(key=lambda w: w["x0"])
         lines.append({
             "page": page,
-            # the reader's own layout block, the field `ParagraphProcessor`
-            # looks for and the born-digital route never set (it was a
-            # hardcoded 0 in `chars_to_lines._emit_words`).
-            "block": block,
             "x0": min(w["x0"] for w in ws),
             "x1": max(w["x1"] for w in ws),
             "y0": min(w["y0"] for w in ws),
@@ -309,8 +305,14 @@ def lines_json_from_words(
         # lines.json stays byte-identical.
         if ln.get("runs"):
             by_page[pg][-1]["runs"] = ln["runs"]
-        if ln.get("block") is not None:
-            by_page[pg][-1]["block"] = ln["block"]
+        # `block` is NOT emitted. 23a5effa carried it here from the grouping
+        # key, and `chars_to_lines._emit_words` still writes a hardcoded 0 —
+        # which that very commit named as the defect to fix and did not. So
+        # the field arrived constant: 45 of 45 lines on lib:d68e0271bd4d p24
+        # read `block: 0`. A field that is the same on every line reads as
+        # evidence of nothing, which is the disease `refnum_source` had, and
+        # it is worse than its absence. It comes back when a reader computes a
+        # real layout block.
 
     try:  # optional pdfdrill-side margin tagging; absent standalone
         from semantic.geometry_columns import tag_out_of_column
