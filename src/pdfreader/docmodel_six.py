@@ -2677,11 +2677,67 @@ def _group_rotated(glyphs: list["GlyphNode"]) -> list[list["GlyphNode"]]:
 
     out = []
     for (a, b, _), run in runs.items():
-        if abs(b) > abs(a):                       # advances along y
+        vertical = abs(b) > abs(a)
+        if vertical:                              # advances along y
             run.sort(key=lambda g: g.matrix[5], reverse=b < 0)
         else:                                     # advances along x
             run.sort(key=lambda g: g.matrix[4], reverse=a < 0)
-        out.append(run)
+        out.extend(_split_rotated_run(run, vertical))
+    return out
+
+
+def _split_rotated_run(run: list["GlyphNode"],
+                       vertical: bool) -> list[list["GlyphNode"]]:
+    r"""Cut a sideways run where a gap says one label has ended.
+
+    T-0156 — THE MISSING HALF OF A RULE THE HORIZONTAL SIDE ALREADY HAS.
+    `_group_rotated` keys a run on the coordinate PERPENDICULAR to the
+    writing direction, so every rotated glyph sharing a rounded x lands in
+    ONE run however far apart it is along the writing axis — and nothing
+    then split it. Horizontal rows are split at a wide gap (see
+    `_column_edge`, which takes a gap of 1.5 type sizes as separating two
+    blocks on one row); sideways runs were not.
+
+    What it cost, on board 0864 p4 — the board's worst `ours` row at 0.0656,
+    nearly twice the next:
+
+        our page 2        242 lines, 135 of them `rotated_text`
+        MathPix's          83 lines
+        the reading held  `monspc`, `PUSPUS`, `rndOO`, `rrd(O,O)`
+
+    Those are Figure 3's axis and legend labels run together — two or three
+    distinct labels per line. The judge's unpaired glyphs are the same
+    characters on BOTH sides (14 E, 7 Y, 7 U, 7 S … identical distributions),
+    so nothing was lost: the text was read and placed wrong, and 50% of the
+    226 unpaired sat in five lines.
+
+    THE THRESHOLD IS NOT NEW AND NOT FROM THIS PAGE. It is `_column_edge`'s
+    1.5 type sizes, the same rule applied along the other axis. Measured in
+    ems of each run's own size, the three merged runs separate on it:
+
+        'monspc'    0.39 0.25 [2.41] 0.19 0.25
+        'PUSPUS'    0.93 1.09 [5.54] 0.93 1.08
+        'rrd(O,O)'  0.43 0.43 0.64 0.61 [4.89] 0.72 [4.48]
+
+    within-label gaps 0.19-1.09, between-label 2.41-5.54. An arXiv stamp,
+    the other thing this function exists for, has word gaps far below it and
+    stays one run.
+    """
+    if len(run) < 2:
+        return [run]
+    size = max((g.size for g in run), default=10.0)
+    lo, hi = (1, 3) if vertical else (0, 2)
+    out, cur = [], [run[0]]
+    for prev, g in zip(run, run[1:]):
+        # the clear distance between the two glyphs along the writing axis,
+        # whichever way round they are
+        gap = max(g.rect[lo] - prev.rect[hi], prev.rect[lo] - g.rect[hi])
+        if gap >= 1.5 * size:
+            out.append(cur)
+            cur = [g]
+        else:
+            cur.append(g)
+    out.append(cur)
     return out
 
 
