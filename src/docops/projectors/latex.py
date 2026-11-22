@@ -1632,12 +1632,42 @@ class LaTeXProjector(BaseProjector):
                 return ""
             label = p.get("label") or equation_label(obj)
             lab = f"\n\\label{{{label}}}" if label else ""
+            # T-0156 — THE PAGE'S OWN PRINTED NUMBER, as the owner's fourth
+            # requirement asks. `refnum` already holds it: `number_bands` and
+            # `absorbed_equation_number` in `docmodel/modules/equation.py` put
+            # it there, and 78 of the 82 reading-built equations of the audit's
+            # eight e-prints carry one (0 of the 172 source-built ones, where
+            # LaTeX generates the number itself).
+            #
+            # `\tag{7}` PRINTS "(7)" — amsmath parenthesises it, verified by
+            # compiling rather than read off the manual, together with
+            # `\tag{3.2}` -> "(3.2)" and `\tag*{9}` -> "9". So the value goes
+            # in bare, through `equation_label`, which strips the `\1.1\`
+            # spelling MathPix sometimes yields (see its own comment).
+            #
+            # A BODY THAT ALREADY CARRIES ONE IS LEFT ALONE: the author's own
+            # `\tag*{(\ref{th:shapley})}` survives into the projection, and a
+            # second tag in one display is "Multiple \tag" — an error where
+            # there was none.
+            # AND THE VALUE IS ESCAPED, because a printed number is not
+            # always a number. Measured over 8,854 equation refnums in the
+            # library: 53% plain digits, 19% `n.m`, 10% `A.1`, and 19%
+            # something else — `4a`, `3.8b`, `3.18/16`, `*`. A refnum holding
+            # `_`, `%` or `&` would end the compile, so it goes through the
+            # same escaper as any other emitted text (`2_3` -> `2\_3`), while
+            # `3.18/16` and `4a` pass through untouched.
+            _raw_num = equation_label(obj)
+            _num = (_pipe.escape_prose_specials(_raw_num)
+                    if _pipe.looks_like_a_printed_number(_raw_num) else "")
+            _tag = ("\n\\tag{%s}" % _num
+                    if _num and "\\tag" not in latex else "")
             # TRANSCLUDE from the readarray array (`\EqExpr{i}`) — consistent with
             # inline `\Expr{i}` formulas; the array entry keeps display structure.
             # Fall back to the inline latex if this object isn't indexed.
             idx = getattr(self, "_title_index", {}).get(obj.id)
             body = f"\\EqExpr{{{idx}}}" if idx else latex
-            return f"\\begin{{equation}}\n{body}{lab}\n\\end{{equation}}"
+            return (f"\\begin{{equation}}\n{body}{_tag}{lab}"
+                    f"\n\\end{{equation}}")
         if t == "Formula":
             latex = _pipe.sanitize_math((p.get("latex") or "").strip())
             return f"${latex}$" if latex else ""

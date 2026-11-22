@@ -795,6 +795,60 @@ def _matching_brace(s: str, open_at: int) -> int:
     return -1
 
 
+#: T-0156 — A PRINTED NUMBER, OR NOTHING.
+#:
+#: `refnum` does not always hold a number. Over 8,854 equation refnums in the
+#: library, 54 carry a LaTeX special or a backslash, and the values show what
+#: they really are — a whole mis-parsed expression written into a number
+#: field:
+#:
+#:     left7^{*}right
+#:     psi=left[begin{array}{c}nu  e  u^{r} … end{array}right]
+#:     mathrm{A}-mathrm{C}
+#:     3 cdot 4        by Eq. 13        *        {
+#:
+#: As `\tag{…}` each of those prints a mis-parsed expression in the equation's
+#: margin: output that compiles, renders, and is visibly wrong — and
+#: `common.equation_label` strips the backslashes, so it reads as text rather
+#: than as broken LaTeX. The audit's eight e-prints cannot show this: all 78
+#: of their refnums are plain digits. The evidence is the library census, not
+#: a board row.
+#:
+#: THE RULE IS MEASURED, NOT GUESSED. A first version accepted 99.0% but threw
+#: away REAL compound numbers — `3.26-27 /24-25` and `3.9 /7` are printed
+#: numbers with a space in them. So: every whitespace-separated token must
+#: contain a digit and consist only of number-ish characters. A token with no
+#: digit is not part of a number, which is what rejects `by Eq. 13` and
+#: `3 cdot 4` while keeping `4a`, `3.8b`, `A.1` and `3.9 /7`.
+#:
+#: The upstream cause is NOT fixed here. Something writes mathematics into a
+#: number field; that is a reading defect with its own cause and its own gate.
+#: This keeps it out of the output and names it.
+#: The characters a printed number is made of, and the longest run of letters
+#: one can contain: `A.1` and `3.8b` yes, `cdot` and `mathrm` no. Spelled as
+#: three properties rather than one regex, because the first regex I wrote
+#: rejected `A.1`, `/7` and `3.26-27 /24-25` — all of them real.
+_NUMBERISH = re.compile(r"^[A-Za-z0-9.\-/,]+$")
+_LETTER_RUN = re.compile(r"[A-Za-z]{3,}")
+
+
+def looks_like_a_printed_number(value: str) -> bool:
+    r"""True when `value` could be the number a page prints beside a display.
+
+    Every whitespace-separated token must hold a digit and be made only of
+    number-ish characters. A token with NO DIGIT is not part of a number,
+    which is what rejects `by Eq. 13` and `3 cdot 4`.
+    """
+    v = (value or "").strip()
+    if not v or len(v) > 20:
+        return False
+    tokens = v.replace("(", " ").replace(")", " ").split()
+    if not tokens:
+        return False
+    return all(_NUMBERISH.match(t) and any(c.isdigit() for c in t)
+               and not _LETTER_RUN.search(t) for t in tokens)
+
+
 def _body_spellings(source: str) -> "list[str]":
     """The spellings a flattened reference can carry in the rendered body.
 
