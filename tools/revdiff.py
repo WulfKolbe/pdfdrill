@@ -49,6 +49,12 @@ want = %r
 ok = 0
 if want == "rotated":
     ok = int(any(getattr(ln, "rotated", False) for p in pages for ln in p.lines))
+elif want == "frac":
+    # T-0159: any rule the reader calls a fraction bar — the shape the
+    # `_is_own_row` vote acts on. `frac2x` is narrower (two bars overlapping
+    # in x) and would skip the single-bar pages this change is about.
+    ok = int(any(r.role == "fraction"
+                 for p in pages for ln in p.lines for r in (ln.rules or [])))
 elif want == "panels":
     # T-0156: a page with two HORIZONTALLY ADJACENT figure panels, which is
     # the only shape the panel-gutter split can act on. Stacked panels
@@ -175,7 +181,8 @@ def main() -> int:
                     help="skip a page unless this expression is true of the "
                          "B-side reading: `frac2x` = two fraction rules "
                          "overlapping in x, `rotated` = any rotated line, "
-                         "`panels` = two horizontally adjacent figure panels")
+                         "`panels` = two horizontally adjacent figure panels, "
+                         "`frac` = any rule classified as a fraction bar")
     a = ap.parse_args()
 
     jobs = [(os.path.splitext(os.path.basename(p))[0], os.path.abspath(p), a.page)
