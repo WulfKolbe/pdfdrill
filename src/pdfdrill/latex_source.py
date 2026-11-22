@@ -960,6 +960,75 @@ def _robustify_macro_defs(defs: list[str]) -> list[str]:
     return out
 
 
+
+#: T-0156 — A TIKZ STYLE IS A DEFINITION TOO, AND IT WAS NOT CARRIED.
+#:
+#: `_DEF_START` collects the `\\newcommand` family and `\\DeclareMathOperator`.
+#: A picture's styles are defined by `\\tikzstyle` and `\\tikzset`, which it
+#: does not match, so carried tikz content referred to styles that no longer
+#: existed. Measured on 2102.08145, whose preamble defines `process`,
+#: `process_content` and `arrow`: 11 of the eight e-prints' errors are
+#: "Package pgfkeys Error: I do not know the key '/tikz/process'".
+#:
+#: IT RECURS: over 150 source-built library documents, 11 define tikz styles
+#: in their preamble and 8 of those also draw a `tikzpicture` — against 1 in
+#: 121 for the macro-generator shape that was refused for being one paper's
+#: idiom.
+#:
+#: TWO SYNTAXES, and only one of them is brace-balanced:
+#:
+#:     \\tikzstyle{process} = [rectangle, minimum width=2.5cm, …]
+#:     \\tikzset{name/.style={…}}
+#:
+#: NOT ROBUSTIFIED. `_robustify_macro_defs` wraps a macro as
+#: `\\providecommand{\\name}{}\\renewcommand…`, which is right for a command
+#: and wrong for a style: a style is a key in pgf's table, not a control
+#: sequence, and the wrapper would define a macro named after it instead.
+#: They are carried verbatim, in source order, so an author who redefines a
+#: style keeps the later one as they intended.
+_TIKZ_STYLE_START = re.compile(r"\\tikzstyle\s*\{|\\tikzset\s*\{")
+
+
+def _collect_tikz_styles(preamble: str) -> list:
+    r"""Every `\tikzstyle{…}=[…]` and `\tikzset{…}` in the preamble, verbatim."""
+    out = []
+    for m in _TIKZ_STYLE_START.finditer(preamble):
+        i = preamble.index("{", m.start())
+        depth, j = 0, i
+        while j < len(preamble):
+            c = preamble[j]
+            if c == "{" and preamble[j - 1] != "\\":
+                depth += 1
+            elif c == "}" and preamble[j - 1] != "\\":
+                depth -= 1
+                if depth == 0:
+                    break
+            j += 1
+        else:
+            continue
+        end = j + 1
+        if preamble.startswith("\\tikzstyle", m.start()):
+            # `= [ … ]`, bracket-balanced, which the brace walk above cannot see
+            k = end
+            while k < len(preamble) and preamble[k] in " \t\r\n=":
+                k += 1
+            if k < len(preamble) and preamble[k] == "[":
+                b, k2 = 0, k
+                while k2 < len(preamble):
+                    if preamble[k2] == "[":
+                        b += 1
+                    elif preamble[k2] == "]":
+                        b -= 1
+                        if b == 0:
+                            break
+                    k2 += 1
+                else:
+                    continue
+                end = k2 + 1
+        out.append(preamble[m.start():end].strip())
+    return out
+
+
 def document_addon_preamble(preamble: str) -> str:
     r"""The author's MACRO DEFINITIONS, for appending to a document preamble.
 
@@ -1017,12 +1086,27 @@ def document_addon_preamble(preamble: str) -> str:
     """
     if not preamble.strip():
         return ""
-    defs = _robustify_macro_defs(_collect_macro_defs(strip_comments(preamble)))
-    if not defs:
+    clean = strip_comments(preamble)
+    defs = _robustify_macro_defs(_collect_macro_defs(clean))
+    styles = _collect_tikz_styles(clean)
+    if not defs and not styles:
         return ""
-    if any("@" in _def_name(d) for d in defs):
+    if defs and any("@" in _def_name(d) for d in defs):
         defs = ["\\makeatletter", *defs, "\\makeatother"]
-    return "\n".join(defs).strip()
+    if styles:
+        # A STYLE BRINGS ITS OWN PACKAGE, because the addon is placed BEFORE
+        # the preamble's own `\\usepackage{tikz}`. Emitted without this, the
+        # styles land above the package that defines `\\tikzstyle` and every
+        # one of them is an "Undefined control sequence": measured on
+        # 2102.08145, 16 errors -> 1583.
+        #
+        # This is the SAME ordering mistake as putting `\\usepackage[table]
+        # {xcolor}` below the author's `\\definecolor` calls, two commits
+        # earlier in this task, and the same remedy: whatever needs a package
+        # carries it. A second plain `\\usepackage{tikz}` is a no-op, since
+        # the preamble's own load is plain too.
+        styles = ["\\usepackage{tikz}", *styles]
+    return "\n".join([*defs, *styles]).strip()
 
 
 def standalone_preamble(preamble: str) -> str:
