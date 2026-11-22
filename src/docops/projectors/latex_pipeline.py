@@ -115,6 +115,48 @@ def _strip_math_delimiters(latex: str) -> str:
 _PLAIN_TEX_MATRIX = {"pmatrix": "pmatrix", "cases": "cases"}
 
 
+def _cases_second_column_is_text(body: str) -> str:
+    r"""Restore the text mode plain TeX's `\cases` gives its second column.
+
+    T-0156 — THE TWO FORMS DIFFER IN MORE THAN SPELLING. Plain TeX sets the
+    column after `&` in TEXT mode; amsmath's `cases` sets it in MATH mode. So
+    an author who writes
+
+        \cases{ H(\G_0)+\beta, &\quad if $i\stackrel{0}{\not\sim} k$; \cr …}
+
+    is correct — the `$…$` opens maths inside a text column — and the same
+    row inside `\begin{cases}` toggles maths OFF and leaves `k$;` in text
+    mode. xelatex answers "Missing $ inserted", three times for that one row.
+
+    MEASURED on the eight e-prints: 24 of the 146 errors are `Missing $
+    inserted`, and arxiv.0912.2444 — which writes three `\cases` groups —
+    carries all of them.
+
+    Wrapping the column in `\text{…}` keeps the author's own `$…$` valid
+    INSIDE it, so the row is restored rather than rewritten: nothing is
+    dropped and no mathematics is reinterpreted. A column with no `$` is
+    left alone, since it is then already what amsmath expects.
+    """
+    out = []
+    for row in body.split(r"\\"):
+        amp = row.find("&")
+        if amp < 0 or "$" not in row[amp:]:
+            out.append(row)
+            continue
+        head, tail = row[:amp + 1], row[amp + 1:]
+        lead = tail[:len(tail) - len(tail.lstrip())]
+        inner = tail.strip()
+        # `\quad` and friends belong OUTSIDE the text box: inside it they
+        # would be set as literal words.
+        m = re.match(r"((?:\\(?:quad|qquad|,|;|:|!|\s)\s*)*)(.*)$", inner, re.S)
+        spacing, rest = (m.group(1), m.group(2)) if m else ("", inner)
+        if not rest.strip():
+            out.append(row)
+            continue
+        out.append(head + lead + spacing + r"\text{" + rest.strip() + "}")
+    return r"\\".join(out)
+
+
 def _plain_tex_matrices(latex: str) -> str:
     r"""`\pmatrix{a\cr b}` -> `\begin{pmatrix}a\\b\end{pmatrix}`.
 
@@ -148,6 +190,8 @@ def _plain_tex_matrices(latex: str) -> str:
             body = latex[open_at + 1:close]
             body = re.sub(r"\\cr(?![A-Za-z])", r"\\\\", body)
             body = re.sub(r"(?:\\\\\s*)+$", "", body)
+            if name == "cases":
+                body = _cases_second_column_is_text(body)
             latex = (latex[:m.start()] + "\\begin{" + env + "}" + body
                      + "\\end{" + env + "}" + latex[close + 1:])
     return latex
