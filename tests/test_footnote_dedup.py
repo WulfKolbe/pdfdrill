@@ -455,7 +455,11 @@ def test_one_footnotetext_block_per_footnote_object():
     doc, fn, _fo = _fn_doc_with_math()
     tex = LaTeXProjector(
         OperatorConfig(op="projector", classname="LaTeXProjector")).project(doc)
-    assert tex.count("\\footnotetext") == 1
+    # SCOPED TO THE BODY (T-0156): the preamble provides `\\thankstext` as a
+    # `\\footnotetext`, a definition rather than a block emitted for a
+    # Footnote object, which is what this counts.
+    body = tex[tex.index("\\begin{document}"):]
+    assert body.count("\\footnotetext") == 1
     assert "Here" in tex
 
 

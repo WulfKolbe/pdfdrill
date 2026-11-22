@@ -143,8 +143,13 @@ def test_the_projection_marks_the_page_4_line_and_prints_the_page_4_body():
             < tex.index("A second chapter re-uses the number"))
     # and NO bare marker survives in the running text
     assert "{ }^{3}" not in tex
-    # the counter-less form is gone: every emitted body carries its number
-    assert "\\footnotetext{" not in tex
+    # the counter-less form is gone: every emitted body carries its number.
+    # SCOPED TO THE BODY (T-0156): the preamble now PROVIDES
+    # `\\thankstext` as a counter-less `\\footnotetext`, which is right for
+    # a journal's title-page funding note and is a definition, not an
+    # emission. This assertion is about what the projector EMITS.
+    body = tex[tex.index("\\begin{document}"):]
+    assert "\\footnotetext{" not in body
 
 
 # ───────────────────────────────────────── the two "never guess" obligations

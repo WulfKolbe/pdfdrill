@@ -155,16 +155,36 @@ _DEFAULT_PREAMBLE = (
     # define these is untouched — this adds a floor, not a policy. The
     # environments are guarded the same way with `\\@ifundefined`.
     #
-    # The dates and the funding note are DROPPED rather than placed: they
-    # are front-matter metadata, and the alternatives (a `\\footnote` before
-    # `\\maketitle`, a `\\thanks` outside `\\title`) misbehave where they
-    # land. The content row — graphics, tikz, tabular, equation, figure — is
-    # unaffected, and this is a loss of two dates and a funding line, stated
-    # rather than hidden.
-    "\\providecommand{\\thankstext}[2]{}\n"
-    "\\providecommand{\\received}[1]{}\n"
-    "\\providecommand{\\revised}[1]{}\n"
+    # NOTHING IS DROPPED. An earlier version of this floor swallowed the
+    # arguments, losing a funding note and two dates — author content that
+    # the content row cannot see. `\\footnotetext` puts the note where a
+    # journal puts it, on the title page, and the dates accumulate into
+    # `\\date`.
+    # AND NOTHING OF THE AUTHOR'S IS DROPPED. These first swallowed their
+    # arguments, which lost a funding note and two dates — author content,
+    # invisible to the content row, and a loss under rule 4. `article` has
+    # its own places for both: a title-page footnote, and the date line.
+    # Verified by compiling the construct on its own — 0 errors, and all
+    # three strings present in the PDF.
+    "\\makeatletter\n"
+    "\\providecommand{\\pd@dates}{}\n"
+    "\\providecommand{\\pd@adddate}[1]{%\n"
+    "  \\ifx\\pd@dates\\@empty \\gdef\\pd@dates{#1}\\else\n"
+    "  \\expandafter\\gdef\\expandafter\\pd@dates\\expandafter{\\pd@dates; #1}\\fi\n"
+    "  \\date{\\pd@dates}}\n"
+    "\\providecommand{\\thankstext}[2]{\\footnotetext{#2}}\n"
+    "\\providecommand{\\received}[1]{\\pd@adddate{Received #1}}\n"
+    "\\providecommand{\\revised}[1]{\\pd@adddate{revised #1}}\n"
     "\\providecommand{\\corref}[1]{}\n"
+    # A DATE IS NOT PLAIN TEXT EITHER. imsart writes
+    # `\\received{\\smonth{10} \\syear{2011}}`, so providing `\\received`
+    # alone left `\\smonth` and `\\syear` undefined INSIDE it — 6 errors,
+    # found only by running the real document. The isolated compile that
+    # verified this floor used plain dates and could not see it.
+    "\\providecommand{\\smonth}[1]{#1}\n"
+    "\\providecommand{\\syear}[1]{#1}\n"
+    "\\providecommand{\\sday}[1]{#1}\n"
+    "\\makeatother\n"
     "\\makeatletter\n"
     "\\@ifundefined{pf}{\\newenvironment{pf}{\\begin{proof}}{\\end{proof}}}{}\n"
     "\\@ifundefined{pf*}{\\newenvironment{pf*}{\\begin{proof}}{\\end{proof}}}{}\n"

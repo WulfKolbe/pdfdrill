@@ -26,13 +26,29 @@ this is `\providecommand` — which CANNOT override — and two
 `\@ifundefined` guards. "No document worse" is structural here rather than
 statistical.
 
-THE DATES AND THE FUNDING NOTE ARE DROPPED, not placed. A `\footnote`
-before `\maketitle` or a `\thanks` outside `\title` misbehaves where it
-lands. The content row — graphics, tikz, tabular, equation, figure — cannot
-see this loss, which is why it is stated here and in the preamble itself.
+NOTHING OF THE AUTHOR'S IS DROPPED, AND THE FIRST VERSION DROPPED IT. That
+version let the commands swallow their arguments, losing a funding note and
+two dates — author content, invisible to the content row, and a loss under
+rule 4. I had reasoned that `\footnote` before `\maketitle` and `\thanks`
+outside `\title` both misbehave, which is true of those two, and concluded
+the content could not be kept. `\footnotetext` does exactly the right
+thing: the note lands on the title page, where the journal puts it, and the
+dates accumulate into `\date`.
+
+"The approaches I thought of fail" is not "it cannot be done", and writing
+a loss down honestly is not the same as establishing it was necessary.
+
+A DATE IS NOT PLAIN TEXT. imsart writes
+`\received{\smonth{10} \syear{2011}}`, so providing `\received` alone left
+`\smonth` and `\syear` undefined inside its argument — 6 new errors. The
+isolated file I verified the floor with used `\received{January 2010}`,
+invented rather than taken from the document, so it could not see that.
+The test below uses the document's own form.
 
 MEASURED: arxiv.0912.2444 18 -> 1, the total 73 -> 56, every content column
-identical.
+identical — and the author's funding notes and both dates present in the
+PDF (`MBA Class of 1969`, `CMMI-1031332`, `Received 10 2011; revised 10
+2012`).
 """
 import re
 
@@ -79,3 +95,22 @@ def test_the_floor_takes_the_arguments_the_commands_carry():
     other in the body as stray text."""
     assert re.search(r"\\providecommand\{\\thankstext\}\[2\]", PRE)
     assert re.search(r"\\providecommand\{\\received\}\[1\]", PRE)
+
+
+def test_the_funding_note_is_kept_not_swallowed():
+    r"""`\footnotetext` puts it on the title page, where the journal does."""
+    assert r"\providecommand{\thankstext}[2]{\footnotetext{#2}}" in PRE
+
+
+def test_the_dates_reach_the_date_line():
+    assert r"\providecommand{\received}[1]{\pd@adddate{Received #1}}" in PRE
+    assert r"\providecommand{\revised}[1]{\pd@adddate{revised #1}}" in PRE
+    assert r"\date{\pd@dates}" in PRE
+
+
+def test_the_date_components_are_provided_too():
+    r"""The document's own form is `\received{\smonth{10} \syear{2011}}`:
+    providing `\received` alone leaves two more class commands undefined
+    INSIDE it, which an invented plain-text date cannot show."""
+    for c in ("smonth", "syear", "sday"):
+        assert re.search(r"\\providecommand\{\\" + c + r"\}\[1\]", PRE)
