@@ -5631,6 +5631,28 @@ def _split_equation_numbers(out: dict, pages: list["PageNode"], k: float) -> Non
             for key in ("gaps", "rules", "deferred_glyphs", "children_ids",
                         "_i"):
                 num.pop(key, None)
+            # …AND IT STOPS CARRYING THE NUMBER'S TEXT.
+            #
+            # T-0156. This split gave the number its own record, its own
+            # region at the margin and its own `cnt` — and left it in the
+            # HOST's text as well, so every number was emitted TWICE. On the
+            # board's own judged readings: lib_c57ac038ae5f p293, 6 numbers as
+            # their own line and the same 6 inside a math line; lib_3fe71b4ef018
+            # p328, 8 and 8. The judge renders what is written, so it set each
+            # number at the margin AND beside the formula, which is where the
+            # unpaired "(" and the stray digit in the region came from.
+            #
+            # Trimmed from the glyphs the split already identified, not by a
+            # pattern over the text: `tag` is what `mmd.equation_number`
+            # returned — parenthesised, at the column's right margin, behind a
+            # wide gap — so the characters removed here are exactly the ones
+            # that moved.
+            _tagtext = num["text"]
+            for _key in ("text", "text_display"):
+                _t = rec.get(_key) or ""
+                _at = _t.rfind(_tagtext)
+                if _at >= 0:
+                    rec[_key] = (_t[:_at] + _t[_at + len(_tagtext):]).rstrip()
             # …and the display stops where its own ink stops.
             rec["region"]["width"] = max(
                 1, round((bx1 - ln.rect[0]) * k))
