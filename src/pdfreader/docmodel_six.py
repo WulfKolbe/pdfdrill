@@ -2936,6 +2936,23 @@ def _column_edge(rows: list[list["GlyphNode"]], rect: Rect) -> float | None:
     return None
 
 
+def _panel_barriers(diagrams: list[Rect]) -> list[float]:
+    r"""The x of each gutter BETWEEN two horizontally adjacent figure panels.
+
+    One definition, read by both the row split (`_split_at_panel_gutters`)
+    and the rejoin sweep in `build`, because a barrier the splitter honours
+    and a rejoin ignores is no barrier at all — measured: the sweep put
+    2312.11532 p7's three subfigure captions back into one line after the
+    split had separated them.
+
+    Panels that overlap in x are stacked rather than side by side and yield
+    no barrier.
+    """
+    spans = sorted((r[0], r[2]) for r in (diagrams or []))
+    return [(a1 + b0) / 2.0 for (_, a1), (b0, _) in zip(spans, spans[1:])
+            if b0 > a1]
+
+
 def _split_at_panel_gutters(rows: list[list["GlyphNode"]],
                             diagrams: list[Rect]) -> list[list["GlyphNode"]]:
     r"""Cut a row that reads across the gutter BETWEEN two figure panels.
@@ -2993,9 +3010,7 @@ def _split_at_panel_gutters(rows: list[list["GlyphNode"]],
         return rows
     # The gutters between horizontally adjacent panels, as barrier x's. Two
     # panels that overlap in x (stacked, not side by side) give no barrier.
-    spans = sorted((r[0], r[2]) for r in diagrams)
-    bars = [(a1 + b0) / 2.0 for (_, a1), (b0, _) in zip(spans, spans[1:])
-            if b0 > a1]
+    bars = _panel_barriers(diagrams)
     if not bars:
         return rows
     # AND THE BARRIER REACHES ONLY AS FAR AS THE FIGURES THEMSELVES.
@@ -3005,18 +3020,34 @@ def _split_at_panel_gutters(rows: list[list["GlyphNode"]],
     # convention.` became `on the sign conventi` + `on.` (the tail then
     # typed as maths) and the regrouping cost `e^{n-1}` its exponent.
     #
-    # THE REACH IS 1.5 OF THE ROW'S OWN TYPE SIZE — `_column_edge`'s
-    # number again, not a new one — and it is what separates the two
-    # measured cases:
+    # THE REACH IS 2.0 OF THE ROW'S OWN TYPE SIZE, AND IT IS THE ONLY NEW
+    # NUMBER IN T-0156. Everything else here reuses `_column_edge`'s 1.5.
+    # 1.5 was tried and is WRONG: measured on the rows the splitter itself
+    # receives,
     #
-    #     2312.11532 p2  caption '(d) NYT-NPMI...'   1.8 pt below = 0.20 sizes  CUT
-    #     2609.23822     prose 'on the sign conv'   28.2 pt below = 2.80 sizes  KEPT
+    #     2312.11532 p2  caption '(d) NYT-NPMI...(f) NYT-TQ.'
+    #                    14.0 pt below the panels, row size  9.0 = 1.56 sizes  CUT
+    #     2609.23822     prose 'on the sign convention.'
+    #                    28.2 pt below the panels, row size 12.0 = 2.36 sizes  KEPT
     #
-    # 0.20 < 1.5 < 2.80, with 7.5x and 1.9x of margin. Per ROW, because a
-    # subfigure caption is set in the figure's type size and the prose
-    # below it is not; a fixed point reach cannot tell them apart.
-    # A FIRST VERSION REACHED A FULL PANEL HEIGHT (58.3 pt here) and still
-    # cut that prose line, by 4.7 pt.
+    # the window is (1.56, 2.36) and 1.5 falls BELOW it, excluding the
+    # caption it exists to cut — by 0.6 pt. 2.0 sits near the middle, with
+    # 29% of margin on the caption and 15% on the prose; `1.5 x the page's
+    # dominant size` also fits the window but leaves only 7% on the caption
+    # side, so it was rejected.
+    #
+    # HOW 1.5 CAME TO LOOK RIGHT: I measured the caption's offset as 1.8 pt
+    # on the FINAL merged row, whose box is inflated by legend digits drawn
+    # higher up the page, instead of on the row this function is handed.
+    # Measuring the output rather than the input is what let the number be
+    # wrong by a factor of eight.
+    #
+    # Per ROW, because a caption is set in the figure's type size and the
+    # prose below it is not. The failure modes are asymmetric — too tight
+    # misses a merge, too loose breaks prose — so where the window is this
+    # narrow, erring tight is the safe side.
+    # A FIRST VERSION REACHED A FULL PANEL HEIGHT (58.3 pt here) and cut
+    # that prose line by 4.7 pt.
     band_y0 = min(r[1] for r in diagrams)
     band_y1 = max(r[3] for r in diagrams)
     out: list[list[GlyphNode]] = []
@@ -3026,7 +3057,7 @@ def _split_at_panel_gutters(rows: list[list["GlyphNode"]],
             continue
         ry0 = min(g.rect[1] for g in row)
         ry1 = max(g.rect[3] for g in row)
-        reach = 1.5 * max((g.size for g in row), default=10.0)
+        reach = 2.0 * max((g.size for g in row), default=10.0)
         if ry1 < band_y0 - reach or ry0 > band_y1 + reach:
             out.append(row)
             continue
@@ -4330,6 +4361,16 @@ def build(path: str, pages: Iterable[int] | None = None, *,
         # opposite sides of a gutter.
         _gutter = (_column_edge(groups, layout.bbox)
                    if layout.bbox is not None else None)
+        # AND THE FIGURE PANELS' OWN GUTTERS ARE THE SAME KIND OF EVIDENCE.
+        # `_split_at_panel_gutters` cuts a row at one of these; without the
+        # veto below, the rejoin sweep closed the cut again, because its
+        # reach is 5 of the PAGE's dominant size — 50 pt here — and a panel
+        # gutter is narrower than that. Measured on 2312.11532 p7: three
+        # crossings, `'100200300' + '100200300'` twice and `'k=3' + '0.05'`
+        # once, which put the three subfigure captions back into one line
+        # and left L55 — 20 of the page's 26 unpaired glyphs — exactly as
+        # it was before the split.
+        _bars = _panel_barriers(diagrams)
         rotated_groups = _group_rotated(rotated_glyphs)
         span_pt = _dominant_size(upright_glyphs or glyphs)
 
@@ -4497,6 +4538,10 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                     # Opposite sides of the page's own gutter: not one row.
                     if _gutter is not None and (ax1 <= _gutter <= bx0
                                                 or bx1 <= _gutter <= ax0):
+                        continue
+                    # Opposite sides of a FIGURE PANEL's gutter: likewise.
+                    if any(ax1 <= _b <= bx0 or bx1 <= _b <= ax0
+                           for _b in _bars):
                         continue
                     # negative when the two INTERLEAVE in x
                     gap = max(bx0 - ax1, ax0 - bx1)

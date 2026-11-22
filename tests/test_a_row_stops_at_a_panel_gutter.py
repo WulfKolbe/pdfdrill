@@ -97,16 +97,21 @@ def test_PROSE_FAR_FROM_THE_FIGURES_IS_NOT_CUT():
     cost `e^{n-1}` its exponent. The sample found it; the board's 30 pages
     did not, because none of them has a figure above a wide prose gap.
     """
-    # 28.2 pt below the panels at size 10 = 2.80 sizes, the measured case
-    row = [G("conventi", 180, 219, 10.0, y0=580.0),
-           G("on.", 260, 275, 10.0, y0=580.0)]
+    # 28.2 pt below the panels at row size 12 = 2.36 sizes, as measured
+    row = [G("conventi", 180, 219, 12.0, y0=608.0 - 28.2 - 12.0),
+           G("on.", 260, 275, 12.0, y0=608.0 - 28.2 - 12.0)]
     assert _split_at_panel_gutters([row], PANELS)[0] is row
 
 
 def test_a_caption_BELOW_the_panels_is_still_cut():
-    """The band reaches down 1.5 of the row's own size, because a caption
-    is drawn just under the plot: measured at 0.20 sizes on 2312.11532."""
-    y = 608.0 - 11.0            # 0.2 sizes below, as measured
+    r"""The band reaches down 2.0 of the row's own size.
+
+    MEASURED ON THE ROW THE SPLITTER RECEIVES, not on the final line:
+    2312.11532's caption sits 14.0 pt below the panels at row size 9.0 =
+    1.56 sizes, and the prose that must survive sits at 2.36. The window is
+    (1.56, 2.36); 1.5 falls below it and excluded the caption by 0.6 pt.
+    """
+    y = 608.0 - 14.0            # 1.56 sizes below, as measured
     row = [G("(d)", 95, 110, 9.0, y0=y), G("(e)", 260, 275, 9.0, y0=y),
            G("(f)", 423, 438, 9.0, y0=y)]
     assert _texts(_split_at_panel_gutters([row], PANELS)) == ["(d)", "(e)", "(f)"]
@@ -151,3 +156,27 @@ def test_a_blank_glyph_is_kept():
     row = [G("0.15", 95, 110), G(" ", 111, 114), G("1.0", 260, 272)]
     out = _split_at_panel_gutters([row], PANELS)
     assert sum(len(r) for r in out) == 3
+
+
+def test_the_barrier_definition_is_shared():
+    r"""One definition, read by the split AND by `build`'s rejoin sweep.
+
+    A barrier the splitter honours and a rejoin ignores is no barrier: the
+    sweep put 2312.11532 p7's three captions back into one line after the
+    split had separated them, because its reach is 5 of the PAGE's dominant
+    size (50 pt there) and a panel gutter is narrower than that.
+    """
+    from pdfreader.docmodel_six import _panel_barriers
+    assert _panel_barriers(PANELS) == [(219.0 + 255.0) / 2, (383.0 + 419.0) / 2]
+    assert _panel_barriers([]) == []
+    assert _panel_barriers(PANELS[:1]) == []
+
+
+def test_stacked_panels_yield_no_barrier_from_the_helper():
+    stacked = [(91.0, 608.0, 546.0, 670.0), (91.0, 680.0, 546.0, 738.0)]
+    assert _panel_barriers_of(stacked) == []
+
+
+def _panel_barriers_of(d):
+    from pdfreader.docmodel_six import _panel_barriers
+    return _panel_barriers(d)
