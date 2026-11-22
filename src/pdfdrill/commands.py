@@ -1041,7 +1041,10 @@ def _try_merged_build(pdf: Path, sc, key: str, model_path: Path,
         from .figurebox import figure_boxes
         stats.update(figure_boxes(merged, pdf, _lines_json_path(pdf)))
         stats.update(st)
-        save_model(model_path, merged)
+        # the model is a READING with the author's structure merged into it:
+        # neither "mathpix" nor "latex-source" alone, which is the case
+        # `meta["source"]` could not express.
+        save_model(model_path, merged, writer="latex-source-merge")
         sc2 = Sidecar(pdf)
         sc2.set_evidence("merged_geometry", stats)
         sc2.save()
@@ -6741,7 +6744,7 @@ def _build_arxiv_source_model(pdf: Path, sc: "Sidecar", key: str,
     # route the next time they are built, and the reading-built model they
     # have now would otherwise be gone.
     _keep_model_rollback(model_path)
-    model_io.save_model(model_path, doc)
+    model_io.save_model(model_path, doc, writer="latex-source")
     # This path RETURNS EARLY from cmd_model, so it needs its own retraction:
     # patching only the main site left the arXiv-source rebuild — the default
     # for an arXiv document — dropping every derived layer with its facts and
@@ -13228,7 +13231,7 @@ def _prefer_arxiv_source(pdf: Path, sc, key: str, doc, model_path: Path):
         if reloaded is not None and any(reloaded.objects.values()):
             if not str(reloaded.meta.get("source") or ""):
                 reloaded.meta["source"] = "latex-source"   # so we don't rebuild again
-                save_model(model_path, reloaded)
+                save_model(model_path, reloaded, writer="latex-source")
             return reloaded
     return doc
 

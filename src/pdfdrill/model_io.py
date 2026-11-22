@@ -79,7 +79,8 @@ def _atomic_write(path: Path, text: str) -> None:
                 pass
 
 
-def save_model(model_path, doc, *, packed: bool = True) -> None:
+def save_model(model_path, doc, *, packed: bool = True,
+               writer: "str | None" = None) -> None:
     """Write the canonical model + (by default) the packed sidecar in sync.
     Both writes are ATOMIC so a killed process never leaves a truncated JSON."""
     plain = Path(model_path)
@@ -95,6 +96,27 @@ def save_model(model_path, doc, *, packed: bool = True) -> None:
     from . import buildstamp
     data["meta"] = dict(data.get("meta") or {})
     data["meta"]["written"] = buildstamp.stamp()
+    # T-0156 — WHICH BUILDER WROTE THIS FILE, beside the commit that `written`
+    # already carries. `meta["source"]` cannot answer it: it names where the
+    # READING came from, and `_prefer_arxiv_source` overloads it as a
+    # rebuild-guard it sets only when EMPTY. So a model whose structure was
+    # merged from the author's LaTeX still reads "mathpix" — measured on
+    # 2102.08145, whose errors fell 30 -> 3 from exactly that merge while the
+    # field stayed put. A caller that knows what it is writing says so here;
+    # one that does not leaves the previous answer alone rather than
+    # overwriting it with a guess.
+    # IT NAMES THE BUILDER THAT PRODUCED THIS STRUCTURE, not the last process
+    # to touch the file, so an EDIT preserves it and a BUILDER always sets it.
+    # 49 of the 50 save sites are edits — marking appendix sections, filling a
+    # bibliography, retracting a layer — and clearing the field at each would
+    # leave it unknown almost immediately, which is the useless half of honest.
+    #
+    # The disease in `meta["source"]` was the opposite and is not repeated
+    # here: it is set only when EMPTY, so a rebuild could never correct it. A
+    # builder here overwrites whatever stood before, which is why the merge
+    # path declares `latex-source-merge` rather than letting "mathpix" stand.
+    if writer:
+        data["meta"]["written_by"] = str(writer)
     # 634 — the claim ledger, recomputed from THIS document and merged with the
     # attribution the previous process recorded. Applied to the serialised dict
     # for the same reason `written` is: saving must not mutate the caller's

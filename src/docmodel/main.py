@@ -106,6 +106,15 @@ def run(
     # the structure whose counts a corpus measurement sums.
     from pdfdrill import buildstamp as _buildstamp
     doc.meta["build"] = _buildstamp.stamp()
+    # T-0156 — and WHICH BUILDER, beside the commit `build` already records.
+    # `meta["source"]` cannot answer it: it names where the READING came from
+    # and `_prefer_arxiv_source` overloads it as a rebuild-guard set only when
+    # EMPTY, so a model whose structure was merged from the author's LaTeX
+    # still reads "mathpix" — measured on 2102.08145, whose errors fell 30 to
+    # 3 from exactly that merge while the field stayed put. `written_by` is
+    # set by every BUILDER and preserved by an edit; `model_io.save_model`
+    # carries it.
+    doc.meta["written_by"] = "lines-json"
     ingest_lines_json(doc, lines_json)
     print(
         f"[main] ingested {len(doc.stream('mathpix_lines'))} lines "
