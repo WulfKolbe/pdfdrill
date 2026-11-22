@@ -6029,18 +6029,6 @@ def plain(line: LineNode) -> str:
     return _run_text(line.glyphs)
 
 
-def to_latex(line: LineNode) -> str | None:
-    """LaTeX for a FLAT formula line, else None.
-
-    Returning None is the correct answer for anything needing a layout tree.
-    A caller must not substitute the plain text: that text is the glyph
-    sequence in x-order, which for a formula with scripts is wrong.
-    """
-    if not line.flat:
-        return None
-    return " ".join(g.tex.latex for g in line.glyphs if g.tex.latex)
-
-
 def span_reason(sp: Span) -> str:
     """WHICH PASS refused, not what the span happens to contain.
 
