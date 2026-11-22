@@ -2203,6 +2203,67 @@ def _capture_ltx(text: str, bibkey: str, start_n: int) -> "tuple[str, list, int]
     return out, objs, n[0]
 
 
+#: T-0156 — WHICH `(label)` WAS A REFERENCE.
+#:
+#: `_PROSE_CLEAN` rewrites `\ref{tab:x}` to `(tab:x)`, keeping the target as
+#: text (its own comment records that it used to collapse everything to the
+#: literal "(ref)" and that 3452 references lost their target that way). The
+#: LaTeX projector can promote those back to `\ref`, but only where the label
+#: is actually emitted — a `\ref` against a label nothing defines is
+#: "Reference undefined", which the owner's first requirement counts as a
+#: failure, and it is what cost cleveref its place in `_AUTHOR_PACKAGES`.
+#:
+#: THE RENDERED BODY CANNOT TELL ON ITS OWN. Measured over the eight audit
+#: documents: 166 parenthesised tokens equal an emitted label, and 60 of them
+#: — 36% — were never a reference. The shape is unmistakable:
+#:
+#:     1503.00301    (1) x6, (3) x19     labels named "1" and "3"
+#:     1703.08160    (1), (2)            ... and ordinary parenthesised digits
+#:     2102.08145    (2) x2                  in the running prose
+#:     2507.21892v1  (1), (2)
+#:
+#: All four are READING-built, with no LaTeX source and therefore no reference
+#: ever flattened; their labels are printed equation numbers. A rewrite driven
+#: by the text alone would have emitted `\ref{3}` nineteen times on one page.
+#:
+#: So the projector is told WHICH labels this prose really referenced, and the
+#: decision takes both: the label was a flattened reference here, AND it is
+#: emitted there. This function supplies the first half; `_clean_prose` is
+#: unchanged, so nothing that reads prose today changes.
+_FLATTENED_XREF = re.compile(
+    r"\\(?:eqref|ref|autoref|cref|Cref)\s*\{([^}]*)\}")
+
+
+def _flattened_xrefs(chunk: str) -> list[dict]:
+    """The references `_clean_prose` will flatten, in order, as records.
+
+    `source` is the exact text the cleaner writes, so a reader can find it by
+    literal search without re-deriving the rewrite.
+    """
+    out: list[dict] = []
+    for m in _FLATTENED_XREF.finditer(chunk):
+        label = m.group(1)
+        if not label.strip():
+            continue
+        # BOTH EXACT. `_clean_prose` writes the group through untouched, so
+        # `\ref{ x }` becomes `( x )`: a stripped `source` of "(x)" would not
+        # be found by the literal search that applies it, and a stripped
+        # `label` would not match a `\label{ x }` the projector emits. Caught
+        # by the probe, not by a test written afterwards.
+        out.append({"label": label, "source": "(%s)" % label})
+    return out
+
+
+def _xref_prop(raw: str) -> dict:
+    """`{"xrefs": [...]}` when this prose flattened a reference, else `{}`.
+
+    Empty means ABSENT, not an empty list: a document that references nothing
+    gets no new prop and so no model churn.
+    """
+    xr = _flattened_xrefs(raw)
+    return {"xrefs": xr} if xr else {}
+
+
 def _clean_prose(s: str) -> str:
     for rx, rep in _PROSE_CLEAN:
         s = rx.sub(rep, s)
@@ -2547,33 +2608,40 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
             current_section = s_obj.id
             n_sec += 1
         elif kind == "abstract":
+            _raw_ab = _transclude_cites(
+                expand_prose(it["text"], macros), bibkey)
             doc.add(DocObject(type="Abstract", props={
-                "text": _clean_prose(_transclude_cites(
-                    expand_prose(it["text"], macros), bibkey)),
+                "text": _clean_prose(_raw_ab),
+                **_xref_prop(_raw_ab),
                 "flow_index": fi, "bibkey": bibkey}))
             n_abs += 1
         elif kind == "theorem":
+            _raw_tt = _transclude_cites(
+                expand_prose(it["bracket_title"], macros), bibkey)
+            _raw_ts = _transclude_cites(
+                expand_prose(it["statement"], macros), bibkey)
             t_obj = DocObject(type="Theorem", props={
                 "kind": it["kind"], "env": it["env"],
                 "printed_title": it["printed_title"],
                 # The bracket title is PROSE — `\begin{lemma}[\textbf{Scaling}]`
                 # — and it was the one string here stored raw, which is why a
                 # command in a title reached the reader as a command.
-                "title": _clean_prose(_transclude_cites(
-                    expand_prose(it["bracket_title"], macros), bibkey)),
+                "title": _clean_prose(_raw_tt),
                 "number": it["number"],
                 "label": it["label"], "starred": it["starred"],
-                "statement": _clean_prose(_transclude_cites(
-                    expand_prose(it["statement"], macros), bibkey)),
+                "statement": _clean_prose(_raw_ts),
+                **_xref_prop(_raw_tt + "\n" + _raw_ts),
                 "flow_index": fi, "bibkey": bibkey,
                 **({"parent_section": current_section} if current_section else {})})
             doc.add(t_obj)
             pos_to_theorem_id[it["pos"]] = t_obj.id
         elif kind == "proof":
+            _raw_pf = _transclude_cites(
+                expand_prose(it["statement"], macros), bibkey)
             p_obj = DocObject(type="Proof", props={
                 "name": it["name"], "of_label": it["of_label"],
-                "statement": _clean_prose(_transclude_cites(
-                    expand_prose(it["statement"], macros), bibkey)),
+                "statement": _clean_prose(_raw_pf),
+                **_xref_prop(_raw_pf),
                 "flow_index": fi, "bibkey": bibkey,
                 **({"parent_section": current_section} if current_section else {})})
             doc.add(p_obj)
@@ -2670,7 +2738,8 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                 out.append("{{" + title + "||FO}}")            # transclude the FO tiddler
                 last = mm.end()
             out.append(expand_macros(text[last:], macros))
-            prose = _clean_prose(_transclude_cites("".join(out), bibkey))
+            _raw_pr = _transclude_cites("".join(out), bibkey)
+            prose = _clean_prose(_raw_pr)
             prose, _ltx_objs, ltx_no = _capture_ltx(prose, bibkey, ltx_no)
             for _lo in _ltx_objs:
                 doc.add(DocObject(type="LtxCommand", props={
@@ -2678,7 +2747,8 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                 n_ltx += 1
             if not prose:
                 continue
-            props = {"text": prose, "flow_index": fi, "bibkey": bibkey}
+            props = {"text": prose, **_xref_prop(_raw_pr),
+                     "flow_index": fi, "bibkey": bibkey}
             if current_section:
                 props["parent_section"] = current_section
             doc.add(DocObject(type="Paragraph", props=props))

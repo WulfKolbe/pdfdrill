@@ -337,6 +337,18 @@ class LaTeXProjector(BaseProjector):
                  if o.id not in self._skip_ids]
         body_blocks = self._render_flow(items)
         body_text = "\n".join(body_blocks)
+        # T-0156 — a reference is a command when its target exists in THIS
+        # projection and text otherwise. Decided here because the emitted
+        # label set does not exist until the body is rendered (seven `\label`
+        # sites, no central set). See `_pipe.resolve_xrefs`.
+        # ONE BODY FROM HERE ON. `body_text` was a derived copy, read only to
+        # decide the preamble; the body WRITTEN was `body_blocks`. Resolving
+        # the copy promoted 93 references on arxiv.0912.2444 and the .tex
+        # still carried 9 — the counts said it worked and the output said it
+        # had not. Appending `body_text` below is byte-identical while
+        # `resolve_xrefs` changes nothing, because `out` is joined with the
+        # same "\n" that built it.
+        body_text, self._xref_counts = _pipe.resolve_xrefs(doc, body_text)
 
         preamble = self._doc_preamble(meta)
         out: list[str] = [preamble.rstrip()]
@@ -382,7 +394,7 @@ class LaTeXProjector(BaseProjector):
         if gloss:
             out += [gloss, ""]
 
-        out += body_blocks
+        out.append(body_text)
 
         # STAGE 2: bibliography — printed `\bibitem`s from the model's References.
         bib = _pipe.bibliography_block(doc)

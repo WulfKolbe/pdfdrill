@@ -644,6 +644,120 @@ _NAME_ARG = re.compile(
     r"\s*(?:\[[^\]]*\])?\s*\{[^{}]*\}")
 
 
+#: T-0156 — A REFERENCE IS A COMMAND WHEN ITS TARGET EXISTS, AND TEXT OTHERWISE.
+#:
+#: `_PROSE_CLEAN` flattens `\ref{tab:x}` to `(tab:x)`, keeping the target as
+#: text. Promoting those back is the owner's fifth requirement, but only where
+#: the label is emitted: a `\ref` against a label nothing defines is
+#: "Reference undefined", which his first requirement counts as a failure.
+#:
+#: ONE RULE, BOTH DIRECTIONS. The same test promotes and demotes, so the 18
+#: cleveref commands that today point at list-item labels we do not emit
+#: become text instead of dangling — and when list items arrive, their labels
+#: enter the emitted set and the same rule promotes them with no change here.
+#:
+#: WHY THE DECISION NEEDS THE MODEL AND NOT JUST THE BODY. Measured over the
+#: eight audit documents, 166 parenthesised tokens equal an emitted label and
+#: 60 of them — 36% — were never a reference: `(1)` six times and `(3)`
+#: nineteen times on 1503.00301 alone, against labels named "1" and "3". All
+#: four documents carrying them are READING-built, with no source and so no
+#: reference ever flattened. So the body is asked only "is this label
+#: emitted"; the model is asked "was this span a reference", through the
+#: `xrefs` prop `latex_source._flattened_xrefs` writes. On arxiv.0912.2444:
+#: 109 records, 93 whose label the body emits, 0 body occurrences not backed
+#: by a record, 0 numeric labels.
+#:
+#: Both reference systems resolve this way — LaTeXML fills one label table and
+#: then writes, tex4ht lets TeX write the .aux and reads it back — because the
+#: label set does not exist until the document is complete. `latex.py` emits
+#: `\label{}` at seven sites and keeps no central set, which is the same fact
+#: from our side.
+_EMITTED_LABEL = re.compile(r"\\label\s*\{([^}]*)\}")
+
+#: The commands a dangling reference can arrive as. `\ref` and `\eqref` the
+#: projection writes itself; `\cref`/`\labelcref` reach the body from an
+#: author's prose and have no definition here (see `_AUTHOR_PACKAGES`).
+_EMITTED_REF = re.compile(
+    r"\\(ref|eqref|autoref|cref|Cref|labelcref)\s*\{([^{}]*)\}")
+
+
+def _body_spellings(source: str) -> "list[str]":
+    """The spellings a flattened reference can carry in the rendered body.
+
+    As recorded, and as `escape_prose_specials` writes it once it is prose.
+    """
+    escaped = escape_prose_specials(source)
+    return [source] if escaped == source else [source, escaped]
+
+
+def _xref_records(doc) -> "list[dict]":
+    """Every `xrefs` record in the document, duplicates kept.
+
+    `Document.objects` is a dict KEYED BY ID, so this iterates `.values()`.
+    Iterating the mapping itself yields the id strings, which carry no
+    `props`, and the function then returns nothing and changes nothing — a
+    silent no-op that only the reference census could see.
+    """
+    objects = getattr(doc, "objects", None) or {}
+    out: list[dict] = []
+    for obj in (objects.values() if hasattr(objects, "values") else objects):
+        props = getattr(obj, "props", None) or {}
+        for rec in props.get("xrefs") or []:
+            if isinstance(rec, dict) and rec.get("source") and rec.get("label"):
+                out.append(rec)
+    return out
+
+
+def resolve_xrefs(doc, body: str) -> "tuple[str, dict]":
+    r"""Promote a flattened reference whose label the body emits; demote an
+    emitted reference whose label it does not.
+
+    Returns the body and a count table for the command's own report.
+    """
+    labels = set(_EMITTED_LABEL.findall(body))
+    counts = {"promoted": 0, "left_as_text": 0, "demoted": 0, "not_found": 0}
+
+    # PROMOTE. At most as many substitutions as there are records, so a
+    # parenthesised token the model never recorded is never touched.
+    per_source: dict[str, int] = {}
+    for rec in _xref_records(doc):
+        if rec["label"] not in labels:
+            counts["left_as_text"] += 1
+            continue
+        per_source[rec["source"]] = per_source.get(rec["source"], 0) + 1
+    for source, allowed in per_source.items():
+        label = source[1:-1]
+        command = "\\ref{%s}" % label
+        done = 0
+        # A FLATTENED REFERENCE IS PROSE BY THE TIME IT REACHES THE BODY, so
+        # `escape_prose_specials` has escaped its specials — `(a_b)` is written
+        # `(a\_b)`. Looking only for the recorded spelling missed 40 of 46
+        # distinct sources on arxiv.2402.03975 (105 records), every one of them
+        # a label with an underscore, and every one present in escaped form.
+        # The first version reported those as `not_found`, which read like lost
+        # prose and was a matcher that did not know its own pipeline.
+        for spelling in _body_spellings(source):
+            at = body.find(spelling)
+            while at >= 0 and done < allowed:
+                body = body[:at] + command + body[at + len(spelling):]
+                done += 1
+                at = body.find(spelling, at + len(command))
+            if done >= allowed:
+                break
+        counts["promoted"] += done
+        counts["not_found"] += allowed - done
+
+    # DEMOTE, the same test the other way round.
+    def _demote(m: "re.Match") -> str:
+        if m.group(2) in labels:
+            return m.group(0)
+        counts["demoted"] += 1
+        return "(%s)" % m.group(2)
+
+    body = _EMITTED_REF.sub(_demote, body)
+    return body, counts
+
+
 def escape_prose_specials(text: str) -> str:
     r"""Escape the text-mode specials in the NON-math parts of prose.
 
