@@ -7934,7 +7934,27 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
     bibkey = resolve_bibkey(pdf, None, sc)
     doc_dir = pdf.parent
     lines_path = _lines_json_path(pdf)
-    ink_path = doc_dir / "report.ink.json"
+    # THE INK LIVES WITH THE REPORT, and this read used `pdf.parent` while
+    # `reporttex` writes and adopts `sc.blob_dir / "report.ink.json"`. So one
+    # command wrote the measurement and the other said there was none — in
+    # the SAME run of `inkreport`, which is an alias of this command:
+    #
+    #     report.ink.json  16:18:48  <pdf>.drill/   6 rows, built_at set
+    #     residuals.pdf    16:19:15  <pdf parent>/  "no ink measurement for
+    #                                               this document"
+    #
+    # 27 seconds apart, the file plainly there, and the owner saw both lines
+    # in one terminal. `header_lines` was right about the directory it was
+    # given and the directory was wrong.
+    #
+    # blob_dir FIRST, then the PDF's own folder, because a document drilled
+    # before the sidecar layout has its ink beside the PDF and must not be
+    # told its measurement vanished.
+    _ink_candidates = [sc.blob_dir / "report.ink.json",
+                       doc_dir / "report.ink.json"]
+    ink_path = next((q for q in _ink_candidates if q.is_file()),
+                    _ink_candidates[0])
+    ink_dir = ink_path.parent
     ink = rt.load_ink(ink_path) if ink_path.is_file() else {}
     budget_mb_final = budget_mb if budget_mb is not None else CROP_BUDGET_MB
     rows = build_rows(doc, bibkey, ink=ink,
@@ -8046,7 +8066,21 @@ def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
     bibkey = resolve_bibkey(pdf, None, sc)
     doc_dir = pdf.parent
     lines_path = _lines_json_path(pdf)
-    ink_path = doc_dir / "report.ink.json"
+    # THE INK LIVES WITH THE REPORT — see the same block in `cmd_evidence`.
+    # This read used `pdf.parent` while `reporttex` writes and adopts
+    # `sc.blob_dir / "report.ink.json"`, so `inkreport` (an alias of THIS
+    # command) wrote the measurement and then said there was none:
+    #
+    #     report.ink.json  16:18:48  <pdf>.drill/   6 rows, built_at set
+    #     residuals.pdf    16:19:15  <pdf parent>/  "no ink measurement"
+    #
+    # blob_dir first, the PDF's own folder second, so a document drilled
+    # before the sidecar layout is not told its measurement vanished.
+    _ink_candidates = [sc.blob_dir / "report.ink.json",
+                       doc_dir / "report.ink.json"]
+    ink_path = next((q for q in _ink_candidates if q.is_file()),
+                    _ink_candidates[0])
+    ink_dir = ink_path.parent
     ink = rt.load_ink(ink_path) if ink_path.is_file() else {}
     budget_mb_final = budget_mb if budget_mb is not None else CROP_BUDGET_MB
     rows = build_rows(doc, bibkey, ink=ink,
@@ -8066,7 +8100,8 @@ def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
                  rungs=rungs)
     counts = ", ".join("%d %s" % (len(selected[k]), k) for k in RS.SECTIONS)
     out.append(crop_note)
-    out.append("; ".join(RS.header_lines(doc_dir)))
+    # the directory the ink was FOUND in, not the one it might have been in
+    out.append("; ".join(RS.header_lines(ink_dir)))
     line = "Wrote %s: %d open rows (%s)" % (r["out"], r["rows"], counts)
     if pdf_out and r["pages"] is not None:
         line += " (%d pages, %d errors, %d demoted)" % (
@@ -21870,7 +21905,31 @@ def _vision_via_delegate(pdf: Path, doc, todo, targets, sc, model_path,
             f"Run `pdfdrill compare {pdf.name}` to see the column.")
 
 
+def ink_missing_message(pdf, given, own) -> str:
+    r"""What to say when `--ink <path>` names a file that is not there.
+
+    NAME THE COMMAND THAT MAKES THE FILE. The owner typed `reporttex --ink`
+    from the help, which lists the flag without saying that nothing creates
+    its argument until the ink pass has run — so the first thing he met was
+    a missing-file error for a file he had no way to have. `inkreport` is
+    the whole chain and its step 5 IS this build with the ink adopted.
+
+    A separate function because the alternative was a test grepping this
+    text out of the source, and five such tests in this task broke on a
+    refactor that changed no behaviour.
+    """
+    if Path(own).is_file():
+        hint = ("This document already has one at %s — omit --ink to adopt "
+                "it, or pass that path." % own)
+    else:
+        hint = ("Run `pdfdrill inkreport %s` — it measures the ink and then "
+                "runs this build with it (the only supported way to produce "
+                "an ink-updated report)." % Path(pdf).name)
+    return "--ink %s does not exist. %s" % (given, hint)
+
+
 @_writes("reporttex")
+
 def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                   compile_pdf: bool = False, images: bool = True,
                   min_conf: float | None = None, max_conf: float | None = None,
@@ -22054,8 +22113,14 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
     # silent fallback. Ignoring it would build a report saying "no residual
     # measurement has been run" to someone who just supplied one.
     if ink_path is not None and not ink_path.is_file():
-        return (f"--ink {ink_path} does not exist. Omit --ink to adopt the "
-                f"document's own report.ink.json, or give a path that is there.")
+        # NAME THE COMMAND THAT MAKES THE FILE. The owner typed
+        # `reporttex --ink` from the help text, which lists the flag without
+        # saying that nothing creates its argument until the ink pass has
+        # run — so the first thing he met was a missing-file error for a file
+        # he had no way to have. `inkreport` is the whole chain and its step 5
+        # IS this build with the ink adopted.
+        return ink_missing_message(pdf, ink_path,
+                                   Sidecar(pdf).blob_dir / "report.ink.json")
     adopted = ""
     if ink_path is None:
         default_ink = sc.blob_dir / "report.ink.json"
