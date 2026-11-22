@@ -46,6 +46,7 @@ import json
 
 from docmodel.core import Document
 from ..base import BaseProjector, OperatorConfig
+from .latex_pipeline import looks_like_a_printed_number
 from .tiddlywiki import TiddlyWikiProjector
 
 
@@ -183,7 +184,19 @@ class CompressedTiddlersProjector(BaseProjector):
             refnum = refnum.replace("\\", "").strip("() \t")
             if display:
                 # $$ ... $$ for display; append refnum like (1.1) if known.
-                if refnum:
+                #
+                # T-0156 — A PRINTED NUMBER, OR NOTHING. `refnum` does not
+                # always hold a number: 138 of 8,854 in the library are not
+                # one, because 224 of 6,904 `equation_number` LINES in the
+                # readings carry text that is not a printed number — `((*))`,
+                # and lines holding a whole mis-parsed expression. Printed
+                # here they became part of the tiddler's text: output that
+                # renders and is wrong, in a second projection. Same guard as
+                # the LaTeX projector's `\tag` (f5f8518e), applied at both
+                # display sites because the MODEL STAYS FAITHFUL to the
+                # reading — correcting `refnum` itself would hide a
+                # measurable upstream error.
+                if refnum and looks_like_a_printed_number(refnum):
                     return f"$$ {latex} $$ ({refnum})"
                 return f"$$ {latex} $$"
             return f"${latex}$"

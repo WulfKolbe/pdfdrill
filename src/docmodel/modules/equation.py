@@ -775,6 +775,23 @@ class EquationProcessor(BaseModule):
             props={
                 "refnum": item["refnum"],
                 "refnum_anchor": item.get("refnum_anchor"),
+                # T-0156 — WHICH PATH GAVE THE NUMBER: "line" (an
+                # `equation_number` line nearby), "gutter" (the row's own
+                # band, for a promoted row) or "absorbed" (split off the end
+                # of the maths by `absorbed_equation_number`).
+                #
+                # It was computed on all three branches and asserted by
+                # `test_absorbed_eqnum` — on the ITEM — and then not copied
+                # here, so NO model on disk carried it. A census of 8,854
+                # refnums across 400 library models found it recorded on
+                # none, and the attribution it exists for had to be guessed
+                # from `refnum_anchor` instead. That proxy said `3 cdot 4`
+                # came from the absorbed path, which its pattern
+                # (`\d+(?:\.\d+)*[a-zA-Z]?`) cannot produce.
+                #
+                # A provenance field that never reaches the model reads as
+                # evidence of nothing, and is worse than its absence.
+                "refnum_source": item.get("refnum_source") or "",
                 "latex": item["latex"],          # convenient copy
                 "latex_raw": item["latex_raw"],
                 "page": item["page"],
