@@ -6639,6 +6639,38 @@ def cmd_tables(pdf: Path, pages: str | None = None) -> str:
             + preview)
 
 
+def _keep_model_rollback(model_path: "Path") -> "Path | None":
+    """Copy a model aside before a rebuild overwrites it, once per build.
+
+    Named with the build that WROTE it (`meta.build.sha`), so the copy says
+    which code produced the thing being replaced. Returns the copy's path, or
+    None when there was nothing to keep. Best effort by contract: a failure to
+    park a rollback must not stop the rebuild, but it is reported.
+    """
+    import shutil
+    p = Path(model_path)
+    if not p.is_file():
+        return None
+    sha = ""
+    try:
+        import json as _json
+        meta = (_json.loads(p.read_text(encoding="utf-8", errors="replace"))
+                .get("meta") or {})
+        sha = str(((meta.get("build") or {}) or {}).get("sha") or "")[:12]
+    except Exception:
+        sha = ""
+    tag = "".join(c for c in sha if c.isalnum()) or "prior"
+    dest = p.with_name(p.name[:-len(".json")] + "." + tag + ".bak.json"
+                       if p.name.endswith(".json") else p.name + "." + tag + ".bak")
+    if dest.exists():
+        return dest                      # one rollback per build, not per run
+    try:
+        shutil.copy2(p, dest)
+    except OSError:
+        return None
+    return dest
+
+
 def _build_arxiv_source_model(pdf: Path, sc: "Sidecar", key: str,
                               model_path: Path) -> "str | None":
     """For an arXiv doc, build the model from the FREE LaTeX e-print
@@ -6696,6 +6728,19 @@ def _build_arxiv_source_model(pdf: Path, sc: "Sidecar", key: str,
     # `latex`, `beamer`, the scan fallback); doing it in one caller left 133
     # models in the library still flat.
     apply_document_structure(doc)
+    # T-0156 — KEEP THE ROLLBACK. This OVERWRITES a model the owner owns, and
+    # `model_io.save_model` keeps no previous copy: its writes are atomic, so
+    # a killed process never truncates the file, but a completed one replaces
+    # it. The repo already has the convention for a displaced artefact —
+    # `<stem>.lines.mathpix.bak.json`, where three places park a reading — and
+    # this applies it to the model.
+    #
+    # It matters more since the `*_source` suffix test went: six of the audit's
+    # eight e-prints were refused this rebuild with nothing to protect, so
+    # documents that have been reading-built for months will take the source
+    # route the next time they are built, and the reading-built model they
+    # have now would otherwise be gone.
+    _keep_model_rollback(model_path)
     model_io.save_model(model_path, doc)
     # This path RETURNS EARLY from cmd_model, so it needs its own retraction:
     # patching only the main site left the arXiv-source rebuild — the default
@@ -13117,12 +13162,38 @@ def _prefer_arxiv_source(pdf: Path, sc, key: str, doc, model_path: Path):
     # translation, nor a refinement. So the model on disk wins, and the reason
     # is recorded where the caller can report it.
     _enr = model_enrichments(Path(model_path)) if Path(model_path).is_file() else {}
-    _translated = any(
-        isinstance(v, str) and v.strip()
-        for o in doc.objects.values()
-        for k, v in (o.props or {}).items() if k.endswith("_source"))
+    # T-0156 — AN ENRICHMENT IS A NAMED THING, NOT A SUFFIX.
+    #
+    # This also refused whenever ANY object prop had a key ending in
+    # `_source` with a non-empty value, as the mark of a translation. Of the
+    # 26 such prop names in the codebase exactly ONE — `edit_source` — is an
+    # enrichment, and `model_enrichments` already counts it; the other 25 are
+    # PROVENANCE, reproducible by a rebuild. `ref_source` is the plain case:
+    # `bibliography.py` writes "bib", "citation" or "text" to say where an
+    # entry came from.
+    #
+    # Measured over the audit's eight e-prints before the change: SIX were
+    # refused the author's LaTeX with nothing to protect — 0 real
+    # enrichments each, refused solely because their References carry a
+    # provenance label (11 to 101 of them). Only 1503.00301 carries real
+    # enrichments (72) and its refusal is right, which `_enr` keeps.
+    #
+    # What that cost is measurable: the source route is where class F's
+    # paired references come from — 102 of 102 and 133 of 133 on the two
+    # documents that take it, against 0 on every reading-built one.
+    #
+    # AND THE TRANSLATION IT MEANT TO PROTECT HAS A REAL TEST. The suffix was
+    # a degraded form of `docops.language.is_translated`, which asks
+    # `twins()`: only the named PROSE_FIELDS, and only where the `_source`
+    # twin is actually a SECOND LANGUAGE. `heading_cleanup.is_translated`
+    # states the same rule and the reason — "Materialization writes an
+    # identical twin, so mere presence is not enough". So the guard keeps its
+    # intent and loses its false positives.
+    from docops import language as _language
+    _translated = _language.is_translated(doc)
     if _enr or _translated:
-        what = ", ".join(f"{v} {k}" for k, v in sorted(_enr.items()))             or "a translation"
+        what = (", ".join(f"{v} {k}" for k, v in sorted(_enr.items()))
+                or "a translation")
         doc.meta["arxiv_source_refused"] = (
             f"the author's arXiv LaTeX was NOT used to improve this model: it "
             f"carries enrichments a rebuild cannot reproduce ({what}). The "
