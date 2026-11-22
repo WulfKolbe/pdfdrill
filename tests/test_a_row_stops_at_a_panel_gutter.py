@@ -158,23 +158,6 @@ def test_a_blank_glyph_is_kept():
     assert sum(len(r) for r in out) == 3
 
 
-def test_the_barrier_definition_is_shared():
-    r"""One definition, read by the split AND by `build`'s rejoin sweep.
-
-    A barrier the splitter honours and a rejoin ignores is no barrier: the
-    sweep put 2312.11532 p7's three captions back into one line after the
-    split had separated them, because its reach is 5 of the PAGE's dominant
-    size (50 pt there) and a panel gutter is narrower than that.
-    """
-    from pdfreader.docmodel_six import _panel_barriers
-    assert _panel_barriers(PANELS) == [(219.0 + 255.0) / 2, (383.0 + 419.0) / 2]
-    assert _panel_barriers([]) == []
-    assert _panel_barriers(PANELS[:1]) == []
-
-
-def test_stacked_panels_yield_no_barrier_from_the_helper():
-    stacked = [(91.0, 608.0, 546.0, 670.0), (91.0, 680.0, 546.0, 738.0)]
-    assert _panel_barriers_of(stacked) == []
 
 
 def _panel_barriers_of(d):
@@ -204,58 +187,78 @@ def _panel_barriers_of(d):
 # coordinator had already set aside closes with it.
 
 
-def test_a_script_does_not_cross_a_panel_gutter():
-    r"""The veto lives at the absorption site, so the barrier that governs
-    the split governs the rejoin AND the script move — the same rule as
-    `_panel_barriers` exists to state."""
-    import re
+# ---------------------------------------------------------------------------
+# T-0156 — THE BAND IS PART OF THE BARRIER.
+#
+# Five tests were removed here and replaced by the ones below. They asserted
+# on the IMPLEMENTATION'S TEXT — `assert "for _b in _bars" in body`, grepped
+# out of docmodel_six.py — and a refactor that improved the design broke all
+# five while changing no behaviour. A source grep pins the code, not the
+# rule; `_PanelBarriers.crosses` can be called, so the rule can be tested.
+
+
+def _bars2():
+    from pdfreader.docmodel_six import _panel_barriers
+    # two panels side by side, 2312.11532 p7's geometry in points
+    return _panel_barriers([(91.0, 608.0, 219.0, 738.0),
+                            (255.0, 608.0, 383.0, 738.0)])
+
+
+def test_a_gutter_inside_the_band_crosses():
+    b = _bars2()
+    assert b.xs and b.crosses(200.0, 300.0, 600.0, 607.0, reach=18.0)
+
+
+def test_the_same_gutter_far_from_the_band_does_not():
+    r"""Prose 490 pt up the page is nobody's figure: this is the regression
+    that cut `on the sign convention.` in half and detached
+    `\psi|_{K_{H} \times\{0\}}` from its base."""
+    b = _bars2()
+    assert not b.crosses(200.0, 300.0, 110.0, 120.0, reach=18.0)
+
+
+def test_a_Y_RANGE_AND_NOT_A_BASELINE():
+    """A caption's baseline can sit below the band while its box reaches in.
+    Routing the split through a baseline POINT merged 2312.11532 p7's three
+    captions back into one line, measured, which is why `crosses` takes a
+    range."""
+    b = _bars2()
+    assert not b.crosses(200.0, 300.0, 588.0, 588.0, reach=18.0)
+    assert b.crosses(200.0, 300.0, 585.1, 606.3, reach=18.0)
+
+
+def test_no_gutter_between_the_two_x_means_no_crossing():
+    b = _bars2()
+    assert not b.crosses(100.0, 150.0, 600.0, 607.0, reach=18.0)
+
+
+def test_x_given_backwards_is_the_same_interval():
+    b = _bars2()
+    assert b.crosses(300.0, 200.0, 600.0, 607.0, reach=18.0)
+
+
+def test_stacked_panels_carry_no_barrier_and_never_cross():
+    from pdfreader.docmodel_six import _panel_barriers
+    b = _panel_barriers([(91.0, 608.0, 546.0, 670.0),
+                         (91.0, 680.0, 546.0, 738.0)])
+    assert b.xs == ()
+    assert not b.crosses(0.0, 999.0, 600.0, 700.0, reach=18.0)
+
+
+def test_no_panels_carries_no_barrier_and_never_cross():
+    from pdfreader.docmodel_six import _panel_barriers
+    b = _panel_barriers([])
+    assert b.xs == () and b.y0 == 0.0 and b.y1 == 0.0
+    assert not b.crosses(0.0, 999.0, 0.0, 999.0, reach=18.0)
+
+
+def test_every_consumer_asks_through_crosses():
+    """Split, rejoin sweep and script absorption. The rejoin sweep had NO
+    band test until this type existed — latent, and found only because the
+    omission became impossible to express."""
     from pathlib import Path
     src = Path("src/pdfreader/docmodel_six.py").read_text(encoding="utf-8")
-    # the absorption site's veto, keyed on the shared barrier list
-    body = src[src.index("a script sits beside its base"):]
-    body = body[:body.index("moved.append((dest, g))")]
-    assert "_bars" in body, "the script move must consult the panel barriers"
-    assert re.search(r"for _b in _bars", body)
-
-
-def test_the_barriers_are_one_definition_for_every_consumer():
-    r"""Split, rejoin sweep and script absorption all read
-    `_panel_barriers`. Three readers of one definition, because a barrier
-    honoured by two of them and ignored by the third is no barrier — which
-    is exactly how the split came undone."""
-    from pathlib import Path
-    src = Path("src/pdfreader/docmodel_six.py").read_text(encoding="utf-8")
-    assert src.count("_panel_barriers(") >= 2
-    assert src.count("for _b in _bars") >= 2
-
-
-def test_the_absorption_veto_is_confined_to_the_figure_band():
-    r"""And the veto reaches only the panels' own band.
-
-    THIRD TIME FOR THIS OMISSION, which is why it is pinned. The
-    cross-panel detector ignored Y and flagged 60 prose lines; the split
-    ignored Y and cut `on the sign convention.` mid-word; this veto ignored
-    Y and detached scripts from their bases two pages away:
-
-        arxiv.1907.11795 p39  `\psi|_{K_{H} \times\{0\}}` lost its subscript
-                              to a display of its own
-        arxiv.2609.23822 p11  `$Q^{a-2} = Q^{0} = \{[v^{1,0}], [v^{0,1}]\}$`
-                              became `$Q = Q^{0} = \{[v], [v]\}$` with
-                              `$a-2$ $1,0$ $0,1$` stranded beside it
-
-    NEITHER PAGE LOST A CHARACTER (chars +0 on both), and both lost the
-    structure. That is the worse failure: every character count passes while
-    the mathematics is wrong. Measured against the PRE-VETO revision — not
-    against the broken one, which tells you what the bug did rather than
-    whether the fix is right — both pages are byte-identical again.
-    """
-    from pathlib import Path
-    src = Path("src/pdfreader/docmodel_six.py").read_text(encoding="utf-8")
-    body = src[src.index("a script sits beside its base"):]
-    body = body[:body.index("moved.append((dest, g))")]
-    # the band, from the diagrams' own extent, gating the barrier test
-    assert "_by0" in body and "_by1" in body, "the veto needs the figure band"
-    assert "g.baseline" in body, "the band is tested against the glyph's baseline"
-    # and the cheap test first, or an empty `diagrams` raises
-    assert body.index("if _bars:") < body.index("_by0 ="), \
-        "guard on _bars before computing the band: min() over no diagram raises"
+    assert src.count(".crosses(") >= 4      # split, 2x rejoin, absorption
+    # and nobody reads the barrier x's without the band any more
+    assert "for _b in _bars" not in src
+    assert "for b in bars" not in src

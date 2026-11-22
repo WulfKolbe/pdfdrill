@@ -28,7 +28,7 @@ import os
 import json
 import unicodedata
 from dataclasses import dataclass, field, replace
-from typing import Iterable
+from typing import Iterable, NamedTuple
 
 import logging
 
@@ -2936,21 +2936,76 @@ def _column_edge(rows: list[list["GlyphNode"]], rect: Rect) -> float | None:
     return None
 
 
-def _panel_barriers(diagrams: list[Rect]) -> list[float]:
-    r"""The x of each gutter BETWEEN two horizontally adjacent figure panels.
+class _PanelBarriers(NamedTuple):
+    r"""The gutters between side-by-side figure panels, WITH their band.
 
-    One definition, read by both the row split (`_split_at_panel_gutters`)
-    and the rejoin sweep in `build`, because a barrier the splitter honours
-    and a rejoin ignores is no barrier at all — measured: the sweep put
+    T-0156 — THE BAND IS PART OF THE BARRIER, and this type exists because
+    three consumers in a row forgot it. A barrier is evidence about the
+    strip of page the panels occupy and about nothing else:
+
+        the cross-panel detector  ignored Y -> flagged 60 prose lines
+        `_split_at_panel_gutters` ignored Y -> cut `on the sign convention.`
+                                               mid-word
+        the script-absorption veto ignored Y -> detached
+                                  `\psi|_{K_{H} \times\{0\}}` from its base,
+                                  with chars +0, so every count passed
+        the rejoin sweep           ignored Y -> latent, found while writing
+                                               this type
+
+    Each was fixed in the commit after the one before, because the band was
+    something a caller had to remember rather than something the barrier
+    carried. So `crosses` does the whole test and there is no way to ask
+    about the x without the y.
+    """
+
+    xs: tuple
+    y0: float
+    y1: float
+
+    def crosses(self, x_lo: float, x_hi: float,
+                y_lo: float, y_hi: float, *, reach: float) -> bool:
+        """Does a gutter lie between `x_lo` and `x_hi`, for ink whose y
+        range overlaps the band? No gutters, or ink out of band, is False —
+        the barrier simply has nothing to say there.
+
+        A Y RANGE, NOT A BASELINE, and the difference is measured. Routing
+        the row split through a baseline point dropped 2312.11532 p7's
+        subfigure captions back into one line: the caption's baseline sits
+        2.4 pt BELOW the band while its rect reaches into it, so a point
+        test excluded exactly the row the rule exists to cut. A caller with
+        one glyph passes its own box; a caller with a row passes the row's.
+        """
+        if not self.xs:
+            return False
+        lo, hi = (y_lo, y_hi) if y_lo <= y_hi else (y_hi, y_lo)
+        if hi < self.y0 - reach or lo > self.y1 + reach:
+            return False
+        a, z = (x_lo, x_hi) if x_lo <= x_hi else (x_hi, x_lo)
+        return any(a <= x <= z for x in self.xs)
+
+
+def _panel_barriers(diagrams: list[Rect]) -> "_PanelBarriers":
+    r"""The x of each gutter BETWEEN two horizontally adjacent figure
+    panels, and the band those panels occupy.
+
+    One definition for every consumer — the row split, the rejoin sweep and
+    the script-absorption veto — because a barrier one of them honours and
+    another ignores is no barrier at all: measured, the sweep put
     2312.11532 p7's three subfigure captions back into one line after the
-    split had separated them.
+    split had separated them, and the absorption pass then put the legend
+    digits back one digit at a time.
 
     Panels that overlap in x are stacked rather than side by side and yield
     no barrier.
     """
-    spans = sorted((r[0], r[2]) for r in (diagrams or []))
-    return [(a1 + b0) / 2.0 for (_, a1), (b0, _) in zip(spans, spans[1:])
-            if b0 > a1]
+    rects = list(diagrams or [])
+    spans = sorted((r[0], r[2]) for r in rects)
+    xs = tuple((a1 + b0) / 2.0 for (_, a1), (b0, _) in zip(spans, spans[1:])
+               if b0 > a1)
+    if not xs:
+        return _PanelBarriers((), 0.0, 0.0)
+    return _PanelBarriers(xs, min(r[1] for r in rects),
+                          max(r[3] for r in rects))
 
 
 def _split_at_panel_gutters(rows: list[list["GlyphNode"]],
@@ -3011,7 +3066,7 @@ def _split_at_panel_gutters(rows: list[list["GlyphNode"]],
     # The gutters between horizontally adjacent panels, as barrier x's. Two
     # panels that overlap in x (stacked, not side by side) give no barrier.
     bars = _panel_barriers(diagrams)
-    if not bars:
+    if not bars.xs:
         return rows
     # AND THE BARRIER REACHES ONLY AS FAR AS THE FIGURES THEMSELVES.
     # A gutter is evidence about the band the panels occupy and about
@@ -3056,17 +3111,9 @@ def _split_at_panel_gutters(rows: list[list["GlyphNode"]],
     # narrow, erring tight is the safe side.
     # A FIRST VERSION REACHED A FULL PANEL HEIGHT (58.3 pt here) and cut
     # that prose line by 4.7 pt.
-    band_y0 = min(r[1] for r in diagrams)
-    band_y1 = max(r[3] for r in diagrams)
     out: list[list[GlyphNode]] = []
     for row in rows:
         if len(row) < 2:
-            out.append(row)
-            continue
-        ry0 = min(g.rect[1] for g in row)
-        ry1 = max(g.rect[3] for g in row)
-        reach = 2.0 * max((g.size for g in row), default=10.0)
-        if ry1 < band_y0 - reach or ry0 > band_y1 + reach:
             out.append(row)
             continue
         ordered = sorted(row, key=lambda g: g.rect[0])
@@ -3074,8 +3121,12 @@ def _split_at_panel_gutters(rows: list[list["GlyphNode"]],
         parts, cur = [], [ordered[0]]
         for prev, g in zip(ordered, ordered[1:]):
             gap = g.rect[0] - prev.rect[2]
-            if gap >= 1.5 * size and any(prev.rect[2] <= b <= g.rect[0]
-                                         for b in bars):
+            # ONE call, so the band cannot be left out (`_PanelBarriers`).
+            if gap >= 1.5 * size and bars.crosses(
+                    prev.rect[2], g.rect[0],
+                    min(x.rect[1] for x in ordered),
+                    max(x.rect[3] for x in ordered),
+                    reach=2.0 * size):
                 parts.append(cur)
                 cur = [g]
             else:
@@ -4548,8 +4599,20 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                                                 or bx1 <= _gutter <= ax0):
                         continue
                     # Opposite sides of a FIGURE PANEL's gutter: likewise.
-                    if any(ax1 <= _b <= bx0 or bx1 <= _b <= ax0
-                           for _b in _bars):
+                    # BOTH baselines must be in the band. This veto had NO
+                    # band test until `_PanelBarriers` was written — latent,
+                    # and it would have blocked a legitimate rejoin anywhere
+                    # on a page that merely HAS side-by-side panels. Found
+                    # only because the type makes the omission impossible to
+                    # express.
+                    _ry0 = min(min(x.rect[1] for x in a),
+                               min(x.rect[1] for x in b))
+                    _ry1 = max(max(x.rect[3] for x in a),
+                               max(x.rect[3] for x in b))
+                    if (_bars.crosses(ax1, bx0, _ry0, _ry1,
+                                      reach=2.0 * span_pt)
+                            or _bars.crosses(bx1, ax0, _ry0, _ry1,
+                                             reach=2.0 * span_pt)):
                         continue
                     # negative when the two INTERLEAVE in x
                     gap = max(bx0 - ax1, ax0 - bx1)
@@ -4943,24 +5006,18 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                     # which is the worse failure: the text reads right and
                     # the mathematics is wrong.
                     #
-                    # THIRD TIME FOR THIS ONE OMISSION. The cross-panel
-                    # detector ignored Y and flagged 60 prose lines; the
-                    # split ignored Y and cut a prose line mid-word; this
-                    # veto ignored Y and detached scripts. A barrier rule
-                    # without a band is the standing defect of this family,
-                    # and the band belongs in `_panel_barriers`' contract
-                    # rather than in each caller's memory.
-                    if _bars:
-                        _by0 = min(r[1] for r in diagrams)
-                        _by1 = max(r[3] for r in diagrams)
-                        _reach = 2.0 * max(g.size, span_pt)
-                        _dx0 = min(x.rect[0] for x in groups[dest])
-                        _dx1 = max(x.rect[2] for x in groups[dest])
-                        if (_by0 - _reach <= g.baseline <= _by1 + _reach
-                                and any(max(_dx1, g.rect[2]) >= _b
-                                        >= min(_dx0, g.rect[0])
-                                        for _b in _bars)):
-                            continue
+                    # THIRD TIME FOR THIS ONE OMISSION, which is why the
+                    # band now lives in `_PanelBarriers` and not here: the
+                    # cross-panel detector ignored Y and flagged 60 prose
+                    # lines; the split ignored Y and cut a prose line
+                    # mid-word; this veto ignored Y and detached scripts.
+                    _dx0 = min(x.rect[0] for x in groups[dest])
+                    _dx1 = max(x.rect[2] for x in groups[dest])
+                    if _bars.crosses(min(_dx0, g.rect[0]),
+                                     max(_dx1, g.rect[2]),
+                                     g.rect[1], g.rect[3],
+                                     reach=2.0 * max(g.size, span_pt)):
+                        continue
                     moved.append((dest, g))
                 if not moved:
                     continue
