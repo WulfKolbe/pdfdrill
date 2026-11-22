@@ -13142,6 +13142,26 @@ def _prefer_arxiv_source(pdf: Path, sc, key: str, doc, model_path: Path):
     src = str(doc.meta.get("source") or "")
     if "latex" in src or "source" in src:           # already source-built
         return doc
+    # T-0156 — AND ALREADY SOURCE-IMPROVED, which the label above cannot say.
+    # `meta["source"]` is set to "latex-source" only when it was EMPTY, so a
+    # model that `cmd_model`'s merged build already enriched with the author's
+    # figures and tables still reads "mathpix" and was rebuilt here from
+    # scratch — throwing that work away.
+    #
+    # Measured on 2102.08145 with fresh copies at both commits: the rebuild
+    # took its projection from 4 `\includegraphics`, 1 `tikzpicture` and 5
+    # `tabular` to 0, 0 and 3, and the model from 6 Diagrams and 5 Tables to
+    # 5 and 3. The three objects lost carried `added_by: "latex"` — the
+    # author's own figure and tables, added by the merged build. The error
+    # count FELL 30 -> 3 because the content that was failing had gone, which
+    # is why "errors not up" cannot be read without counting content.
+    #
+    # So the question is not what the label says but whether the author's
+    # LaTeX has already been used on this model. If it has, there is nothing
+    # to gain and a merge to lose.
+    if any((o.props or {}).get("added_by") == "latex"
+           for o in doc.objects.values()):
+        return doc
     if not _arxiv_id_for(pdf, sc):                  # not an arXiv doc
         return doc
     # AN AUTOMATIC IMPROVEMENT DOES NOT OUTRANK A PERSON'S CORRECTION.
