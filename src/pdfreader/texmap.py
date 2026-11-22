@@ -1171,6 +1171,54 @@ _ESINT_FONT = re.compile(r"esint\d*$", re.I)
 #: cid -> LaTeX, for `esint` subsets, verified by rendering (see above).
 _ESINT_CID = {30: r"\int", 31: r"\int"}
 
+#: T-0156 — WHICH `esint` CUT IS THE DISPLAY ONE, DECIDED BY WIDTH.
+#:
+#: Both of p174's cids are `\int`: they are the DISPLAY/TEXT pair a
+#: `largesymbols` font keeps for one symbol, and TeX sets the display cut on
+#: the maths axis and the text cut on the line, so the raise differs. The
+#: glyph NAME cannot say which — a subsetter called them `acute` and
+#: `circumflex` — and the cid cannot either, because the comment above warns
+#: that another producer's subset numbers its glyphs differently.
+#:
+#: THE FONT SAYS, AND IT IS EMBEDDED. `TUJKXG+Gdvdkgesint10` is Type 1C with
+#: a FontFile3, and its own widths are 472 and 556 per 1000 em for the two
+#: cuts; the drawn glyphs reproduce that exactly, 4.53 and 5.33 at 9.6 pt.
+#: The WIDER cut is the display one — a property of how a largesymbols font
+#: is cut, not of this book. So nothing here is keyed to a cid: the caller
+#: passes the em-widths of the `\int` glyphs it is grouping and a glyph at
+#: the widest of them is the display cut.
+#:
+#: ONE CUT ALONE IS NOT EVIDENCE of which it is, so it keeps today's answer
+#: and is not raised.
+#:
+#: A per-glyph OUTLINE would settle it with no comparison at all — a display
+#: integral's depth below its origin is in the charstring — but pdfminer
+#: exposes only the FONT-level bbox (here -29,-2230,1674,25) and the widths,
+#: never per-glyph outlines; reading those means interpreting CFF
+#: charstrings, which is its own item.
+#:
+#: The 1.36 em is NOT from this book: it is `_BIGOP_RAISE`'s
+#: `integraldisplay`, measured by 750 across 60 documents (n=14).
+_ESINT_DISPLAY_RAISE = 1.36
+
+
+def esint_raise(fontname: "str | None", em_width: float,
+                cuts: "tuple" = ()) -> "float | None":
+    r"""Ems this `esint` cut is raised, or None when it is not an esint glyph.
+
+    `cuts` are the em-widths of the `\int` glyphs being grouped together. A
+    glyph at the widest of several is the display cut; with only one width
+    present there is nothing to compare, and the answer is 0.0 — today's
+    behaviour, not a guess at the cut that is absent.
+    """
+    if not _is_esint(fontname):
+        return None
+    widths = {round(c, 3) for c in cuts}
+    if len(widths) < 2:
+        return 0.0
+    return (_ESINT_DISPLAY_RAISE
+            if round(em_width, 3) >= max(widths) else 0.0)
+
 
 def _is_esint(fontname: "str | None") -> bool:
     """True for the `esint` package's own font, by the name TeX gives it."""

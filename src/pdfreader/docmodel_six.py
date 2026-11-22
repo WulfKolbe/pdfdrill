@@ -1375,15 +1375,64 @@ def _walk(obj, out: list) -> None:
 _BIGOP_RAISE = {"summationdisplay": 0.95, "integraldisplay": 1.36}
 
 
-def _bigop_raise(glyphname: str | None) -> float:
-    if not glyphname:
-        return 0.0
-    if glyphname in _BIGOP_RAISE:
-        return _BIGOP_RAISE[glyphname]
+#: The stems a `largesymbols` font uses for its operators. A name built on
+#: one of these STATES its own size class (`...display` / `...text`) and is
+#: trusted; a name that is not built on one carries no size information and
+#: the glyph's mapped identity decides instead. See `_bigop_raise`.
+_BIGOP_STEMS = ("integral", "summation", "product", "coproduct", "union",
+                "intersection", "logicaland", "logicalor", "bigodot",
+                "bigoplus", "bigotimes", "contintegral")
+
+#: LaTeX -> ems, for a glyph whose NAME cannot say which size it is.
+#: Only what has been measured: `\int` on lib:6d90e8d27b8b p174, where all
+#: four integral positions sit exactly 1.36 em above their display's
+#: baseline (517.87 over 504.79, 419.71 over 406.75, 332.95 over 319.87).
+_BIGOP_RAISE_LATEX = {r"\int": 1.36}
+
+
+def _bigop_raise(glyphname: str | None, latex: str | None = None,
+                 family: str | None = None, fontname: str | None = None,
+                 em_width: float = 0.0, cuts: "tuple" = ()) -> float:
+    r"""Ems this operator is set above the baseline of the row it belongs to.
+
+    T-0156 — THE NAME IS NOT THE IDENTITY, AND THIS TABLE WAS THE LAST PLACE
+    STILL TREATING IT AS ONE. `texmap.project` already normalises both ways a
+    glyph name lies, and this lookup repeated the raw-name test without them:
+
+      * A WRONG NAME ENTIRELY. A subset with no ToUnicode is named after
+        whatever a fallback encoding puts at each code: on lib:6d90e8d27b8b
+        p174 the `esint` integrals are called `acute` and `circumflex`.
+        `texmap` already overrides those from the cid, so the reader KNOWS
+        the glyph is `\int` while this table still saw an accent and
+        answered 0.00. Unraised, the integral keeps its maths-axis baseline
+        and the row grouper puts it in the PROSE LINE ABOVE: p174's
+        "...liefert:" lines came out holding `$\int \int$` with their own
+        displays left integral-free. The failure 750 recorded for
+        wzlxjtu-024, by a different route to the same place.
+
+    So: a name built on a `largesymbols` stem STATES its size class and is
+    trusted, suffix and all; a name that is not gets the raise its mapped
+    LaTeX earns, and only inside a maths extension font, where an operator
+    is display-cut by construction.
+    """
+    name = glyphname or ""
+    if name in _BIGOP_RAISE:
+        return _BIGOP_RAISE[name]
     # the rest of CMEX's display-size operators -- product, coproduct, the
     # big set operators -- are cut on the same design size as the summation.
-    if glyphname.endswith("display"):
+    if name.endswith("display"):
         return 0.95
+    if any(name.startswith(stem) for stem in _BIGOP_STEMS):
+        return 0.0                    # the name says `text`: not raised
+    # The name carries no size class. Ask the font's own table, where the
+    # identity was established by rendering the outline -- `texmap` knows
+    # cid 31 of an `esint` subset is the DISPLAY cut and cid 30 the text one,
+    # which no name here could say.
+    if family == "math-extension":
+        from . import texmap as _tm
+        got = _tm.esint_raise(fontname, em_width, cuts)
+        if got is not None:
+            return got
     return 0.0
 
 
@@ -3499,6 +3548,16 @@ def _group_lines(glyphs: list[GlyphNode],
     if not glyphs:
         return []
 
+    # The em-widths of the big-operator cuts these glyphs are drawn from.
+    # A `largesymbols` font keeps a DISPLAY and a TEXT cut of one symbol and
+    # only the width separates them (see `texmap.esint_raise`); collected
+    # once here rather than per glyph.
+    _cuts = tuple(sorted({
+        round((g.rect[2] - g.rect[0]) / g.size, 3)
+        for g in glyphs
+        if g.tex.kind == "bigop" and g.family == "math-extension"
+        and g.rect and g.size}))
+
     def key(g: "GlyphNode") -> float:
         # A big operator carrying limits is raised above the text baseline so
         # that operator and limits centre on the maths axis.
@@ -3528,7 +3587,10 @@ def _group_lines(glyphs: list[GlyphNode],
         # NOT the CMEX ones (sum 1.05, int 1.23), because pdfminer's box for a
         # CMEX glyph does not report its real depth. Measured, not assumed.
         if g.tex.kind == "bigop":
-            return g.baseline - _bigop_raise(g.glyphname) * g.size
+            _w = ((g.rect[2] - g.rect[0]) / g.size) if (g.rect and g.size) else 0.0
+            return g.baseline - _bigop_raise(
+                g.glyphname, g.tex.latex, g.family,
+                g.fontname, _w, _cuts) * g.size
         # 743 -- AND SO IS A BIG DELIMITER, BY A MEASURED AMOUNT.
         #
         # `\bigl(` is set on the maths axis, not on the baseline of what it
