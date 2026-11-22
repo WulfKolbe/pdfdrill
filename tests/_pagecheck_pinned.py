@@ -4,9 +4,20 @@
 #: pdfdrill's own suite can measure the board's model counts from a fresh
 #: clone, with no file from outside git (group rule 7).
 #:
-#: Pinned 2026-11-21 at drillgroup fed0bef, "pagecheck: MathPix's page is
-#: scaled into our page's pixel frame before the box, column and margin
-#: checks (they compared raw pixels across 250/400 dpi frames)". Not edited:
+#: Pinned 2026-11-22 at drillgroup 1f6f664, "pagecheck: _ancestors takes
+#: every container of an object (union), not the last that listed it".
+#: `parents` became a set-valued map: a child listed by two containers used
+#: to keep only one parent, so an overlap finding between an object and its
+#: SECOND container was reported where there is no overlap. LATENT ON THIS
+#: CORPUS, measured and not assumed -- across the three ratchet models
+#: (0864, 1805.01788, 2312.11532; 273 objects) NO child is listed by more
+#: than one container, so every pinned count is unchanged and this re-pin
+#: moves no baseline. drillgroup's own four models agree: 0 of up to 14,716
+#: objects (coordinator, 2026-11-22). The previous pin was 2026-11-21 at
+#: fed0bef, "pagecheck: MathPix's page is scaled into our page's pixel
+#: frame before the box, column and margin checks (they compared raw pixels
+#: across 250/400 dpi frames)", and its body matched byte for byte when it
+#: was replaced. Not edited:
 #: a divergence is resolved by RE-PINNING, never by patching this file,
 #: because a ratchet that measures something other than the board measures
 #: nothing. The pin before this one was 2026-11-20 at deab8a0, whose body
@@ -241,11 +252,15 @@ def model_units(model: dict) -> dict[int, list[dict]]:
     out: dict[int, list[dict]] = defaultdict(list)
     # containment: `children` is the fuller relation (a Section lists its Paragraphs while their `parent` is null:
     # 7,030 such links on lib:d68e0271bd4d, pdfdrill-a2 2026-11-19); invert it, and fall back to `parent`
-    parents = {o["id"]: o.get("parent") for o in model.get("objects", []) if o.get("id")}
+    # every container counts: a child listed by two containers has two parents (the union, coordinator 2026-11-22;
+    # before, the last container that listed it won)
+    parents: dict[str, set] = defaultdict(set)
     for o in model.get("objects", []):
+        if o.get("id") and o.get("parent"):
+            parents[o["id"]].add(o["parent"])
         for c in o.get("children") or []:
-            if isinstance(c, str):
-                parents[c] = o.get("id")
+            if isinstance(c, str) and o.get("id"):
+                parents[c].add(o["id"])
     for o in model.get("objects", []):
         t = o.get("type")
         if t not in MODEL_LEAVES:
@@ -280,10 +295,13 @@ def model_units(model: dict) -> dict[int, list[dict]]:
 
 def _ancestors(oid: str, parents: dict) -> set:
     """The ids above an object in the docmodel's parent chain (a container holding its own lines is no overlap)."""
-    seen, cur = set(), parents.get(oid)
-    while cur and cur not in seen:
+    seen, todo = set(), list(parents.get(oid, ()))
+    while todo:
+        cur = todo.pop()
+        if cur in seen:
+            continue
         seen.add(cur)
-        cur = parents.get(cur)
+        todo.extend(parents.get(cur, ()))
     return seen
 
 
