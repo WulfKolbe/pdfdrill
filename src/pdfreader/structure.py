@@ -832,11 +832,45 @@ def _attach_scripts(glyphs: list[GlyphNode]):
             # `+\frac{(-1)^{s}}{2}`: confident, valid, wrong.
             if g.size >= SCRIPT_SIZE_RATIO * size and j not in bigops:
                 return None
-            if g.baseline > glyphs[i].baseline + LEVEL_TOL * size:
+            # T-0159 — A BIG DELIMITER'S SCRIPT BELONGS TO THE ROW, NOT TO
+            # THE DELIMITER, and that is the one place this reference is not
+            # the base's own baseline.
+            #
+            # This file says two comments above that a big delimiter "is off
+            # the row baseline for the same reason a big OPERATOR is: it is
+            # grown about the maths axis, not set on the line". For an
+            # OPERATOR that makes its own baseline the right reference —
+            # `\sum_j^n` centres its limits on its axis, so a limit below
+            # that axis is a subscript however it sits against the row. A
+            # DELIMITER has no limits: the exponent of `\right)` is an
+            # ordinary script of the bracketed group and sits on the ROW's
+            # levels.
+            #
+            # MEASURED on arxiv.1710.04811 page 37, line p37l23, and checked
+            # against the author with the frozen labeller (drillgroup
+            # eq_calibrate.py at 1ae04df):
+            #
+            #     parenrightbig   baseline 372.50   +9.70 from the row
+            #     the `2` after   baseline 369.82   +7.02 from the row
+            #
+            #     against the delimiter   -2.68  -> subscript   (wrong)
+            #     against the row         +7.02  -> superscript (the author's)
+            #
+            # The author wrote `\left(S_R^2\right)^2`; we wrote
+            # `\bigl(S_{R}^{2} \bigr)_{2}`, on two objects of that page, and
+            # the judge scored BOTH 0.0000 — sub and super are not identical
+            # ink, so that zero is the T-0158 judge defect, not a pass.
+            #
+            # The inner exponents of the same line, +4.95 over an `S` at
+            # +0.02, were never affected: only a script after a RAISED
+            # delimiter is.
+            _ref = (base_line if glyphs[i].tex.kind == "delimiter"
+                    else glyphs[i].baseline)
+            if g.baseline > _ref + LEVEL_TOL * size:
                 sup.append(g); last_at, last_sz = sup, g.size
-            elif g.baseline < glyphs[i].baseline - LEVEL_TOL * size:
+            elif g.baseline < _ref - LEVEL_TOL * size:
                 sub.append(g); last_at, last_sz = sub, g.size
-            elif abs(g.baseline - glyphs[i].baseline) >= 0.05 * size:
+            elif abs(g.baseline - _ref) >= 0.05 * size:
                 # A SMALLER GLYPH THAT IS DISPLACED AT ALL is a script, and
                 # which one is the SIGN of the displacement.
                 #
@@ -848,8 +882,8 @@ def _attach_scripts(glyphs: list[GlyphNode]):
                 # and refused the display. Everything reaching here is already
                 # script-size, having survived the full-size test above; the
                 # only question left is up or down, and the page answers it.
-                (sup if g.baseline > glyphs[i].baseline else sub).append(g)
-                last_at = sup if g.baseline > glyphs[i].baseline else sub
+                (sup if g.baseline > _ref else sub).append(g)
+                last_at = sup if g.baseline > _ref else sub
                 last_sz = g.size
             elif last_at is not None and last_sz and g.size < last_sz - 0.5:
                 # A SECOND-LEVEL SCRIPT sits near the ROW's baseline.
