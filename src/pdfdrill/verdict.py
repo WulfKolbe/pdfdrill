@@ -34,6 +34,7 @@ When the judge says every glyph is accounted for, the guess has been answered.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import NamedTuple
 
@@ -96,6 +97,27 @@ def decide(has_text: bool, maths_unread: bool, judged: bool = False,
                    ink)
 
 
+#: Two or more letters or digits in a row: a word, as opposed to a bullet, a
+#: table rule or a lone page number.
+_A_WORD = re.compile(r"[^\W_]{2,}")
+
+
+def _has_words(f) -> bool:
+    """Does this projection hold words of the DOCUMENT's own?
+
+    Every line carrying the verdict's own mark is dropped first. `stamp()`
+    prepends it, so the file a second run reads begins with the sentence that
+    says there is no reading, and "NOT", "REACHED", "text" and "judged" are
+    all words by any test that does not know to skip them.
+    """
+    try:
+        text = Path(f).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    body = "\n".join(l for l in text.splitlines() if MARK not in l)
+    return bool(_A_WORD.search(body))
+
+
 def unread_chars(files) -> int:
     """U+FFFD count of the first projection that exists."""
     for f in files:
@@ -114,8 +136,47 @@ def assess(pdf: Path, sc, files=()) -> Verdict:
                                    "Table", "Equation", "Formula"))
     if sc.has("MODEL_BUILT") and not counts:
         has_text = True          # a model built by a route that records no counts
+    # T-0153 — A PROJECTION WITH WORDS IN IT IS A READING.
+    #
+    # `has_text` came only from `MODEL_BUILT` and the model's object counts,
+    # and `md` writes an `md` layer and NO model. So, measured on a fresh
+    # folder (coordinator, on ada1b845):
+    #
+    #   $ pdfdrill md 1805.01788-p0003.pdf                        exit=5
+    #   Extracted 2963 words of Markdown across 3 pages. Detected 75 inline
+    #   and 1 display math expressions, 17 references.
+    #   pdfdrill verdict: NOT REACHED — text: no reading; ink: not judged
+    #
+    # A run that read the whole document reported that it had read nothing, on
+    # the first command a user is likely to type — and `has_text` False also
+    # skips the judge, so the line said "not judged" WITH one configured.
+    #
+    # THE WORD COUNT IS TAKEN FROM THE LAYER, NOT FROM THE FILE, and that is
+    # not a detail: `stamp()` writes the verdict INTO the projection, so on a
+    # second run the file BEGINS with "NOT REACHED — text: no reading". A
+    # reading inferred by reading the file would infer it from the sentence
+    # saying there is none. `set_layer("md", …)` records `words` at write
+    # time, before any stamp.
+    # `getattr`, not `sc.layers`: this function asks a sidecar only for what it
+    # needs, and it did not need the layers before. The suite's own stub
+    # sidecar (`test_every_output_carries_its_verdict._SC`) implements `has`
+    # and `get_evidence` and nothing else, which is a fair record of the
+    # contract that existed — and requiring a new attribute that this test can
+    # do without would be production code made fragile to please itself.
+    _layers = getattr(sc, "layers", None) or {}
+    if not has_text:
+        for _name in ("md", "mmd"):
+            if int((_layers.get(_name) or {}).get("words") or 0) > 0:
+                has_text = True
+                break
+    # ...and for a projection that records no count of its own (`llmtext`
+    # writes `*.llm.txt`), the file is read — with every verdict stamp dropped
+    # first, for the reason above.
+    if not has_text and files:
+        has_text = any(_has_words(f) for f in files)
     # The geometry-only lane draws boxes and reads no character: its lines
-    # carry no text by construction (docs/LANES.md, lane 5).
+    # carry no text by construction (docs/LANES.md, lane 5). It is a VETO and
+    # it runs last, so a projection built from it cannot vote around it.
     if (sc.get_evidence("model_source", None) or "") in GEOMETRY_ONLY_SOURCES:
         has_text = False
     maths_unread = bool(sc.has("NEEDS_VISION_OCR"))

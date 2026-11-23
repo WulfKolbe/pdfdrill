@@ -63,6 +63,16 @@ TIMEOUT = 900
 #: the page could not be measured, which is NOT the same as measured clean.
 OK = "OK"
 
+#: T-0153 — A CONFIGURED JUDGE WITH NOTHING TO JUDGE IS NOT THE SAME AS NO
+#: JUDGE, and the two used to print the same line. The judge compares a
+#: PER-LINE GEOMETRY reading against the page's ink, i.e. a lines.json.
+#: `pdfdrill md` produces none — measured in a fresh folder, its blob dir
+#: holds chars.json and ir.json and no lines.json — so after `md` alone the
+#: ink cannot be judged however the judge is configured. A user who has just
+#: set PDFDRILL_JUDGE needs to be told that rather than left to wonder.
+NO_LINES = ("no lines.json to judge — run `glyphlines` or `drill` first, "
+            "which leave one beside the PDF")
+
 
 def judge_path() -> "Optional[Path]":
     """The configured ink judge, or None. See the module docstring."""
@@ -219,9 +229,20 @@ class Ink(NamedTuple):
         if self.faults is None:
             st = f" ({self.status})" if self.status else ""
             return f"ink: not judged{st}"
+        # (the faulted / clean branches follow)
         if not self.faults:
             return f"ink: clean on {self.pages_judged} page(s)"
-        tail = (f"; judged {self.pages_judged} of {self.pages} page(s)"
+        # WHICH PAGE, AND WHY. The verdict is about the DOCUMENT, so every
+        # page is judged — but one fault already settles it and no later page
+        # can change that, so the walk stops there. Without saying so,
+        # "judged 1 of 3 page(s)" reads as a sample somebody chose, and the
+        # board's own extracts make that reading tempting: their
+        # `judged-page.txt` names page 2 of a three-page window, so a reader
+        # could take page 1 for a wrong choice rather than the first page
+        # walked. A clean document is judged in full, which is the honest cost
+        # of the word "clean".
+        tail = (f"; judged {self.pages_judged} of {self.pages} page(s), "
+                f"stopped at the first fault"
                 if self.pages_judged < self.pages else "")
         # THE SCAN ROUTE HAS NO COUNT OF FINDINGS, only a residual, so it must
         # not borrow the word. `faults` reduces it to a SIGN for this gate
@@ -250,8 +271,12 @@ def judge_document(pdf: Path, lines_json: Path, pages: int, *,
     caller keeps today's "ink: not judged".
     """
     exe = judge or judge_path()
-    if exe is None or not Path(lines_json).is_file() or pages < 1:
+    if exe is None:
+        return None                      # no judge: today's bare "not judged"
+    if pages < 1:
         return None
+    if not Path(lines_json).is_file():
+        return Ink(0, pages, None, 1, "", NO_LINES, route)
     work = Path(work or (Path(pdf).parent / "judge"))
     last_status = ""
     judged = 0
