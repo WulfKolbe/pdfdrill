@@ -2764,7 +2764,23 @@ def _do_drill(args):
                       "lane. Nothing was rendered and nothing was read — do "
                       "what the line above says, then `pdfdrill drill` again.")
         lane_not_run = True
-    elif dec.lane == "geometry":
+    elif dec.lane == "geometry" and not dec.underlay:
+        # T-0153 — ...AND ONLY WHEN THERE IS GENUINELY NOTHING TO READ.
+        # `and not dec.underlay`: a scan carrying somebody's OCR text layer
+        # falls through to the reading branch below, because its characters
+        # are in the file and cost nothing. Measured by the coordinator over
+        # the 30 board73 extracts: on BH1 p113, BH3 p91 and lib:025faeafae2f
+        # p153 the board's `ours` (`glyphlines`) read 5,652-7,538 characters a
+        # page at a scan score of 0.48-0.59, and `drill` wrote geometry only
+        # and ended `NOT REACHED - text: no reading`.
+        #
+        # It is an EITHER/OR and not both, because there is one lines.json per
+        # document and the lane that runs last owns it
+        # (`gemma_reader.expected_outputs`). The structure the geometry pass
+        # would have given is not lost: phase 4 runs `geometry` on every
+        # reading and escalates to `geometry --layout` exactly where the text
+        # match cannot place the objects, which is this document's case.
+        #
         # The keyless scan lane. It reads no words, so `model` is not its
         # consumer — a model keeps what has prose, and a 273-line page map
         # comes out as ten empty Paragraphs. The report says what the
@@ -2772,7 +2788,15 @@ def _do_drill(args):
         ran.append(("gemmaocr --geometry-only",
                     _timed("gemmaocr --geometry-only",
                            lambda: cmd_gemmaocr(pdf, geometry_only=True))))
-    elif dec.cost in ("free", "none"):
+    elif dec.cost in ("free", "none") or _r.free_reading_for(dec):
+        # T-0153 — ...OR THE LANE COSTS MONEY AND THERE IS STILL SOMETHING
+        # FREE TO READ. `or _r.free_reading_for(dec)` is what makes a keyed
+        # machine behave like the sandbox on a scan with an OCR underlay.
+        # Without it this branch was reached only for `cost in (free, none)`,
+        # so the three board pages passed their acceptance run under
+        # PDFDRILL_SANDBOX=1 and would have gone on failing on the owner's own
+        # machine, where a MAKORA_API_KEY routes them to `gemma` (metered).
+        #
         # T-0153 — ONE ROUTE: A BORN-DIGITAL PAGE IS READ BY THE GLYPH READER.
         # The board's "ours" column is `pdfdrill glyphlines`, and `drill` never
         # called it: it built the model from the text-layer reader, or from the
@@ -2782,7 +2806,14 @@ def _do_drill(args):
         # The other reader is used only when this one yields no reading, and a
         # reading that was bought (MathPix, Gemma) is never replaced.
         glyph_read = False
-        if dec.lane == "born_digital":
+        # T-0153 — WHICH FREE READER RUNS IS THE ROUTER'S ANSWER, NOT THIS
+        # BRANCH'S. This read `dec.lane == "born_digital"`, which is the lane
+        # for the author's OWN glyphs; an OCR underlay on a scan is also
+        # glyphs in the file and also free, and the test here could not say so
+        # because the fact lived in a sentence inside the reason string.
+        # `free_reading_for` is pure, so what `drill` does with a lane can be
+        # asserted without a PDF.
+        if _r.free_reading_for(dec) == "glyphlines":
             from .commands import cmd_glyphlines
             from . import planner as _pl
             if _pl.reading_producer(pdf) not in ("mathpix", "gemmaocr"):
@@ -2809,13 +2840,56 @@ def _do_drill(args):
             # The decision's own sentence describes the route `model` takes
             # alone (text layer, plus the author's LaTeX for an e-print). It
             # is not the route that ran here, so the report says which did.
-            lane_note = (f"{pdf.name}: born-digital → read by the glyph reader "
-                         f"[free] — `glyphlines` read the page's own glyphs, "
-                         f"and the model, the Markdown and the inspector are "
-                         f"built from that reading. No OCR, nothing to pay.")
+            if dec.underlay:
+                # T-0153 — AND IT STILL MAY NOT CALL THIS DOCUMENT
+                # BORN-DIGITAL. That is the 2026-11-02 incident pointed the
+                # other way: `route` denying a layer `size` reported cost two
+                # sessions a morning, and a reading that claims the author's
+                # own glyphs when it read somebody's OCR would cost the next
+                # one more. It is a scan, the layer is not ours, and there is
+                # no maths in it.
+                lane_note = (
+                    f"{pdf.name}: a scan → read from its OCR UNDERLAY [free] — "
+                    f"`glyphlines` read the characters already in the file, and "
+                    f"the model, the Markdown and the inspector are built from "
+                    f"that reading. It is somebody else's reading and it "
+                    f"carries no mathematics; nothing was bought.")
+                # ...AND THE LANE IS NAMED ONCE, BY WHOEVER OWNS THAT
+                # SENTENCE. This used to append `For a reading of our own:
+                # {dec.command}`, which the keyed acceptance run showed to be
+                # wrong twice over: on a metered lane the clause below names
+                # the same command again, and on the keyless lane
+                # `dec.command` is `gemmaocr --geometry-only`, which is not a
+                # reading of our own at all — it draws boxes and reads no
+                # word.
+                if dec.cost in ("free", "none"):
+                    lane_note += (
+                        f"\n  The lane's own pass was not run beside it: there "
+                        f"is one lines.json per document and it is this "
+                        f"reading. For its typed boxes instead, on a document "
+                        f"you have not read: `{dec.command}`.")
+            else:
+                lane_note = (
+                    f"{pdf.name}: born-digital → read by the glyph reader "
+                    f"[free] — `glyphlines` read the page's own glyphs, "
+                    f"and the model, the Markdown and the inspector are "
+                    f"built from that reading. No OCR, nothing to pay.")
         else:
             ran.append(("model", _timed("model", lambda: cmd_model(pdf))))
         ran.append(("md", _timed("md", lambda: cmd_md(pdf))))
+        if dec.cost not in ("free", "none"):
+            # THE LANE WAS STILL NOT RUN, AND THE DOCUMENT STILL HAS A
+            # READING. Both halves have to be said: `drill` never spends, so
+            # the metered/paid lane is named with its exact command, but the
+            # exit code may NOT be EXIT_LANE_NOT_RUN, whose own sentence is
+            # "this document has no reading and no inspect.html". It has
+            # both. The verdict sets the code, exactly as it does for the
+            # same document on a keyless install — which is the invariant
+            # worth having: the two machines agree.
+            lane_note += (
+                f"\n  The {dec.cost} lane was NOT RUN by `drill`, which never "
+                f"spends — run `{dec.command}` when you want it. What you "
+                f"have without it is the reading above, free.")
     else:
         lane_note += (f"\n  NOT RUN by `drill`: this lane costs money. Run the "
                       f"command above when you want it, then `pdfdrill drill` "

@@ -48,6 +48,57 @@ the answer never depends on who asked.
 **OCR is the last resort, not the first.** Lanes 3–5 are reached only when the
 document has neither a text layer of its own nor an author's source.
 
+### The lane says what to BUY, not whether to read what is already there
+
+A lane answers one question: which reading do we *acquire* for this document.
+It does not answer whether to use characters the file already contains, and
+conflating the two cost three board pages their reading.
+
+A scan with somebody's OCR underlaid is a **scan** — lane 1 excludes it on
+purpose, and `route` may never call it born-digital (two sessions lost a
+morning on 2026-11-02 to `route` denying a layer that `size` reported). But
+its characters are in the file, and `glyphlines` reads them with no key, no
+network call and nothing to pay. Measured over the 30 board73 extracts
+(T-0153 #1, by the pdf2mmd2 session on `e33b01a9`): on the three such pages
+the board's `ours` read **5,652–7,538 characters a page** at a scan score of
+0.48–0.59, while `pdfdrill drill` wrote geometry only and ended
+`NOT REACHED — text: no reading`.
+
+So the decision carries the fact (`RouteDecision.underlay`) and one pure
+function names the consequence:
+
+    ocr_router.free_reading_for(decision) -> "glyphlines" | None
+
+`glyphlines` for `born_digital`, and for **any underlay, whatever lane the
+document took**. `None` for everything else, and each `None` is a separate
+rule: nothing to read on a textless scan (inventing words there is the defect
+this contract exists to prevent); no lane at all when `cost="none"`; no glyphs
+on the `source` lane; and a reading that was already **bought** is never
+replaced by a free one (`planner.reading_producer`, in the caller).
+
+**The lane's existence buys nothing.** The first version of this keyed the
+free reading to `lane == "geometry"`, and the three board pages passed their
+acceptance run byte-identical — under `PDFDRILL_SANDBOX=1`, which answers as
+the *keyless* install. Asked with the real environment of the machine it was
+written on, where `MAKORA_API_KEY` is set, all three route to `gemma` and the
+free reading would not have run at all. `drill` never spends, so keying it to
+the lane leaves the layer unread on exactly the machines that have keys. A
+sandbox pass is not a pass on the install the user has.
+
+So on a metered or paid lane with an underlay, `drill` reads the layer, names
+the lane it did not run with its exact command, and takes its exit code **from
+the verdict** — not `EXIT_LANE_NOT_RUN` (3), whose own sentence is "this
+document has no reading and no inspect.html". It has both. The keyed and the
+keyless machine then give the same answer on the same document, which is the
+invariant worth having.
+
+It is EITHER/OR, not both: there is one `lines.json` per document and the lane
+that runs last owns it (`gemma_reader.expected_outputs`), so on an underlay
+scan `drill` reads the layer and does **not** also run
+`gemmaocr --geometry-only`. The structure is not lost — phase 4 runs
+`geometry` on every reading and escalates to `geometry --layout` exactly where
+the text match cannot place the objects, which is this document's case.
+
 ## There is no OCR engine any more
 
 tesseract is gone from the distribution: `bootstrap.sh` does not install it,

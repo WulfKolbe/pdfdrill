@@ -78,6 +78,16 @@ class RouteDecision:
     reason: str      # why this lane (the classifying signal)
     command: str     # the concrete pdfdrill command that runs this lane
     cost: str        # free | keyed | paid | none
+    #: T-0153 — THE DOCUMENT HAS A TEXT LAYER THAT THIS LANE DOES NOT BUY.
+    #: A scan with somebody else's OCR underlaid. The lane ignores it for the
+    #: purpose of CHOOSING a lane (it is not our reading and it never carries
+    #: maths), and this module's own comment already says the layer "is also
+    #: the most useful fact about the document". It was said only in prose, so
+    #: `drill` could not act on it: it read "this lane buys nothing" as "this
+    #: document has no reading" and dropped 5,652-7,538 free characters a page
+    #: on three board pages. The fact is now ON the decision, and
+    #: `free_reading_for` is the one place that turns it into a step.
+    underlay: bool = False
 
 
 # A scan is one full-page image per page. Below this share of the page area an
@@ -161,9 +171,26 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
     # _SCAN_PAGE_SHARE 0.8 of the pages). The layer is real. It is somebody
     # else's reading, and the lane ignores it on purpose; saying so is the
     # whole point, because it is also the most useful fact about the document.
-    scan_text = ("a scan whose only text is an OCR UNDERLAY, which is ignored "
-                 "(it re-serves somebody else's reading and never recovers the "
-                 "maths)" if underlay else "a scan with no text layer")
+    #: T-0153 — AND IT IS NOT IGNORED ANY MORE, SO IT MAY NOT SAY SO.
+    #: The incident above was `route` DENYING a layer that `size` reported;
+    #: that stays fixed, because the sentence still names the layer. What
+    #: changed is the second half: the layer's characters are in the file and
+    #: cost nothing, so `drill` reads them (`free_reading_for`). The part of
+    #: the old sentence worth keeping is the part that is still true — it is
+    #: somebody else's reading and it never recovers the mathematics.
+    scan_text = ("a scan whose only text is an OCR UNDERLAY — somebody "
+                 "else's reading, and it never recovers the maths"
+                 if underlay else "a scan with no text layer")
+    #: ...AND WHAT IS DONE WITH IT IS THE LANE'S OWN CLAUSE, NOT THIS ONE.
+    #: The first version of this change appended "so they ARE read" to the
+    #: shared sentence, which made it true on the geometry lane and false on
+    #: `gemma` and `mathpix`, where `drill` runs no lane at all and reads
+    #: nothing. `test_every_scanned_lane_reports_the_underlay_instead_of
+    #: _denying_the_text` caught it, which is what that test is for.
+    reads_it = (" — and its characters are free and already in the file, "
+                "so they ARE read (`glyphlines`)" if underlay else "")
+    #: ...ON EVERY LANE AN UNDERLAY CAN REACH, which is all of 3-5 except the
+    #: install that has no lane. See `free_reading_for`.
 
     # 0 — not classified yet. `size` is free and cheap and decides everything
     # below, so it is never guessed around.
@@ -211,19 +238,21 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
         if GEMMA_KEY in keys:
             return RouteDecision(
                 lane="gemma",
+                underlay=underlay,
                 reason=f"{scan_text} and no author's source, "
                        f"{pc or '?'} sheets — the model lane reads it at a "
                        f"measured 0.000718 EUR per printed page, and refuses "
-                       f"against PDFDRILL_OCR_BUDGET_EUR before the first call",
+                       f"against PDFDRILL_OCR_BUDGET_EUR before the first call{reads_it}",
                 command="pdfdrill gemmaocr <pdf>   (METERED; add --nup 1 if the "
                         "sheets are not imposed)",
                 cost="metered")
         if MATHPIX_KEY in keys:
             return RouteDecision(
                 lane="mathpix",
+                underlay=underlay,
                 reason=f"{scan_text}, no author's source and no "
                        f"MAKORA_API_KEY, {pc or '?'} pages — MathPix is the "
-                       f"reading that is left, and it is the richest one",
+                       f"reading that is left, and it is the richest one{reads_it}",
                 command="pdfdrill mathpix <pdf>   (PAID)",
                 cost="paid")
         # THE INK IS THE LANE'S FLOOR, AND THE CHECK WAS IN THE WRONG PLACE.
@@ -242,6 +271,7 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
         if (ink_available() if ink is None else ink) is False:
             return RouteDecision(
                 lane="geometry",
+                underlay=underlay,
                 reason=f"{scan_text}, no author's source and no "
                        f"reading key, {pc or '?'} pages — and no NumPy, which "
                        f"is the geometry lane's ink half (it FINDS the lines; "
@@ -263,24 +293,27 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
             # missing.
             return RouteDecision(
                 lane="geometry",
+                underlay=underlay,
                 reason=f"{scan_text}, no author's source and no "
                        f"reading key, {pc or '?'} pages — and no layout detector "
                        f"either, so the page's own INK gives the lane: every "
                        f"printed line gets a box and NO type (a figure arrives "
                        f"as its ink rows, not as one object) and no text. Free, "
                        f"and about 6x faster than the typed lane. Set "
-                       f"PDFDRILL_YOLO_PYTHON to get the types",
+                       f"PDFDRILL_YOLO_PYTHON to get the types{reads_it}",
                 command="pdfdrill gemmaocr <pdf> --geometry-only   (FREE, "
                         "offline: boxes, no types, no words)",
                 cost="free")
         return RouteDecision(
             lane="geometry",
+            underlay=underlay,
             reason=f"{scan_text}, no author's source and no "
                    f"reading key, {pc or '?'} pages — so the words cannot be had "
                    f"for free, but the STRUCTURE can: the layout detector is "
                    f"offline and free, and gives a lines.json in which every "
                    f"line has a box and a type and no text, to score with "
-                   f"`linescmp` or lay on a model with `geometry --layout`",
+                   f"`linescmp` or lay on a model with "
+                   f"`geometry --layout`{reads_it}",
             command="pdfdrill gemmaocr <pdf> --geometry-only   (FREE, offline: "
                     "boxes and types, no words)",
             cost="free")
@@ -291,6 +324,64 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
         reason="the text-layer and scan signals disagree — re-run `size`",
         command="pdfdrill size <pdf>",
         cost="none")
+
+
+def free_reading_for(d: RouteDecision) -> "Optional[str]":
+    """Which FREE reader `drill` runs for this decision — or None.
+
+    The lane contract answers which reading to BUY. This answers a different
+    question the contract never asked: are there CHARACTERS ALREADY IN THE
+    FILE that cost nothing to read? Two lanes have them.
+
+      born_digital   the author's own glyphs, with their coordinates.
+      an UNDERLAY    a scan carrying somebody's OCR, WHATEVER LANE IT TOOK.
+                     Not our reading and no maths in it, but 5,652-7,538
+                     characters a page on the three board pages that found
+                     this, free, offline, no key.
+
+    Everything else answers None, and the difference matters in both
+    directions:
+
+      geometry, no underlay   there is nothing to read. The lane measures the
+                              page and SAYS it read no words; inventing them
+                              here is the defect docs/LANES.md exists to
+                              prevent.
+      geometry, cost="none"   there is no lane at all (no NumPy, the ink
+                              half). Rendering for a reading that cannot
+                              happen is work the user gets nothing for.
+      source                  no text layer, so no glyphs. The author's LaTeX
+                              IS the reading and `model` takes that lane.
+      gemma / mathpix         ...only when there is no underlay. A reading
+                              that was already BOUGHT is never replaced (that
+                              guard is the caller's, `reading_producer`), but
+                              a lane that merely EXISTS buys nothing: `drill`
+                              never runs a metered or paid lane, so keying the
+                              free reading to the lane would leave the layer
+                              unread on exactly the machines that have keys.
+
+    THE FIRST VERSION OF THIS FUNCTION GOT THAT WRONG, and the acceptance run
+    hid it. It read `lane == "geometry" and underlay`, and the three board
+    pages passed byte-identical — under `PDFDRILL_SANDBOX=1`, which answers
+    as the KEYLESS install. Asked with the real environment, where a
+    MAKORA_API_KEY is present, all three route to `gemma` and the function
+    answered None: the fix would not have fired on the owner's own machine.
+    A sandbox pass is not a pass on the install the user has.
+      unknown                 `size` has not run.
+
+    PURE, like `choose_route`: it reads no file and makes no call, so the
+    decision `drill` acts on can be asserted without a PDF.
+    """
+    if d.lane == "born_digital":
+        return "glyphlines"
+    #: `cost="none"` is the one case an underlay cannot help: it means this
+    #: install has no lane for this document at all (no NumPy), and the glyph
+    #: reader is not the missing half -- it reads the text layer and never
+    #: touches the ink. It is excluded because that branch's whole point is
+    #: that NOTHING is run and nothing is rendered, and because the lane note
+    #: there tells the user to fix the install first.
+    if d.underlay and d.cost != "none":
+        return "glyphlines"
+    return None
 
 
 _LANE_LABEL = {

@@ -255,8 +255,28 @@ def test_every_scanned_lane_reports_the_underlay_instead_of_denying_the_text():
             f"  {dec.reason}")
         assert "UNDERLAY" in dec.reason, (
             f"{lane} {extra}: does not say the text is an OCR underlay:\n  {dec.reason}")
-        assert "ignored" in dec.reason, (
-            f"{lane} {extra}: does not say the underlay is ignored:\n  {dec.reason}")
+        # T-0153 — WHAT THE UNDERLAY CANNOT GIVE, NOT WHAT IS DONE WITH IT.
+        #
+        # This asserted `"ignored" in dec.reason`, which was true when no
+        # command read the layer. `drill` now reads it on the geometry lane
+        # (`free_reading_for`), and 5,652-7,538 characters a page on three
+        # board pages is why. So the shared sentence states only the part that
+        # is true of every lane — the layer is real, it is somebody else's,
+        # and it carries no mathematics — and each lane says for itself
+        # whether it reads it. The 2026-11-02 incident is the `"no text
+        # layer" not in` assertion above, and that is untouched.
+        assert "maths" in dec.reason, (
+            f"{lane} {extra}: does not say what the underlay cannot give:\n"
+            f"  {dec.reason}")
+        assert dec.underlay is True, (
+            f"{lane} {extra}: the decision does not CARRY the fact, so no "
+            f"caller can act on it:\n  {dec.reason}")
+        claims_to_read = "ARE read" in dec.reason
+        assert claims_to_read == (R.free_reading_for(dec) is not None), (
+            f"{lane} {extra}: the reason and `free_reading_for` disagree "
+            f"about whether the layer is read — reason says "
+            f"{claims_to_read}, the function says "
+            f"{R.free_reading_for(dec)!r}:\n  {dec.reason}")
 
 
 def test_a_plain_scan_still_says_it_has_no_text_layer():
