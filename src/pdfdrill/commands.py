@@ -18445,7 +18445,10 @@ def _arxiv_id_for(pdf: Path, sc: Sidecar) -> str | None:
     aid = sc.get_evidence("source_arxiv_id")
     if aid:
         return aid
-    return sources.parse_arxiv_id(pdf.stem)
+    # T-0153 #4 — ANCHORED, because this reads a FILENAME. `parse_arxiv_id`
+    # searches and turned the extract `1805.01788-p0003` into the whole paper.
+    # See `sources.filename_arxiv_id`.
+    return sources.filename_arxiv_id(pdf.stem)
 
 
 def _format_abstract(sc: Sidecar) -> str:

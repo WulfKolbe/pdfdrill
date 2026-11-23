@@ -180,6 +180,40 @@ def parse_arxiv_id(s: str) -> Optional[str]:
 _BARE_ARXIV = re.compile(rf"(?:arxiv:)?({_ARXIV_NEW}|{_ARXIV_OLD})$", re.I)
 
 
+def filename_arxiv_id(stem: str) -> Optional[str]:
+    """The arXiv id a FILENAME is evidence for, or None.
+
+    T-0153 #4 — A PAGE EXTRACT IS NOT THE PAPER. `parse_arxiv_id` SEARCHES,
+    because a URL or an `arXiv:...` token legitimately carries the id inside a
+    longer string. A filename is different: on the stem `1805.01788-p0003` the
+    searching parser finds `1805.01788`, and the three-page extract then
+    became that whole paper — `pdfdrill model` built 338 objects with 30
+    Sections from 3 pages, against 176 from the pages themselves.
+
+    So the question a filename answers is narrower: is this file NAMED as the
+    e-print? arXiv serves `<id>.pdf`, and pdfdrill's own downloader keeps that
+    name, so the id must END the stem. Anything after it is somebody's own
+    name for their own file and is evidence for nothing.
+
+    This is not a rule about any particular extract convention. The board's
+    `-p%04d` naming lives in another repository (`board_run.py`), and a rule
+    that knew about it would have missed `2402.13444v1-final` and
+    `2402.13444 (1)` just as badly.
+
+    The STRONG evidence is untouched and still wins: `source_arxiv_id` in the
+    sidecar, set from a resolved URL (`cli._pdf`) or from the arXiv stamp on
+    the document's own page (`cmd_provenance`). This is only the fallback.
+    """
+    if not stem:
+        return None
+    m = _BARE_ARXIV.search(re.sub(r"\.pdf$", "", stem.strip(), flags=re.I))
+    if not m:
+        return None
+    if arxiv_id_shape_error(m.group(1)):
+        return None
+    return m.group(1)
+
+
 def arxiv_id_shape_error(s: str) -> Optional[str]:
     r"""Why this new-style arXiv id cannot be right, or None if it can.
 
