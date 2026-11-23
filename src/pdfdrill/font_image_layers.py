@@ -49,6 +49,21 @@ _MATH_FONT_HINTS = (
     # math-bearing gate never fires and a build that captured 0 formulas is
     # reported as a clean success.
     "opensymbol",
+    # T-0153 #3 — THE tx / newtx FAMILY, which was simply missing. txfonts and
+    # newtxmath are among the commonest math setups on arXiv, and 1805.01788
+    # p3 sets every symbol it has in them: `rtxmi` and `rtxmi7` (math italic),
+    # `txsys` (symbol), `txexs` (extension) and `ntxsyralt` (the AMS symbol
+    # alternate). `n_math` came back 0 on a page carrying 225 math-font
+    # characters including the universal quantifier, so the maths-bearing gate
+    # never fired and a reading that captured no formula would have been
+    # reported as a clean success.
+    #
+    # The three MATH members only. `txr` / `rtxr` is the package's ROMAN TEXT
+    # face -- it does supply `=` and `+` inside mathematics (39 characters of
+    # it on that page), but it is also the body font of every tx-set document,
+    # so a `txr` hint would call every such paper math-bearing whether or not
+    # it holds a formula. Same reason bare "symbol" is excluded above.
+    "txmi", "txsy", "txex",
 )
 
 

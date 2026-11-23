@@ -64,17 +64,66 @@ def is_math_bearing(pdf, sc) -> "tuple[bool, str]":
     result. Returns (True, reason) when ANY signal fires, reusing existing layers
     with no new heavy deps:
 
-      - math fonts in the font layer (CMEX/CMMI/CMSY/MSAM/MSBM/MTExtra/…; the
-        ubiquitous Adobe "Symbol" font is NOT counted — too many false positives);
+      - `math` / `equation` / `equation_number` LINES in the document's own
+        reading (`<stem>.lines.json`) — the most specific signal and free,
+        because the reader already typed them;
+      - math fonts in the font layer (CMEX/CMMI/CMSY/MSAM/MSBM/MTExtra/tx-
+        newtx mi+sy+ex/…; the ubiquitous Adobe "Symbol" font is NOT counted,
+        nor is tx's roman TEXT face `txr` — too many false positives);
       - an `equation.*` named destination (pdfinfo -dests);
       - display math ($$ / \\[) recorded by a prior `md` layer (cached only);
       - right-margin equation-number tokens from a prior `geometry` pass (cached).
 
-    The first two run their (cheap, offline) tool directly; the last two are read
-    from the sidecar only (never triggered here — they may need MathPix). On a
-    pure scan with no font layer the first two can't fire; run `geometry`/`md`
-    first for that case.
+    The reading is read from disk if it is there; the next two run their
+    (cheap, offline) tool directly; the last two are read from the sidecar only
+    (never triggered here — they may need MathPix). On a pure scan with no
+    reading and no font layer none of them can fire; run `geometry`/`md` first
+    for that case.
+
+    THE FONT SIGNAL IS NOT REDUNDANT NOW THE READING IS ASKED, and the case
+    that proves it is the one T-0153 #3 called a false positive. On
+    lib:3c16fac66fdd p370 the reading types NO math line at all — 95 `text`,
+    3 `list_item`, 1 `section_header` — on a page whose first third is
+    displayed Dirac algebra with partial derivatives, 257 math-font characters
+    of it. The fonts are the only signal that fires, and firing is correct:
+    it is what turns that reading into "DEGRADED — maths unread" instead of a
+    clean success. A flag taken only from the reading cannot report that the
+    reading missed something.
     """
+    # 0) THE READING'S OWN LINE TYPES — T-0153 #3.
+    #
+    # Every other signal here is a property of the PDF (fonts, named
+    # destinations) or of a prior `md`/`geometry` pass. The glyph reader TYPES
+    # ITS LINES, and nothing asked: 1805.01788 p3's own lines.json carries
+    # `math` 12 and `equation_number` 2 while this function answered False.
+    # That is the most specific evidence there is and it is free, because the
+    # file is already on disk.
+    #
+    # NOT CIRCULAR with the question the verdict asks. `verdict.assess` calls
+    # this only when the OBJECT layer holds no Formula and no Equation; this
+    # asks whether the LINE layer saw mathematics. A reading with `math` lines
+    # and no Formula object is precisely the mismatch worth reporting, and
+    # comparing two layers is how it becomes visible.
+    #
+    # It is also the half of this the task called "the glyph route never
+    # raises the flag at all".
+    try:
+        base = (pdf.name[:-4] if str(pdf.name).lower().endswith(".pdf")
+                else pdf.name)
+        lp = pdf.parent / f"{base}.lines.json"
+        if lp.is_file():
+            import json as _json
+            data = _json.loads(lp.read_text(encoding="utf-8", errors="replace"))
+            n = 0
+            for pg in (data.get("pages") or []):
+                for ln in (pg.get("lines") or []):
+                    if ln.get("type") in ("math", "equation", "equation_number"):
+                        n += 1
+            if n:
+                return True, f"{n} math line(s) in the reading"
+    except Exception:                                        # noqa: BLE001
+        pass                  # a missing or broken reading is not an answer
+
     # 1) math fonts (pdffonts — fast, offline). Cached layer preferred.
     try:
         from .font_image_layers import fetch_fonts, summarize_fonts
