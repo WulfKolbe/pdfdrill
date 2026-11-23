@@ -2476,6 +2476,36 @@ def cmd_doctor() -> str:
     except Exception as exc:                            # pragma: no cover
         lines.append(f"  [n/a] page layout — {exc}")
 
+    # T-0153 #2 — THE INK JUDGE IS A TOOL TOO, and an OPTIONAL one that lives
+    # outside this distribution (inkdrill is not a dependency; no path to it is
+    # written into this repository). So an operator who sets PDFDRILL_JUDGE had
+    # no way to confirm it took effect except by reading a verdict line and
+    # noticing it no longer said "ink: not judged". That is exactly what
+    # `doctor` is for.
+    try:
+        from . import pagejudge as _pj
+        _jp = _pj.judge_path()
+        if _jp:
+            lines.append(f"  [OK ] ink judge — every verdict is measured "
+                         f"against the page's ink: {_jp}")
+        else:
+            import os as _os
+            from . import config as _jcfg
+            _raw = _os.environ.get("PDFDRILL_JUDGE") or _jcfg.get("judge")
+            if _raw:
+                lines.append(
+                    f"  [n/a] ink judge — {_raw!r} is set but is not an "
+                    f"executable file, so it is ignored and every verdict "
+                    f"says `ink: not judged`")
+            else:
+                lines.append(
+                    "  [n/a] ink judge — unset, so every verdict says `ink: "
+                    "not judged`. Point PDFDRILL_JUDGE (or the config key "
+                    "`judge`) at an `inkcmp-judge` and md/llmtext/drill "
+                    "measure the reading against the page's own ink")
+    except Exception as exc:                            # pragma: no cover
+        lines.append(f"  [n/a] ink judge — {exc}")
+
     # Math-OCR routes — which path types equations, given what's available.
     lines.append("")
     lines.append("Math (equation) OCR routes — in preference order:")

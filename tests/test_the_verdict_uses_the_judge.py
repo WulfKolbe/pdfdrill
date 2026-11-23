@@ -336,3 +336,46 @@ def test_the_glyph_route_never_prints_a_residual():
     from pdfdrill import pagejudge
     d = pagejudge.parse(JUDGE1_FAULTED)
     assert "residual" not in pagejudge.detail(d)
+
+
+# ------------------------------------------------------------- doctor says
+# `doctor` reports tools, deps and keys. The ink judge is an OPTIONAL tool
+# living outside this distribution, so an operator who set PDFDRILL_JUDGE had
+# no way to confirm it took effect except by noticing a verdict line no longer
+# said "ink: not judged".
+#
+# The third state is the one worth a test: a path that is SET BUT BROKEN must
+# not look like an absent judge. (The first version of this reported
+# "name 'os' is not defined" for two of the three states -- `os` is not
+# imported at module level in commands.py and the broad `except` turned the
+# NameError into a printed message, so the OK case still looked fine.)
+
+def test_doctor_names_a_configured_judge(tmp_path, monkeypatch):
+    from pdfdrill import commands
+    exe = tmp_path / "inkcmp-judge"
+    exe.write_text("#!/bin/sh\nexit 0\n")
+    exe.chmod(0o755)
+    monkeypatch.setenv("PDFDRILL_JUDGE", str(exe))
+    out = commands.cmd_doctor()
+    assert "ink judge" in out
+    assert str(exe) in out, out[out.find("ink judge"):][:200]
+    assert "not defined" not in out
+
+
+def test_doctor_says_a_broken_judge_path_is_ignored(tmp_path, monkeypatch):
+    from pdfdrill import commands
+    monkeypatch.setenv("PDFDRILL_JUDGE", str(tmp_path / "nope"))
+    out = commands.cmd_doctor()
+    seg = out[out.find("ink judge"):][:260]
+    assert "is set but is not an executable file" in seg, seg
+    assert "not defined" not in seg, seg
+
+
+def test_doctor_says_how_to_turn_it_on_when_unset(monkeypatch):
+    from pdfdrill import commands
+    monkeypatch.delenv("PDFDRILL_JUDGE", raising=False)
+    monkeypatch.setattr(verdict, "_ink_for", lambda *a, **k: None)
+    out = commands.cmd_doctor()
+    seg = out[out.find("ink judge"):][:300]
+    assert "PDFDRILL_JUDGE" in seg and "not judged" in seg, seg
+    assert "not defined" not in seg, seg
