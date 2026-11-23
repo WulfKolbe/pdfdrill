@@ -379,7 +379,7 @@ def split_terms(glyphs: list[GlyphNode],
         counts[round(g.baseline, 1)] = counts.get(round(g.baseline, 1), 0) + 1
     dom = max(counts.items(), key=lambda kv: (kv[1], -abs(kv[0])))[0]
     spans = [(r.rect[0], r.rect[2]) for r in (rules or [])
-             if r.role in ("fraction", "radical", "overline")]
+             if r.role in ("fraction", "radical", "overline", "underline")]
     out: list[list[GlyphNode]] = []
     cur: list[GlyphNode] = []
     for g in gs:
@@ -1352,6 +1352,75 @@ def _merge_overlines(glyphs: list[GlyphNode],
     return out, {id(bars[b]) for b in used}
 
 
+def _merge_underlines(glyphs: list[GlyphNode],
+                      rules: list[RuleNode], depth: int):
+    r"""Wrap the glyphs a bar sits UNDER, and report which bars were used.
+
+    T-0162 — the mirror of `_merge_overlines`. `\underline{e}` is a rule with
+    glyphs ABOVE it and nothing below, and until `_rule_role` grew a branch
+    for that shape no such rule was ever classified, so this pass had nothing
+    to do and no `\underline` was emitted anywhere in the corpus.
+
+    MEASURED AND CHECKED AGAINST THE AUTHOR (standing rule, 2026-11-23):
+    arxiv.gr-qc_0212041 p1 draws three of them, 4.7 pt wide, each exactly
+    spanning a CMMI10 `e`; the author's own source (CG.tex from the e-print)
+    holds exactly three `\underline`, every one `\underline{e}`.
+
+    NO RADICAL CASE, which is the one way this is not a mirror: TeX draws a
+    vinculum OVER a radicand, never under it, so the sign-to-the-left test
+    that `_merge_overlines` needs has no counterpart here.
+    """
+    bars = [r for r in rules if r.role == "underline"]
+    if not bars:
+        return glyphs, set()
+
+    used: set[int] = set()
+    consumed: set[int] = set()
+    wrapped: dict[int, tuple[str, list[int]]] = {}
+    for bi, r in enumerate(bars):
+        mid = 0.5 * (r.rect[1] + r.rect[3])
+        over = [i for i, g in enumerate(glyphs)
+                if i not in consumed and g.baseline > mid
+                and r.rect[0] - 1 <= 0.5 * (g.rect[0] + g.rect[2])
+                <= r.rect[2] + 1]
+        if not over:
+            continue
+        consumed.update(over)
+        used.add(bi)
+        wrapped[min(over)] = (r"\underline", sorted(over))
+
+    if not wrapped:
+        return glyphs, set()
+
+    out: list[GlyphNode] = []
+    for i, g in enumerate(glyphs):
+        if i in wrapped:
+            cmd, idxs = wrapped[i]
+            inner = to_tex([glyphs[k] for k in idxs], [], depth + 1)
+            if inner is None:
+                return glyphs, set()
+            base = glyphs[idxs[0]]
+            out.append(GlyphNode(
+                id=base.id, page=base.page,
+                rect=(min(glyphs[k].rect[0] for k in idxs),
+                      min(glyphs[k].rect[1] for k in idxs),
+                      max(glyphs[k].rect[2] for k in idxs),
+                      max(glyphs[k].rect[3] for k in idxs)),
+                text=base.text, cid=-1, glyphname=base.glyphname,
+                fontname=base.fontname, family=base.family, size=base.size,
+                tex=TexToken(rf"{cmd}{{{inner}}}", "atom", None, "corpus"),
+                matrix=base.matrix, upright=base.upright,
+                stream=min((glyphs[k].stream for k in idxs
+                            if glyphs[k].stream >= 0), default=-1)))
+            continue
+        if i in consumed:
+            continue
+        out.append(g)
+    # ids, not indices — the caller filters with `id(r)`, exactly as it does
+    # for `_merge_overlines` and `_merge_radicals`.
+    return out, {id(bars[b]) for b in used}
+
+
 def to_tex(glyphs: list[GlyphNode], rules: list[RuleNode] | None = None,
            depth: int = 0) -> str | None:
     """LaTeX for a glyph group, or None if the geometry is not decisive."""
@@ -1409,6 +1478,8 @@ def to_tex(glyphs: list[GlyphNode], rules: list[RuleNode] | None = None,
     if any(g.glyphname and g.glyphname.startswith("radical") for g in glyphs):
         return None                      # see LIMITS
     rules = [r for r in rules if id(r) not in used_bars]
+    glyphs, used_unders = _merge_underlines(glyphs, rules, depth)
+    rules = [r for r in rules if id(r) not in used_unders]
 
     # Any rule still unaccounted for is structure this pass does not model.
     # Ignoring it is how `\bar{x}` became `x`: valid output, silently missing

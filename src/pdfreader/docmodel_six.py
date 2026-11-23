@@ -1979,6 +1979,41 @@ def _rule_role(node: RuleNode, glyphs: list[GlyphNode],
             covered += g.rect[2] - g.rect[0]
         return covered >= 0.45 * bar_w
 
+    def _fits_the_bar(baselines: list[float]) -> bool:
+        r"""Is the ink on this baseline the thing the rule is DRAWN TO?
+
+        T-0162 — the under-rule branch. `\underline` and `\overline` are both
+        drawn to the width of their argument, so the argument's extent and the
+        rule's extent are the same measurement. This asks exactly that: the
+        ink must not overflow the bar by more than a quarter em on either
+        side, and must cover at least 0.45 of it.
+
+        NOT `_sits_under`, which sums the FULL WIDTH of every glyph whose
+        CENTRE falls in the bar's x-range. That sum can exceed the bar's width
+        without the ink fitting it at all: a 80 pt word centred over a 4.7 pt
+        rule passes, which is precisely the short-table-rule case this branch
+        must not claim. `_sits_under` needed the sum because
+        `\overline{e_1 e_2 e_3}` covers six narrow glyphs and no single one is
+        near the bar's width — and a union extent would serve that case too,
+        so `_sits_under` is probably better off written this way. It is NOT
+        changed here: 107 rules on the board are `overline` today and that is
+        a separate measurement, not a tidy-up to ride along with this.
+        """
+        if not baselines:
+            return False
+        want = max(set(baselines), key=baselines.count)
+        near = [g for g in glyphs
+                if abs(g.baseline - want) <= 0.1 * max(size, 1.0)
+                and x0 - 1 <= 0.5 * (g.rect[0] + g.rect[2]) <= x1 + 1]
+        if not near:
+            return False
+        ex0 = min(g.rect[0] for g in near)
+        ex1 = max(g.rect[2] for g in near)
+        slack = 0.25 * max(size, 1.0)
+        if ex0 < x0 - slack or ex1 > x1 + slack:
+            return False
+        return (ex1 - ex0) >= 0.45 * max(x1 - x0, 0.1)
+
     # A numerator must be its OWN row; an overline's base need only sit under
     # the bar. The asymmetry is the point: distance cannot separate the two
     # cases, and extent can, but only on the side where TeX constrains it.
@@ -2023,6 +2058,52 @@ def _rule_role(node: RuleNode, glyphs: list[GlyphNode],
         return "fraction"
     if _sits_under(below_b) and not above:
         return "overline"
+    #: T-0162 — INK ABOVE AND NOTHING BELOW HAD NO BRANCH AT ALL, so every
+    #: `\underline` in the corpus came back `unknown`, and an unaccounted rule
+    #: defers the whole span.
+    #:
+    #: MEASURED AND CHECKED AGAINST THE AUTHOR (standing rule, 2026-11-23).
+    #: arxiv.gr-qc_0212041 p1 draws three such rules, each 4.7 pt wide and
+    #: 0.48 pt thick, each exactly spanning a CMMI10 `e` 1.33 pt above it —
+    #: and the author's own source (CG.tex from the e-print) holds exactly
+    #: three `\underline`, every one `\underline{e}`.
+    #:
+    #: IT CANNOT BE WRITTEN WITH `above`. `_is_own_row` counts what else sits
+    #: on the numerator's baseline outside the bar, to catch a text line
+    #: running across — and an underlined letter IS part of a running line:
+    #: `=`, `d` and `x` share the baseline of all three on that page, so
+    #: `above` is False for every one. Containment is the test that fits, the
+    #: same evidence the overline uses.
+    #:
+    #: `\underrightarrow` IS NOT HERE, and an earlier note had the two queued
+    #: as one defect. The same author writes it 43 times and TeX builds it
+    #: from GLYPHS — a `minus` and an `arrowright` from CMSY10 on one
+    #: baseline, overlapping — so no rule is drawn and no branch here could
+    #: emit one. That is a glyph-composition task.
+    #: AND IT HAS TO HAVE BEEN DRAWN AS A LINE. Found by checking the four
+    #: rules this branch newly claimed on the board set, none of which is a
+    #: `\underline` and three of which have NO THICKNESS AT ALL:
+    #:
+    #:   2311.09533v3 p1  33.6pt 3.09em h=0.00  above 'BAaGyR,AElEawsk/oaT.'
+    #:                                          — two interleaved rows of
+    #:                                          NimbusRom, i.e. a link or
+    #:                                          frame rule under a byline
+    #:   lib:b21e554b9232 6.5pt 0.60em h=0.00  above 'te', mid-word (x2)
+    #:   lib:5a5c76391c9c 12.2pt 1.22em h=0.66  above CambriaMath `L_c(`
+    #:
+    #: The three verified cases — 0212041's `\underline{e}`, against the
+    #: author's own source — are 0.48pt thick. A rule with zero thickness was
+    #: not drawn as a line, and this reader already knows that shape: the
+    #: underscore branch above says `took_*` "reaches the model as a 3.14pt
+    #: ZERO-HEIGHT rule at the baseline". No threshold: either it has
+    #: thickness or it does not.
+    #:
+    #: The fourth, at 0.66pt, still passes and is NOT verified — no author
+    #: source exists for that document. It is on a page the board does not
+    #: judge, so no board number moves either way, and it is recorded here
+    #: rather than argued away.
+    if (y1 - y0) > 0 and _fits_the_bar(above_b) and not below_b:
+        return "underline"
     return "unknown"
 
 
@@ -6523,9 +6604,16 @@ def span_reason(sp: Span) -> str:
         return f"{label}-not-composed:" + ",".join(names[:3])
 
     # 2. a rule no pass models
+    #: T-0162 — `underline` JOINED THIS SET WITH ITS PASS, not before it.
+    #: Classifying the three rules on 0212041 p1 as `underline` instead of
+    #: `unknown` changed only the WORD the span deferred on
+    #: ("unmodelled-rule:underline"), and a role no pass consumes is worse
+    #: than an honest `unknown` — it reads as handled. `_merge_underlines`
+    #: emits the `\underline{...}`, and that is what earns the entry here.
     unmodelled = sorted({r.role for r in sp.rules
                          if r.role not in ("fraction", "separator",
-                                           "underscore", "overline")})
+                                           "underscore", "overline",
+                                           "underline")})
     if unmodelled:
         return "unmodelled-rule:" + "+".join(unmodelled)
 
