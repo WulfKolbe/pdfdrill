@@ -14,8 +14,23 @@ It is not a new score. It repeats what the run already recorded:
 - otherwise                               -> REACHED
 
 Whether the reading is the same ink as the page is the judge's finding
-(`inkcmp-judge`), and pdfdrill does not run the judge. Every line therefore
-says "ink: not judged" until a judged result is handed in (`judged=True`).
+(`inkcmp-judge`). T-0153 #2: pdfdrill runs it when, and only when, one is
+configured (`pagejudge.judge_path` — `PDFDRILL_JUDGE`, then the config key
+`judge`, then nothing), and then ITS NUMBERS DECIDE:
+
+- the judge faulted ink      -> DEGRADED, with its own counts, exit 4
+- the judge found none       -> REACHED, exit 0
+- no judge, or a page it
+  could not measure          -> "ink: not judged", exactly as before
+
+The middle case is the point. `REACHED` means "nothing known missing", and on
+a page the judge has just faulted that is false — so a verdict that could not
+see the judge was making a promise it had no way to keep (coordinator,
+T-0153 #2).
+
+A CLEAN JUDGEMENT ALSO CLEARS THE MATHS WARNING. `maths_unread` is a guess
+from the document's fonts; the judge is a measurement of the same page's ink.
+When the judge says every glyph is accounted for, the guess has been answered.
 """
 from __future__ import annotations
 
@@ -41,6 +56,8 @@ class Verdict(NamedTuple):
     state: str
     missing: tuple
     judged: bool = False
+    #: `pagejudge.Ink`, when a judge ran. It owns the "ink:" clause.
+    ink: "object | None" = None
 
     @property
     def exit_code(self) -> int:
@@ -48,15 +65,26 @@ class Verdict(NamedTuple):
 
     def line(self) -> str:
         parts = list(self.missing)
-        if not self.judged:
+        if self.ink is not None:
+            parts.append(self.ink.line())
+        elif not self.judged:
             parts.append("ink: not judged")
         return f"{MARK} {self.state}" + (" — " + "; ".join(parts) if parts else "")
 
 
 def decide(has_text: bool, maths_unread: bool, judged: bool = False,
-           unread_chars: int = 0) -> Verdict:
+           unread_chars: int = 0, ink=None) -> Verdict:
     if not has_text:
-        return Verdict(NOT_REACHED, ("text: no reading",), judged)
+        return Verdict(NOT_REACHED, ("text: no reading",), judged, ink)
+    # THE JUDGE DECIDES WHEN IT HAS MEASURED THE PAGE. `ink.faults is None`
+    # means it could not (FONT_UNMAPPED / NOT_COMPILED / NO_TEXT, or it did not
+    # run): that is an absence of evidence, so the model's own counts answer,
+    # as they always did.
+    if ink is not None and getattr(ink, "faults", None) is not None:
+        if ink.faults:
+            return Verdict(DEGRADED, (), judged, ink)
+        # Clean ink answers the maths guess too — see the module docstring.
+        return Verdict(REACHED, (), judged, ink)
     missing = []
     if unread_chars:
         # U+FFFD in the projection: the reader met a glyph it has no character
@@ -64,7 +92,8 @@ def decide(has_text: bool, maths_unread: bool, judged: bool = False,
         missing.append(f"text: {unread_chars} unread character(s) (U+FFFD)")
     if maths_unread:
         missing += ["inline math: unread", "display math: unread"]
-    return Verdict(DEGRADED if missing else REACHED, tuple(missing), judged)
+    return Verdict(DEGRADED if missing else REACHED, tuple(missing), judged,
+                   ink)
 
 
 def unread_chars(files) -> int:
@@ -98,7 +127,61 @@ def assess(pdf: Path, sc, files=()) -> Verdict:
         except Exception:                                      # noqa: BLE001
             pass
     return decide(has_text, maths_unread,
-                  unread_chars=unread_chars(files) if has_text else 0)
+                  unread_chars=unread_chars(files) if has_text else 0,
+                  ink=_ink_for(pdf, sc) if has_text else None)
+
+
+def _ink_for(pdf: Path, sc):
+    """Run the configured ink judge over this document, or None.
+
+    T-0153 #2. Nothing happens unless `PDFDRILL_JUDGE` or the config key
+    `judge` names an executable, so the default install is unchanged and the
+    line still reads "ink: not judged".
+
+    THE ROUTE IS THE LANE'S. The judge's glyph route compares the page's own
+    glyphs against the reading's; a scan has none to compare, and its scan
+    route measures missing ink, invented components and hole mismatches
+    instead. Its residual is not comparable with a glyph-route one
+    (board_run `_scan1`), which is why `pagejudge.faults` reduces it to a sign
+    for this gate and never reports it as a number here.
+
+    The work goes in the SIDECAR's blob directory, not beside the PDF: the
+    judge writes page renders of about 15 MB each, and the house rule is no
+    stray files in the user's folder.
+    """
+    try:
+        from . import pagejudge
+        if pagejudge.judge_path() is None:
+            return None
+        from .commands import _lines_json_path
+        lines = _lines_json_path(pdf)
+        pages = int(sc.get_evidence("pages", 0) or 0)
+        # THE LANE DECIDES THE ROUTE, NOT `needs_ocr`.
+        #
+        # Measured on BH1 p113 (acceptance, PDFDRILL_JUDGE set): `needs_ocr` is
+        # FALSE for a scan carrying an OCR underlay, because the document does
+        # have a text layer -- that is the whole point of T-0153 #1. So the
+        # judge took the GLYPH route on a scan and reported 1313 findings,
+        # 1308 of them "wrong shape". That is not a finding about the reading;
+        # it is the glyph route's assumptions failing on a page whose glyph
+        # positions are an OCR estimate. docs/LANES.md and the board both use
+        # `--route scan` there, and the board keeps its number in a separate
+        # field because the two residuals are not comparable.
+        #
+        # So the question is asked of the one pure function that owns it.
+        from . import ocr_router as _r
+        _dec = _r.route_for_sidecar(sc)
+        scanned = bool(_dec.underlay
+                       or _dec.lane in ("gemma", "mathpix", "geometry"))
+        return pagejudge.judge_document(
+            pdf, lines, pages,
+            route="scan" if scanned else "glyph",
+            work=Path(sc.blob_dir) / "judge")
+    except Exception:                                        # noqa: BLE001
+        # A judge that blows up is not a finding. The line stays "not judged",
+        # which is the truth, rather than turning a broken tool into a fault
+        # against the reading.
+        return None
 
 
 def stamp(path: Path, v: Verdict) -> bool:
