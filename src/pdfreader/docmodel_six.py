@@ -158,6 +158,25 @@ def _is_relation(g) -> bool:
     return t in MATH_RELATIONS or n in MATH_RELATION_NAMES
 
 
+def _needs_a_right_operand(g) -> bool:
+    r"""Can this glyph NOT end a well-formed expression?
+
+    B1 — a relation or a binary operator always has something to its right:
+    `$x<$` and `$a+$` are malformed, so whatever follows is the operand. This
+    is the union of TeX's class 3 and class 2, where `_is_relation` is class 3
+    alone — a binary licenses no left-hand-side sweep (775, `n + p` stays
+    prose) but it does demand an operand.
+
+    `bar` is in neither set, which is what keeps `|x|` from claiming the digit
+    beside it: a closing delimiter ENDS an expression.
+    """
+    if g is None:
+        return False
+    t = (getattr(g, "text", "") or "").strip()
+    n = str(getattr(g, "glyphname", "") or "").strip().lower()
+    return t in MATH_RELATIONS or n in MATH_RELATION_NAMES
+
+
 Rect = tuple[float, float, float, float]
 
 # Pixels per PDF point for the coordinate space used by lines.json regions and
@@ -941,6 +960,36 @@ def _spans(line: "LineNode") -> list[Span]:
             if not names_pass:
                 absorb = left_any and right_any and neutral
                 take_left, take_right = left_any, right_any
+                # B1 — A RELATION'S RIGHT OPERAND, when prose follows it.
+                #
+                # Absorption required maths on BOTH sides, so a digit that
+                # ENDS an expression was never taken. Three occurrences on
+                # the board's two worst prose pages (state 75):
+                #
+                #   lib:4859edad9294 p1287 L25  "... if $x <$ 0, and for a"
+                #   lib:6d90e8d27b8b p174  L7   "$x(1) =$ 1 liefert $c =$ 1,"
+                #
+                # and the same line of 4859 shows it is NOT the digit's font,
+                # which was the standing hypothesis: `... $x \geq 0, |x| =
+                # -x$ if $x <$ 0, ...` — both zeros are family `text-cm`,
+                # glyphname `zero`, size 12.0, and both relations are
+                # recognised (`greaterequal` from CMSY, `less` from CMMI,
+                # where TeX keeps `<` and `>`). What differs is only what
+                # follows: maths after the first, prose after the second.
+                #
+                # NOR CAN SPACING DECIDE IT. Measured on that line, word gap
+                # 2.20: `≥`->`0` 4.08 and `<`->`0` 4.08 are identical, and an
+                # ordinary prose word gap is 4.35 — 6% wider. `_tight`
+                # demands under 0.35 of the word gap, so it is no help here.
+                #
+                # The evidence is the mathematics: a relation or binary
+                # CANNOT end an expression, so the neutral run to its right
+                # is its operand. One side is enough when the left side ends
+                # open.
+                if (not absorb and left_any and neutral
+                        and _needs_a_right_operand(runs[i - 1][-1])):
+                    absorb = True
+                    take_left, take_right = True, False
             else:
                 # Only absorb into a maths run that can actually be PROJECTED.
                 # A radical, a fence piece or a bare accent is not a symbol a
