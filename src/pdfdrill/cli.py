@@ -185,6 +185,24 @@ def main():
         # meaning of the argument the result is about.
         try:
             from . import sources as _src
+            # THE SAME NOTE FOR THE OTHER MOVER. `doclock.ensure_doc_folder`
+            # relocates a document into `<stem>/` when a second document
+            # shares its folder (854), and said nothing — so the user's file
+            # moved and the next command they typed with the old path found
+            # nothing. Adoption learned this in the 2026-10-22 audit; this
+            # path had the same duty and not the same code.
+            try:
+                from . import doclock as _dl
+                _mv = _dl.last_move()
+                if _mv:
+                    _frm, _to = _mv
+                    _emit(f"note: moved {_frm.name} into {_to.parent.name}"
+                          f"{os.sep} — a second document shares that folder, "
+                          f"and both would write `evidence-*.pdf` and "
+                          f"`residuals.pdf` under the same names. Use the new "
+                          f"path from now on.")
+            except Exception:                   # noqa: BLE001
+                pass
             moved = _src.last_adoption()
             if moved:
                 frm, to = moved
@@ -2130,6 +2148,14 @@ def _with_verdict(result, pdf, md=False, llm=False):
     from . import verdict as _v
     from .sidecar import Sidecar
     try:
+        # WHERE THE DOCUMENT IS NOW, not where the argument pointed. A writing
+        # handler relocates a document into `<stem>/` when a second document
+        # shares its folder (`doclock.ensure_doc_folder`, 854), and that runs
+        # INSIDE the handler — so `pdf` here can name a path that no longer
+        # exists, whose legacy sidecar is empty, and the verdict then reported
+        # "text: no reading" on a run that had just read 2963 words.
+        from . import doclock as _dl
+        pdf = _dl.current_path(pdf)
         sc = Sidecar(pdf)
         files = []
         if md:

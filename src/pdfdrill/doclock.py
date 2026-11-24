@@ -227,6 +227,41 @@ def _has_a_second_document(pdf) -> bool:
     return False
 
 
+#: The last relocation `ensure_doc_folder` performed, for the CLI and the
+#: verdict to resolve a path the handler moved. A module global because the
+#: move happens inside the write decorator, several frames below anything that
+#: prints or assesses — the same shape as `sources._LAST_ADOPTION`.
+_LAST_MOVE: "tuple[Path, Path] | None" = None
+
+
+def last_move() -> "tuple[Path, Path] | None":
+    """(from, to) of the last relocation this process performed, or None."""
+    return _LAST_MOVE
+
+
+def reset_last_move() -> None:
+    global _LAST_MOVE
+    _LAST_MOVE = None
+
+
+def current_path(pdf) -> "Path":
+    """Where `pdf` IS now, after any relocation this process performed.
+
+    Answers from the published move, never by probing the filesystem for a
+    `<stem>/<stem>.pdf` that might belong to another document entirely.
+    """
+    p = Path(pdf)
+    mv = _LAST_MOVE
+    if mv is not None:
+        try:
+            if Path(mv[0]).resolve() == p.resolve():
+                return Path(mv[1])
+        except OSError:
+            if str(mv[0]) == str(p):
+                return Path(mv[1])
+    return p
+
+
 def ensure_doc_folder(pdf):
     """Give a loose PDF its own folder before anything writes beside it.
 
@@ -293,4 +328,34 @@ def ensure_doc_folder(pdf):
     # and `pdf` arrives as a Path from every caller. Returning a string here
     # failed 122 tests with `'str' object has no attribute 'stem'`.
     moved = target / p.name
-    return moved if moved.is_file() else pdf
+    if not moved.is_file():
+        return pdf
+    # A MOVE THE USER DID NOT ASK FOR MUST BE PUBLISHED, and for the same
+    # reason `sources.adopt_into_doc_folder` publishes `_LAST_ADOPTION` (the
+    # 2026-10-22 audit): the caller cannot find what the handler wrote.
+    #
+    # THE DEFECT THIS FIXES. This function runs inside `@_writes`, so it moves
+    # the document AFTER the CLI resolved the path and BEFORE the handler. In
+    #
+    #     pdf = _pdf(args)
+    #     return _with_verdict(cmd_md(pdf, ...), pdf, md=True)
+    #
+    # `cmd_md` receives the moved path and writes its sidecar in the new
+    # self-contained layout, while `_with_verdict` still holds the ORIGINAL
+    # path and builds a Sidecar for the legacy layout — an empty one. Measured,
+    # installed entry point, two PDFs in one folder:
+    #
+    #     Extracted 2963 words of Markdown across 3 pages ...
+    #     pdfdrill verdict: NOT REACHED — text: no reading
+    #
+    # One document, two possible sidecars, resolved twice with different
+    # answers. `blob_dir_for`'s own docstring warned of the shape one level
+    # down ("every ad-hoc scan that walked DIRECTORIES ... reads one
+    # document's sidecar against the other's model").
+    #
+    # So the layout is resolved ONCE, here, where the move happens, and every
+    # later reader asks `current_path` instead of the filesystem. Looking in
+    # both places would be a heuristic over a wrong resolution.
+    global _LAST_MOVE
+    _LAST_MOVE = (p, moved)
+    return moved
