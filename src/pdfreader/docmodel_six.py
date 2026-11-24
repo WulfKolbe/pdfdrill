@@ -5570,9 +5570,19 @@ def _contour(rect: Rect, page: "PageNode", k: float) -> list[list[int]]:
 
 #: 893 — whether `build()` measures ink. OFF by default and that is a cost
 #: decision, not a confidence one: `inkboxes.ink_boxes` re-runs pdfminer over
-#: the page, so measuring doubles the read. A corpus pass is ~6 h; silently
-#: making it ~12 h is the operator's call. `PDFDRILL_INK_REGIONS=1` or
-#: `build(..., ink=True)` turns it on.
+#: the page. `PDFDRILL_INK_REGIONS=1` or `build(..., ink=True)` turns it on.
+#:
+#: THE COST IS +35%, NOT DOUBLE. This said "measuring doubles the read. A
+#: corpus pass is ~6 h; silently making it ~12 h is the operator's call",
+#: which was an estimate and is pessimistic. MEASURED over the 24 judged born
+#: pages of board75, installed entry point, `glyphlines --force` each way:
+#:
+#:     no ink   170.4 s total   7.10 s/page
+#:     ink      230.0 s total   9.58 s/page     x1.35
+#:
+#: So a ~6 h corpus pass becomes about 8 h, not 12 — the re-run shares parse
+#: cost the estimate assumed it duplicated. T-0161 owns the decision, and now
+#: it owns a number instead of an adjective.
 INK_REGIONS = os.environ.get("PDFDRILL_INK_REGIONS", "") not in ("", "0")
 
 #: Set by `attach_ink` so a consumer can tell a page measured from ink from a
