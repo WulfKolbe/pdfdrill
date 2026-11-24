@@ -105,14 +105,21 @@ def test_an_earlier_failure_code_is_not_overwritten_by_reached(tmp_path):
 
 def test_a_replacement_character_in_the_text_is_a_named_gap(tmp_path):
     """lib_3c16fac66fdd-p0370 through `drill`: every list bullet came out as
-    U+FFFD and the run said REACHED."""
+    U+FFFD and the run said REACHED.
+
+    THE SAME PAGE CAME BACK (B6), in the other notation: its md carries 55
+    `(cid:5)` tokens, which `unread_chars` did not count, and the run said
+    REACHED again. So the message no longer names a notation — it said
+    "(U+FFFD)" while counting both, and a user told "55 unread character(s)
+    (U+FFFD)" would grep their document for U+FFFD and find none of the 55.
+    """
     md = tmp_path / "x.md"
     md.write_text("\ufffd Cohen-Tannoudji C.\n\ufffd Messiah A.\n", encoding="utf-8")
     pdf = tmp_path / "x.pdf"
     pdf.write_bytes(b"%PDF-1.4\n")
     v = V.assess(pdf, _SC({"MODEL_BUILT"}, {"Paragraph": 4, "Formula": 1}), [md])
     assert v.state == V.DEGRADED
-    assert "text: 2 unread character(s) (U+FFFD)" in v.missing
+    assert "text: 2 unread character(s)" in v.missing
 
 
 def test_boxes_without_characters_are_not_a_reading(tmp_path):

@@ -88,9 +88,14 @@ def decide(has_text: bool, maths_unread: bool, judged: bool = False,
         return Verdict(REACHED, (), judged, ink)
     missing = []
     if unread_chars:
-        # U+FFFD in the projection: the reader met a glyph it has no character
-        # for and said so. That is recorded in the text itself.
-        missing.append(f"text: {unread_chars} unread character(s) (U+FFFD)")
+        # The reader met a glyph it has no character for and said so in the
+        # text itself — as U+FFFD, or as pdfminer's `(cid:N)`, which is what
+        # the md projector writes (see `_UNREAD`).
+        #
+        # THE NOTATION IS NOT NAMED HERE ANY MORE. It said "(U+FFFD)" while
+        # counting both, so a user told "54 unread character(s) (U+FFFD)"
+        # would grep their document for U+FFFD and find none of the 54.
+        missing.append(f"text: {unread_chars} unread character(s)")
     if maths_unread:
         missing += ["inline math: unread", "display math: unread"]
     return Verdict(DEGRADED if missing else REACHED, tuple(missing), judged,
@@ -118,11 +123,27 @@ def _has_words(f) -> bool:
     return bool(_A_WORD.search(body))
 
 
+#: A GLYPH THE READER HAS NO CHARACTER FOR, IN EITHER NOTATION.
+#:
+#: U+FFFD is ours. `(cid:5)` is pdfminer's, and the md projector writes it, so
+#: the same failure reached a user's document in a spelling the verdict did not
+#: know. Measured over the 21 born pages of board75: 145 `(cid:N)` tokens on
+#: five pages, every page reporting REACHED — 0864 p4 54,
+#: lib:3c16fac66fdd p370 55, 1805.01788 p3 13, lib:b21e554b9232 p201 13,
+#: lib:c57ac038ae5f p293 10 (B6).
+#:
+#: `(cid)` without a number is not one: it is ordinary text, and a document
+#: about PDF internals may say it.
+_UNREAD = re.compile(r"\ufffd|\(cid:\d+\)")
+
+
 def unread_chars(files) -> int:
-    """U+FFFD count of the first projection that exists."""
+    """How many characters the reader could not read, in the first projection
+    that exists. Both notations count; see `_UNREAD`."""
     for f in files:
         try:
-            return Path(f).read_text(encoding="utf-8").count("\ufffd")
+            return len(_UNREAD.findall(
+                Path(f).read_text(encoding="utf-8")))
         except OSError:
             continue
     return 0
