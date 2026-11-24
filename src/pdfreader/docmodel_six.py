@@ -5254,10 +5254,21 @@ def build(path: str, pages: Iterable[int] | None = None, *,
 
         for idx, group in enumerate(groups):
             group, dropped = merge_fragments(group)
+            # B3 — THE VERTICAL extent comes from the glyphs' measured ink
+            # where there is any, through `glyph_box`. x does NOT:
+            # `_sane_rect` says it outright — "Only the vertical extent is
+            # touched; x is the advance width and is correct" — and the
+            # advance is what the page laid out with. A first version took all
+            # four coordinates from `glyph_box`, narrowing the line by the
+            # glyphs' side bearings, which is a different claim and one no
+            # measurement here supports.
+            #
+            # A NO-OP WITHOUT INK: `glyph_box` falls back to `rect`, and ink
+            # is off by default (+35%, measured — see INK_REGIONS).
             gx0 = min(g.rect[0] for g in group)
-            gy0 = min(g.rect[1] for g in group)
             gx1 = max(g.rect[2] for g in group)
-            gy1 = max(g.rect[3] for g in group)
+            gy0 = min(glyph_box(g)[1] for g in group)
+            gy1 = max(glyph_box(g)[3] for g in group)
             # Each rule belongs to ONE line: the one it was merged into, or --
             # for a non-fraction rule -- the line whose box encloses it.
             # A line's BOX includes ascenders and descenders, so a bar
@@ -5501,6 +5512,18 @@ def build(path: str, pages: Iterable[int] | None = None, *,
         for p in out:
             try:
                 attach_ink(path, p)
+                # B3 — AND THE LINE BOXES ARE REBUILT ON THE MEASUREMENT.
+                # `attach_ink` runs LAST so a failure costs the measurement
+                # and never the document — which means every line box was
+                # computed while `glyph_box` could only return the font box.
+                # VERTICAL only, for the reason above, and inside the same
+                # guard: if this raises, the page keeps the geometry it had.
+                for _ln in p.lines:
+                    if getattr(_ln, "rotated", False) or not _ln.glyphs:
+                        continue
+                    _b = [glyph_box(g) for g in _ln.glyphs]
+                    _ln.rect = (_ln.rect[0], min(q[1] for q in _b),
+                                _ln.rect[2], max(q[3] for q in _b))
             except Exception as e:                           # noqa: BLE001
                 LAST_INK_REPORT[p.page] = {
                     "measured": 0, "glyphs": sum(len(l.glyphs) for l in p.lines),
@@ -5640,6 +5663,31 @@ def attach_ink(path: str, page: "PageNode") -> dict:
     for ln in page.lines:
         for g in ln.glyphs:
             n += 1
+            # B3 — THE JOIN IS THE DRAWING POSITION, not a box `_sane_rect`
+            # rewrote. `ink_boxes` returns one record per glyph "in drawing
+            # order" and `GlyphNode.stream` is that position; verified on
+            # lib:4859edad9294 p1287 page 2, `records[g.stream]` matching the
+            # glyph by x, font and size for 1360 of 1360.
+            #
+            # The box key failed for exactly the glyphs that need ink most.
+            # `_sane_rect` REPLACES the vertical box of any glyph pdfminer
+            # puts more than 0.6 em below its baseline — rightly, that box
+            # being built from a font-wide descent (-2.359 em for CMEX10,
+            # about 28 pt below the ink) — so the node no longer carries the
+            # box the records do:
+            #     record and raw pdfminer   (111.20, 340.05, 114.52, 352.00)
+            #     node after _sane_rect     (111.20, 347.94, 114.52, 363.48)
+            # Measured: 27 of 1360 unmeasured on that page, every one CMSY10 —
+            # bar(11), element(4), greaterequal(3), lessequal(2), minus(2),
+            # braceleft, braceright, multiply, arrowright and the RADICAL.
+            # 893 anticipated that "a mismatch shows up as an unmatched
+            # record"; it did not anticipate a repair upstream making the
+            # mismatch systematic.
+            st = getattr(g, "stream", -1)
+            if 0 <= st < len(recs) and recs[st].get("ink"):
+                g.ink = tuple(recs[st]["ink"])
+                hit += 1
+                continue
             got = cand.get(_key(g.rect, g.fontname, g.size))
             if not got:
                 nokey += 1
