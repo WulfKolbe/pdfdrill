@@ -5510,6 +5510,14 @@ def build(path: str, pages: Iterable[int] | None = None, *,
     if INK_REGIONS if ink is None else ink:
         LAST_INK_REPORT.clear()
         for p in out:
+            # EXPERIMENT (coordinator, T-0161), OPT-IN so one build can time
+            # both shapes paired: measure ink only where a box is an ESTIMATE.
+            # Measured: 6 of the 24 born board pages hold one; the other 18
+            # skip the second pdfminer pass. It costs c9daf79960c3 p68 its
+            # -0.0012, that page having NO estimated box and gaining from the
+            # general font-box-vs-ink difference instead.
+            if INK_ESTIMATED_ONLY and not _page_has_estimated_box(p):
+                continue
             try:
                 attach_ink(path, p)
                 # B3 — AND THE LINE BOXES ARE REBUILT ON THE MEASUREMENT.
@@ -5639,9 +5647,32 @@ def _contour(rect: Rect, page: "PageNode", k: float) -> list[list[int]]:
 #: the owner's T-0161 rule, function before speed.
 INK_REGIONS = os.environ.get("PDFDRILL_INK_REGIONS", "") != "0"
 
+#: `PDFDRILL_INK_ESTIMATED_ONLY=1` — measure ink only on a page that holds a
+#: box `_sane_rect` replaced. T-0161's cheaper shape, OFF by default: it is
+#: faster and it changes the reading on pages with no estimated box, where the
+#: board sees nothing but other readers may.
+INK_ESTIMATED_ONLY = os.environ.get("PDFDRILL_INK_ESTIMATED_ONLY", "") not in ("", "0")
+
 #: Set by `attach_ink` so a consumer can tell a page measured from ink from a
 #: page that fell back. {page number: {"measured": n, "glyphs": n, "why": …}}
 LAST_INK_REPORT: dict = {}
+
+
+def _page_has_estimated_box(page: "PageNode") -> bool:
+    """Did `_sane_rect` replace any glyph box on this page?
+
+    Detected by the replacement's own signature — `baseline - 0.3*size ..
+    baseline + 1.0*size` — rather than by a flag threaded through the reader.
+    A real box matching both bounds to 1e-6 is measure-zero.
+    """
+    for ln in page.lines:
+        for g in ln.glyphs:
+            if not g.size:
+                continue
+            if abs(g.rect[1] - (g.baseline - 0.3 * g.size)) < 1e-6 \
+               and abs(g.rect[3] - (g.baseline + 1.0 * g.size)) < 1e-6:
+                return True
+    return False
 
 
 def attach_ink(path: str, page: "PageNode") -> dict:
