@@ -1455,6 +1455,40 @@ def _merge_underlines(glyphs: list[GlyphNode],
     return out, {id(bars[b]) for b in used}
 
 
+#: HOW OFTEN THIS READER BUILDS NOTHING — B2's instrument.
+#:
+#: `to_tex` returns None when `_attach_scripts` cannot attribute a script, and
+#: the row then carries NO structure at all. That refusal was invisible: it is
+#: not a wrong answer, so no test and no board number reports it, and B2 was
+#: argued for three attempts without anyone able to say how often it happens.
+#:
+#: MEASURED, 2026-11-24, over the 21 born pages of board75, through
+#: `project_mmd.to_markdown` — THE PATH THE PIPELINE TAKES:
+#:
+#:     1237 groups offered to `to_tex`, 25 refused        2.0%
+#:     and 18 of those 25 are on ONE page, 0864 p4       11.0% of its 164
+#:     1511.08771 p2709 2/98, lib:3fe71b4ef018 p328 3/53,
+#:     lib:6d90e8d27b8b p174 2/68, every other born page 0.
+#:
+#: A FIRST VERSION OF THIS MEASUREMENT SAID 19%, and it was measuring
+#: something the pipeline never does: it fed WHOLE ROWS to `_attach_scripts`,
+#: while the projection feeds it SPANS, which are smaller and succeed far more
+#: often. The counter lives here, at the real call, for that reason — a figure
+#: taken by calling an inner function directly is not this reader's behaviour.
+#:
+#: So B2's defect is RARE and CONCENTRATED, which is itself the finding: it
+#: lives on pages whose rows merge two printed lines (0864 p4 is a two-column
+#: paper whose figure captions run into small-caps body lines).
+#:
+#: `reset_report()` then read `REPORT` around a build to get the same number
+#: for any document. Counting only — it changes no decision.
+REPORT = {"rows": 0, "refused": 0}
+
+
+def reset_report() -> None:
+    REPORT.update(rows=0, refused=0)
+
+
 def to_tex(glyphs: list[GlyphNode], rules: list[RuleNode] | None = None,
            depth: int = 0) -> str | None:
     """LaTeX for a glyph group, or None if the geometry is not decisive."""
@@ -1586,7 +1620,11 @@ def to_tex(glyphs: list[GlyphNode], rules: list[RuleNode] | None = None,
         rules = []
 
     triples = _attach_scripts(glyphs)
+    if depth == 0:
+        REPORT["rows"] += 1
     if triples is None:
+        if depth == 0:
+            REPORT["refused"] += 1
         return None
     if unders:
         return _weave_underscores(triples, unders, depth)
