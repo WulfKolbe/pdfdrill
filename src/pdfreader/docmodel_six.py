@@ -278,6 +278,47 @@ _LIGATURES = {
 }
 
 
+#: The Adobe Glyph List, for a glyph the font gave NO character for. pdfminer
+#: ships it (4281 entries); an install without it loses this rule and nothing
+#: else.
+try:
+    from pdfminer.glyphlist import glyphname2unicode as _AGL
+except Exception:                                            # noqa: BLE001
+    _AGL = {}
+
+def _has_no_character(text: str) -> bool:
+    """Did the font fail to say what this glyph IS?
+
+    Empty, U+FFFD, or pdfminer's `(cid:11)`. A SPACE is not this: a space
+    glyph states a space, and 1574 of the 1669 characterless-LOOKING glyphs on
+    the board are spaces that are read perfectly well — which is why the first
+    census of this defect said 1669 and the real number is 95.
+
+    Spelled out rather than matched with a regex: this runs once per glyph, and
+    `docmodel_six` imports no `re` at all.
+    """
+    if not text:
+        return True
+    if text == "\ufffd":
+        return True
+    return (len(text) > 6 and text.startswith("(cid:")
+            and text.endswith(")") and text[5:-1].isdigit())
+
+
+def _agl_char(glyphname: str) -> str:
+    """The character a STANDARD glyph name stands for, or "".
+
+    `alpha` -> α. A subset names variants `alpha.1`, so the base before the
+    first dot is tried too. Only single characters are taken: a name that
+    expands to several is a ligature, which `_spell_ligature` owns.
+    """
+    for name in (glyphname, glyphname.split(".")[0]):
+        ch = _AGL.get(name)
+        if ch and len(ch) == 1:
+            return ch
+    return ""
+
+
 def _spell_glyph(text: str, glyphname: "str | None", cid: int = -1) -> str:
     r"""A glyph's text, with a ligature CHARACTER or a composite NAME spelled
     out in the letters it stands for, and a Cyrillic name on a Latin code
@@ -334,6 +375,24 @@ def _spell_glyph(text: str, glyphname: "str | None", cid: int = -1) -> str:
     one that is missing. One glyph keeps one box either way.
     """
     text = _spell_ligature(text or "")
+    # RULE 0 — A STANDARD NAME WHERE THERE IS NO CHARACTER, AND ONLY THERE.
+    #
+    # B6: 20 glyphs on the 21 born board pages came through as `(cid:N)` while
+    # the font named them `alpha`, `macron`, `asteriskmath`, `minus` — all in
+    # the Adobe Glyph List, which pdfminer ships and this function never
+    # consulted. `0864 p4` put 54 `(cid:N)` tokens into a user's markdown.
+    #
+    # THE LIMIT IS THE RULE. Rule 3 below measured what preferring a name or a
+    # code does in general: across ten documents 620 glyphs decode to a
+    # non-Latin character on a printable ASCII code and NEARLY ALL ARE CORRECT
+    # (TeX's quotes, CMSY's `p` -> U+221A, `2` -> U+2208). So this fills a
+    # hole and never overrules a font that spoke. A name outside the list
+    # abstains: `barex`, `radicalbig`, `bracketleftbig` and MathType's `SI`
+    # are not characters at all, and inventing one is worse than the gap.
+    if glyphname and _has_no_character(text):
+        named = _agl_char(glyphname)
+        if named:
+            return named
     if (len(text) == 1 and 0x400 <= ord(text) <= 0x4FF
             and 33 <= cid <= 126 and chr(cid).isalpha()):
         return chr(cid)                   # rule 3, above
