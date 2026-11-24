@@ -220,6 +220,15 @@ class GlyphNode:
     #: detected downstream (`inkboxes`' own contract). So readers that want
     #: the true extent ask for it and get `None` when there is none.
     ink: Rect | None = None
+    #: Did `_sane_rect` REPLACE this glyph's vertical box with an estimate?
+    #:
+    #: Set at construction, by the one function that makes the decision. It
+    #: used to be inferred by recognising the replacement's arithmetic
+    #: (`baseline-0.3*size .. baseline+1.0*size` to 1e-6), which worked and
+    #: rotted silently: changing a constant in the formula would have left the
+    #: detector finding nothing, and `PDFDRILL_INK_ESTIMATED_ONLY` would have
+    #: quietly become "never measure" (coordinator, on 6d0aad30).
+    rect_estimated: bool = False
 
     @property
     def is_math(self) -> bool:
@@ -2780,6 +2789,15 @@ def to_rgb(value) -> tuple[float, float, float] | None:
     return None
 
 
+#: `_sane_rect`'s trigger and replacement extent, in em relative to the
+#: baseline. Named so that a test can change them and prove that the estimate
+#: is still DETECTED — `rect_estimated` is set by the decision, not recovered
+#: from the numbers it produced.
+EST_TRIGGER = -0.6
+EST_BELOW = 0.3
+EST_ABOVE = 1.0
+
+
 def _sane_rect(bbox, baseline: float, size: float):
     """Repair a vertical box built from a font-wide descent.
 
@@ -2794,12 +2812,21 @@ def _sane_rect(bbox, baseline: float, size: float):
     a plausible one around the baseline. Only the vertical extent is touched;
     x is the advance width and is correct.
     """
+    return _sane_rect_marked(bbox, baseline, size)[0]
+
+
+def _sane_rect_marked(bbox, baseline: float, size: float):
+    """`_sane_rect`, and whether it replaced anything.
+
+    One implementation of the decision, so the box and the mark can never
+    disagree. `_sane_rect` keeps its signature for its other readers.
+    """
     x0, y0, x1, y1 = bbox
     if size <= 0:
-        return bbox
-    if (y0 - baseline) / size > -0.6:
-        return bbox                       # an ordinary descent: leave it
-    return (x0, baseline - 0.3 * size, x1, baseline + 1.0 * size)
+        return bbox, False
+    if (y0 - baseline) / size > EST_TRIGGER:
+        return bbox, False                # an ordinary descent: leave it
+    return (x0, baseline - EST_BELOW * size, x1, baseline + EST_ABOVE * size), True
 
 
 def _dominant_baseline(glyphs: list["GlyphNode"]) -> float:
@@ -4373,10 +4400,12 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                 # the point is to stop a type error, not to invent an encoding.
                 if isinstance(gname, (bytes, bytearray)):
                     gname = bytes(gname).decode("latin-1", "replace")
+                _rect, _estimated = _sane_rect_marked(
+                    o.bbox, o.matrix[5], o.size)
                 glyphs.append(
                     GlyphNode(
                         id=f"p{pno}g{n}", page=pno,
-                        rect=_sane_rect(o.bbox, o.matrix[5], o.size),
+                        rect=_rect, rect_estimated=_estimated,
                         text=_spell_glyph(o.get_text(), gname, o.cid),
                         cid=o.cid, glyphname=gname,
                         fontname=o.fontname, family=fam, size=o.size,
@@ -5661,18 +5690,12 @@ LAST_INK_REPORT: dict = {}
 def _page_has_estimated_box(page: "PageNode") -> bool:
     """Did `_sane_rect` replace any glyph box on this page?
 
-    Detected by the replacement's own signature — `baseline - 0.3*size ..
-    baseline + 1.0*size` — rather than by a flag threaded through the reader.
-    A real box matching both bounds to 1e-6 is measure-zero.
+    Reads `GlyphNode.rect_estimated`, which the one function that makes the
+    decision sets. This used to recognise the replacement's own arithmetic,
+    which worked and would have rotted the moment a constant in the formula
+    moved — leaving the flag silently meaning "never measure".
     """
-    for ln in page.lines:
-        for g in ln.glyphs:
-            if not g.size:
-                continue
-            if abs(g.rect[1] - (g.baseline - 0.3 * g.size)) < 1e-6 \
-               and abs(g.rect[3] - (g.baseline + 1.0 * g.size)) < 1e-6:
-                return True
-    return False
+    return any(g.rect_estimated for ln in page.lines for g in ln.glyphs)
 
 
 def attach_ink(path: str, page: "PageNode") -> dict:
