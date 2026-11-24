@@ -5595,18 +5595,49 @@ def _contour(rect: Rect, page: "PageNode", k: float) -> list[list[int]]:
 #: decision, not a confidence one: `inkboxes.ink_boxes` re-runs pdfminer over
 #: the page. `PDFDRILL_INK_REGIONS=1` or `build(..., ink=True)` turns it on.
 #:
-#: THE COST IS +35%, NOT DOUBLE. This said "measuring doubles the read. A
-#: corpus pass is ~6 h; silently making it ~12 h is the operator's call",
-#: which was an estimate and is pessimistic. MEASURED over the 24 judged born
+#: THE COST IS +25..35% ON AVERAGE AND UP TO x2.25 ON ONE PAGE. This said
+#: "measuring doubles the read. A corpus pass is ~6 h; silently making it
+#: ~12 h is the operator's call" — an estimate, and fair as a worst case but
+#: pessimistic as a mean. TWO PAIRED MEASUREMENTS over the 24 judged born
 #: pages of board75, installed entry point, `glyphlines --force` each way:
 #:
-#:     no ink   170.4 s total   7.10 s/page
-#:     ink      230.0 s total   9.58 s/page     x1.35
+#:     run 1    7.10 -> 9.58 s/page      x1.35
+#:     run 2   12.50 -> 15.57 s/page     x1.25     (clean, nothing else running)
 #:
-#: So a ~6 h corpus pass becomes about 8 h, not 12 — the re-run shares parse
-#: cost the estimate assumed it duplicated. T-0161 owns the decision, and now
-#: it owns a number instead of an adjective.
-INK_REGIONS = os.environ.get("PDFDRILL_INK_REGIONS", "") not in ("", "0")
+#: and the per-page ratio in run 2 spreads from about x1.1 to x2.25
+#: (lib:b21e554b9232 p201 5.99 -> 13.48 s; 1805.01788 p3 30.46 -> 55.71 s).
+#:
+#: THE ABSOLUTE SECONDS ARE NOT COMPARABLE BETWEEN THE RUNS — 7.10 and 12.50
+#: s/page for the same work — because this machine's load and cache state
+#: differ. Only the paired RATIO survives that, which is why both runs time
+#: the two readings back to back per page. A first attempt compared an
+#: ink-on run against the other run's baseline and produced x2.06, which is
+#: an artifact of mixing conditions and not a cost.
+#:
+#: So a ~6 h corpus pass becomes roughly 7.5-8 h, with individual maths-heavy
+#: pages near double. T-0161 owns the decision and now owns a range with a
+#: worst case instead of an adjective.
+#: DEFAULT ON since B3 (coordinator, 2026-11-24). `PDFDRILL_INK_REGIONS=0`
+#: turns it off.
+#:
+#: WHY THE DEFAULT AND NOT A FLAG: a reading improvement behind an
+#: off-by-default env var reaches no user and moves no board row, because the
+#: board runs the installed entry point without flags. B3's own gain is only
+#: real once this is the default — lib:4859edad9294 p1287 goes 0.0406 -> 0.0000
+#: and lib:6d90e8d27b8b p174 0.0346 -> 0.0228, measured over the 24 judged
+#: born pages with 3 better, 2 worse at +0.0004 and +0.0002, and 19 unchanged.
+#:
+#: SCOPE IS "A PAGE WITH GLYPHS", which is wider than "born pages" and is said
+#: here rather than implied. `build()` does not know a document's lane, and it
+#: does not need to: a scan with no text layer has no glyph to measure, so the
+#: measurement costs nothing there. A scan carrying an OCR UNDERLAY does have
+#: real glyphs (T-0153 #1) and pays the full cost, which is right — those
+#: glyphs have the same font-box problem as any others.
+#:
+#: The cost is +35%, measured, not the "doubles the read" this comment used to
+#: assert: 7.10 -> 9.58 s/page over those 24 pages (1fd92005). Accepted under
+#: the owner's T-0161 rule, function before speed.
+INK_REGIONS = os.environ.get("PDFDRILL_INK_REGIONS", "") != "0"
 
 #: Set by `attach_ink` so a consumer can tell a page measured from ink from a
 #: page that fell back. {page number: {"measured": n, "glyphs": n, "why": …}}
