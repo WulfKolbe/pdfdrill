@@ -3504,8 +3504,39 @@ def _merge_extenders(glyphs: list["GlyphNode"]) -> list["GlyphNode"]:
     return sorted(rest, key=lambda g: (-g.baseline, g.rect[0]))
 
 
-def _bar_by_its_spacing(glyphs: list["GlyphNode"]) -> None:
-    r"""A vertical bar is a DELIMITER unless the page gave it a relation's space.
+def _shares_row(g: "GlyphNode", bar: "GlyphNode") -> bool:
+    """Is `g` on the same printed line as `bar`?
+
+    This pass runs before `_group_lines`, so there are no lines to ask — only
+    boxes. Two wrong answers were measured on the way to this one, on
+    lib:4859edad9294 p1287 and wzlxjtu-040:
+
+    * ANY box overlap: a bar's box is as tall as the line, so the ASCENDERS of
+      the line above and below reach into it. The window of `|x|` came back as
+      `txr` and `lxl`.
+    * the glyph's CENTRE inside the bar's box: that excludes the base line's
+      own glyphs when the bar is SCRIPT size — exactly the glyphs the size test
+      needs — and the two script bars of `F_{Y_1|D=1}^{-1} - F_{Y_1|D=0}^{-1}`
+      then paired through the `(q) -` between them.
+
+    What separates them is how MUCH they overlap: a subscript sits inside its
+    line's body, so a full-size neighbour covers most of the script's height;
+    an ascender from the next line clips the end of a tall box. So: more than
+    half of the shorter of the two boxes.
+    """
+    lo = max(g.rect[1], bar.rect[1])
+    hi = min(g.rect[3], bar.rect[3])
+    if hi <= lo:
+        return False
+    shorter = min(g.rect[3] - g.rect[1], bar.rect[3] - bar.rect[1])
+    return shorter <= 0 or (hi - lo) > 0.5 * shorter
+
+
+def _bar_by_its_pair(glyphs: list["GlyphNode"]) -> None:
+    r"""A vertical bar is a DELIMITER when it has a MATE, and a relation when it
+    has none — and, as before, only where the page set it flush. (It was
+    `_bar_by_its_spacing` until the corpus measured what spacing alone costs;
+    the name went with the rule.)
 
     `texmap` maps CMSY's `bar` to `\mid`, which is a class-3 relation and sets
     a thick space on each side. The page usually prints `|x|=x`, flush: on
@@ -3523,21 +3554,126 @@ def _bar_by_its_spacing(glyphs: list["GlyphNode"]) -> None:
     So 0.15 em, in the empty middle. A bar at the end of a line, or with no
     neighbour on one side, keeps the mapping it had -- there is nothing to
     measure and `\mid` is the safer of the two.
+
+    SPACING ALONE WAS WRONG, AND THE CORPUS SAID SO BY 50 EQUATIONS. The rule
+    above was measured on 122 bars of the board's 24 pages and it bought that
+    row; over the 441 gold display equations of the wzlxjtu corpus it cost 50
+    (reproduced exactly 202 -> 285 missed, script-attachment refusals 81 ->
+    255, measured at this commit's parent and at it). A conditional
+    probability prints its bar flush too:
+
+        p_{1|0}         ->  p_{1} |_{0}      the bar took the 0 as its script
+        E[Y_1|D = 1]    ->  E[Y_{1} |D = 1]  a relation set as a delimiter
+
+    and the first of those is the worse failure: valid LaTeX saying something
+    else, where a refusal would at least have been visible.
+
+    What separates them is not space but PAIRING, which needs no threshold: a
+    delimiter ENCLOSES, so it comes in twos with content between them, while a
+    relation SEPARATES and stands alone. `|x| = x` has a mate for each bar;
+    `p_{1|0}` and `P(A|B)` have none.
+
+    Two bars pair when they share a baseline and a type size, hold at least one
+    glyph between them, and that window is BALANCED in the other delimiters —
+    so the two bars of `E[Y_1|D=1] - E[Y_1|D=0]`, whose window closes a bracket
+    it never opened, do not pair, and both stay relations. Only a paired bar
+    that the page also set flush becomes `|`; everything else keeps `\mid`,
+    which is what this reader did before the spacing rule and what the corpus
+    was measured on.
     """
     ordered = sorted(glyphs, key=lambda g: (round(g.baseline * 4), g.rect[0]))
-    for i, g in enumerate(ordered):
-        if (g.glyphname or "") != "bar" or g.tex.latex != r"\mid":
+
+    def flush_inward(ga, gb, inside) -> bool:
+        """Did the page set the pair CLOSED on its content?
+
+        The 0.15 em is the measurement that justified this rule; where it is
+        taken is not. The first version asked for the smaller gap to a bar's
+        two NEIGHBOURS IN THE PAGE-WIDE ORDER, which a bar opening a row does
+        not have — measured on lib:4859edad9294 p1287, the display
+        `|d(x, y) - d(y, z)| <= d(x, z)` begins with a bar, so its left
+        neighbour was the last glyph of another row and the test refused to
+        answer at all. A delimiter's own evidence is INSIDE: a space outside it
+        is ordinary (` |x| `), a space inside it is a relation's.
+        """
+        em = max(ga.size, 1.0)
+        xs = sorted(inside, key=lambda g: g.rect[0])
+        return ((xs[0].rect[0] - ga.rect[2]) / em < 0.15
+                and (gb.rect[0] - xs[-1].rect[2]) / em < 0.15)
+
+    # `bar_ix`, not `bars`: a guard in
+    # `tests/test_a_row_stops_at_a_panel_gutter.py` forbids a loop over a list
+    # of that name in this file, because the panel gutter's own barrier bars
+    # were once read without their band. Different bars, same word — the guard
+    # keeps its meaning and this loop takes another name. (Quoting the phrase
+    # it forbids trips it too: it is a text search, and it caught this comment
+    # before it caught anything else.)
+    bar_ix = [i for i, g in enumerate(ordered)
+              if (g.glyphname or "") == "bar" and g.tex.latex == r"\mid"]
+    #: `(`, `[`, `{` and their partners, by the names the fonts use. A window
+    #: that opens a group it does not close is not the inside of a pair.
+    OPEN = {"parenleft": "parenright", "bracketleft": "bracketright",
+            "braceleft": "braceright"}
+    CLOSE = {v: k for k, v in OPEN.items()}
+    taken: set = set()
+    for a in bar_ix:
+        if a in taken:
             continue
-        left = ordered[i - 1] if i else None
-        right = ordered[i + 1] if i + 1 < len(ordered) else None
-        if left is None or right is None:
-            continue
-        if abs(left.baseline - g.baseline) > 0.1 or abs(right.baseline - g.baseline) > 0.1:
-            continue
-        em = max(g.size, 1.0)
-        gap = min((g.rect[0] - left.rect[2]) / em, (right.rect[0] - g.rect[2]) / em)
-        if gap < 0.15:
-            g.tex = g.tex._replace(latex="|", kind="delimiter")
+        ga = ordered[a]
+        for j in bar_ix:
+            if j <= a or j in taken:
+                continue
+            gb = ordered[j]
+            if (abs(gb.baseline - ga.baseline) > 0.1
+                    or abs(gb.size - ga.size) > 0.1):
+                break                       # a different row: no mate rightwards
+            # WHAT LIES BETWEEN THEM ON THE PAGE, not between them in this
+            # list. `ordered` is sorted by BASELINE first, so the two
+            # script-size bars of `p_{1|0}, p_c = p_{1|1}` were adjacent in it
+            # and the `, p =` that separates them — set on the base line, 1.9 pt
+            # higher — was somewhere else entirely. A window that cannot see
+            # those glyphs cannot refuse the pair. So: strictly between in x,
+            # and vertically overlapping the bar's own box, which needs no
+            # tolerance and excludes the next printed line by construction.
+            # BY CENTRES, because the boxes TOUCH. These are advance-width
+            # boxes and adjacent ones share an edge to within a hundredth of a
+            # point (measured: `h` 89.58-96.08 then `e` 96.07-...). A strict
+            # `inside the two edges` test therefore dropped the `x` of `|x|`
+            # and the window came back empty.
+            lo, hi = 0.5 * (ga.rect[0] + ga.rect[2]), 0.5 * (gb.rect[0] + gb.rect[2])
+            inside = [g for g in glyphs
+                      if lo < 0.5 * (g.rect[0] + g.rect[2]) < hi
+                      and _shares_row(g, ga)]
+            if not inside:
+                continue                    # `||` encloses nothing
+            depth, crossed = 0, False
+            for g in inside:
+                n = g.glyphname or ""
+                if n in OPEN:
+                    depth += 1
+                elif n in CLOSE:
+                    depth -= 1
+                    if depth < 0:
+                        crossed = True      # closes a group opened outside
+                        break
+                # AND NOTHING LARGER THAN THE BARS THEMSELVES. A delimiter is
+                # set at the size of what it encloses, so a pair cannot hold a
+                # bigger glyph. Measured: the two script-size bars of
+                # `p_{1|0}, p_c = p_{1|1}` share a baseline and have only
+                # `, p =` between them, all balanced — they paired, and the
+                # subscript came out `p_{1} |_{0}`. Those glyphs are 11.955 pt
+                # against the bars' 7.970. A script INSIDE a pair is smaller,
+                # so `|x_i|` still pairs.
+                if g.size > ga.size + 0.1:
+                    crossed = True
+                    break
+            if crossed or depth != 0:
+                break                       # the window is not a group's inside
+            if flush_inward(ga, gb, inside):
+                ga.tex = ga.tex._replace(latex="|", kind="delimiter")
+                gb.tex = gb.tex._replace(latex="|", kind="delimiter")
+                taken.add(a)
+                taken.add(j)
+            break                           # the FIRST candidate mate decides
 
 
 def _merge_operator_names(glyphs: list["GlyphNode"]) -> list["GlyphNode"]:
@@ -4616,7 +4752,7 @@ def build(path: str, pages: Iterable[int] | None = None, *,
         upright_glyphs = _merge_operator_names(upright_glyphs)
         upright_glyphs = _merge_enclosures(upright_glyphs)
         upright_glyphs = _merge_extenders(upright_glyphs)
-        _bar_by_its_spacing(upright_glyphs)
+        _bar_by_its_pair(upright_glyphs)
         groups = _group_lines(upright_glyphs, rect=layout.bbox,
                               line_bands=line_bands_by_page.get(pno))
         groups = _split_local_columns(groups, layout.bbox)

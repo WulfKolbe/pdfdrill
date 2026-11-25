@@ -109,30 +109,52 @@ def test_a_span_holding_a_symbol_stays_maths():
     assert out[0].kind == "math"
 
 
-# ---- 3. a bar is a delimiter unless spaced ---------------------------
+# ---- 3. a bar is a delimiter when it has a MATE ----------------------
+#
+# This section pinned "flush means delimiter", which was the MECHANISM this
+# commit used, not the intent. The intent was lib:4859edad9294 p1287's
+# `|x| = x`, and it is kept below in the form the page actually has: a PAIR.
+#
+# Over the 441 gold display equations of the wzlxjtu corpus the lone-bar form
+# cost 50 of them (202 reproduced -> 156, and 214 with pairing, against
+# MathPix's 210): a conditional probability prints its bar flush too, so
+# `p_{1|0}` came out `p_{1} |_{0}` — the bar taking the 0 as its own script.
+# See tests/test_a_bar_is_a_delimiter_only_in_a_pair.py.
 
 def _bar(x0, size=10.0, baseline=100.0):
     return _g("|", x0, x0 + 1.5, size=size, baseline=baseline,
               family="math-symbol", name="bar", latex=r"\mid", kind="atom")
 
 
-def test_a_flush_bar_becomes_a_delimiter():
+def test_a_flush_PAIR_becomes_delimiters():
+    r"""`|x| = x`, the line this rule was written for: 28 of its glyphs had
+    failed to pair with the page while the reading said `$\mid x\mid = x$`."""
+    gl = [_bar(0.0), _g("x", 1.5, 6.5, family="math-italic"), _bar(6.5),
+          _g("=", 9.0, 14.0, family="math-symbol", latex="="),
+          _g("x", 16.0, 21.0, family="math-italic")]
+    docmodel._bar_by_its_pair(gl)
+    assert [gl[0].tex.latex, gl[2].tex.latex] == ["|", "|"]
+
+
+def test_a_flush_bar_with_no_mate_stays_a_relation():
+    r"""`\{x \in \mathbb{R} \mid x \geq 0\}` on that same page: flush, and a
+    relation. Spacing cannot tell the two apart, and pairing can."""
     gl = [_g("x", 0, 5, family="math-italic"), _bar(5.0),
           _g("x", 6.5, 11.5, family="math-italic")]
-    docmodel._bar_by_its_spacing(gl)
-    assert gl[1].tex.latex == "|"
+    docmodel._bar_by_its_pair(gl)
+    assert gl[1].tex.latex == r"\mid"
 
 
 def test_a_spaced_bar_stays_a_relation():
     gl = [_g("x", 0, 5, family="math-italic"), _bar(9.0),
-          _g("y", 14.0, 19.0, family="math-italic")]
-    docmodel._bar_by_its_spacing(gl)
+          _g("y", 14.0, 19.0, family="math-italic"), _bar(24.0)]
+    docmodel._bar_by_its_pair(gl)
     assert gl[1].tex.latex == r"\mid"
 
 
 def test_a_bar_with_no_neighbour_is_left_alone():
     gl = [_bar(5.0)]
-    docmodel._bar_by_its_spacing(gl)
+    docmodel._bar_by_its_pair(gl)
     assert gl[0].tex.latex == r"\mid"
 
 
