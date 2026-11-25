@@ -88,6 +88,58 @@ def test_a_loop_is_dropped_and_reported(tmp_path, monkeypatch):
     assert got["lost"] and "repeated fragment" in got["lost"][0]
 
 
+def test_a_host_that_refuses_one_part_has_not_refused_the_document(
+        tmp_path, monkeypatch):
+    """MEASURED on the board's own scan-20260723-1130, whose row reads "every
+    read aborts on Ollama's repeat limit (dot leaders)": the host answers
+    `HTTP 500 {"error": "prediction aborted, token repeat limit reached"}`.
+    That propagated, and `glyphscan` lost the WHOLE DOCUMENT — "Nothing was
+    learned and nothing was written" — over one part of one page.
+
+    The repeat limit of 6c41432d catches a loop that comes back; this is the
+    host catching it first and returning nothing at all."""
+    Image = pytest.importorskip("PIL.Image")
+    png = tmp_path / "page-0001.png"
+    Image.new("L", (40, 240), 255).save(png)
+    # six strips are TWO calls (a host takes three images at a time), which is
+    # what makes "one part of the page" a case at all
+    calls = {"n": 0}
+
+    def fake_run(task, image=None, text=None, **kw):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise RuntimeError(
+                'localhost HTTP 500: {"error":{"message":"prediction aborted, '
+                'token repeat limit reached","type":"api_error"}}')
+        return {"text": f"part {calls['n']}", "finish_reason": "stop",
+                "usage": {}, "provider": "ollama"}
+
+    from pdfdrill import vision_router
+    monkeypatch.setattr(vision_router, "run", fake_run)
+    got = GR.read_page(png, tmp_path / "work", strips=6, max_tokens=99)
+    assert calls["n"] == 2
+    assert "part 1" in got["markdown"]            # what came back is kept
+    assert got["lost"] and "refused it" in got["lost"][0]
+    assert "repeat limit" in got["lost"][0]
+
+
+def test_a_page_whose_every_part_was_refused_is_not_a_page(tmp_path, monkeypatch):
+    """A reader that returned "" here would write an empty item list and call
+    the document read."""
+    Image = pytest.importorskip("PIL.Image")
+    png = tmp_path / "page-0001.png"
+    Image.new("L", (40, 240), 255).save(png)
+
+    def fake_run(task, image=None, text=None, **kw):
+        raise RuntimeError("localhost HTTP 500: prediction aborted")
+
+    from pdfdrill import vision_router
+    monkeypatch.setattr(vision_router, "run", fake_run)
+    with pytest.raises(GR.ReadRefused) as e:
+        GR.read_page(png, tmp_path / "work", strips=6, max_tokens=99)
+    assert "every part was refused" in str(e.value)
+
+
 def test_a_page_the_model_finished_loses_nothing(tmp_path, monkeypatch):
     got = _one_page(tmp_path, [{"text": "a whole page", "finish_reason": "stop",
                                 "usage": {}}], monkeypatch)

@@ -1463,6 +1463,13 @@ def periodic_tail(text: str) -> int:
     return best
 
 
+def _short(e: Exception, limit: int = 160) -> str:
+    """A host's error, fit for a page's `incomplete` note: one line, trimmed.
+    The whole body of an HTTP 500 is JSON with a stack of nulls in it."""
+    t = " ".join(str(e).split())
+    return t if len(t) <= limit else t[:limit - 1] + "…"
+
+
 def read_page(png: Path, work: Path, *, blob_dir: Optional[Path] = None,
               run_id: str = "", strips: int = STRIPS,
               max_tokens: int = 8192) -> dict:
@@ -1491,10 +1498,32 @@ def read_page(png: Path, work: Path, *, blob_dir: Optional[Path] = None,
     free = vision_router.cost_of(TASK)[1] == "free"
     for i, chunk in enumerate(chunks, 1):
         t0 = time.monotonic()
-        rec = vision_router.run(TASK, image=str(chunk[0]),
-                                images=[str(c) for c in chunk],
-                                max_tokens=max_tokens)
+        try:
+            rec = vision_router.run(TASK, image=str(chunk[0]),
+                                    images=[str(c) for c in chunk],
+                                    max_tokens=max_tokens)
+        except Exception as e:                                # noqa: BLE001
+            # A HOST THAT REFUSES ONE CHUNK HAS NOT REFUSED THE DOCUMENT.
+            # MEASURED on the board's own scan-20260723-1130, the slice whose
+            # row reads "every read aborts on Ollama's repeat limit (dot
+            # leaders)": the host answers
+            #     HTTP 500 {"error": "prediction aborted, token repeat limit
+            #               reached"}
+            # and this loop let it propagate, so `glyphscan` lost the whole
+            # document — "Nothing was learned and nothing was written" — over
+            # one part of one page. The repeat limit added in 6c41432d only
+            # catches a loop that COMES BACK; this is the host catching it
+            # first and returning nothing at all.
+            #
+            # So the chunk is lost, the page says so, and the rest of the
+            # document is read. A page with some of its parts is still a page;
+            # a document with none of them is a document nobody can use.
+            lost.append(f"part {i} of {len(chunks)}: the host refused it "
+                        f"({_short(e)})")
+            parts.append("")
+            continue
         if rec.get("error"):
+            # the ROUTER's own refusal (no provider at all) is not per-chunk
             raise ReadRefused(str(rec["error"]))
         provider = rec.get("provider") or provider
         text = rec.get("text") or ""
@@ -1533,8 +1562,14 @@ def read_page(png: Path, work: Path, *, blob_dir: Optional[Path] = None,
             f.unlink()
         except OSError:
             pass
-    return {"markdown": "\n\n".join(p.strip() for p in parts if p.strip()),
-            "provider": provider, "usage": total, "lost": lost}
+    md = "\n\n".join(p.strip() for p in parts if p.strip())
+    if not md.strip() and lost:
+        # NOT ONE PART CAME BACK. That is not an incomplete page, it is no
+        # page, and a reader that returns "" here would write an empty item
+        # list and call the document read.
+        raise ReadRefused(f"{png.name}: every part was refused — "
+                          + "; ".join(lost))
+    return {"markdown": md, "provider": provider, "usage": total, "lost": lost}
 
 
 def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
