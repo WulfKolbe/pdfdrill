@@ -3995,7 +3995,8 @@ commands:
 - name: gemmaocr
   network: true
   section: OCR / model pipeline
-  summary: 'Read a scan with the MODEL lane (Gemma-4 on Makora/Novita) and write a
+  summary: 'Read a scan with the MODEL lane (Gemma-4: a LOCAL Ollama host for nothing,
+    else Makora/Novita, metered) and write a
     MathPix-shaped lines.json beside the PDF — the same two files under the same names
     as `mathpix`, with top-level source "gemma4-ink-yolo" saying it was not bought.
     Five stages, one of which costs money: SPLIT each sheet into the printed pages on
@@ -4010,7 +4011,14 @@ commands:
     PDFDRILL_OCR_BUDGET_EUR before the first call — counted in PRINTED pages still to
     be read, which for a 2x2 sheet is four times the PDF''s page count — every call''s
     usage goes to the call log (`pdfdrill spend`), and pages already on disk cost
-    nothing (--force re-reads and re-spends).'
+    nothing (--force re-reads and re-spends). FREE WHEN THE ROUTE IS LOCAL: the same
+    model runs on a local Ollama host (`ollama_host` in `pdfdrill config`, or
+    PDFDRILL_OLLAMA_HOST; `pdfdrill doctor` says whether it answers), and
+    `vision_router` ranks that first because it costs nothing — then no estimate and
+    no budget refusal apply, and none is printed. A page the model did not read to the
+    end (it looped, or it ran to the token ceiling) is reported as INCOMPLETE and says
+    so in the reading itself (`ocr.incomplete`), because a page read a third of the way
+    through must not arrive looking like a page.'
   done_when: lines:typed-geometry
   max_concurrency: 1
   positionals:
@@ -4039,7 +4047,7 @@ commands:
   - name: pages
     flag: --pages
     type: pages
-    help: N | N-M | all (default all)
+    help: N | N-M | N,M,... | all (default all)
   - name: nup
     flag: --nup
     type: str

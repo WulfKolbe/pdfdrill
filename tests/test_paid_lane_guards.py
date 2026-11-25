@@ -115,11 +115,19 @@ def test_makora_has_its_own_key_and_endpoint():
                 os.environ["MAKORA_API_KEY"] = old
 
 
-def test_makora_is_the_cheapest_provider_and_is_offered_the_reader_task():
+def test_makora_is_the_cheapest_PRICED_provider_and_leads_the_paid_ones():
+    """It led the reader's task because it was the cheapest MEASURED host
+    (0.000718 EUR/page). A host that costs NOTHING is cheaper than the
+    cheapest priced one, so `ollama` leads and makora leads the rest — the
+    intent (cheapest first) is unchanged, the order is one longer.
+    `tests/test_a_local_host_reads_for_nothing.py` holds the free end."""
     from pdfdrill import vision_router as vr
     vr.route("page_ocr_markdown")                  # force task registration
     assert vr.PROVIDERS["makora"].cost_rank == 0
-    assert vr.TASKS["page_ocr_markdown"].providers[0] == "makora"
+    assert vr.PROVIDERS["makora"].cost == "metered"
+    order = vr.TASKS["page_ocr_markdown"].providers
+    assert order[0] == "ollama" and order[1] == "makora"
+    assert vr.PROVIDERS["ollama"].cost == "free"
 
 
 def test_the_transport_passes_extra_body_and_returns_the_usage(monkeypatch):

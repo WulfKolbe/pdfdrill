@@ -25,9 +25,10 @@ the answer never depends on who asked.
 |---|---|---|---|---|
 | 1 | `born_digital` | the PDF carries its **own** text layer, and is not a scan with somebody's OCR underlaid | free | `pdfdrill model` |
 | 2 | `source` | no text layer, but an arXiv e-print — the author's LaTeX | free | `pdfdrill model` |
-| 3 | `gemma` | a scan, and `MAKORA_API_KEY` / `NOVITA_API_KEY` | **metered** | `pdfdrill gemmaocr` |
-| 4 | `mathpix` | a scan, no Makora key, `MATHPIX_APP_ID/KEY` | **paid** | `pdfdrill mathpix` |
-| 5 | `geometry` | a scan, **no reading key at all** — the sandbox's default | free | `pdfdrill gemmaocr --geometry-only` |
+| 3 | `gemma` | a scan, and a **local Ollama host** answers | free | `pdfdrill gemmaocr` |
+| 3 | `gemma` | a scan, no local host, and `MAKORA_API_KEY` / `NOVITA_API_KEY` | **metered** | `pdfdrill gemmaocr` |
+| 4 | `mathpix` | a scan, no local host, no Makora key, `MATHPIX_APP_ID/KEY` | **paid** | `pdfdrill mathpix` |
+| 5 | `geometry` | a scan, no local host and **no reading key at all** — the sandbox's default | free | `pdfdrill gemmaocr --geometry-only` |
 | — | `geometry`, `cost="none"` | …and no NumPy, so the lane's ink half cannot run: **this install has no lane for this document** | — | `pip install numpy` (a base dep), or a key |
 
 1. **`born_digital`** wins at any page count: a text layer beats a page count.
@@ -35,9 +36,20 @@ the answer never depends on who asked.
    author's LaTeX merges into it, so this lane gives geometry **and** gold math.
 2. **`source`** is gold structure and gold math with no page geometry of its
    own; `geometry --layout` supplies the boxes (see below).
-3. **`gemma`** is metered at a measured **0.000718 EUR per printed page** (390
-   pages, 1,711,193 tokens, 0.28 EUR) and refused against
-   `PDFDRILL_OCR_BUDGET_EUR` before the first call.
+3. **`gemma`** is ONE lane on TWO hosts of the same model, and the cost is the
+   host's. A **local Ollama host** (`ollama_host` in `pdfdrill config`, or
+   `PDFDRILL_OLLAMA_HOST`; `pdfdrill doctor` says whether it answers) reads for
+   nothing: no key, no account, nothing metered, no budget to refuse against.
+   That is the free half of this lane, and it is why a keyless install is no
+   longer confined to lane 5 for a scan's WORDS. Failing that, the same reader
+   on Makora/Novita is metered at a measured **0.000718 EUR per printed page**
+   (390 pages, 1,711,193 tokens, 0.28 EUR), refused against
+   `PDFDRILL_OCR_BUDGET_EUR` before the first call. Same command, same reader,
+   same artefact (`source: gemma4-ink-yolo`); `route` says which host served it
+   and what it cost, and on a free route no price is printed at all.
+   A local host is **not** a key, so it is not in `keys_present()`: it is a
+   TOOL, reported with poppler and the layout detector, and `PDFDRILL_SANDBOX=1`
+   answers as if it were absent.
 4. **`mathpix`** is the richest reading there is. It is lane 4 and not lane 3
    because `gemmaocr` measured **88 % of its boxes on penev_A at about a
    fortieth of the price**.

@@ -15,13 +15,20 @@ gets the same answer and the answer never depends on who asked.
   2. source        — no text layer, but the document is an arXiv e-print, so the
      author's LaTeX is downloadable once and free. Gold structure and gold math;
      no page geometry of its own (see `geometry`).
-  3. gemma         — a scan, and a Makora/Novita key is present. METERED, at a
+  3. gemma         — a scan, and the model lane can be reached. ONE lane, two
+     hosts of the same model, and the cost is the host's: a LOCAL Ollama host
+     answers for nothing (no key, no account, nothing metered — the free half
+     of this lane, and the reason the keyless install is not confined to lane
+     5 any more), and failing that a Makora/Novita key makes it METERED, at a
      measured 0.000718 EUR per printed page, refused against
-     PDFDRILL_OCR_BUDGET_EUR before the first call.
-  4. mathpix       — a scan, no Makora key, a MathPix key present. PAID, and the
+     PDFDRILL_OCR_BUDGET_EUR before the first call. Same command, same reader,
+     same artefact; `route` says which host and what it costs.
+  4. mathpix       — a scan, no local host and no Makora key, a MathPix key
+     present. PAID, and the
      richest reading there is; it is lane 4 and not lane 3 because gemmaocr
      measured 88% of its boxes on penev_A at about a fortieth of the price.
-  5. geometry      — a scan and NO reading key at all: the sandbox's default.
+  5. geometry      — a scan, no local host and NO reading key at all: the
+     sandbox's default.
      The layout detector is offline and free, so the page's STRUCTURE can still
      be had — a lines.json of typed boxes with no text in them — without a word
      being read. What it does not give is the words, and it says so. `model` is
@@ -58,6 +65,21 @@ COSTS = ("free", "metered", "paid", "none")
 #: environment; a test passes it literally.
 MATHPIX_KEY = "mathpix"
 GEMMA_KEY = "gemma"
+
+
+def local_reader_present() -> bool:
+    """Whether the model lane can be reached with NO KEY AT ALL: the same
+    Gemma-4 on a local Ollama host, which charges nothing.
+
+    It is not a key, so it is not in `keys_present()` — a set called `keys`
+    whose members are not keys is how the sandbox answer stops being true. It
+    is a TOOL, like poppler and the layout detector, and like them it is
+    reported by `doctor` and asked for rather than assumed. Honours
+    `PDFDRILL_SANDBOX=1` (the sandbox has no such host), so a keyed machine
+    can still ask what the keyless one will do.
+    """
+    from . import ollama_client
+    return ollama_client.available()
 
 
 def keys_present() -> frozenset:
@@ -133,7 +155,8 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
                  arxiv_source: Optional[bool] = None,
                  keys: Optional[frozenset] = None,
                  detector: Optional[bool] = None,
-                 ink: Optional[bool] = None) -> RouteDecision:
+                 ink: Optional[bool] = None,
+                 local_reader: Optional[bool] = None) -> RouteDecision:
     """Pick the lane. PURE — see the module docstring for the contract.
 
     `scanned_images` (from `is_scanned_page_images`) overrides a text layer that
@@ -149,9 +172,18 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
     the install. The two are not interchangeable: no detector is a weaker lane,
     no ink is no lane.
 
+    `local_reader` — the model lane on a LOCAL host (`local_reader_present()`),
+    which needs no key and costs nothing. Asking costs a round trip, so this
+    function does not ask: the caller does (`route_for_sidecar`), and `None`
+    means no local host. It outranks the metered and paid routes for the one
+    reason the contract already orders lanes by — free before metered before
+    paid — and the lane it serves is the SAME lane 3, not a sixth lane: the
+    same command, the same reader, the same artefact, read by a host that
+    charges nothing.
+
     Every optional argument defaults to the ANSWER THAT ASSUMES LEAST: no
-    source, no keys, no detector. A caller that knows nothing is told to use
-    the free lanes, never to spend.
+    source, no keys, no detector, no local host. A caller that knows nothing
+    is told to use the free lanes, never to spend.
     """
     pc = page_count or 0
     keys = frozenset(keys or ())
@@ -235,6 +267,18 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
 
     # 3-5 — ONLY NOW is this an OCR document: no text of its own, no source.
     if needs_ocr or text_layer is False:
+        if local_reader:
+            return RouteDecision(
+                lane="gemma",
+                underlay=underlay,
+                reason=f"{scan_text} and no author's source, "
+                       f"{pc or '?'} sheets — the model lane reads it on a "
+                       f"LOCAL host, so it costs nothing: no key, no account, "
+                       f"nothing metered and no budget to refuse against"
+                       f"{reads_it}",
+                command="pdfdrill gemmaocr <pdf>   (FREE: a local host; add "
+                        "--nup 1 if the sheets are not imposed)",
+                cost="free")
         if GEMMA_KEY in keys:
             return RouteDecision(
                 lane="gemma",
@@ -516,7 +560,8 @@ def route_for_sidecar(sc) -> RouteDecision:
         arxiv_source=arxiv_source_for(sc.pdf_path, sc),
         keys=keys_present(),
         detector=detector_available(),
-        ink=ink_available())
+        ink=ink_available(),
+        local_reader=local_reader_present())
 
 
 # ---------------------------------------------------------------------------

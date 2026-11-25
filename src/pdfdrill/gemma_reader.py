@@ -156,8 +156,22 @@ BUDGET_ENV = "PDFDRILL_OCR_BUDGET_EUR"
 
 
 def read_preflight(pages: Optional[int], *,
-                   budget_eur: Optional[float] = None) -> tuple[bool, str, str]:
-    """(ok, level, message) before any paid call. Mirrors `upload_preflight`."""
+                   budget_eur: Optional[float] = None,
+                   cost: str = "metered") -> tuple[bool, str, str]:
+    """(ok, level, message) before any paid call. Mirrors `upload_preflight`.
+
+    `cost` is the ROUTED provider's, from `vision_router.cost_of(TASK)`. The
+    lane is metered on one host and free on another (the same model on a local
+    Ollama host), and a budget refusal plus an estimate in EUR over a read that
+    spends nothing is not a warning, it is a false statement about the only
+    thing being warned of. A free route is never refused for money.
+    """
+    if cost == "free":
+        if not pages:
+            return True, "ok", ("a local host — free; nothing is metered and "
+                                "no budget applies")
+        return True, "ok", (f"{pages} pages on a local host — free; nothing is "
+                            f"metered and no budget applies")
     if budget_eur is None:
         raw = os.environ.get(BUDGET_ENV, "").strip()
         try:
@@ -1305,6 +1319,54 @@ def page_strips(png: Path, out_dir: Path, *, strips: int = STRIPS,
     return out
 
 
+#: A periodic tail is a loop when the period repeats at least this often, and
+#: the period itself is no longer than this. Both are deliberately generous:
+#: the shortest real repetition in a printed page is a row of dot leaders in a
+#: contents table, and a dozen of those is still a page.
+LOOP_MIN_REPS = 12
+LOOP_MAX_PERIOD = 48
+#: ...and it must be longer than anything a PAGE could put there. A row of dot
+#: leaders in a contents table is one printed line; the measured loop was
+#: 24,565 characters. Two printed lines of the widest kind separate them, and
+#: `finish_reason == "length"` catches a loop this misses anyway.
+LOOP_MIN_CHARS = 200
+
+
+def periodic_tail(text: str) -> int:
+    r"""How many characters at the END of `text` are one fragment repeated.
+
+    MEASURED, 2026-11-25, page 2 of a board scan extract read on a local host:
+    one chunk returned 24,565 characters, all of them `(9.25) $\quad \quad
+    \quad …` to the 8,192-token ceiling, and the chain appended it to the page
+    as though it were a reading. The bottom two thirds of that page were lost
+    and the run said it had read 3 pages. The board already knew this failure
+    on this model ("every read aborts on Ollama's repeat limit"); what pdfdrill
+    had was no limit at all.
+
+    A loop is not identified by its content (`\quad`, a dot leader, a dash) —
+    that would be a list to maintain. It is identified by its SHAPE: the
+    smallest period that tiles the tail, repeated past the point where a
+    printed page could still be the cause.
+    """
+    t = (text or "").rstrip()
+    if not t:
+        return 0
+    best = 0
+    for period in range(1, LOOP_MAX_PERIOD + 1):
+        if len(t) < period * LOOP_MIN_REPS:
+            break
+        unit = t[-period:]
+        if not unit.strip():
+            continue
+        reps = 1
+        while (len(t) >= period * (reps + 1)
+               and t[-period * (reps + 1):-period * reps] == unit):
+            reps += 1
+        if reps >= LOOP_MIN_REPS and period * reps >= LOOP_MIN_CHARS:
+            best = max(best, period * reps)
+    return best
+
+
 def read_page(png: Path, work: Path, *, blob_dir: Optional[Path] = None,
               run_id: str = "", strips: int = STRIPS,
               max_tokens: int = 8192) -> dict:
@@ -1326,7 +1388,12 @@ def read_page(png: Path, work: Path, *, blob_dir: Optional[Path] = None,
     parts: list[str] = []
     total = {"prompt_tokens": 0, "completion_tokens": 0}
     provider = ""
-    for chunk in chunks:
+    #: What this page LOST, in the reader's own words. A page that was not
+    #: read to the end is not a page, and the one thing it must not do is
+    #: arrive looking like one.
+    lost: list[str] = []
+    free = vision_router.cost_of(TASK)[1] == "free"
+    for i, chunk in enumerate(chunks, 1):
         t0 = time.monotonic()
         rec = vision_router.run(TASK, image=str(chunk[0]),
                                 images=[str(c) for c in chunk],
@@ -1334,7 +1401,17 @@ def read_page(png: Path, work: Path, *, blob_dir: Optional[Path] = None,
         if rec.get("error"):
             raise ReadRefused(str(rec["error"]))
         provider = rec.get("provider") or provider
-        parts.append(rec.get("text") or "")
+        text = rec.get("text") or ""
+        fin = (rec.get("finish_reason") or "").lower()
+        cut = periodic_tail(text)
+        if cut:
+            lost.append(f"strips {chunk[0].stem.split('strip')[-1]}+: "
+                        f"{cut} characters of one repeated fragment dropped")
+            text = text[:len(text) - cut].rstrip()
+        if fin == "length":
+            lost.append(f"part {i} of {len(chunks)} ran to the "
+                        f"{max_tokens}-token ceiling: it stops mid-page")
+        parts.append(text)
         u = rec.get("usage") or {}
         total["prompt_tokens"] += u.get("prompt_tokens") or 0
         total["completion_tokens"] += u.get("completion_tokens") or 0
@@ -1350,14 +1427,18 @@ def read_page(png: Path, work: Path, *, blob_dir: Optional[Path] = None,
                 arm=f"{provider}/{strips}strips",
                 prompt_name="page-ocr-markdown",
                 usage=u,
-                eur_per_page=EUR_PER_PAGE / max(1, len(chunks)))
+                # A free route has no rate. An estimate in EUR over a read
+                # that spends nothing is not a conservative figure, it is a
+                # wrong one, and `pdfdrill spend` adds it up.
+                eur_per_page=(0.0 if free
+                              else EUR_PER_PAGE / max(1, len(chunks))))
     for f in pieces:                              # the strips are scratch
         try:
             f.unlink()
         except OSError:
             pass
     return {"markdown": "\n\n".join(p.strip() for p in parts if p.strip()),
-            "provider": provider, "usage": total}
+            "provider": provider, "usage": total, "lost": lost}
 
 
 def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
@@ -1509,7 +1590,9 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
             f"Run without --rebuild to read them (that SPENDS), or with "
             f"--pages to assemble a part of the document.")
     if not rebuild:
-        ok_pf, level_pf, msg_pf = read_preflight(len(pending))
+        from . import vision_router as _vr
+        ok_pf, level_pf, msg_pf = read_preflight(
+            len(pending), cost=_vr.cost_of(TASK)[1])
         if not ok_pf:
             raise ReadRefused(msg_pf)
 
@@ -1521,15 +1604,28 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
         from . import callog
         run_id = callog.new_run_id("gemmaocr")
         callog.open_run(blob_dir, "gemmaocr", script=__name__)
+    #: Pages the reader did not read to the end, page -> what was lost. It is
+    #: written NEXT TO the Markdown, not kept in memory: a resumed run reads
+    #: the page back from disk, and a page that comes back without its mark
+    #: comes back looking complete.
+    lost: dict[int, str] = {}
     for n in sorted(printed):
         md_path = work / "printed" / f"page-{n:04d}.md"
+        mark = md_path.with_suffix(".incomplete")
         if md_path.is_file() and not force:
             md = md_path.read_text(encoding="utf-8")       # a resumed run
+            if mark.is_file():
+                lost[n] = mark.read_text(encoding="utf-8").strip()
         else:
             got = read_page(read_from[n], work / "strips", blob_dir=blob_dir,
                             run_id=run_id, strips=strips)
             md = got["markdown"]
             md_path.write_text(md, encoding="utf-8")
+            if got.get("lost"):
+                lost[n] = "; ".join(got["lost"])
+                mark.write_text(lost[n] + "\n", encoding="utf-8")
+            elif mark.is_file():
+                mark.unlink()
             provider = got["provider"] or provider
             usage["prompt_tokens"] += got["usage"]["prompt_tokens"]
             usage["completion_tokens"] += got["usage"]["completion_tokens"]
@@ -1540,6 +1636,14 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
     # the PDF has, because `page` indexes the PDF's own pages everywhere
     # downstream. Then one last pass over the boxes against the SHEET's ink.
     doc = assemble(quads, prompt_name="page-ocr-markdown", model=provider)
+    # THE ARTEFACT SAYS WHICH PAGES ARE NOT WHOLE. Everything downstream
+    # treats a page of the reading as the page; the one that was cut off
+    # mid-way has to say so where the consumer already looks, which is the
+    # reading itself. `gd3-learn` learns a dictionary from these pages' text,
+    # and learning from a third of a page is how a gate fails for a reason
+    # nothing in the file can explain.
+    if lost:
+        doc["ocr"]["incomplete"] = {str(k): v for k, v in sorted(lost.items())}
     doc["ocr"]["nup"] = {"shape": shape_kind, "order": nup_order,
                          "printed_pages": len(amap),
                          "sheets": len({m["sheet"] for m in amap.values()})}
@@ -1557,7 +1661,7 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
         callog.close_run(blob_dir, run_id, calls=usage["pages"],
                          outcome="read", extra=usage)
     return {"status": "rebuilt" if rebuild else "read",
-            "files": targets, "usage": usage,
+            "files": targets, "usage": usage, "incomplete": lost,
             "provider": provider, "nup": shape_kind,
             "printed_pages": len(amap), "layout": layout_note,
             "folios_ascending": [ok, cmp_pairs],

@@ -207,12 +207,18 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
     refusal inside `no_paid_steps()`. What differs is the top-level `source`,
     which says the reading was not bought.
 
-    PAID AND METERED. The provider is a fixed prepayment, not a subscription:
-    when the balance empties the endpoint stops answering mid-document, and a
-    half-read document is worse than an unread one. So the cost is estimated
-    and REFUSED against `PDFDRILL_OCR_BUDGET_EUR` before the first call, and
-    every call's own `usage` goes to the call log — `pdfdrill spend <pdf>`
-    reads it back.
+    PAID AND METERED — UNLESS THE ROUTE IS LOCAL. The metered provider is a
+    fixed prepayment, not a subscription: when the balance empties the endpoint
+    stops answering mid-document, and a half-read document is worse than an
+    unread one. So the cost is estimated and REFUSED against
+    `PDFDRILL_OCR_BUDGET_EUR` before the first call, and every call's own
+    `usage` goes to the call log — `pdfdrill spend <pdf>` reads it back.
+
+    The same model also runs on a LOCAL Ollama host, and `vision_router` ranks
+    that route first because it costs nothing. The lane is then free, so the
+    estimate and the budget refusal do not apply and are not printed: the
+    command asks `vision_router.cost_of` which route will serve it before it
+    says anything about money.
     """
     # `--geometry-only` and `--rebuild` SPEND NOTHING, so the paid-step guard
     # must not refuse them: a guard that blocks the free half of a lane makes
@@ -240,6 +246,8 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
     from .net import NetworkBlocked
 
     sc = Sidecar(pdf)
+    from . import vision_router as _vr
+    provider, cost = _vr.cost_of(_gr.TASK)
     want = pdf_reading.parse_pages(pages) if pages else None
     cached = _gr.is_gemma_lines(_gr.expected_outputs(pdf)["lines.json"])
     warn = ""
@@ -247,11 +255,13 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
         from . import probes
         probes.ensure(pdf, sc)
         n_pages = len(want) if want else probes.page_count(sc)
-        ok, level, msg = _gr.read_preflight(n_pages)
+        ok, level, msg = _gr.read_preflight(n_pages, cost=cost)
         if not ok:
             return f"Model-lane read refused — {msg}"
         if level == "warn":
             warn = f"\u26a0 {msg}\n"
+        elif cost == "free":
+            warn = f"{msg} ({provider})\n"
 
     t0 = time.monotonic()
     try:
@@ -312,7 +322,8 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
     if result["status"] == "cached":
         return (warn + f"Model-lane reading already present for {pdf.name}: "
                 f"{n_lines} lines on {n_pages_read} pages "
-                f"({lines_path.name}). --force re-reads (and re-spends).")
+                f"({lines_path.name}). --force re-reads"
+                + ("." if cost == "free" else " (and re-spends)."))
     u = result.get("usage") or {}
     spent = u.get("pages", 0) * _gr.EUR_PER_PAGE
     out = [warn.rstrip("\n")] if warn else []
@@ -351,9 +362,15 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
                        "and re-run: the same lines come back TYPED, and "
                        "`geometry --layout` can then box a Formula or a Table "
                        "on a model that has no geometry.")
-        out.append(f"Next, when there is a key: `pdfdrill gemmaocr {pdf.name}` "
-                   f"reads the words (METERED, ~{_gr.EUR_PER_PAGE * printed:.3f} "
-                   f"EUR for this document).")
+        if cost == "free":
+            out.append(f"Next: `pdfdrill gemmaocr {pdf.name}` reads the words "
+                       f"on the local host ({provider}) — FREE, no key, no "
+                       f"account; `pdfdrill doctor` says whether it answers.")
+        else:
+            out.append(f"Next, when there is a key: `pdfdrill gemmaocr "
+                       f"{pdf.name}` reads the words (METERED, "
+                       f"~{_gr.EUR_PER_PAGE * printed:.3f} EUR for this "
+                       f"document).")
         return "\n".join(out)
     if result["status"] == "rebuilt":
         out.append(
@@ -384,10 +401,26 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
         out.append(f"  sanitized: {st.get('boxes_changed', 0)} boxes tightened, "
                    f"{st.get('components_grown', 0)} stray components claimed, "
                    f"{st.get('no_ink', 0)} lines with no ink in their box")
+    # A PAGE THAT WAS NOT READ TO THE END IS NOT A PAGE, and the summary is
+    # where that is either said or hidden. Measured: one chunk looped to the
+    # token ceiling, two thirds of a page were lost, and the line above said
+    # "Read 3 printed pages".
+    inc = result.get("incomplete") or {}
+    if inc:
+        out.append(f"  INCOMPLETE: {len(inc)} of {printed} printed page(s) "
+                   f"were not read to the end — their text stops part-way:")
+        for n, why in sorted(inc.items()):
+            out.append(f"    page {n}: {why}")
+        out.append(f"    The reading says so too (`ocr.incomplete` in "
+                   f"{lines_path.name}). Re-read just those pages with "
+                   f"`pdfdrill gemmaocr {pdf.name} --pages "
+                   f"{','.join(str(n) for n in sorted(inc))} --force`"
+                   + ("" if cost == "free" else " (SPENDS AGAIN)") + ".")
+    money = ("" if cost == "free"
+             else f" — estimated {spent:.4f} EUR")
     out.append(f"  tokens {u.get('prompt_tokens', 0):,} in / "
                f"{u.get('completion_tokens', 0):,} out over "
-               f"{u.get('pages', 0)} printed pages"
-               f" — estimated {spent:.4f} EUR "
+               f"{u.get('pages', 0)} printed pages{money} "
                f"(`pdfdrill spend {pdf.name}` for the log).")
     out.append("Next: build the unified model from lines.json (pdfdrill model).")
     return "\n".join(out)
@@ -2467,6 +2500,21 @@ def cmd_doctor() -> str:
     # interpreter, like poppler and ghostscript, so it belongs with them and
     # not with the credentials.
     lines.append("")
+    lines.append("Local readers (a HOST, not a credential — there is no key to "
+                 "set and nothing to spend):")
+    try:
+        from . import ollama_client as _oll
+        ok_oll, detail = _oll.probe(refresh=True)
+        lines.append(f"  [{'OK ' if ok_oll else 'n/a'}] Gemma-4 on Ollama "
+                     f"(`pdfdrill gemmaocr`, the model lane's FREE half) — "
+                     + (f"{_oll.model()} on {_oll.hostname()}" if ok_oll
+                        else detail)
+                     + "; set `ollama_host` / `ollama_model` with "
+                       "`pdfdrill config`, or PDFDRILL_OLLAMA_HOST")
+    except Exception as exc:                            # pragma: no cover
+        lines.append(f"  [n/a] Gemma-4 on Ollama — {exc}")
+
+    lines.append("")
     lines.append("External detectors:")
     try:
         from . import yololayout as _yolo
@@ -2613,6 +2661,12 @@ def cmd_doctor() -> str:
                               + ("" if det_ok else " (boxes, no types)"))
             lines.append("  Reading lanes: free and available — "
                          + ", ".join(free_lanes) + ".")
+        if ocr_router.local_reader_present():
+            lines.append("  The model lane is FREE on this install: a local "
+                         "host answers, so `pdfdrill gemmaocr <pdf>` reads a "
+                         "scan's WORDS with no key and nothing metered. That "
+                         "is lane 3 at cost `free`, which is what `route` "
+                         "will say.")
         have = ocr_router.keys_present()
         metered = [n for n, k in (("gemmaocr", ocr_router.GEMMA_KEY),
                                   ("mathpix", ocr_router.MATHPIX_KEY))

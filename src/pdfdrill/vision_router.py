@@ -14,6 +14,9 @@ The provider table (the routing facts):
             wherever it natively does the task (equations); paid per call.
   gemma     Gemma-4 vision on Novita.ai — very cheap, prompt-driven; the
             default cheap vision route (tables proven via TABLE_PROMPT).
+  ollama    the SAME Gemma-4, on a LOCAL Ollama host — FREE, no account, no
+            key; available only while the host answers, which is why it is the
+            one provider whose availability is a probe and not a credential.
   makora    the SAME Gemma-4, on Makora — cheapest and fastest measured
             (0.000718 EUR/page, 3-6 s/page), its own MAKORA_API_KEY, and a
             FIXED PREPAID balance that stops answering when it empties.
@@ -51,6 +54,12 @@ class Provider:
     promptless: bool             # MathPix only: the task needs no prompt
     cost_rank: int               # lower = cheaper (routing tiebreak)
     available: Callable[[], bool]
+    #: free | metered | paid, the SAME four words the lane contract uses
+    #: (`ocr_router.COSTS`). Not derivable from `cost_rank`: "cheapest" and
+    #: "costs nothing" are different facts, and only the second one lets a
+    #: command drop a budget refusal and an estimate in EUR that would
+    #: otherwise be printed over a read that spends nothing.
+    cost: str = "paid"
 
 
 def _mathpix_available() -> bool:
@@ -65,6 +74,14 @@ def _gemma_available() -> bool:
 def _makora_available() -> bool:
     from . import gemma_client
     return gemma_client.makora_available()
+
+
+def _ollama_available() -> bool:
+    """A LOCAL host: there is no key to look for, so this asks the host which
+    models it serves (cached per process). The one provider whose availability
+    is a measurement rather than the presence of a credential."""
+    from . import ollama_client
+    return ollama_client.available()
 
 
 def _mercury_available() -> bool:
@@ -83,21 +100,28 @@ def _delegate_available() -> bool:
 
 PROVIDERS: dict[str, Provider] = {p.name: p for p in [
     Provider("mathpix", "vision", promptless=True, cost_rank=2,
-             available=_mathpix_available),
+             available=_mathpix_available, cost="paid"),
+    # Gemma-4 on a local Ollama host: the same model as `gemma`/`makora` with
+    # no account behind it, so cost_rank -1 — there is nothing to meter and no
+    # prepayment to empty mid-document. It is not always THERE, which is the
+    # trade: `_ollama_available` asks the host rather than an environment
+    # variable, and the router simply moves on when nothing answers.
+    Provider("ollama", "vision", promptless=False, cost_rank=-1,
+             available=_ollama_available, cost="free"),
     Provider("gemma", "vision", promptless=False, cost_rank=1,
-             available=_gemma_available),
+             available=_gemma_available, cost="metered"),
     # Makora: the same model, measured at 0.000718 EUR/page against Novita's
     # 20-30 s/page — cheapest and fastest, so rank 0. Its balance is a fixed
     # prepayment, which is why `gemma_reader` preflights a budget before the
     # first call rather than relying on the rank alone.
     Provider("makora", "vision", promptless=False, cost_rank=0,
-             available=_makora_available),
+             available=_makora_available, cost="metered"),
     Provider("mercury", "text", promptless=False, cost_rank=1,
-             available=_mercury_available),
+             available=_mercury_available, cost="metered"),
     Provider("openai", "vision", promptless=False, cost_rank=3,
-             available=_openai_available),
+             available=_openai_available, cost="paid"),
     Provider("delegate", "both", promptless=False, cost_rank=4,
-             available=_delegate_available),
+             available=_delegate_available, cost="free"),
 ]}
 
 
@@ -135,13 +159,18 @@ def _builtin_tasks() -> None:
                   providers=("gemma", "openai", "mathpix", "delegate"))
     register_task("page_markdown",
                   prompt=openai_vision.MATHPIX_MD_PROMPT,
-                  providers=("makora", "gemma", "openai", "delegate"))
+                  providers=("ollama", "makora", "gemma", "openai", "delegate"))
     # The reader's own task (`gemma_reader`): a whole page, in strips, to
     # Markdown with LaTeX. Its prompt is a FILE (466), so it is loaded by
     # name rather than held in a Python string.
+    # `ollama` leads: a page read on a local host costs nothing, and the one
+    # measurement that decides an order between two hosts of the SAME model is
+    # the board, not a preference. The other tasks keep their order on purpose
+    # — a crop is one small call, and moving those is a routing change with
+    # its own evidence to produce.
     register_task("page_ocr_markdown",
                   prompt=prompts.load("page-ocr-markdown"),
-                  providers=("makora", "gemma", "openai", "delegate"))
+                  providers=("ollama", "makora", "gemma", "openai", "delegate"))
     register_task("graph_tikz",
                   prompt=openai_vision.GRAPH_TIKZ_PROMPT,
                   providers=("openai", "gemma", "delegate"))
@@ -181,6 +210,18 @@ def route(task: str) -> tuple[Optional[str], Optional[str]]:
     return None, (f"no provider available for task {task!r} — checked "
                   f"{', '.join(t.providers)}; set the corresponding API key "
                   f"(.env) or run under a Claude agent for the delegate route.")
+
+
+def cost_of(task: str) -> tuple:
+    """(provider, cost) for a task: what will actually serve it and what that
+    costs, in the lane contract's words. `gemmaocr` asks this before it
+    estimates a price — the lane is metered on one host and free on another,
+    and the command that says "PAID AND METERED" over a local read is wrong
+    about the only thing the user is being warned of."""
+    provider, _ = route(task)
+    if provider is None:
+        return None, "none"
+    return provider, PROVIDERS[provider].cost
 
 
 # --------------------------------------------------------------------------- #
@@ -256,6 +297,26 @@ def _call_delegate(task, prompt, image, text, **kw):
         "the sandbox file handshake.")
 
 
+def _call_ollama(task, prompt, image, text, **kw):
+    """The same model on the user's own machine, through the same transport.
+    `EXTRA_BODY` is not optional: without it the completion budget goes into a
+    `reasoning` field the OpenAI envelope drops, and the caller gets an empty
+    page back with `finish_reason: length`."""
+    from . import gemma_client as gc, ollama_client as oc
+    images = kw.pop("images", None) or ([image] if image is not None else None)
+    rec = gc.chat_completion_full(
+        prompt, images, model=kw.pop("model", None) or oc.model(),
+        base_url=oc.base_url(), api_key="local",
+        timeout=kw.pop("timeout", None) or oc.TIMEOUT,
+        extra_body={**oc.EXTRA_BODY, **(kw.pop("extra_body", None) or {})},
+        **kw)
+    return {"provenance": "ollama", "latex": gc.strip_latex_fence(rec["text"]),
+            "text": rec["text"], "confidence": None, "lines": [],
+            "usage": rec["usage"], "finish_reason": rec["finish_reason"],
+            # the MODEL, never the machine (`ollama_client.provider_record`)
+            "model": oc.provider_record()}
+
+
 def _call_makora(task, prompt, image, text, **kw):
     """The same model as `gemma`, on a host with its own key and its own
     metered balance. Carries `usage` back so the caller can record what the
@@ -275,6 +336,7 @@ def _call_makora(task, prompt, image, text, **kw):
 
 _CALLERS: dict[str, Callable] = {
     "mathpix": _call_mathpix,
+    "ollama": _call_ollama,
     "gemma": _call_gemma,
     "makora": _call_makora,
     "mercury": _call_mercury,
