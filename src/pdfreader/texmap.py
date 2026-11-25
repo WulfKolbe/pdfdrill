@@ -2218,3 +2218,117 @@ def agl_char(name: str) -> str:
         if ch and len(ch) == 1:
             return ch
     return ""
+
+
+# ===========================================================================
+# THE TeX GLYPH-NAME TABLE — ONE copy, for both readers.
+#
+# B6 items 2+3 (merged). It was in `pdfdrill/cid_glyphs.py`, where only the
+# CHARS reader could see it, and the GLYPH reader — which feeds the board — had
+# nothing: `texmap.project` returns `latex=None` for all 75 of the board's
+# characterless glyphs while this table resolves `[ ] √ ∑ / ̸` correctly. The
+# mirror image of ea51847a, where the md path lacked what the glyph path had.
+# Two readers, two tables, each missing the other's. So: one table here.
+#
+# Moved VERBATIM, then extended. The entries below the move are new and each
+# is a TeX name the corpus actually contained; nothing is invented from
+# folklore, which is this module's rule.
+# ===========================================================================
+# TeX size/style suffixes: parenleftBig, parenleftbigg, parenleftBigg, …
+_TEX_SIZE_SUFFIX = re.compile(
+    r"(?:big|Big|bigg|Bigg|BIG)(?:g)?$|(?:small)$")
+
+_GLYPH_BASE = {
+    "parenleft": "(", "parenright": ")",
+    "bracketleft": "[", "bracketright": "]",
+    "braceleft": "{", "braceright": "}",
+    "angbracketleft": "⟨", "angbracketright": "⟩",
+    "floorleft": "⌊", "floorright": "⌋",
+    "ceilingleft": "⌈", "ceilingright": "⌉",
+    "slash": "/", "backslash": "\\",
+    "bar": "|", "vextendsingle": "|", "vextenddouble": "‖",
+    "arrowvert": "|", "Arrowvert": "‖",
+    "radical": "√", "summationdisplay": "∑", "summationtext": "∑",
+    "productdisplay": "∏", "producttext": "∏",
+    "integraldisplay": "∫", "integraltext": "∫",
+    "uniondisplay": "∪", "intersectiondisplay": "∩",
+    "minus": "−", "periodcentered": "·", "multiply": "×", "divide": "÷",
+    "lessequal": "≤", "greaterequal": "≥", "notequal": "≠",
+    "element": "∈", "arrowright": "→", "arrowleft": "←",
+    # 901 — THE TEXBOOK'S TWO MISSING SYMBOLS, both from CMSY.
+    # `prime` is the ′ of the styles D′ T′ S′ SS′ that every rule in
+    # Appendix G is stated in terms of (127 of them book-wide, each one
+    # printed as `(cid:48)`). `negationslash` is the \not of ≠ — TeX sets
+    # `\ne` as TWO glyphs at the SAME x, so this is the overstrike half and
+    # `_compose_overstrikes` is what joins it to the character it crosses.
+    "prime": "′", "negationslash": "\u0338",
+    # 902 — manfnt's two signs, which account for 1,527 of the 1,667
+    # unresolved manfnt glyphs in The TeXbook. NEITHER HAS A UNICODE
+    # CODEPOINT: Knuth's dangerous bend is a drawn road sign and the margin
+    # mark is his own triangle, so these are chosen STAND-INS, not decodings
+    # — the only entries in this table that are. They are here because the
+    # alternative a reader actually got was `(cid:127)(cid:127)(cid:120)`
+    # glued to the front of the word EXERCISE, and because both signs are
+    # pure signposting: a wrong stand-in misleads nobody about a formula.
+    # `pennytop`/`pennyedge` are deliberately NOT mapped — they are two
+    # pieces of a drawn penny from a Dirty Tricks example, and no character
+    # stands in for a fragment of a picture.
+    "dbend": "⚠", "mantriangle": "▶",
+}
+
+#: MEASURED ADDITIONS, from every name NEITHER table resolved across all pages
+#: of the 10 affected board extracts (107 instances, 21 distinct names):
+_GLYPH_BASE.update({
+    # AMS symbol fonts
+    "greaterorequalslant": "⩾",      # MSAM10, 8 — \geqslant
+    "planckover2pi": "ℏ",            # MSBM10, 7 — \hbar
+    # a second name for a bar already in the table as `vextenddouble`
+    "bardbl": "‖",                   # 8 — \Vert
+    # the `text` companions of `display` entries already present
+    "intersectiontext": "∩",         # CMEX10, 1
+    "uniontext": "∪",                # the pair of `uniondisplay`, for symmetry
+    # CMSY relations the corpus carried
+    "similarequal": "≃",             # 1 — \simeq
+    "mapsto": "↦",                   # 1 — \mapsto
+    "intersectionsq": "⊓",           # 1 — \sqcap
+    "unionsq": "⊔",                  # 1 — \sqcup
+})
+
+#: DELIBERATELY NOT MAPPED, and the reason is the table's own (902): "no
+#: character stands in for a fragment of a picture."
+#:
+#:   hatwide (3), tildewide (1)  — a WIDE accent spans an expression. `^` is
+#:       not what the page shows and the span is the information; that is
+#:       structure, not a character.
+#:   multicloseleft (1)          — MSBM10, and I could not establish what it
+#:       draws. A guess here is a silently wrong formula.
+#:   MathType's slot names       — SI 23, NUL 11, STX 6, DC2 4, DC3 4, SOH 3,
+#:       ESC 1, c141 3, i.e. 55 instances whose "names" are ASCII control
+#:       mnemonics standing for slot numbers. T-0163 owns them, by SHAPE.
+
+
+def tex_name_char(name: str) -> str:
+    """Unicode for a PostScript/TeX glyph name, or "" when unknown.
+
+    Empty for anything unrecognised — the caller keeps the visible `(cid:N)`,
+    because a wrong glyph corrupts a formula silently while a visible code is a
+    defect someone can see and count.
+
+    Order: the name itself, then a single ASCII letter/digit (`A` is the glyph
+    name of A), then the `.N` SUBSET SUFFIX (`summationdisplay.1`, 19 instances
+    on the board — the base is in the table and nothing tried it), then the TeX
+    SIZE suffix (`parenrightBig` -> `parenright`).
+    """
+    if not name:
+        return ""
+    n = name.lstrip("/")
+    if n in _GLYPH_BASE:
+        return _GLYPH_BASE[n]
+    if len(n) == 1 and n.isascii() and n.isalnum():
+        return n
+    dot = n.split(".")[0]
+    if dot != n and dot in _GLYPH_BASE:
+        return _GLYPH_BASE[dot]
+    stripped = _TEX_SIZE_SUFFIX.sub("", dot)
+    return _GLYPH_BASE.get(stripped, "")
+

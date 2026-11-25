@@ -298,8 +298,18 @@ def _has_no_character(text: str) -> bool:
             and text.endswith(")") and text[5:-1].isdigit())
 
 
-#: ONE name-to-character rule for the whole project; see `texmap.agl_char`.
+#: ONE pair of name-to-character tables for the whole project, in ONE order,
+#: so the glyph reader and the chars reader answer the same. The curated TeX
+#: table first (it knows `summationdisplay` -> ∑, the `.N` subset suffix and
+#: the size suffixes), then the Adobe Glyph List (`macron`, `alpha`, `tau`,
+#: `reflexsubset`). See `texmap.tex_name_char` / `texmap.agl_char`.
 from .texmap import agl_char as _agl_char              # noqa: E402
+from .texmap import tex_name_char as _tex_name_char    # noqa: E402
+
+
+def _name_char(glyphname: str) -> str:
+    """The character this glyph NAME stands for, by either table, or ""."""
+    return _tex_name_char(glyphname) or _agl_char(glyphname)
 
 
 def _spell_glyph(text: str, glyphname: "str | None", cid: int = -1) -> str:
@@ -373,7 +383,7 @@ def _spell_glyph(text: str, glyphname: "str | None", cid: int = -1) -> str:
     # abstains: `barex`, `radicalbig`, `bracketleftbig` and MathType's `SI`
     # are not characters at all, and inventing one is worse than the gap.
     if glyphname and _has_no_character(text):
-        named = _agl_char(glyphname)
+        named = _name_char(glyphname)
         if named:
             return named
     if (len(text) == 1 and 0x400 <= ord(text) <= 0x4FF

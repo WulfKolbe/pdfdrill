@@ -100,47 +100,8 @@ def unresolved_cids(text: str) -> int:
 # as a fallback for fonts that ship no /Differences.
 # ---------------------------------------------------------------------------
 
-# TeX size/style suffixes: parenleftBig, parenleftbigg, parenleftBigg, …
-_TEX_SIZE_SUFFIX = re.compile(
-    r"(?:big|Big|bigg|Bigg|BIG)(?:g)?$|(?:small)$|(?:ex)$")
-
-_GLYPH_BASE = {
-    "parenleft": "(", "parenright": ")",
-    "bracketleft": "[", "bracketright": "]",
-    "braceleft": "{", "braceright": "}",
-    "angbracketleft": "⟨", "angbracketright": "⟩",
-    "floorleft": "⌊", "floorright": "⌋",
-    "ceilingleft": "⌈", "ceilingright": "⌉",
-    "slash": "/", "backslash": "\\",
-    "bar": "|", "vextendsingle": "|", "vextenddouble": "‖",
-    "arrowvert": "|", "Arrowvert": "‖",
-    "radical": "√", "summationdisplay": "∑", "summationtext": "∑",
-    "productdisplay": "∏", "producttext": "∏",
-    "integraldisplay": "∫", "integraltext": "∫",
-    "uniondisplay": "∪", "intersectiondisplay": "∩",
-    "minus": "−", "periodcentered": "·", "multiply": "×", "divide": "÷",
-    "lessequal": "≤", "greaterequal": "≥", "notequal": "≠",
-    "element": "∈", "arrowright": "→", "arrowleft": "←",
-    # 901 — THE TEXBOOK'S TWO MISSING SYMBOLS, both from CMSY.
-    # `prime` is the ′ of the styles D′ T′ S′ SS′ that every rule in
-    # Appendix G is stated in terms of (127 of them book-wide, each one
-    # printed as `(cid:48)`). `negationslash` is the \not of ≠ — TeX sets
-    # `\ne` as TWO glyphs at the SAME x, so this is the overstrike half and
-    # `_compose_overstrikes` is what joins it to the character it crosses.
-    "prime": "′", "negationslash": "\u0338",
-    # 902 — manfnt's two signs, which account for 1,527 of the 1,667
-    # unresolved manfnt glyphs in The TeXbook. NEITHER HAS A UNICODE
-    # CODEPOINT: Knuth's dangerous bend is a drawn road sign and the margin
-    # mark is his own triangle, so these are chosen STAND-INS, not decodings
-    # — the only entries in this table that are. They are here because the
-    # alternative a reader actually got was `(cid:127)(cid:127)(cid:120)`
-    # glued to the front of the word EXERCISE, and because both signs are
-    # pure signposting: a wrong stand-in misleads nobody about a formula.
-    # `pennytop`/`pennyedge` are deliberately NOT mapped — they are two
-    # pieces of a drawn penny from a Dirty Tricks example, and no character
-    # stands in for a fragment of a picture.
-    "dbend": "⚠", "mantriangle": "▶",
-}
+# THE TABLE MOVED to `pdfreader.texmap` (B6 items 2+3): the GLYPH reader needs
+# it too and could not import from this package. One table, both readers.
 
 
 def glyph_name_to_char(name: str) -> str:
@@ -150,36 +111,22 @@ def glyph_name_to_char(name: str) -> str:
     `(cid:N)`, because a wrong glyph corrupts a formula silently while a visible
     code is a defect someone can see and count.
     """
-    if not name:
-        return ""
-    n = name.lstrip("/")
-    if n in _GLYPH_BASE:
-        return _GLYPH_BASE[n]
-    if len(n) == 1 and n.isascii() and n.isalnum():
-        return n                                # `A` is the glyph name of A
-    stripped = _TEX_SIZE_SUFFIX.sub("", n)      # parenrightBig → parenright
-    if stripped in _GLYPH_BASE:
-        return _GLYPH_BASE[stripped]
-    # B6 — THEN THE ADOBE GLYPH LIST, the same one the glyph reader uses.
+    # BOTH TABLES, IN ONE PLACE, AND IN THIS ORDER.
     #
-    # `_GLYPH_BASE` is hand-written and partial, and this is where that cost
-    # showed: `_resolve_glyph` named `CMR10 cid 22` correctly as `macron` from
-    # the standard CM encoding and then got "" back from here, so 145
-    # `(cid:N)` tokens reached users' markdown on five board pages while the
-    # name was in hand. 19 of 0864 p4's 54 were that one glyph.
+    # The curated TeX table first: it knows `summationdisplay` -> ∑ and the
+    # size suffixes, which the Adobe list does not. Then the Adobe list, which
+    # is where `macron`, `alpha`, `tau` and `reflexsubset` live — ea51847a:
+    # `_resolve_glyph` named `CMR10 cid 22` correctly from the standard CM
+    # encoding and this function answered "" because the curated table lacked
+    # it, so 145 `(cid:N)` tokens stood in users' markdown with the name in
+    # hand.
     #
-    # `texmap.agl_char` is the single rule, imported by both readers rather
-    # than copied — the copy is what produced this defect.
-    #
-    # THE FONT'S OWN NAME ONLY, never the size-stripped one. A first version
-    # tried `agl_char(stripped)` too and resolved `barex` to `|`: the strip
-    # turns it into `bar`, which the AGL knows, but `barex` is the EXTENSION
-    # PIECE of a tall bar and not a pipe. The strip is for `parenrightBig` ->
-    # `parenright`, a real character at a display size, and `_GLYPH_BASE`
-    # above already owns that route with a curated table. So a piece whose
-    # base happens to name a character still abstains.
-    from pdfreader.texmap import agl_char
-    return agl_char(n)
+    # THE ADOBE LIST SEES THE FONT'S OWN NAME ONLY, never a size-stripped one:
+    # the strip turns `barex` into `bar`, which the list knows, but `barex` is
+    # the EXTENSION PIECE of a tall bar and not a pipe. The curated table owns
+    # the stripped route, with the entries measured for it.
+    from pdfreader.texmap import tex_name_char, agl_char
+    return tex_name_char(name) or agl_char((name or "").lstrip("/"))
 
 
 def resolve_cid_by_name(text: str, code_to_name: dict) -> str:
