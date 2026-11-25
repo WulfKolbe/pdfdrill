@@ -158,7 +158,28 @@ def glyph_name_to_char(name: str) -> str:
     if len(n) == 1 and n.isascii() and n.isalnum():
         return n                                # `A` is the glyph name of A
     stripped = _TEX_SIZE_SUFFIX.sub("", n)      # parenrightBig → parenright
-    return _GLYPH_BASE.get(stripped, "")
+    if stripped in _GLYPH_BASE:
+        return _GLYPH_BASE[stripped]
+    # B6 — THEN THE ADOBE GLYPH LIST, the same one the glyph reader uses.
+    #
+    # `_GLYPH_BASE` is hand-written and partial, and this is where that cost
+    # showed: `_resolve_glyph` named `CMR10 cid 22` correctly as `macron` from
+    # the standard CM encoding and then got "" back from here, so 145
+    # `(cid:N)` tokens reached users' markdown on five board pages while the
+    # name was in hand. 19 of 0864 p4's 54 were that one glyph.
+    #
+    # `texmap.agl_char` is the single rule, imported by both readers rather
+    # than copied — the copy is what produced this defect.
+    #
+    # THE FONT'S OWN NAME ONLY, never the size-stripped one. A first version
+    # tried `agl_char(stripped)` too and resolved `barex` to `|`: the strip
+    # turns it into `bar`, which the AGL knows, but `barex` is the EXTENSION
+    # PIECE of a tall bar and not a pipe. The strip is for `parenrightBig` ->
+    # `parenright`, a real character at a display size, and `_GLYPH_BASE`
+    # above already owns that route with a curated table. So a piece whose
+    # base happens to name a character still abstains.
+    from pdfreader.texmap import agl_char
+    return agl_char(n)
 
 
 def resolve_cid_by_name(text: str, code_to_name: dict) -> str:

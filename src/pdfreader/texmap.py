@@ -2179,3 +2179,42 @@ def operator_prefix(text: str) -> str | None:
         if text.startswith(name):
             return name
     return None
+
+
+#: THE ADOBE GLYPH LIST, in ONE place for every reader.
+#:
+#: pdfminer ships it (4281 entries). It lives here because `pdfreader`'s glyph
+#: reader (`docmodel_six._spell_glyph`) and `pdfdrill`'s chars extractor
+#: (`cid_glyphs.glyph_name_to_char`) both need it, and a second copy of a
+#: name-to-character table is how B6 happened: the chars path resolved
+#: `CMR10 cid 22` to the name `macron` and then to NOTHING, because its own
+#: hand-written table lacked it, while 145 `(cid:N)` tokens reached users'
+#: markdown.
+try:
+    from pdfminer.glyphlist import glyphname2unicode as _AGL
+except Exception:                                            # noqa: BLE001
+    _AGL = {}
+
+
+def agl_char(name: str) -> str:
+    """The character a STANDARD glyph name stands for, or "".
+
+    `alpha` -> α, `macron` -> ¯, `reflexsubset` -> ⊆. A subset names variants
+    `alpha.1`, so the base before the first dot is tried too.
+
+    ONLY SINGLE CHARACTERS. A name expanding to several is a ligature, which
+    `_spell_ligature` owns.
+
+    IT ANSWERS "" FOR A NAME THAT IS NOT A CHARACTER, and that is the point:
+    `barex`, `summationdisplay`, `radicalbig`, `bracketleftbig` are TeX's
+    extensible PIECES of a big symbol, and MathType's `SI` is a slot number
+    with no meaning. Inventing a character for one is worse than the gap.
+    """
+    if not name:
+        return ""
+    n = name.lstrip("/")
+    for cand in (n, n.split(".")[0]):
+        ch = _AGL.get(cand)
+        if ch and len(ch) == 1:
+            return ch
+    return ""

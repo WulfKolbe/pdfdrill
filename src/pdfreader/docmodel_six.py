@@ -278,13 +278,6 @@ _LIGATURES = {
 }
 
 
-#: The Adobe Glyph List, for a glyph the font gave NO character for. pdfminer
-#: ships it (4281 entries); an install without it loses this rule and nothing
-#: else.
-try:
-    from pdfminer.glyphlist import glyphname2unicode as _AGL
-except Exception:                                            # noqa: BLE001
-    _AGL = {}
 
 def _has_no_character(text: str) -> bool:
     """Did the font fail to say what this glyph IS?
@@ -305,18 +298,8 @@ def _has_no_character(text: str) -> bool:
             and text.endswith(")") and text[5:-1].isdigit())
 
 
-def _agl_char(glyphname: str) -> str:
-    """The character a STANDARD glyph name stands for, or "".
-
-    `alpha` -> α. A subset names variants `alpha.1`, so the base before the
-    first dot is tried too. Only single characters are taken: a name that
-    expands to several is a ligature, which `_spell_ligature` owns.
-    """
-    for name in (glyphname, glyphname.split(".")[0]):
-        ch = _AGL.get(name)
-        if ch and len(ch) == 1:
-            return ch
-    return ""
+#: ONE name-to-character rule for the whole project; see `texmap.agl_char`.
+from .texmap import agl_char as _agl_char              # noqa: E402
 
 
 def _spell_glyph(text: str, glyphname: "str | None", cid: int = -1) -> str:
