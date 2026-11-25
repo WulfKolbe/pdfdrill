@@ -1300,19 +1300,101 @@ STRIP_OVERLAP = 0.06
 TASK = "page_ocr_markdown"
 
 
+def strip_cuts(png: Path, *, strips: int = STRIPS) -> "list[int] | None":
+    """Where to cut the page so that NO PRINTED LINE IS CUT: the blank band
+    nearest each even division. `None` when the page's ink cannot be read.
+
+    THE OVERLAP WAS THE DEFECT, NOT THE CURE. Strips overlapped by 6 % of a
+    strip because a printed line falling on a cut must be whole in one of them,
+    and the prompt asked the model not to transcribe such a line twice. It
+    does. Measured on a board scan extract, page 1: the model returned
+    `(ii) If we adjoin a new generator` at the end of one chunk and
+    `(ii) If we adjust a new generator ... instead of` at the start of the
+    next, and `at the same time, add to relations (9.16)` twice as well. The
+    assembler then had more items than the page had ink rows, so it gave one
+    duplicate NO BOX AT ALL (y=0, h=0) and squeezed another into a 26 px sliver
+    of the row above — and from there every item was one row out: 16 of 31 text
+    lines carried their NEIGHBOUR's text, on boxes that match a known-good
+    reading of the same page at IoU 0.93-0.98.
+
+    A reading whose boxes are right and whose text is shifted by one line is
+    worse than a missing one, and no de-duplicating join can undo it reliably
+    once two readings of the same line disagree.
+
+    So the duplicate is not detected, it is PREVENTED: the page's own ink says
+    where the printed lines are, and a cut through a blank band between two of
+    them splits no line at all. Then the strips need no overlap, nothing is
+    shown twice, and the join is a plain concatenation.
+    """
+    try:
+        from . import inkbox
+        gray = inkbox.load_gray(Path(png))
+    except Exception:
+        return None
+    h = gray.shape[0]
+    comps = inkbox.components(gray)
+    if not comps:
+        return None
+    lh = inkbox.median_height(comps)
+    comps = [b for b in comps
+             if max(b[2] - b[0], b[3] - b[1]) >= inkbox.SPECK * lh]
+    row_list = inkbox.rows(comps, max_height=TALL_DROP * lh)
+    bands = sorted((min(b[1] for b in r), max(b[3] for b in r))
+                   for r in row_list if r)
+    if len(bands) < strips:
+        return None                       # fewer printed lines than cuts
+    #: The blank bands BETWEEN consecutive printed rows: (gap middle, gap size).
+    gaps = [(0.5 * (bands[i][1] + bands[i + 1][0]),
+             bands[i + 1][0] - bands[i][1])
+            for i in range(len(bands) - 1)
+            if bands[i + 1][0] > bands[i][1]]
+    if not gaps:
+        return None
+    cuts: list[int] = []
+    used: set = set()
+    for i in range(1, max(1, strips)):
+        want = i * h / strips
+        # The nearest unused blank band ABOVE the last cut taken, so the cuts
+        # come out in order. A page can run out of them — rows that overlap
+        # vertically leave no gap between them — and then this returns the
+        # cuts it has: fewer, wider strips, every one of them still cut
+        # between two printed lines. (Without the default this raised
+        # ValueError on an empty sequence, which would have failed the read of
+        # a page it was supposed to improve.)
+        cand = [(abs(mid - want), k) for k, (mid, _) in enumerate(gaps)
+                if k not in used and (not cuts or mid > cuts[-1])]
+        if not cand:
+            break
+        best = min(cand)
+        used.add(best[1])
+        cuts.append(int(round(gaps[best[1]][0])))
+    return cuts or None
+
+
 def page_strips(png: Path, out_dir: Path, *, strips: int = STRIPS,
                 overlap: float = STRIP_OVERLAP) -> list[Path]:
-    """Cut one page render into overlapping horizontal strips."""
+    """Cut one page render into horizontal strips, at blank bands where the
+    page's ink shows them (`strip_cuts`) and at even divisions WITH an overlap
+    where it does not — a page whose ink cannot be read is the one case where
+    a line may still fall on a cut."""
     from PIL import Image
     out_dir.mkdir(parents=True, exist_ok=True)
     out: list[Path] = []
+    cuts = strip_cuts(png, strips=strips)
     with Image.open(png) as im:
         w, h = im.size
-        step = h / max(1, strips)
-        pad = int(step * overlap)
-        for i in range(strips):
-            top = max(0, int(i * step) - pad)
-            bot = min(h, int((i + 1) * step) + pad)
+        if cuts:
+            edges = [0] + [min(h, max(0, c)) for c in cuts] + [h]
+            spans = [(edges[i], edges[i + 1]) for i in range(len(edges) - 1)]
+        else:
+            step = h / max(1, strips)
+            pad = int(step * overlap)
+            spans = [(max(0, int(i * step) - pad),
+                      min(h, int((i + 1) * step) + pad))
+                     for i in range(strips)]
+        for i, (top, bot) in enumerate(spans):
+            if bot <= top:
+                continue
             dst = out_dir / f"{png.stem}.strip{i:02d}.png"
             im.crop((0, top, w, bot)).save(dst)
             out.append(dst)

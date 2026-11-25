@@ -355,7 +355,12 @@ def test_boxes_are_measured_from_the_pages_own_ink(tmp_path):
     assert all(l["geometry"] == "ink" for l in pg["lines"])
 
 
-def test_strips_cover_the_page_and_overlap(tmp_path):
+def test_strips_of_a_page_with_no_ink_cover_it_and_overlap(tmp_path):
+    """The FALLBACK, which is what a blank page gets. A page whose printed
+    lines CAN be measured is cut at the blank bands between them and the
+    strips do not overlap at all — see
+    tests/test_a_strip_is_cut_where_the_page_is_blank.py, and the duplicate
+    line at a seam that made the overlap a defect rather than a cure."""
     Image = pytest.importorskip("PIL.Image")
     png = tmp_path / "page-0001.png"
     Image.new("L", (400, 1200), 255).save(png)

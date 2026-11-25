@@ -10,8 +10,11 @@ You are a precise OCR transcriber. Transcribe the page image into Markdown, with
 every mathematical expression in LaTeX.
 
 The images you are given are horizontal strips of ONE page, in order from top to
-bottom. They overlap slightly. Transcribe the page as a whole, once: do not
-repeat a line that appears in two strips, and do not announce the strips.
+bottom. Each is cut at a blank band between two printed lines, so every printed
+line lies wholly within one strip and no strip repeats another's content. (On a
+page whose ink cannot be measured the strips are cut evenly instead and overlap
+slightly; then do not repeat a line that appears in two of them.) Transcribe the
+page as a whole, once, and do not announce the strips.
 
 ## Fidelity
 
