@@ -27,8 +27,9 @@ the answer never depends on who asked.
 | 2 | `source` | no text layer, but an arXiv e-print — the author's LaTeX | free | `pdfdrill model` |
 | 3 | `gemma` | a scan, and a **local Ollama host** answers | free | `pdfdrill gemmaocr` |
 | 3 | `gemma` | a scan, no local host, and `MAKORA_API_KEY` / `NOVITA_API_KEY` | **metered** | `pdfdrill gemmaocr` |
+| 3b | `glyphscan` | a scan, and **GLYPHDRILL3 declared** — its words from the pixels, with the document's own dictionary (five pages read once, by lane 3 or by MathPix) | free | `pdfdrill glyphscan` |
 | 4 | `mathpix` | a scan, no local host, no Makora key, `MATHPIX_APP_ID/KEY` | **paid** | `pdfdrill mathpix` |
-| 5 | `geometry` | a scan, no local host and **no reading key at all** — the sandbox's default | free | `pdfdrill gemmaocr --geometry-only` |
+| 5 | `geometry` | a scan, no local host, no GLYPHDRILL3 and **no reading key at all** — the sandbox's default | free | `pdfdrill gemmaocr --geometry-only` |
 | — | `geometry`, `cost="none"` | …and no NumPy, so the lane's ink half cannot run: **this install has no lane for this document** | — | `pip install numpy` (a base dep), or a key |
 
 1. **`born_digital`** wins at any page count: a text layer beats a page count.
@@ -53,6 +54,31 @@ the answer never depends on who asked.
 4. **`mathpix`** is the richest reading there is. It is lane 4 and not lane 3
    because `gemmaocr` measured **88 % of its boxes on penev_A at about a
    fortieth of the price**.
+3b. **`glyphscan`** is the lane that did not exist: a scan's WORDS for nothing,
+   on the CPU, at about one page per second (measured 0.8 s/page), which is the
+   loop's own budget — "one page per second, no GPU, 8 GB, free of charge".
+   GLYPHDRILL3's compiled-in fonts read no scan, so the document is read with
+   ITS OWN DICTIONARY, learned once from five of its pages read by any reader:
+   ours on a local host (free), a MathPix reading of those pages dropped into
+   the sidecar, or the owner's own. `gd3-learn` has its own gate on that
+   dictionary — label rate 0.40, leave-one-page-out 0.85 — and a document
+   whose labels are too weak is read with the compiled-in fonts instead, which
+   on a scan means boxes and no words. What the dictionary is worth, measured
+   on one page of a board scan: 0 of 44 lines carry text without it, 42 of 44
+   with it. It is 3b and not 3 because the five pages have to come from
+   somewhere, and it is above `mathpix` because free comes before paid. It
+   needs the tree DECLARED (`glyphdrill3` on PATH, or `glyphdrill3_home` in
+   `pdfdrill config`); there is no default path, for the reason given under
+   lane 3.
+
+   **`choose_route` DOES NOT PICK IT YET, and that is deliberate.** For a scan
+   with a local host, lane 3 and lane 3b are both free and they are not the
+   same reading: lane 3 types maths, tables and figures through the layout
+   detector and spends minutes a page; 3b reads prose at 0.8 s/page and types
+   what `gd3` types. Which of them a scan should get is what the board's six
+   scan rows answer, so `glyphscan` is a NAMED COMMAND until those rows exist
+   — a named command is an instruction, the rule `mathpix` already follows —
+   and the router keeps saying `gemma`.
 5. **`geometry`** reads no words. The detector is offline and free, so the
    page's *structure* can still be had — typed boxes, a page map — and saying
    what is missing beats refusing the document.

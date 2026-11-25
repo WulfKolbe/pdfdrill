@@ -426,6 +426,203 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
     return "\n".join(out)
 
 
+@_writes("glyphscan")
+def cmd_glyphscan(pdf: Path, force: bool = False, no_dict: bool = False,
+                  math: bool = False, pages: str = "") -> str:
+    """Read a SCAN's words from its pixels with GLYPHDRILL3 — free, no GPU.
+
+    THE LANE THIS FILLS. A scan with no text layer and no author's source had,
+    on a keyless install, only the geometry lane: every printed line with a box
+    and a type and NO WORDS. `gd3` reads the words from the pixels with no key
+    and no GPU — but its compiled-in fonts read no scan, so a scanned document
+    is read with ITS OWN DICTIONARY, learned once from five of its pages read
+    by any reader. Those five come from pdfdrill's own model lane, which is
+    free when a local host is declared (`pdfdrill doctor`), so the document
+    costs five pages of a local model and then nothing.
+
+        1  gd3-learn pick            the five pages to have read
+        2  <sidecar>/gd3/<sha>.trees already learned -> step 5
+        3  those five pages read     the model lane, into the SIDECAR — a
+                                     reading of five pages must never land on
+                                     the document's own lines.json
+        4  gd3-learn learn           -o the sidecar; exit 3 = labels too weak,
+                                     remembered, compiled-in fonts instead
+        5  gd3 --refs ... lines      every page, and that is the reading
+
+    Every path is explicit, so the wrapper's own cache in GLYPHDRILL3/build is
+    never touched and nothing is written into that tree (T-0145).
+    """
+    # `ocr_router` is NOT a module-level name here — every other user of it in
+    # this file imports it locally, and the bare reference below raised
+    # NameError on the born-digital path, which no run had taken yet. A test
+    # found it; a user would have found it with a paper.
+    from . import gd3 as _gd3, ocr_router as _or, probes
+    sc = Sidecar(pdf)
+    if not _gd3.available():
+        return f"glyphscan NOT run for {pdf.name}: {_gd3.why_unavailable()}"
+
+    probes.ensure(pdf, sc)
+    # THIS READER IS FOR A SCAN. It can read a born-digital page from its
+    # pixels too, and that is a worse reading of it than the glyphs the page
+    # already carries — the lane contract puts the text layer first for that
+    # reason, and a command that quietly ignores it would be the planner's
+    # problem later.
+    text_layer = sc.get_evidence("text_layer")
+    if text_layer and not _or.scanned_images_for(pdf, sc.get_evidence("pages", 0)):
+        return (f"glyphscan NOT run for {pdf.name}: this document carries its "
+                f"OWN text layer, and reading it from pixels instead would be "
+                f"a worse reading of the same page.\n"
+                f"  pdfdrill glyphlines {pdf.name}   (free: the page's own "
+                f"glyphs, with their coordinates)")
+
+    trees = _gd3.trees_path(sc.blob_dir, pdf)
+    rejected = _gd3.rejected_path(sc.blob_dir, pdf)
+    out: list[str] = []
+    if force:
+        trees.unlink(missing_ok=True)
+        rejected.unlink(missing_ok=True)
+
+    if no_dict:
+        out.append("--no-dict: the compiled-in fonts, no document dictionary.")
+    elif rejected.is_file():
+        out.append(f"this document's dictionary was REJECTED before "
+                   f"({rejected.name}: its labels were too weak) — the "
+                   f"compiled-in fonts read it. --force learns it again.")
+    elif trees.is_file():
+        out.append(f"dictionary: {trees.name} (learned before, in the sidecar).")
+    else:
+        want = _gd3.pick_pages(pdf)
+        teacher = _gd3.reading_path(sc.blob_dir, pdf)
+        # A READING ALREADY IN THE SIDECAR IS THE TEACHER, whoever read it.
+        # `gd3-learn` takes any reader's lines.json of (some of) those pages,
+        # which is also how a MathPix reading bought under the owner's budget
+        # gets used: drop it in beside the dictionary and run this again. The
+        # first version asked for a free reader before looking, and refused to
+        # spend over a reading that was already on disk.
+        have_teacher = _is_a_reading(teacher)
+        if not want and not have_teacher:
+            out.append("no page has enough band lines to learn a dictionary "
+                       "from: the compiled-in fonts read it.")
+        elif have_teacher:
+            out.append(f"teacher: {teacher.name} in {teacher.parent.name}/, "
+                       f"read by {_lines_source(teacher) or 'an unnamed reader'}"
+                       f" — nothing re-read.")
+            state, msg = _gd3.learn(pdf, teacher, trees)
+            out.append(f"  gd3-learn: {_gd3.tidy(msg, trees) or state}")
+            if state == "rejected":
+                rejected.write_text(msg + "\n", encoding="utf-8")
+                out.append("  so the compiled-in fonts read it — and this is "
+                           "remembered, so the pages are not read again for "
+                           "the same answer.")
+            elif state == "failed":
+                return "\n".join(out) + "\nglyphscan stopped: gd3-learn failed."
+        else:
+            from . import gemma_reader as _gr, vision_router as _vr
+            provider, cost = _vr.cost_of(_gr.TASK)
+            if provider is None or cost != "free":
+                return ("\n".join(out) + ("\n" if out else "") +
+                        f"glyphscan needs pages {','.join(map(str, want))} of "
+                        f"{pdf.name} read to learn this document's "
+                        f"dictionary, and NO FREE READER is available"
+                        + (f" (the routed one is `{provider}`, {cost})" if provider else "")
+                        + ".\n"
+                        f"  Declare a local host (`pdfdrill doctor` says how) "
+                        f"and run this again — free,\n"
+                        f"  or have those pages read another way:\n"
+                        f"    pdfdrill mathpix {pdf.name} --pages "
+                        f"{','.join(map(str, want))}   (PAID)\n"
+                        f"  then: pdfdrill glyphscan {pdf.name}")
+            out.append(f"learning this document's dictionary from pages "
+                       f"{','.join(map(str, want))}, read by {provider} "
+                       f"({cost}) into {teacher.parent.name}/.")
+            try:
+                _gr.fetch_gemma(pdf, pages=want, force=force,
+                                blob_dir=sc.blob_dir,
+                                out_dir=_gd3.doc_dir(sc.blob_dir))
+            except Exception as e:                            # noqa: BLE001
+                return ("\n".join(out) + f"\nThe five pages could not be "
+                        f"read: {e}\nNothing was learned and nothing was "
+                        f"written.")
+            state, msg = _gd3.learn(pdf, teacher, trees)
+            out.append(f"  gd3-learn: {_gd3.tidy(msg, trees) or state}")
+            if state == "rejected":
+                rejected.write_text(msg + "\n", encoding="utf-8")
+                out.append("  so the compiled-in fonts read it — and this is "
+                           "remembered, so the five pages are not read again "
+                           "for the same answer.")
+            elif state == "failed":
+                return "\n".join(out) + "\nglyphscan stopped: gd3-learn failed."
+
+    refs = trees if trees.is_file() and not no_dict else None
+    t0 = time.monotonic()
+    try:
+        doc = _gd3.lines(pdf, refs=refs, pages=pages or None,
+                         extra=["--math"] if math else None)
+    except Exception as e:                                    # noqa: BLE001
+        return "\n".join(out) + f"\nglyphscan failed: {e}"
+    secs = time.monotonic() - t0
+
+    # WHAT READ THIS PAGE, written where the reading already says who read it.
+    # `source` is gd3's own ("glyphdrill3"); this says WHICH gd3 and whether it
+    # had the document's dictionary, because a reading nobody can attribute
+    # cannot be compared with itself later.
+    doc["gd3"] = {"version": _gd3.version(), "refs": refs.name if refs else "",
+                  "dictionary": bool(refs), "math": bool(math),
+                  "orchestrator": "pdfdrill.gd3"}
+    target = Path(_gr_lines_target(pdf))
+    # A READING THAT COST MONEY IS PARKED, NOT CLOBBERED — the convention three
+    # other call sites already follow. One lines.json per document means the
+    # lane that runs last owns the name; it does not mean a paid reading may
+    # vanish because a free one ran afterwards.
+    if _is_mathpix_lines(target):
+        bak = target.with_suffix(".mathpix.bak.json")
+        if not bak.exists():
+            bak.write_bytes(target.read_bytes())
+        out.append(f"  the MathPix reading that was there is kept as "
+                   f"{bak.name}.")
+    target.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+
+    n_pages = len(doc.get("pages") or [])
+    n_lines = sum(len(p.get("lines") or []) for p in doc.get("pages") or [])
+    with_text = sum(1 for p in doc.get("pages") or []
+                    for l in (p.get("lines") or []) if (l.get("text") or "").strip())
+    sc.set_evidence("glyphscan_lines", n_lines)
+    sc.set_evidence("glyphscan_dictionary", bool(refs))
+    sc.save()
+    out.append(f"Read {n_pages} page(s) with gd3"
+               + (f" {_gd3.version()}" if _gd3.version() else "")
+               + (" and this document's dictionary" if refs
+                  else " and the compiled-in fonts")
+               + f": {n_lines} lines, {with_text} with text "
+                 f"-> {target.name} ({secs / max(1, n_pages):.1f} s/page).")
+    if not with_text:
+        out.append("  NO LINE CARRIES TEXT. That is what the compiled-in fonts "
+                   "do on a scan they cannot read: the boxes are right and the "
+                   "words are absent. A dictionary is what changes it.")
+    out.append("Next: build the unified model from lines.json (pdfdrill model).")
+    return "\n".join(out)
+
+
+def _gr_lines_target(pdf: Path) -> str:
+    """The document's own reading, under the name every lane writes."""
+    from . import gemma_reader as _gr
+    return _gr.expected_outputs(pdf)["lines.json"]
+
+
+def _is_a_reading(path: Path) -> bool:
+    """Is this a lines.json `gd3-learn` could learn from? Its contract: pages
+    with `page_width` and lines carrying text. Cheap and content-based, so a
+    reading from ANY reader counts — ours, MathPix's, or the owner's own."""
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    for pg in (data.get("pages") or []):
+        if isinstance(pg.get("page_width"), (int, float)) and pg.get("lines"):
+            return True
+    return False
+
+
 def cmd_yololayout(pdf: Path, force: bool = False, pages: str = "",
                    allow_download: bool = False) -> str:
     """Detect page layout and cache one TSV per page. OFFLINE and free.
@@ -2514,6 +2711,19 @@ def cmd_doctor() -> str:
     except Exception as exc:                            # pragma: no cover
         lines.append(f"  [n/a] Gemma-4 on Ollama — {exc}")
 
+    try:
+        from . import gd3 as _gd3
+        ok_gd3 = _gd3.available()
+        ver = _gd3.version()
+        lines.append(f"  [{'OK ' if ok_gd3 else 'n/a'}] GLYPHDRILL3 "
+                     f"(`pdfdrill glyphscan`, a SCAN's words from its pixels: "
+                     f"free, no GPU, ~1 s/page) — "
+                     + ((f"{_gd3.home()}" + (f" @ {ver}" if ver else
+                                             " (not a git work tree: no version)"))
+                        if ok_gd3 else _gd3.why_unavailable().split(".")[0]))
+    except Exception as exc:                            # pragma: no cover
+        lines.append(f"  [n/a] GLYPHDRILL3 — {exc}")
+
     lines.append("")
     lines.append("External detectors:")
     try:
@@ -2661,6 +2871,18 @@ def cmd_doctor() -> str:
                               + ("" if det_ok else " (boxes, no types)"))
             lines.append("  Reading lanes: free and available — "
                          + ", ".join(free_lanes) + ".")
+        try:
+            from . import gd3 as _gd3s
+            if _gd3s.available():
+                lines.append("  A SCAN'S WORDS ARE FREE on this install: "
+                             "GLYPHDRILL3 is declared, so `pdfdrill glyphscan "
+                             "<pdf>` reads a scan from its pixels at about "
+                             "1 s/page with no key and no GPU — it needs five "
+                             "of the document's pages read once to learn its "
+                             "dictionary, and the model lane below does that "
+                             "for nothing when a local host answers.")
+        except Exception:                               # pragma: no cover
+            pass
         if ocr_router.local_reader_present():
             lines.append("  The model lane is FREE on this install: a local "
                          "host answers, so `pdfdrill gemmaocr <pdf>` reads a "

@@ -111,7 +111,8 @@ def base_name(pdf_path: str | Path) -> str:
     return p[:-4] if p.lower().endswith(".pdf") else p
 
 
-def expected_outputs(pdf_path: str | Path) -> dict[str, str]:
+def expected_outputs(pdf_path: str | Path,
+                     out_dir: "str | Path | None" = None) -> dict[str, str]:
     """Where this lane's outputs go — the SAME paths MathPix would use.
 
     One lines.json per document, whoever read it. Two readers writing two
@@ -120,9 +121,22 @@ def expected_outputs(pdf_path: str | Path) -> dict[str, str]:
     a sibling), so the lane that runs last owns the file and `source` says who
     that was. A displaced MathPix reading is parked by the caller, exactly as
     `model --reader` already parks one.
+
+    `out_dir` moves the pair somewhere else under the same names, and has ONE
+    caller: B8's scan route, which has five of a document's pages read to teach
+    `gd3-learn` a dictionary. A reading of five pages written over the
+    document's own `<base>.lines.json` would be the worst possible cache hit —
+    every later command would serve five pages as the document — so that one
+    goes into the sidecar instead. It is a keyword with a default for the same
+    reason: every other caller must keep writing beside the PDF.
     """
     base = base_name(pdf_path)
-    return {"lines.json": f"{base}.lines.json", "md": f"{base}.md"}
+    if out_dir is None:
+        return {"lines.json": f"{base}.lines.json", "md": f"{base}.md"}
+    d = Path(out_dir)
+    stem = Path(base).name
+    return {"lines.json": str(d / f"{stem}.lines.json"),
+            "md": str(d / f"{stem}.md")}
 
 
 def is_gemma_lines(path: str | Path) -> bool:
@@ -1528,7 +1542,8 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
                 blob_dir: Optional[Path] = None, nup: str = "auto",
                 nup_order: str = "column", layout: bool = True,
                 allow_download: bool = False, rebuild: bool = False,
-                geometry_only: bool = False) -> dict:
+                geometry_only: bool = False,
+                out_dir: "str | Path | None" = None) -> dict:
     """Read `pdf_path` with the model lane and write the outputs beside it.
 
     Returns `{"status": "cached"|"read", "files": {...}, "usage": {...}}` —
@@ -1540,7 +1555,9 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
     pdf_path = Path(pdf_path)
     if not pdf_path.exists():
         raise FileNotFoundError(f"File not found: {pdf_path}")
-    targets = expected_outputs(pdf_path)
+    targets = expected_outputs(pdf_path, out_dir)
+    if out_dir is not None:
+        Path(out_dir).mkdir(parents=True, exist_ok=True)
     # The geometry-only lane writes the same file under the same name, so a
     # reading already on disk must not be replaced by a shape: the words cost
     # money and the shape is free, and the free thing never overwrites the

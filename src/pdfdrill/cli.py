@@ -1006,6 +1006,16 @@ def _do_glyphlines(args):
     return cmd_glyphlines(_pdf(args), force="--force" in args)
 
 
+def _do_glyphscan(args):
+    """`glyphscan` — a SCAN's words from its pixels, with the document's own
+    dictionary (T-0157/B8). Free: no key, no GPU."""
+    from .commands import cmd_glyphscan
+    pages, args = _opt(args, "--pages")
+    return cmd_glyphscan(_pdf(args), force="--force" in args,
+                         no_dict="--no-dict" in args, math="--math" in args,
+                         pages=pages or "")
+
+
 def _do_profile(args):
     """`profile` — what is on each page, and on what evidence (781o)."""
     from .commands import cmd_profile
@@ -3539,6 +3549,7 @@ HANDLERS = {
         "toc": _do_toc,
         "fonts": _do_fonts,
         "glyphlines": _do_glyphlines,
+        "glyphscan": _do_glyphscan,
         "profile": _do_profile,
         "members": _do_members,
         "memberprofile": _do_memberprofile,

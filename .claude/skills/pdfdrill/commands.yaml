@@ -181,6 +181,55 @@ commands:
   # `mathpix` and `gemmaocr`, and 16 documents were told to pay for what this
   # does for free (owner, 2026-10-28).
   also_satisfies: lines:typed-geometry
+- name: glyphscan
+  network: true
+  section: OCR / model pipeline
+  summary: 'Read a SCAN''s WORDS from its pixels with GLYPHDRILL3 — free, no key, no GPU,
+    about one page per second. This is the lane that did not exist: a scan with no text
+    layer and no author''s source had only the geometry lane (a box and a type per line
+    and NO WORDS). `gd3`''s compiled-in fonts read no scan either, so a scanned document
+    is read with ITS OWN DICTIONARY, learned once from five of its pages read by any
+    reader — and with a local host declared (`pdfdrill doctor`) those five are free too,
+    so the document costs five pages of a local model and then nothing. The chain:
+    `gd3-learn pick` names the five pages; a reading already in the sidecar is the
+    teacher whoever read it (drop a MathPix reading of those pages in and it is used);
+    otherwise they are read by the model lane INTO THE SIDECAR, because a reading of five
+    pages must never land on the document''s own lines.json; `gd3-learn learn` writes the
+    dictionary beside it, keyed by the PDF''s sha256, and a dictionary whose labels are
+    too weak (its own gate: label rate 0.40, leave-one-page-out 0.85) is REMEMBERED so
+    the pages are not read again for the same answer; then `gd3 --refs` reads every page.
+    Every path is explicit, so GLYPHDRILL3''s own cache is never touched and nothing is
+    written into that tree. Needs that tree declared: `glyphdrill3` on PATH or
+    `glyphdrill3_home` in `pdfdrill config` — there is no default path, because a tool
+    found at a guessed location makes a lane''s availability an accident of the machine.'
+  slow: 'the five pages are minutes on a local model; `gd3` itself is about 1 s/page
+    (measured 0.8 s/page over a 3-page extract)'
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: force
+    flag: --force
+    type: flag
+    help: learn the dictionary again (re-reads the five pages if they are not in the sidecar)
+  - name: no-dict
+    flag: --no-dict
+    type: flag
+    help: 'the compiled-in fonts only, no document dictionary — what `gd3` does for a
+      born-digital page, and on a scan it is the measurement that says what the
+      dictionary is worth (0 of 44 lines with text against 42 of 44, on one page)'
+  - name: math
+    flag: --math
+    type: flag
+    help: every equation region the band stage claims becomes one `math` record (gd3 --math)
+  - name: pages
+    flag: --pages
+    type: pages
+    help: N | N-M | all (default all)
+  typed: true
+  done_when: file:{stem}.lines.json
 - name: profile
   section: Introspection (fast, no extraction)
   summary: 'What is ON each page, and on what evidence — the triage layer (781o). Counting
