@@ -305,6 +305,7 @@ def _has_no_character(text: str) -> bool:
 #: `reflexsubset`). See `texmap.tex_name_char` / `texmap.agl_char`.
 from .texmap import agl_char as _agl_char              # noqa: E402
 from .texmap import tex_name_char as _tex_name_char    # noqa: E402
+from .texmap import mtpro2_glyph_name as _mtpro2_glyph_name  # noqa: E402
 
 
 def _name_char(glyphname: str) -> str:
@@ -312,7 +313,8 @@ def _name_char(glyphname: str) -> str:
     return _tex_name_char(glyphname) or _agl_char(glyphname)
 
 
-def _spell_glyph(text: str, glyphname: "str | None", cid: int = -1) -> str:
+def _spell_glyph(text: str, glyphname: "str | None", cid: int = -1,
+                 fontname: str = "") -> str:
     r"""A glyph's text, with a ligature CHARACTER or a composite NAME spelled
     out in the letters it stands for, and a Cyrillic name on a Latin code
     read as the Latin letter.
@@ -386,6 +388,18 @@ def _spell_glyph(text: str, glyphname: "str | None", cid: int = -1) -> str:
         named = _name_char(glyphname)
         if named:
             return named
+        # RULE 0b — A SLOT NAME THAT IS A CODE POSITION (T-0163). MathTime
+        # Professional 2 names its slots with ASCII control names, and the
+        # position indexes TeX's own encoding, which `texmap` already carries
+        # for CM. It needs the FONT, because one name is a different symbol in
+        # a different encoding: `SI` is MT2SYT cid 2 (bullet, OMS 15) AND
+        # MT2MIT cid 9 (epsilon1, OML 15).
+        if fontname:
+            tex = _mtpro2_glyph_name(fontname, glyphname, cid)
+            if tex:
+                named = _name_char(tex)
+                if named:
+                    return named
     if (len(text) == 1 and 0x400 <= ord(text) <= 0x4FF
             and 33 <= cid <= 126 and chr(cid).isalpha()):
         return chr(cid)                   # rule 3, above
@@ -4458,7 +4472,8 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                     GlyphNode(
                         id=f"p{pno}g{n}", page=pno,
                         rect=_rect, rect_estimated=_estimated,
-                        text=_spell_glyph(o.get_text(), gname, o.cid),
+                        text=_spell_glyph(o.get_text(), gname, o.cid,
+                                          o.fontname),
                         cid=o.cid, glyphname=gname,
                         fontname=o.fontname, family=fam, size=o.size,
                         tex=project(fam, gname, o.cid, o.fontname), matrix=o.matrix,

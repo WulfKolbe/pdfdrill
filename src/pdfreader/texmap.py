@@ -47,6 +47,17 @@ FAMILY_RULES = [
     (re.compile(r"CM(MI|MIB)\d*", re.I), "math-italic"),      # Computer Modern math italic
     (re.compile(r"CM(SY|BSY)\d*", re.I), "math-symbol"),      # CM symbols
     (re.compile(r"CMEX\d*", re.I), "math-extension"),         # CM extension (big ops/delims)
+    # MATHTIME PROFESSIONAL 2 (PCTeX) replaces Computer Modern's maths fonts in
+    # TeX's own layouts, so it uses TeX's encodings: mt2mi = OML (as cmmi),
+    # mt2sy = OMS (cmsy), mt2ex = OMX (cmex), mt2mb/mt2bmi = bold OML. The
+    # trailing t/s/f is the optical size (text / script / scriptscript), which
+    # is why lib:9cc5db32f3f3 also ships MT2MIS, MT2MIF, MT2SYS and MT2SYF.
+    # Sources: pctex.com/mtpro2.html and mtp2otf on CTAN (coordinator,
+    # 2026-11-25). `family_of` answered "text" for all of them, so
+    # lib:3c16fac66fdd p370 typed 0 maths lines where MathPix types 2.
+    (re.compile(r"MT2B?MI[TSF]?\d*", re.I), "math-italic"),
+    (re.compile(r"MT2B?SY[TSF]?\d*", re.I), "math-symbol"),
+    (re.compile(r"MT2EXA?\d*", re.I), "math-extension"),
     (re.compile(r"MSAM\d*|MSBM\d*", re.I), "ams-symbol"),     # AMS symbols A/B
     (re.compile(r"EUFM\d*|EUFB\d*", re.I), "fraktur"),
     (re.compile(r"EUSM\d*|EUSB\d*", re.I), "script"),
@@ -2292,6 +2303,12 @@ _GLYPH_BASE.update({
     "mapsto": "↦",                   # 1 — \mapsto
     "intersectionsq": "⊓",           # 1 — \sqcap
     "unionsq": "⊔",                  # 1 — \sqcup
+    # T-0163: CMMI/OML position 15. The Adobe list has `epsilon` -> ε but not
+    # `epsilon1`, whose `1` marks the variant. WHICH variant is settled by the
+    # glyph's own outline, rendered from MT2MIT: a solid back on the LEFT with
+    # both arms opening RIGHT and a straight mid-bar — the LUNATE form. ε
+    # (U+03B5) is two stacked bowls and is not what the page draws.
+    "epsilon1": "ϵ",                 # U+03F5 GREEK LUNATE EPSILON SYMBOL
 })
 
 #: DELIBERATELY NOT MAPPED, and the reason is the table's own (902): "no
@@ -2331,4 +2348,86 @@ def tex_name_char(name: str) -> str:
         return _GLYPH_BASE[dot]
     stripped = _TEX_SIZE_SUFFIX.sub("", dot)
     return _GLYPH_BASE.get(stripped, "")
+
+
+# ===========================================================================
+# MATHTIME PROFESSIONAL 2: A SLOT NAME IS A CODE POSITION.
+#
+# T-0163. MTPro2's fonts name their slots with ASCII CONTROL NAMES — `NUL`,
+# `SOH`, `STX`, `SI`, `DC2`, `DC3`, `ESC` — and a control name IS its position:
+# NUL=0, SOH=1, STX=2, SI=15, DC2=18, DC3=19, ESC=27. `c141` is position 141
+# written out. So the name is not meaningless, as this task believed for two
+# days; it is an integer in disguise, and the integer indexes TeX's own
+# encoding, which this module already carries for CM.
+#
+# MEASURED on lib:3c16fac66fdd p370: all four fonts DO carry a ToUnicode CMap
+# (51, 23, 29 and 12 codes), and these 9 slots are absent from every one — 136
+# of MT2MIT's 142 glyphs on that page read fine. So the defect is per SLOT.
+#
+# EVERY ENTRY IS SHAPE-VERIFIED against the glyph's own outline, read from the
+# embedded CFF under the PDF's /Encoding /Differences name and rendered
+# (work/run-files/t0163/shapetest.py):
+#
+#   MT2SYT SI  -> CMSY 15 bullet          a filled disc
+#   MT2SYT NUL -> CMSY  0 minus           a solid bar, aspect 0.08
+#   MT2SYT STX -> CMSY  2 multiply        two crossing diagonals
+#   MT2SYT SOH -> CMSY  1 periodcentered  a disc IDENTICAL to the bullet's
+#                                         outline — bullet and periodcentered
+#                                         differ only in SIZE, which is why
+#                                         shape alone could never separate
+#                                         them and the POSITION must.
+#   MT2EXA DC2 -> CMEX 18 parenleftbigg   a tall paren bulging left
+#   MT2EXA DC3 -> CMEX 19 parenrightbigg  its exact mirror (equal ink area,
+#                                         which is why both measured 430 cells)
+#   MT2BMIT ESC-> CMMI 27 sigma           a top tail over a bowl
+#   MT2MIT SI  -> CMMI 15 epsilon1        a lunate epsilon
+#
+# A POSITION OUTSIDE THE ENCODING STAYS UNREAD: MT2MIT `c141` is 141, past
+# CMMI's table, and MTPro2's extension range is not something this table
+# claims to know. It keeps its `(cid:N)`, which is a defect someone can see
+# rather than a wrong symbol in a formula.
+# ===========================================================================
+
+#: ASCII control names, which are what MTPro2 calls its low slots.
+_ASCII_CONTROL = {
+    "NUL": 0, "SOH": 1, "STX": 2, "ETX": 3, "EOT": 4, "ENQ": 5, "ACK": 6,
+    "BEL": 7, "BS": 8, "TAB": 9, "HT": 9, "LF": 10, "VT": 11, "FF": 12,
+    "CR": 13, "SO": 14, "SI": 15, "DLE": 16, "DC1": 17, "DC2": 18, "DC3": 19,
+    "DC4": 20, "NAK": 21, "SYN": 22, "ETB": 23, "CAN": 24, "EM": 25,
+    "SUB": 26, "ESC": 27, "FS": 28, "GS": 29, "RS": 30, "US": 31, "DEL": 127,
+}
+
+#: MTPro2 font stem -> the TeX encoding whose table names its positions.
+_MTPRO2_ENCODING = (
+    ("MT2BMI", "CMMI"), ("MT2MI", "CMMI"),      # OML, upright order matters:
+    ("MT2BSY", "CMSY"), ("MT2SY", "CMSY"),      # the bold stems are prefixes
+    ("MT2EX", "CMEX"),                          # OMX
+)
+
+
+def mtpro2_glyph_name(fontname: str, slotname: str, cid: int = -1) -> str:
+    """The TeX glyph name for an MTPro2 slot, or "".
+
+    `fontname` selects the encoding, the slot NAME gives the position (it is an
+    ASCII control name, or `cNNN`), and `cid` is the fallback when the name is
+    something else. "" for a font this does not cover or a position the
+    encoding does not define — the caller then leaves the glyph unread.
+    """
+    base = (fontname or "").split("+")[-1].upper()
+    enc = ""
+    for stem, e in _MTPRO2_ENCODING:
+        if base.startswith(stem):
+            enc = e
+            break
+    if not enc:
+        return ""
+    n = (slotname or "").strip().lstrip("/")
+    pos = _ASCII_CONTROL.get(n.upper())
+    if pos is None and len(n) > 1 and n[0] in "cC" and n[1:].isdigit():
+        pos = int(n[1:])
+    if pos is None and cid >= 0:
+        pos = cid
+    if pos is None:
+        return ""
+    return CM_ENCODING.get(enc, {}).get(pos, "") or ""
 
