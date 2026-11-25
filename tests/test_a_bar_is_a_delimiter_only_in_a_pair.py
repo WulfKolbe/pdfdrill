@@ -119,10 +119,31 @@ def test_a_window_that_closes_a_bracket_it_never_opened_is_no_pair():
 def test_a_pair_spaced_on_the_inside_is_not_a_delimiter():
     """The 0.15 em is the surviving measurement of the spacing rule; what
     changed is WHERE it is taken. A pair closed on its content is a delimiter;
-    one with a relation's space inside it is not."""
+    one with a relation's space on BOTH sides inside is not — a relation is set
+    with TeX's thick space either side, and the 17 Nov measurement put the
+    spaced bars at 0.278 and 0.518 em."""
     glyphs = [bar(0), g("x", 9, family="math-italic"), bar(20)]
     _bar_by_its_pair(glyphs)
     assert latexes(glyphs) == [r"\mid", r"\mid"]
+
+
+def test_a_side_bearing_is_not_a_space():
+    """MEASURED on 1805.01788 p3 equation (1): `|A_i - R_i|` in txfonts is
+    +0.0100 em inward on the left and +0.1710 em on the right. The right-hand
+    gap is the ITALIC CORRECTION of the subscript `i` before the closing bar —
+    part of that glyph's own advance width, not of the setting — and asking
+    both sides to be flush refused the pair, so the outer bars of a norm came
+    out as two relations. One closed side is enough to say this is not a
+    relation's spacing."""
+    small = 7.27
+    glyphs = [bar(0, size=8.97),
+              g("A", 1.6, size=8.97, family="math-italic"),
+              g("i", 6.0, size=small, baseline=98.4, text="i",
+                family="math-italic"),
+              # the closing bar sits 0.171 em past the subscript's box
+              bar(10.5, size=8.97)]
+    _bar_by_its_pair(glyphs)
+    assert latexes(glyphs) == ["|", "|"]
 
 
 def test_a_delimiter_may_have_space_OUTSIDE_it():

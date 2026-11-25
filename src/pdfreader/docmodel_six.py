@@ -3597,8 +3597,17 @@ def _bar_by_its_pair(glyphs: list["GlyphNode"]) -> None:
         """
         em = max(ga.size, 1.0)
         xs = sorted(inside, key=lambda g: g.rect[0])
-        return ((xs[0].rect[0] - ga.rect[2]) / em < 0.15
-                and (gb.rect[0] - xs[-1].rect[2]) / em < 0.15)
+        #: THE SMALLER of the two, because a SIDE BEARING is not a space. On
+        #: 1805.01788 p3 equation (1), `|A_i - R_i|` in txfonts measures
+        #: +0.0100 em on the left and +0.1710 em on the right: the right-hand
+        #: gap is the italic correction of the subscript `i` before the closing
+        #: bar, which belongs to the glyph's own advance width and not to the
+        #: setting. Asking BOTH sides refused that pair. A relation is set with
+        #: TeX's thick space on BOTH sides (the 17 Nov measurement found the
+        #: spaced bars at 0.278 and 0.518 em, which is \thickmuskip and more),
+        #: so one closed side is enough to say this is not one.
+        return min((xs[0].rect[0] - ga.rect[2]) / em,
+                   (gb.rect[0] - xs[-1].rect[2]) / em) < 0.15
 
     # `bar_ix`, not `bars`: a guard in
     # `tests/test_a_row_stops_at_a_panel_gutter.py` forbids a loop over a list
