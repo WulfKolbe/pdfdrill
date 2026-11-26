@@ -47,5 +47,7 @@ def test_the_span_is_the_one_the_test_claims():
 def test_the_cube_root_over_a_fraction_is_read():
     tex = S.to_tex(*_span())
     assert tex is not None, "the display is refused again"
-    assert r"\sqrt[3]{c - \frac{3}{4} t^{4}}" in tex
+    # `\tfrac`: the page sets the 3/4 in text style; a root's body keeps the
+    # style around it (B11, 6d90 p174 0.0147 -> 0.0110)
+    assert r"\sqrt[3]{c - \tfrac{3}{4} t^{4}}" in tex
     assert "=^{3}" not in tex

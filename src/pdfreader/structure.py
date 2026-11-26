@@ -64,6 +64,10 @@ _TFRAC_NUMERAL = 0.85
 _TFRAC_NEIGHBOUR = 0.9
 
 
+#: How many enclosing levels are a root's or a bar's body (style-keeping).
+_STYLE_KEEPING = [0]
+
+
 def _is_text_style(num, den, rest, size: float, depth: int) -> bool:
     r"""Is this fraction set in TEXT style — script-size numerals?
 
@@ -86,7 +90,12 @@ def _is_text_style(num, den, rest, size: float, depth: int) -> bool:
     its style, and `\tfrac` inside a `\tfrac` forces textstyle where the
     context is already script, making the inner one too big.
     """
-    if depth or not num or not den or not rest or size <= 0:
+    # A root's or a bar's BODY keeps the style around it: only a script or
+    # a fraction changes it. lib:6d90e8d27b8b p174's `\sqrt[3]{c -
+    # \tfrac34 t^4}` sits one depth level down, inside the root, so its
+    # `\tfrac` was written `\frac`, set display-size, and the radical grew
+    # with it (B11).
+    if depth - _STYLE_KEEPING[0] > 0 or not num or not den or not rest or size <= 0:
         return False
     small = max(g.size for g in num + den)
     x0 = min(g.rect[0] for g in num + den)
@@ -1554,7 +1563,11 @@ def _merge_overlines(glyphs: list[GlyphNode],
     for i, g in enumerate(glyphs):
         if i in wrapped:
             cmd, idxs, bi = wrapped[i]
-            inner = to_tex([glyphs[k] for k in idxs], below[bi], depth + 1)
+            _STYLE_KEEPING[0] += 1
+            try:
+                inner = to_tex([glyphs[k] for k in idxs], below[bi], depth + 1)
+            finally:
+                _STYLE_KEEPING[0] -= 1
             if inner is None:
                 return glyphs, set()
             if roots.get(i):
