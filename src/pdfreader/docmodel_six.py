@@ -715,8 +715,13 @@ def _spans(line: "LineNode") -> list[Span]:
     _prev = None
     for _idx, _g in enumerate(ordered):
         _alpha = (not _g.is_math) and _g.text.strip().isalpha()
+        # A WORD has no gap between its letters; a thin space (1/6 em) is
+        # already a gap. At 0.3 em, lib:3fe71b4ef018 p328's MathTime display
+        # `... c\,dt` (Times-Italic letters) read as the three-letter run
+        # "cdt", the line was not "mostly maths", and its single-letter
+        # variables A, Q, N stayed prose with their bars lost (B11).
         if _alpha and _prev is not None and (
-                _g.rect[0] - _prev.rect[2] < 0.3 * max(dom, 1.0)):
+                _g.rect[0] - _prev.rect[2] < 0.12 * max(dom, 1.0)):
             _cur.append(_g)
         elif _alpha:
             if _cur:
