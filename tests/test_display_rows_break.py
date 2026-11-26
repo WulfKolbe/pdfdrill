@@ -60,7 +60,7 @@ def _stub(monkeypatch):
                                                "width": 10, "height": 10},
                         raising=False)
     monkeypatch.setattr(eq.mmd, "has_content", lambda s: True, raising=False)
-    monkeypatch.setattr(eq.mmd, "equation_number", lambda ln, col: None,
+    monkeypatch.setattr(eq.mmd, "equation_number", lambda ln, col, left=None: None,
                         raising=False)
     monkeypatch.setattr(eq.mmd, "column_of", lambda p, ln: (0, 0),
                         raising=False)

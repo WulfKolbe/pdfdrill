@@ -902,7 +902,11 @@ def _spans(line: "LineNode") -> list[Span]:
             runs.append([g])
 
     # absorb short neutral runs that sit between two maths runs
-    NEUTRAL = set("0123456789()[]+-=/.,|<>")
+    # `;` and `:` too (P6): 2103.01507 p118 writes `C(Z; \overline{M}X)`
+    # with a text-font semicolon, and the maths broke there as `$C(Z$ ;
+    # `$\overline{M} X)$`; 4859 p1287's `d : E \times E` left its colon out.
+    # Absorbed, as every neutral run is, only between two maths runs.
+    NEUTRAL = set("0123456789()[]+-=/.,|<>;:")
 
     # Measured on the WHOLE line: a single span rarely holds enough gaps to
     # find the bimodal split, and guessing per span reintroduces the fixed
@@ -1041,6 +1045,24 @@ def _spans(line: "LineNode") -> list[Span]:
             if not names_pass:
                 absorb = left_any and right_any and neutral
                 take_left, take_right = left_any, right_any
+                # A CLOSING BRACKET BELONGS TO THE MATHS THAT OPENED IT.
+                # 2103 p118 `\Gamma_Z^c(\overline{M}X, \overline{M}_0X$ )` and
+                # 0864 p4 `\hat F_0(\mathcal X^*_{bnb}; Y$ ))` left their `)`
+                # in the prose: absorption wanted maths on both sides. As
+                # many closers as the maths run before them leaves open are
+                # taken; any further one is the prose's own bracket.
+                if not absorb and left_any and run and all(
+                        g.text.strip() in (")", "]") for g in run):
+                    left_txt = "".join(g.text for g in runs[i - 1])
+                    open_ = (left_txt.count("(") - left_txt.count(")")
+                             + left_txt.count("[") - left_txt.count("]"))
+                    k = min(max(open_, 0), len(run))
+                    if k:
+                        if k < len(run):
+                            runs.insert(i + 1, run[k:])
+                            run = run[:k]
+                            runs[i] = run
+                        absorb, take_left, take_right = True, True, False
                 # B1 — A RELATION'S RIGHT OPERAND, when prose follows it.
                 #
                 # Absorption required maths on BOTH sides, so a digit that
@@ -1174,6 +1196,13 @@ def _spans(line: "LineNode") -> list[Span]:
                                   and g.text.isascii() for g in run))
                 absorb = (not forced and (_l_ok or _r_ok or _fname)
                           and (_is_variable_run(run) or _fname))
+                # closers with nothing open to their left are the prose's
+                # own (0864 p4: `(i.e., ... ; Y))`, see the first pass)
+                if absorb and all(g.text.strip() in (")", "]") for g in run):
+                    _lt = "".join(g.text for g in runs[i - 1]) if i else ""
+                    if (_lt.count("(") - _lt.count(")")
+                            + _lt.count("[") - _lt.count("]")) <= 0:
+                        absorb = False
 
                 take_left = _l_ok
                 take_right = _r_ok or _fname
@@ -6674,7 +6703,7 @@ def _split_equation_numbers(out: dict, pages: list["PageNode"], k: float) -> Non
             if rec is None or ln.rotated or not ln.glyphs:
                 continue
             try:
-                tag = _mmd.equation_number(ln, _mmd.column_of(p, ln)[1])
+                tag = _mmd.equation_number(ln, *_mmd.column_of(p, ln)[::-1])
             except Exception:                                # noqa: BLE001
                 continue
             if not tag:
@@ -6732,7 +6761,7 @@ def _split_equation_numbers(out: dict, pages: list["PageNode"], k: float) -> Non
                 if _tg in _t:
                     rec[_key] = _t.replace(_tg, "")
                 elif _at >= 0:
-                    rec[_key] = (_t[:_at] + _t[_at + len(_tagtext):]).rstrip()
+                    rec[_key] = (_t[:_at] + _t[_at + len(_tagtext):]).strip()
             # …and the display stops where its own ink stops.
             rec["region"]["width"] = max(
                 1, round((bx1 - ln.rect[0]) * k))
@@ -7321,6 +7350,8 @@ _DISPLAY_TYPES = {"math", "equation"}
 
 #: A maths line ending in its equation number: `$...$ (1)`, `(2.3)`, `(4a)`.
 import re as _re
+#: The same with the number first: `(6.2.4) $...$` (group 1 the number).
+_EQ_NUMBER_HEAD = _re.compile(r"^\(((?:\d+[.\-])*\d+[a-z]?)\)\s*(\$.*\$)$", _re.S)
 _EQ_NUMBER_TAIL = _re.compile(r"^(\$.*\$)\s*\(((?:\d+[.\-])*\d+[a-z]?)\)$", _re.S)
 
 
@@ -7351,16 +7382,27 @@ def _as_display(text: str, line_type: str) -> str:
     if line_type not in _DISPLAY_TYPES:
         return text
     body = (text or "").strip()
+    # A DISPLAY LINE IN TWO SPANS with nothing but a space between them is
+    # one formula: 2103.01507 p118's (6.2.7) `$X | Z \to$ $\mathrm{Map}_Z(..)$`
+    # was split at the gap after its arrow.
+    if body.startswith("$") and _re.fullmatch(r"(\$[^$]+\$\s*)+(\(\S+\))?", body):
+        body = _re.sub(r"(?<!\\)\$\s+\$", " ", body)
     # AN EQUATION NUMBER IS NOT A SECOND SPAN. 1805.01788 p3's equation (1)
     # is one maths span followed by its number, and the one-span test below
     # kept the whole display inline, its `\sum` at text size. The number is
     # the display's own: `\tag{1}` sets it at the right margin, where the
     # page prints it.
-    _num = _EQ_NUMBER_TAIL.match(body)
-    if _num and _num.group(1).count("$") == 2:
-        shown = _as_display(_num.group(1), line_type)
+    _m = _EQ_NUMBER_TAIL.match(body)
+    maths, number = (_m.group(1), _m.group(2)) if _m else (None, None)
+    if _m is None:
+        # the number first (`leqno`, 2103.01507 p118): the same display
+        _h = _EQ_NUMBER_HEAD.match(body)
+        if _h:
+            maths, number = _h.group(2), _h.group(1)
+    if maths is not None:            # the recursion refuses a sentence
+        shown = _as_display(maths, line_type)
         if shown.startswith("\\["):
-            return shown[:-3] + "\\tag{%s}\n\\]" % _num.group(2)
+            return shown[:-3] + "\\tag{%s}\n\\]" % number
     if len(body) < 3 or not body.startswith("$") or not body.endswith("$"):
         return text
     inner = body[1:-1]

@@ -167,7 +167,7 @@ def _build_multi(page, run, bibkey, px_per_pt) -> Equation:
     # rather than inferred downstream from a gap in the ink.
     tag_ids, tag_rects = set(), []
     for ln in lines:
-        tag = mmd.equation_number(ln, mmd.column_of(page, ln)[1])
+        tag = mmd.equation_number(ln, *mmd.column_of(page, ln)[::-1])
         if tag:
             tag_ids |= set(map(id, tag))
             tag_rects.append((min(g.rect[0] for g in tag),

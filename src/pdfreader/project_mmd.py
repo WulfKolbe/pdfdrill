@@ -452,7 +452,7 @@ def has_content(tex: str | None) -> bool:
 _EQ_TAG = re.compile(r"^\(\s*[0-9]+(?:\.[0-9]+)*\s*[a-zA-Z]?\s*\)$")
 
 
-def equation_number(line, right: float) -> list:
+def equation_number(line, right: float, left: float | None = None) -> list:
     r"""The glyphs of a right-margin equation NUMBER, or [].
 
     An author's `(1)` at the right margin is a LABEL, not part of the
@@ -481,6 +481,20 @@ def equation_number(line, right: float) -> list:
             (g.size for g in gs), default=10.0):
         return list(gs)
     size = max(g.size for g in gs)
+    # A NUMBER ON THE LEFT (`leqno`). 2103.01507 p118 sets (6.2.4)-(6.2.10)
+    # at the column's left edge, 44-52 pt before the mathematics, and every
+    # one of those displays stayed a `text` line with its number as prose
+    # (P6). The same three conditions, mirrored: a parenthesised number, it
+    # STARTS at the left edge, and three ems separate it from what follows.
+    if left is not None and gs[0].rect[0] <= left + 0.5 * size:
+        for i in range(1, len(gs) - 1):
+            if gs[i].text.strip() != ")":
+                continue
+            head = gs[:i + 1]
+            if (_EQ_TAG.match("".join(g.text for g in head).strip())
+                    and gs[i + 1].rect[0] - gs[i].rect[2] >= 3.0 * size):
+                return head
+            break
     for i in range(len(gs) - 1, 0, -1):
         run = gs[i:]
         if not _EQ_TAG.match("".join(g.text for g in run).strip()):
@@ -820,7 +834,7 @@ def is_display(ln: LineNode, left: float,
         # display look flush-right rather than centred.
         if _CENTRED_OK and right is not None:
             gs = [g for g in ln.glyphs if g.text.strip()]
-            tag = set(map(id, equation_number(ln, right)))
+            tag = set(map(id, equation_number(ln, right, left)))
             body = [g for g in gs if id(g) not in tag]
             if not body:
                 return False
@@ -1333,7 +1347,7 @@ def absorb_equation_numbers(page: PageNode) -> int:
         body = [g for g in tagln.glyphs if g.text.strip()]
         if not body:
             continue
-        tag = equation_number(tagln, column_of(page, tagln)[1])
+        tag = equation_number(tagln, *column_of(page, tagln)[::-1])
         if len(tag) != len(body):
             continue                       # not a number on its own
         mid = 0.5 * (tagln.rect[1] + tagln.rect[3])
@@ -1426,7 +1440,7 @@ def to_markdown(pages: list[PageNode], doc_id: str = "pdfdrill",
             live = []
             for ln in group:
                 body = [g for g in ln.glyphs if g.text.strip()]
-                tag = equation_number(ln, column_of(_pg, ln)[1])
+                tag = equation_number(ln, *column_of(_pg, ln)[::-1])
                 if body and len(tag) == len(body):
                     continue                  # the whole line is the number
                 live.append(ln)
@@ -1569,7 +1583,7 @@ def to_markdown(pages: list[PageNode], doc_id: str = "pdfdrill",
                 # turned its (1) and (2) into a single two-row block, and
                 # again its (5) and (6). A multi-row display carries ONE
                 # number for the whole thing, so a number ends the run.
-                if any(equation_number(ln, column_of(p, ln)[1])
+                if any(equation_number(ln, *column_of(p, ln)[::-1])
                        for ln in group):
                     open_run = False
                 continue
@@ -1757,7 +1771,7 @@ def to_markdown(pages: list[PageNode], doc_id: str = "pdfdrill",
                 # into `X^{-1} X a1...`.
                 pieces = []
                 tagged = {id(g) for ln in group
-                          for g in equation_number(ln, column_of(p, ln)[1])}
+                          for g in equation_number(ln, *column_of(p, ln)[::-1])}
                 for ln in group:
                     # 738 — A ROW WHOSE SPANS OVERLAP IN x CANNOT BE EMITTED
                     # SPAN BY SPAN, in any order.
@@ -1844,8 +1858,7 @@ def to_markdown(pages: list[PageNode], doc_id: str = "pdfdrill",
                 # actually ends with.
                 _tag = ""
                 for ln in group:
-                    tag = "".join(g.text for g in equation_number(
-                        ln, column_of(p, ln)[1])).strip()
+                    tag = "".join(g.text for g in equation_number(ln, *column_of(p, ln)[::-1])).strip()
                     if tag and inner.rstrip().endswith(tag):
                         inner = inner.rstrip()[:-len(tag)].rstrip()
                     _tag = _tag or tag
@@ -2291,7 +2304,7 @@ def to_latex(pages: list[PageNode], doc_id: str = "pdfdrill",
             # The MARKDOWN does the opposite and shows it, because markdown
             # has no numbering of its own -- see `_tag_of` at the emitter.
             _tagged = {id(g) for g in
-                       equation_number(ln, column_of(p, ln)[1])}
+                       equation_number(ln, *column_of(p, ln)[::-1])}
             for sp in ln.spans:
                 if sp.glyphs and all(id(g) in _tagged for g in sp.glyphs
                                      if g.text.strip()):
