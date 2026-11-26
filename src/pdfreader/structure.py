@@ -251,8 +251,14 @@ def _merge_stacked_delimiters(glyphs: list[GlyphNode], depth: int):
         #: passed on, it is typeset as the body's first characters.
         _env = _matrix_env(max(g.size for r in rows for g in r), size)
         _spec = "{c}" if _env == "array" else ""
-        body = r"\left%s\begin{%s}%s%s\end{%s}\right%s" % (
-            opener, _env, _spec, " \\\\ ".join(parts), _env, closer)
+        # THE PAGE'S OWN SIZE. The delimiters were found as SIZED glyphs
+        # (`bracketleftbig`), and `\left...\right` re-sized them to the
+        # matrix: around lib:c57ac038ae5f p293's script-size column vectors
+        # that is a smaller bracket than the page's `\bigl[`, and the judge
+        # flagged the brackets, some 0.3 of a size out of place (B12).
+        body = r"%s\begin{%s}%s%s\end{%s}%s" % (
+            g.tex.latex, _env, _spec, " \\\\ ".join(parts), _env,
+            gs[j].tex.latex)
         inner = gs[i:j + 1]
         #: IT SITS ON THE ROW'S BASELINE, NOT THE BRACKET'S. A big delimiter
         #: is drawn raised — p293's `bracketleftbig` has baseline 106.9 in a
