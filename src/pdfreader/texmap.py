@@ -991,8 +991,10 @@ def _math_extension(name: str) -> TexToken:
         # The radical SIGN only. Its vinculum is a rule, so the extent of the
         # argument is not knowable from this glyph.
         return TexToken(r"\sqrt", "rule", None, "corpus")
+    # `barex` is txfonts' (`txexs`) name for `vextendsingle`: the extension
+    # piece of a tall `|`. 1805.01788 p3 stacks six of them per side.
     if name in ("vextendsingle", "vextenddouble", "arrowvertex",
-                "arrowbt", "arrowtp"):
+                "arrowbt", "arrowtp", "barex"):
         # pieces of a built-up extensible arrow or bar: one LaTeX token is
         # spread over several glyphs, so none of them projects alone
         return TexToken(None, "fragment", None, "corpus")

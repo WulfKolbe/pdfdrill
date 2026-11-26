@@ -867,8 +867,14 @@ def _spans(line: "LineNode") -> list[Span]:
                 # script keeps an EMPTY base instead -- `${}^{a,*}$` -- and
                 # the letter stays in the prose where it belongs.
                 base = ordered[j]
+                # A WORD'S LETTERS SHARE A SIZE. The glyph before the base
+                # is its word-neighbour only at the base's own size: on
+                # 1805.01788 p3 the `1` of `\sum_{j=1}^m` (7.3 pt) touches
+                # the `r` (9 pt) of `r_i^j`, and read as a word-neighbour it
+                # left `r` in a text span with its scripts in another.
                 in_word = (base.family == "text" and j > 0
                            and ordered[j - 1].family == "text"
+                           and ordered[j - 1].size >= 0.92 * base.size
                            and base.rect[0] - ordered[j - 1].rect[2]
                            < 0.2 * max(base.size, ordered[j - 1].size, 1.0))
                 if base.size >= 0.92 * dom and not in_word:
@@ -2313,8 +2319,107 @@ def merge_fragments(glyphs: list[GlyphNode]) -> tuple[list[GlyphNode], int]:
                            default=-1),
             )
         )
+    # A TALL BAR HAS NO SIDE IN ITS NAME. `vextendsingle` / `barex` pieces
+    # build `|` on either side, so the side is their ORDER: the stacks of one
+    # row pair up left, right, left, right. 1805.01788 p3's
+    # `\left|\sum a_i^j - \sum r_i^j\right|` is two six-piece stacks.
+    # An odd count is left a fragment: which one is unpaired is not known.
+    bars = sorted((m for m in merged if m.tex.kind == "fragment"
+                   and (m.glyphname or "") in _BAR_PIECES),
+                  key=lambda m: m.rect[0])
+    if bars and len(bars) % 2 == 0:
+        for k, m in enumerate(bars):
+            glyph = r"\|" if m.glyphname == "vextenddouble" else "|"
+            side = "left" if k % 2 == 0 else "right"
+            i = next(i for i, x in enumerate(merged) if x is m)
+            # ONE character for the fence, whatever its pieces spell: a lone
+            # `barex` stays unread (test_a_named_glyph_without_a_character).
+            merged[i] = replace(m, text="‖" if glyph != "|" else "|", tex=TexToken(
+                rf"\{side}{glyph}", "delimiter", None, m.tex.confidence))
     out = sorted(rest + merged, key=lambda g: (g.rect[0], g.rect[1]))
     return out, len(frags) - len(merged)
+
+
+#: The extension pieces of a tall vertical bar, single and double.
+_BAR_PIECES = frozenset({"vextendsingle", "barex", "vextenddouble"})
+
+
+def _fold_fence_stacks(groups: list, span_pt: float) -> dict[int, int]:
+    r"""Fold the rows holding a built-up fence's pieces into its display row.
+
+    A tall delimiter is drawn as a STACK of extension pieces at one x, and
+    the baseline grouper gives each piece a row of its own: 1805.01788 p3's
+    equation (1) came out as its main row plus six one-piece rows on each
+    side of `\sum a_i^j - \sum r_i^j`, the scripts `j` and `i` in two of
+    them. Every piece was then an unread glyph (17 refusals), the outer
+    `|...|` was lost and `a`, `r` lost their scripts (B4b, P4).
+
+    A stack is two or more pieces in one x column in different rows. Its
+    HOST is the row with full-size glyphs whose baseline lies inside the
+    stack's height and which reaches the column across the page. Each row
+    holding a piece is folded into the host if everything else in it is
+    script-sized; a row with full-size glyphs of its own is a line in its
+    own right and stops the fold for that stack.
+
+    Returns {folded row: host row}; the rows are emptied in place.
+    """
+    pieces = [(i, g) for i, grp in enumerate(groups) for g in grp
+              if g.tex.kind == "fragment"]
+    if len(pieces) < 2:
+        return {}
+    cols: list[list] = []
+    for i, g in pieces:
+        for c in cols:
+            if any(min(g.rect[2], h.rect[2]) - max(g.rect[0], h.rect[0]) > 0
+                   for _, h in c):
+                c.append((i, g))
+                break
+        else:
+            cols.append([(i, g)])
+    moved: dict[int, int] = {}
+    for c in cols:
+        rows = {i for i, _ in c}
+        if len(rows) < 2:
+            continue
+        y0 = min(g.rect[1] for _, g in c)
+        y1 = max(g.rect[3] for _, g in c)
+        cx0 = min(g.rect[0] for _, g in c)
+        cx1 = max(g.rect[2] for _, g in c)
+        mid = 0.5 * (y0 + y1)
+        host, host_d = None, None
+        for j, grp in enumerate(groups):
+            if not grp or j in rows:
+                continue
+            full = [g for g in grp if g.tex.kind != "fragment"
+                    and g.size >= 0.95 * span_pt]
+            if not full:
+                continue
+            bl = _dominant_baseline(full)
+            if not (y0 <= bl <= y1):
+                continue
+            hx0 = min(g.rect[0] for g in grp)
+            hx1 = max(g.rect[2] for g in grp)
+            if cx1 < hx0 - 2.0 * span_pt or cx0 > hx1 + 2.0 * span_pt:
+                continue
+            if host is None or abs(bl - mid) < host_d:
+                host, host_d = j, abs(bl - mid)
+        if host is None:
+            continue
+        hsize = max(g.size for g in groups[host])
+        if any(g.tex.kind != "fragment" and g.size >= 0.95 * hsize
+               for r in rows for g in groups[r]):
+            continue                     # a row of its own is not folded
+        for r in rows:
+            moved[r] = host
+    for r, h in moved.items():
+        while h in moved:                # a host that was itself folded
+            h = moved[h]
+        moved[r] = h
+    for r, h in moved.items():
+        if r != h:
+            groups[h] = groups[h] + groups[r]
+            groups[r] = []
+    return moved
 
 
 # ----------------------------------------------------------------------- U5
@@ -5524,6 +5629,8 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                 for _i in {src for _, src, _ in _moves}:
                     groups[_i] = [g for g in groups[_i] if id(g) not in _gone]
 
+        _folded = _fold_fence_stacks(groups, span_pt)
+        rule_line = {k: _folded.get(v, v) for k, v in rule_line.items()}
         keep = [i for i, g in enumerate(groups) if g]
         remap = {old: new for new, old in enumerate(keep)}
         groups = [groups[i] for i in keep]
