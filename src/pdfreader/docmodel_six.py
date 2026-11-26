@@ -6635,10 +6635,10 @@ def to_lines_json(pages: list[PageNode],
                             "width": max(1, round((ln.rect[2] - ln.rect[0]) * k)),
                             "height": max(1, round((ln.rect[3] - ln.rect[1]) * k)),
                         },
-                        "text": _as_display(
+                        "text": _display_by_operator(ln, _as_display(
                             _join_faces(" ".join(span_reading_text(sp)
                                                  for sp in ln.spans)),
-                            _mp_type(_line_type(p, i, ln)[0])),
+                            _mp_type(_line_type(p, i, ln)[0]))),
                         # 844 — MathPix puts `text_display` on EVERY line and
                         # `inlinectx.load_spans` reads `text_display or text`
                         # (676 review B3). We emitted none, so a consumer that
@@ -6646,10 +6646,10 @@ def to_lines_json(pages: list[PageNode],
                         # `$…$` spans in `text`, so the two are the same string
                         # — emitting it is what makes that true rather than
                         # something a reader has to know.
-                        "text_display": _as_display(
+                        "text_display": _display_by_operator(ln, _as_display(
                             _join_faces(" ".join(span_reading_text(sp)
                                                  for sp in ln.spans)),
-                            _mp_type(_line_type(p, i, ln)[0])),
+                            _mp_type(_line_type(p, i, ln)[0]))),
                         "complete": all(
                             sp.kind == "text" or span_latex(sp) is not None
                             for sp in ln.spans
@@ -7780,6 +7780,51 @@ def _faced_text(glyphs: list, wg: float = 0.0) -> str:
             out += " "
         out += piece
     return out
+
+
+#: `$A$ also $B$`: two maths spans with one or two short words between.
+_MATHS_WORDS_MATHS = _re.compile(
+    r"^\$([^$]+)\$((?: \\?[A-Za-zÄÖÜäöüß]{1,12}){1,2}) \$([^$]+)\$$")
+
+
+def _display_cut(g) -> bool:
+    """Is this operator glyph the DISPLAY cut of its symbol?
+
+    CMEX names it (`summationdisplay`, `integraldisplay`). esint does not:
+    its two `\\int` cuts differ in width, measured on lib:6d90e8d27b8b p174 as
+    0.556 em (cid 31, in its display lines) and 0.472 em (cid 30, inline).
+    pdfminer's box height is the font's, not the ink's, so it cannot tell.
+    """
+    if g.tex.kind != "bigop":
+        return False
+    if "display" in (g.glyphname or ""):
+        return True
+    if "esint" in (g.fontname or "").lower() and g.size:
+        return (g.rect[2] - g.rect[0]) / g.size >= 0.53
+    return False
+
+
+def _display_by_operator(ln, text: str) -> str:
+    r"""A line set with a DISPLAY-size operator is a display, words and all.
+
+    lib:6d90e8d27b8b p174 L10 is `\int e^{-x}\,dx = \int \sin t\,dt, \quad
+    \text{also}\quad -e^{-x} = -\cos t + c`, its integrals the display cut
+    (ink 2.25 times the type size). With the word `also` between, it was
+    two inline formulas, set with TEXT-size integrals: both a glyph finding
+    and half a size out of place. A display-cut operator (`_display_cut`)
+    says display; a line of maths, one or two short words, maths, is then
+    one display with the words as `\quad\text{...}\quad`.
+    """
+    if not text or text.startswith("\\["):
+        return text
+    if not any(_display_cut(g) for g in ln.glyphs):
+        return text
+    m = _MATHS_WORDS_MATHS.match(text.strip())
+    if not m:
+        return text
+    words = m.group(2).strip()
+    return "\\[\n%s \\quad\\text{%s}\\quad %s\n\\]" % (m.group(1).strip(), words,
+                                                     m.group(3).strip())
 
 
 def span_reading_text(sp: Span) -> str:
