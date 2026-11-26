@@ -51,6 +51,86 @@ from .common import (resolve_citation_markers, resolve_formula_markers,
 #: Object types rendered as an image, in the order a reader meets them.
 _FIGURE_TYPES = ("Picture", "Diagram", "Chart", "Figure")
 
+#: Rules between table rows carry no cell text.
+_RULE_CMDS = re.compile(
+    r"\\(?:hline|toprule|midrule|bottomrule|hdashline|endhead|endfirsthead)\b"
+    r"|\\(?:cline|cmidrule)(?:\([^)]*\))?\{[^{}]*\}")
+
+
+def _bbl_text(t: str) -> str:
+    r"""A `.bbl` entry's TEXT-MODE LaTeX as the characters it prints.
+
+    `raw_text` is the entry as the author's BibTeX style wrote it, so it says
+    `1788--1800`, `Imaging \& Visualization`, `Chen~et~al.`, and protects
+    capitals with braces (`{VoxelMorph}`). Read as Markdown those are noise a
+    reader -- or the model the owner hands this file to -- has to see through.
+    Maths (`$...$`) is left alone: that is the projector's business, not this.
+    """
+    parts = re.split(r"(\$[^$]*\$)", t)
+    for i in range(0, len(parts), 2):          # the text between maths spans
+        s = parts[i]
+        s = s.replace("---", "\u2014").replace("--", "\u2013")
+        s = s.replace("\\&", "&").replace("~", " ")
+        s = re.sub(r"\\(?:newblock|penalty0)\s*", " ", s)
+        s = re.sub(r"\\(?:em|it|bf|sc|rm)\b\s*", "", s)
+        s = re.sub(r"\\(?:emph|textit|textbf|textsc|textrm|url|href)\{([^{}]*)\}",
+                   r"\1", s)
+        s = re.sub(r"(?<!\\)[{}]", "", s)           # case-protection braces
+        parts[i] = s
+    return "".join(parts)
+
+
+def _strip_tabular(src: str) -> str:
+    """The body of a `tabular`/`tabular*`/`tabularx`, without its wrapper and
+    column specification (both brace-balanced)."""
+    m = re.search(r"\\begin\{(tabular\*?|tabularx|tabulary|longtable)\}", src)
+    if not m:
+        return src
+    i = m.end()
+    # tabular* / tabularx take a width before the column spec
+    n_args = 2 if m.group(1) in ("tabular*", "tabularx", "tabulary") else 1
+    for _ in range(n_args):
+        while i < len(src) and src[i].isspace():
+            i += 1
+        if i < len(src) and src[i] == "[":           # [t] placement
+            j = src.find("]", i)
+            i = j + 1 if j >= 0 else i
+            while i < len(src) and src[i].isspace():
+                i += 1
+        if i < len(src) and src[i] == "{":
+            depth = 0
+            for j in range(i, len(src)):
+                depth += (src[j] == "{") - (src[j] == "}")
+                if depth == 0:
+                    i = j + 1
+                    break
+    end = src.find("\\end{" + m.group(1) + "}", i)
+    return src[i:end if end >= 0 else len(src)]
+
+
+def _split_depth0(text: str, sep: str) -> list:
+    """`text` split on `sep` where it stands at brace depth 0 — so a `\\\\`
+    inside `\\makecell{a \\\\ b}` and an `&` inside braces do not split, and
+    an escaped `\\&` is text, not a cell boundary."""
+    out, depth, start, i, n = [], 0, 0, 0, len(text)
+    while i < n:
+        ch = text[i]
+        if ch == "\\" and sep == "&" and text.startswith("\\&", i):
+            i += 2
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth = max(0, depth - 1)
+        elif depth == 0 and text.startswith(sep, i):
+            out.append(text[start:i])
+            i += len(sep)
+            start = i
+            continue
+        i += 1
+    out.append(text[start:])
+    return out
+
 #: A transclusion marker, which must never appear in the output. Kept as a
 #: pattern rather than a promise: `_strip_transclusions` enforces it, and a test
 #: asserts the output is free of them.
@@ -265,12 +345,98 @@ class MarkdownProjector(BaseProjector):
         out: list[str] = []
         if self.params.get("front_matter", False):
             out.append(self._front_matter(doc, bibkey))
+        head = self._title_block(doc)
+        if head:
+            out.append(head)
         for obj in self._flow(doc):
             block = self._block(obj, doc)
             if block:
                 out.append(block)
+        refs = self._references(doc)
+        if refs:
+            out.append(refs)
         text = "\n\n".join(b.strip("\n") for b in out if b.strip())
         return text.rstrip() + "\n"
+
+    def _doc_title(self, doc) -> str:
+        """The DOCUMENT's title, the one rule both the front matter and the
+        title block use — not the first level-1 heading, which on a paper is
+        "1. Introduction" and is not what the document is called.
+
+        THE FIRST LINE ONLY. A `\\title{}` block on this corpus runs title,
+        then `\\\\`, then the author list and the affiliation — and `_clean`
+        turns each `\\\\` into a line break, so taking the whole thing put 200
+        characters of authors into a YAML `title:`.
+        """
+        title = str(doc.meta.get("title") or "")
+        if not title:
+            for o in doc.objects.values():
+                if o.type == "Title":
+                    title = str(o.props.get("text") or o.props.get("caption")
+                                or "")
+                    break
+        return self._clean(title).split("\n")[0].strip()
+
+    def _title_block(self, doc) -> str:
+        """`# <title>`, and the authors beneath it, from the model's metadata.
+
+        A model built from the author's LaTeX keeps `\title{…}` and `\author{…}`
+        in `doc.meta` and has no Title OBJECT, and `_block` has no branch for
+        one anyway — so the Markdown of 2307.04341v1 began at "## Abstract",
+        where MathPix's reading of the same paper begins with its title. A
+        reader handed the file (the owner hands it to a model) is not told
+        what it is reading.
+        """
+        title = self._doc_title(doc)
+        if not title:
+            return ""
+        out = [f"# {title}"]
+        authors = doc.meta.get("authors")
+        if isinstance(authors, list) and authors:
+            names = ", ".join(str(a) for a in authors if str(a).strip())
+            # affiliation marks and footnotes are the PDF's typography, not
+            # the names: `Meng Li\textsuperscript{\rm1}` is "Meng Li".
+            names = re.sub(r"\\(?:textsuperscript|thanks)\s*\{[^{}]*\}", "", names)
+            names = re.sub(r"\\(?:rm|it|bf|and)\b|\\\\", " ", names)
+            names = " ".join(self._clean(names).split()).strip(" ,")
+            if names:
+                out.append(names)
+        return "\n\n".join(out)
+
+    def _references(self, doc) -> str:
+        """`## References` from the model's Reference objects — ONLY when the
+        flow did not already print a references list.
+
+        A model built from the author's LaTeX reads the bibliography from the
+        `.bbl` into Reference objects (25 of them on 2307.04341v1, each with
+        its `raw_text`), and this projector had no branch for that type, so
+        the Markdown ended at the conclusion — and the owner bought a MathPix
+        reading to get the references back. A model built from a READING has
+        the printed list as a Section of its own; `reference_section_ids` is
+        the projectors' shared test for that, and then nothing is added.
+        """
+        from .latex_pipeline import reference_section_ids
+        refs = [o for o in doc.objects.values() if o.type == "Reference"
+                and str(o.props.get("raw_text") or "").strip()]
+        if not refs or reference_section_ids(doc):
+            return ""
+
+        def order(o):
+            n = o.props.get("number")
+            try:
+                return (0, int(n), "")
+            except (TypeError, ValueError):
+                return (1, 0, str(o.props.get("citekey") or ""))
+
+        lines = ["## References"]
+        for k, o in enumerate(sorted(refs, key=order), 1):
+            text = " ".join(self._clean(_bbl_text(str(o.props["raw_text"]))).split())
+            # THE KEY, so a citation can be followed. The body cites by key —
+            # "character generation [liu2021fontrl]" — and a list numbered 1…25
+            # without the keys gives the reader no way from one to the other.
+            key = str(o.props.get("citekey") or "").strip()
+            lines.append(f"{k}. [{key}] {text}" if key else f"{k}. {text}")
+        return "\n".join(lines[:1]) + "\n\n" + "\n".join(lines[1:])
 
     # ---------------------------------------------------------------- titles
     @staticmethod
@@ -342,18 +508,7 @@ class MarkdownProjector(BaseProjector):
         c = collections.Counter(o.type for o in doc.objects.values())
         # The DOCUMENT's title, not the first level-1 heading — which on a
         # paper is "1. Introduction" and is not what the document is called.
-        title = str(doc.meta.get("title") or "")
-        if not title:
-            for o in doc.objects.values():
-                if o.type == "Title":
-                    title = self._clean(str(o.props.get("text")
-                                            or o.props.get("caption") or ""))
-                    break
-        # THE FIRST LINE ONLY. A `\title{}` block on this corpus runs title,
-        # then `\\`, then the author list and the affiliation — and `_clean`
-        # turns each `\\` into a line break, so taking the whole thing put 200
-        # characters of authors into a YAML `title:`.
-        title = title.split("\n")[0].strip()
+        title = self._doc_title(doc)
         rows = [
             "---",
             f"bibkey: {bibkey}",
@@ -546,7 +701,7 @@ class MarkdownProjector(BaseProjector):
         table. Both are better than the nothing this used to emit.
         """
         cap = self._clean(str(obj.props.get("caption") or ""))
-        rows = self._rows(obj, doc)
+        rows = self._rows(obj, doc) or self._tabular_rows(obj)
         if rows:
             width = max(len(r) for r in rows)
             rows = [r + [""] * (width - len(r)) for r in rows]
@@ -561,6 +716,71 @@ class MarkdownProjector(BaseProjector):
             out = f"![]({link})"
             return f"{out}\n\n{cap}" if cap else out
         return cap
+
+    def _tabular_rows(self, obj) -> list:
+        r"""[[cell, …], …] from the AUTHOR'S OWN `tabular`, for a Table that has
+        no measured `cells`.
+
+        A model built from the LaTeX source carries each table as its
+        `latex_code` and nothing else: no cell grid (that is MathPix's
+        measurement) and no crop (a source has no page). So this projector
+        emitted the caption alone, and the owner's arXiv paper of 2026-11-26
+        (2307.04341v1, 5 tables) came out with 0 table rows where MathPix's
+        reading of the same pages has 32. The table was not missing from the
+        model — the projector had no way to say it — and the owner bought a
+        MathPix reading to get it back.
+
+        Splitting rows on `\\` and cells on `&` at brace depth 0 is enough for
+        the tabulars authors write; a `\multicolumn` keeps its text and loses
+        its span (pipe tables have no spans, the rule `_rows` already follows),
+        and anything this cannot split falls back to the caption, as before.
+        """
+        src = str(obj.props.get("latex_code") or obj.props.get("latex_original")
+                  or "")
+        if "&" not in src:
+            return []
+        body = _strip_tabular(src)
+        rows = []
+        for raw in _split_depth0(body, "\\\\"):
+            raw = _RULE_CMDS.sub(" ", raw.replace("\\tabularnewline", ""))
+            cells: list = []
+            for c in _split_depth0(raw, "&"):
+                # A SPAN KEEPS ITS COLUMNS. `\multicolumn{2}{c}{CCSEDB}` heads
+                # two columns; written as one cell it pushed every label after
+                # it one column left (2307.04341v1: RHSEDB sat over column 3
+                # and headed 4 and 5). The text goes at the origin and the
+                # covered positions stay empty — the rule `_rows` already
+                # follows for a measured span.
+                m = re.match(r"\s*\\multicolumn\s*\{\s*(\d+)\s*\}", c)
+                cells.append(self._tabular_cell(c))
+                if m:
+                    cells.extend([""] * (max(1, int(m.group(1))) - 1))
+            if any(c for c in cells):
+                rows.append(cells)
+        if len(rows) < 1 or max(len(r) for r in rows) < 2:
+            return []
+        return rows
+
+    def _tabular_cell(self, cell: str) -> str:
+        c = cell.strip()
+        for cmd in ("multicolumn", "multirow"):
+            # \multicolumn{n}{spec}{text}  /  \multirow{n}{width}{text}
+            m = re.match(r"\\%s\s*\{[^{}]*\}\s*\{[^{}]*\}\s*\{(.*)\}\s*$" % cmd, c, re.S)
+            if m:
+                c = m.group(1)
+        c = c.replace("\\\\", " ")
+        if "$" not in c:
+            # `**Our Method **` is not bold in Markdown: CommonMark wants no
+            # space just inside the markers, and `\textbf{Our Method }` has one.
+            def em(mark):
+                return lambda m: (f"{mark}{m.group(1).strip()}{mark}"
+                                  if m.group(1).strip() else "")
+            c = re.sub(r"\\(?:textbf|mathbf|bf)\s*\{([^{}]*)\}", em("**"), c)
+            c = re.sub(r"\{\\bf\s+([^{}]*)\}", em("**"), c)
+            c = re.sub(r"\\(?:textit|emph)\s*\{([^{}]*)\}", em("*"), c)
+            c = re.sub(r"\{\\it\s+([^{}]*)\}", em("*"), c)
+        c = self._clean(c)
+        return " ".join(c.split()).replace("|", "\\|")
 
     def _rows(self, obj, doc) -> list:
         """[[cell text, …], …] for a Table, from its `cells` GRID.
