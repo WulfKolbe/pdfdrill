@@ -1417,7 +1417,41 @@ def _spans(line: "LineNode") -> list[Span]:
         out.append(Span(id=f"{line.id}s{n}", kind=kind, rect=rect,
                         glyphs=run, rules=mine, line_size=dominant,
                         word_gap=wg))
-    return _prose_is_not_maths(out)
+    return _join_close_maths(_prose_is_not_maths(out))
+
+
+def _join_close_maths(spans: list[Span]) -> list[Span]:
+    r"""Neighbouring maths spans less than half an em apart are ONE formula.
+
+    B10, lib:6d90e8d27b8b p174: `\int e^{-x}\,dx = \int \sin t\,dt` came out
+    `$\int \mathrm{e}^{-x}$ $\mathrm{d}x = \int \sin t$ $\mathrm{d}t ,$`. The
+    upright `d` joins the `x` it touches, but its run and the one before stay
+    apart across the thin space before it (0.39 em with side bearings). Two
+    maths spans with no text between them and a gap below half an em are one
+    formula; a `\quad` between two formulas on a line (1 em) keeps them apart.
+    """
+    out: list[Span] = []
+    for sp in spans:
+        prev = out[-1] if out else None
+        if (prev is not None and prev.kind == "math" and sp.kind == "math"
+                and prev.glyphs and sp.glyphs):
+            size = max(max(g.size for g in prev.glyphs),
+                       max(g.size for g in sp.glyphs), 1.0)
+            gap = (min(g.rect[0] for g in sp.glyphs)
+                   - max(g.rect[2] for g in prev.glyphs))
+            if gap < 0.5 * size:
+                out[-1] = replace(
+                    prev, glyphs=sorted(prev.glyphs + sp.glyphs,
+                                        key=lambda g: g.rect[0]),
+                    rect=(min(prev.rect[0], sp.rect[0]),
+                          min(prev.rect[1], sp.rect[1]),
+                          max(prev.rect[2], sp.rect[2]),
+                          max(prev.rect[3], sp.rect[3])),
+                    rules=list(prev.rules) + [r for r in sp.rules
+                                              if r not in prev.rules])
+                continue
+        out.append(sp)
+    return out
 
 
 def _prose_is_not_maths(spans: "list[Span]") -> "list[Span]":
