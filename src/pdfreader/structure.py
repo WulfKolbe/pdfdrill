@@ -1259,6 +1259,55 @@ def _merge_small_caps(glyphs: list[GlyphNode]) -> list[GlyphNode]:
     return out
 
 
+def _merge_function_names(glyphs: list[GlyphNode]) -> list[GlyphNode]:
+    r"""A spelled-out function name is one word in its own face.
+
+    1805.01788 p3's equation (1) opens `unfairness(\rho^1, ..., \rho^m)`, the
+    word set in the TEXT italic (LinLibertineTI) flush against its `(`. Read
+    letter by letter it was ten maths variables, `unfairness`, with maths
+    italic spacing between them. Four or more letters of one text face, with
+    no gap between them, standing directly before a `(`, are one
+    `\mathit{...}` (`\mathrm{...}` when upright): the face the page used.
+    """
+    from pdfreader.texmap import is_italic
+
+    def letter(g: GlyphNode) -> bool:
+        return (g.family in ("text", "text-cm") and len(g.text) == 1
+                and g.text.isascii() and g.text.isalpha())
+
+    out: list[GlyphNode] = []
+    i = 0
+    while i < len(glyphs):
+        j = i
+        while (j + 1 < len(glyphs) and letter(glyphs[i]) and letter(glyphs[j + 1])
+               and glyphs[j + 1].fontname == glyphs[i].fontname
+               and glyphs[j + 1].rect[0] - glyphs[j].rect[2]
+               < 0.12 * glyphs[i].size):
+            j += 1
+        nxt = glyphs[j + 1] if j + 1 < len(glyphs) else None
+        if (letter(glyphs[i]) and j - i + 1 >= 4 and nxt is not None
+                and nxt.text == "("
+                and nxt.rect[0] - glyphs[j].rect[2] < 0.12 * glyphs[i].size):
+            run = glyphs[i:j + 1]
+            word = "".join(g.text for g in run)
+            cmd = "mathit" if is_italic(run[0].fontname) else "mathrm"
+            g = run[0]
+            out.append(GlyphNode(
+                id=g.id, page=g.page,
+                rect=(g.rect[0], min(x.rect[1] for x in run),
+                      run[-1].rect[2], max(x.rect[3] for x in run)),
+                text=word, cid=-1, glyphname=None, fontname=g.fontname,
+                family=g.family, size=g.size,
+                tex=TexToken(rf"\{cmd}{{{word}}}", "atom", None, "corpus"),
+                matrix=g.matrix, upright=True,
+                stream=min((x.stream for x in run if x.stream >= 0), default=-1)))
+            i = j + 1
+            continue
+        out.append(glyphs[i])
+        i += 1
+    return out
+
+
 def _merge_operator_runs(glyphs: list[GlyphNode]) -> list[GlyphNode]:
     """Collapse runs of upright letters into one operator token.
 
@@ -1680,6 +1729,7 @@ def to_tex(glyphs: list[GlyphNode], rules: list[RuleNode] | None = None,
     glyphs = _merge_negations(glyphs)
     glyphs = _merge_accents(glyphs, depth)
     glyphs = _merge_small_caps(glyphs)
+    glyphs = _merge_function_names(glyphs)
     glyphs = _merge_operator_runs(glyphs)
     if any(g.tex.kind == "fragment" for g in glyphs):
         return None

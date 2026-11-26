@@ -1160,10 +1160,23 @@ def _spans(line: "LineNode") -> list[Span]:
                                                           or _rhs)
                 _r_ok = right_any and _solid(i + 1) and (right or _solo or _lhs
                                                          or _rhs)
-                absorb = (not forced and (_l_ok or _r_ok)
-                          and _is_variable_run(run))
+                # A FUNCTION'S NAME, SPELLED OUT. 1805.01788 p3's equation
+                # (1) begins `unfairness(\rho^1, ..., \rho^m) = ...`: a
+                # ten-letter word set FLUSH against the `(` of its argument
+                # list (0.21 pt), opening the line. `_is_variable_run` stops
+                # at six letters, so the word stayed text and the line could
+                # not be a display. A prose word before maths stands a word
+                # space away, which `_tight` already tells apart.
+                _fname = (i == 0 and right and _solid(i + 1)
+                          and runs[i + 1][0].text.strip() == "("
+                          and 2 <= len(run) <= 24
+                          and all(g.text.strip().isalpha()
+                                  and g.text.isascii() for g in run))
+                absorb = (not forced and (_l_ok or _r_ok or _fname)
+                          and (_is_variable_run(run) or _fname))
+
                 take_left = _l_ok
-                take_right = _r_ok
+                take_right = _r_ok or _fname
             if absorb:
                 # 775 -- ABSORBED MEANS MATHEMATICAL, and the next run along
                 # has to be able to see that. A run's kind is read off its
@@ -6710,7 +6723,13 @@ def _split_equation_numbers(out: dict, pages: list["PageNode"], k: float) -> Non
             for _key in ("text", "text_display"):
                 _t = rec.get(_key) or ""
                 _at = _t.rfind(_tagtext)
-                if _at >= 0:
+                # a display carries its number as `\tag{1}` (`_as_display`);
+                # the number now has a record of its own, so the display
+                # keeps none -- set twice, it is three unpaired glyphs
+                _tg = "\\tag{%s}" % _tagtext.strip("()")
+                if _tg in _t:
+                    rec[_key] = _t.replace(_tg, "")
+                elif _at >= 0:
                     rec[_key] = (_t[:_at] + _t[_at + len(_tagtext):]).rstrip()
             # …and the display stops where its own ink stops.
             rec["region"]["width"] = max(
@@ -7290,6 +7309,10 @@ def span_text(sp: Span) -> str:
 #: Line types the classifier establishes as a DISPLAY equation.
 _DISPLAY_TYPES = {"math", "equation"}
 
+#: A maths line ending in its equation number: `$...$ (1)`, `(2.3)`, `(4a)`.
+import re as _re
+_EQ_NUMBER_TAIL = _re.compile(r"^(\$.*\$)\s*\(((?:\d+[.\-])*\d+[a-z]?)\)$", _re.S)
+
 
 def _as_display(text: str, line_type: str) -> str:
     r"""A display equation written `\[...\]`, or `text` unchanged.
@@ -7318,6 +7341,16 @@ def _as_display(text: str, line_type: str) -> str:
     if line_type not in _DISPLAY_TYPES:
         return text
     body = (text or "").strip()
+    # AN EQUATION NUMBER IS NOT A SECOND SPAN. 1805.01788 p3's equation (1)
+    # is one maths span followed by its number, and the one-span test below
+    # kept the whole display inline, its `\sum` at text size. The number is
+    # the display's own: `\tag{1}` sets it at the right margin, where the
+    # page prints it.
+    _num = _EQ_NUMBER_TAIL.match(body)
+    if _num and _num.group(1).count("$") == 2:
+        shown = _as_display(_num.group(1), line_type)
+        if shown.startswith("\\["):
+            return shown[:-3] + "\\tag{%s}\n\\]" % _num.group(2)
     if len(body) < 3 or not body.startswith("$") or not body.endswith("$"):
         return text
     inner = body[1:-1]
