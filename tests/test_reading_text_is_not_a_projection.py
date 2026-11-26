@@ -59,7 +59,11 @@ def _untypeable():
 def test_the_reading_keeps_the_characters_the_page_carries():
     out = docmodel.span_reading_text(_untypeable())
     assert "DEFERRED" not in out and "<!--" not in out, out
-    assert "α" in out and "β" in out, out
+    # The page's characters, in maths as their commands (contracts/reading.md
+    # §7, owner 2026-11-25): an untypeable span still carries `\alpha \beta`,
+    # never a deferral note -- and no raw Greek inside the maths.
+    assert r"\alpha" in out and r"\beta" in out, out
+    assert "α" not in out and "β" not in out, out
 
 
 def test_the_markdown_projection_still_says_where_it_gave_up():

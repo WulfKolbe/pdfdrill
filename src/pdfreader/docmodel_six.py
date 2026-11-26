@@ -7044,6 +7044,65 @@ _TEXT_COMMANDS = frozenset({chr(92) + n for n in
                              "ldots", "dots", "%", "&", "_", "#", "$")})
 
 
+#: Characters `texmap.unicode_latex` leaves as they are, with the command
+#: contracts/reading.md §7 names for them. A prime is a superscript.
+_MATHS_EXTRA = {"µ": r"\mu", "∆": r"\Delta", "·": r"\cdot",
+                "′": r"^{\prime}", "″": r"^{\prime\prime}",
+                "∗": r"\ast", "ε": r"\varepsilon", "ϵ": r"\epsilon",
+                "ϕ": r"\phi", "φ": r"\varphi", "ϑ": r"\vartheta",
+                "ϱ": r"\varrho", "ς": r"\varsigma", "ϖ": r"\varpi"}
+
+#: Greek capitals that have a command; the others are Latin capitals in LaTeX.
+_GREEK_CAPS = {"GAMMA", "DELTA", "THETA", "LAMBDA", "XI", "PI", "SIGMA",
+               "UPSILON", "PHI", "PSI", "OMEGA"}
+_GREEK_AS_LATIN = {"ALPHA": "A", "BETA": "B", "EPSILON": "E", "ZETA": "Z",
+                   "ETA": "H", "IOTA": "I", "KAPPA": "K", "MU": "M",
+                   "NU": "N", "OMICRON": "O", "RHO": "P", "TAU": "T",
+                   "CHI": "X"}
+
+
+def _maths_char(ch: str) -> str:
+    """One character as maths-mode LaTeX: its command, or itself.
+
+    A character with no command, or one the reader could not name
+    (U+FFFD), stays as it is, and the judge and the §7 count see it.
+    """
+    if ch.isascii():
+        return ch
+    if ch in _MATHS_EXTRA:
+        return _MATHS_EXTRA[ch]
+    import unicodedata
+    name = unicodedata.name(ch, "")
+    if name.startswith("GREEK SMALL LETTER ") and " WITH " not in name:
+        word = name.rsplit(" ", 1)[-1].lower()
+        if word == "lamda":
+            word = "lambda"
+        return "o" if word == "omicron" else "\\" + word
+    if name.startswith("GREEK CAPITAL LETTER ") and " WITH " not in name:
+        word = name.rsplit(" ", 1)[-1].replace("LAMDA", "LAMBDA")
+        if word in _GREEK_CAPS:
+            return "\\" + word.capitalize()
+        if word in _GREEK_AS_LATIN:
+            return _GREEK_AS_LATIN[word]
+        return ch
+    tex = texmap.unicode_latex(f"uni{ord(ch):04X}")
+    if tex and tex.isascii():
+        return tex
+    return ch
+
+
+def _maths_chars(t: str) -> str:
+    """`_maths_char` over a string, with a space where a command would run on."""
+    out = ""
+    for ch in t:
+        tex = _maths_char(ch)
+        if (out[-1:].isalpha() and tex[:1].isalpha()
+                and "\\" in out and out.rsplit("\\", 1)[-1].isalpha()):
+            out += " "
+        out += tex
+    return out
+
+
 def _run_text(glyphs: list[GlyphNode], word_gap: float = 0.0,
               maths_mode: bool = False) -> str:
     """Text of a glyph run, with word breaks reconstructed from geometry.
@@ -7069,6 +7128,13 @@ def _run_text(glyphs: list[GlyphNode], word_gap: float = 0.0,
         # display was typed as prose and carries `\bigl[` in text mode.
         if not maths_mode and _needs_maths(t):
             t = "$" + t + "$"
+        # INSIDE MATHS A CHARACTER WITH A COMMAND IS THE COMMAND
+        # (contracts/reading.md §7, owner 2026-11-25). A span that could not
+        # be typed is written from its glyphs' characters, and that put
+        # `⊕`, `−`, `α`, `∗` into `$...$` -- 17 of the 17 non-ASCII
+        # characters left in the maths of the 24 born board pages.
+        if maths_mode and not t.isascii():
+            t = _maths_chars(t)
         # A COMMAND MUST END. `_merge_operator_names` collapses the upright
         # letters of `\lg` into one glyph whose text IS the command, and the
         # letters that follow it are a separate run -- so concatenating them
