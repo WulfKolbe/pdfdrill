@@ -3819,9 +3819,16 @@ def _merge_enclosures(glyphs: list["GlyphNode"]) -> list["GlyphNode"]:
     It has to happen here, on the raw glyphs, before spans exist.
     """
     from pdfreader.texmap import OVERLAY_PAIRS
+    # ONLY AN OVERLAY GLYPH CAN ENCLOSE, so only those are compared with the
+    # page. This was an all-pairs loop over every named glyph — measured on an
+    # 8-page arXiv paper through `drill`, 8.2 s of the glyph reader's 47 s, one
+    # second a page — testing `(g.glyphname, h.text) in OVERLAY_PAIRS` for
+    # pairs whose first member is not the first member of any pair. Skipping
+    # those cannot change the answer: the test inside is the same test.
+    overlays = {a for a, _b in OVERLAY_PAIRS}
     inner_of: dict[int, int] = {}
     for i, g in enumerate(glyphs):
-        if not g.glyphname:
+        if not g.glyphname or g.glyphname not in overlays:
             continue
         for j, h in enumerate(glyphs):
             if j == i:
