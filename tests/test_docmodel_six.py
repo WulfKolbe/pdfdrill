@@ -222,9 +222,15 @@ class TestLiteralsInsideMath:
         assert glyph_latex(n) is None
 
     def test_unsafe_character_defers(self):
-        for ch in ("%", "&", "#", "_", "^", "{", "}", "\\", "$"):
+        for ch in ("_", "^", "{", "}", "\\", "$"):
             n = g(None, family="text", text=ch)
             assert glyph_latex(n) is None, ch
+
+    def test_a_literal_percent_ampersand_hash_is_escaped(self):
+        # B12: 0864 p4's unnamed CMR10 `%` in "$70\%$". Each of the three
+        # means one thing as a literal; bare in maths `%` comments out the line.
+        for ch, tex in (("%", r"\%"), ("&", r"\&"), ("#", r"\#")):
+            assert glyph_latex(g(None, family="text", text=ch)) == tex, ch
 
 
 @needs_corpus

@@ -48,14 +48,19 @@ def test_the_axis_label_reads_as_the_page_sets_it():
 
 def test_the_legend_label_keeps_its_small_caps_and_subscripts():
     t = _text(_line("legend"))
-    assert r"\textsc{Opus}}$_{\text{mon}}$" in t and r"$_{\text{spc}}$" in t, t
+    # B12: the label's brackets are CMR7 in a Times page, so the whole label
+    # is maths and its subscripts are inside it (judge 0864 p4 0.0039 -> 0.0020).
+    assert r"\textsc{Opus}}}_{\text{mon}}" in t and r"\textsc{Opus}}}_{\text{spc}}" in t, t
 
 
 def test_a_comma_in_a_maths_font_does_not_make_a_label_maths():
     """B11: `rrd(GREEDY_spc, GREEDY)` has only its comma in CMMI; split as
     maths it read `rrd(\\textsc{Greedy} ${}_{\\mathrm{spc}},$ ...`."""
     t = _text(_line("greedy"))
-    assert t == r"rrd(\textbf{\textsc{Greedy}}$_{\text{spc}}$, \textbf{\textsc{Greedy}})", t
+    # B12: whole, as one maths span (its brackets are CMR7), never split at
+    # the comma.
+    assert t == (r"$\text{rrd}(\text{\textbf{\textsc{Greedy}}}_{\text{spc}} , "
+                 r"\text{\textbf{\textsc{Greedy}}})$"), t
 
 
 def test_a_sideways_glyph_is_turned_upright():

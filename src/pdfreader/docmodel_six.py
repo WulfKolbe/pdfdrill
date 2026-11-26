@@ -506,6 +506,11 @@ def glyph_latex(g: "GlyphNode") -> str | None:
     t = g.text
     if len(t) == 1 and t in _SAFE_LITERAL:
         return t
+    # A character LaTeX reserves takes its escaped form: an unnamed CMR10
+    # `%` (0864 p4's "$70\%$") passed through bare and commented out the
+    # rest of the line.
+    if len(t) == 1 and t in "%&#":
+        return texmap._ESCAPED[t]
     if len(t) == 1 and t.isalpha() and t.isascii():
         # A letter from a TEXT font inside maths. If that font is italic it is
         # a variable: maths italic is the default, so it is emitted bare. Only
@@ -570,6 +575,53 @@ class Span:
         return _is_level(self.glyphs)
 
 
+#: A Computer Modern TEXT font by its name: the face and its design size.
+#: The digits matter: `HffcmrYvygwvTimes-Roman` (lib:c57ac038ae5f) is Times
+#: with a subset tag glued on that happens to spell `cmr`.
+_CM_TEXT_NAME = __import__("re").compile(r"cm(?:r|bx|ti|sl|tt|ss)\d", __import__("re").I)
+_NOT_MATHS_PUNCT = set(".,;:-'\"\u2013\u2014\u2018\u2019\u201c\u201d")
+
+
+def _cm_maths_marks(glyphs) -> set:
+    r"""B12 -- the glyphs a Times page set IN MATHS, told by their CM font.
+
+    0864 p4 sets its prose in NimbusRomNo9L and its maths in Computer Modern.
+    The axis labels `rnd(Opus_mon, Opus_spc)` take their brackets from CMR7,
+    "70%" its digits and `%` from CMR10. Read as text they came out in the
+    page's Times and every one was flagged on ink. On a line whose letters
+    are mostly a non-CM text face, a non-alphanumeric glyph from a CM text
+    font is maths, and so is a CM digit touching one (`70\%`). A CM digit on
+    its own is not: "32x32" with CM digits and a Times `x` (2312 p7) stays
+    prose, because the `x` would follow it into maths and change face.
+    """
+    letters = [g for g in glyphs if (g.text or "").isalpha()]
+    if not letters or sum(1 for g in letters if g.family == "text") <= 0.5 * len(letters):
+        return set()
+
+    def cm(g) -> bool:
+        return (g.family == "text-cm"
+                and bool(_CM_TEXT_NAME.search(g.fontname or "")))
+
+    marks = {id(g) for g in glyphs
+             if cm(g) and len((g.text or "").strip()) == 1
+             and not g.text.strip().isalnum()
+             and g.text.strip() not in _NOT_MATHS_PUNCT}
+    if not marks:
+        return marks
+    order = sorted(glyphs, key=lambda g: g.rect[0])
+    grew = True
+    while grew:
+        grew = False
+        for a, b in zip(order, order[1:]):
+            for x, y in ((a, b), (b, a)):
+                if (id(x) in marks and id(y) not in marks and cm(y)
+                        and (y.text or "").strip().isdigit()
+                        and b.rect[0] - a.rect[2] < 0.12 * max(a.size, b.size)):
+                    marks.add(id(y))
+                    grew = True
+    return marks
+
+
 def _spans(line: "LineNode") -> list[Span]:
     """Split a line into alternating text and maths runs, in x-order.
 
@@ -598,8 +650,8 @@ def _spans(line: "LineNode") -> list[Span]:
         # Punctuation in a maths font is not maths content: 0864 p4's legend
         # `rrd(GREEDY_spc, GREEDY)` has only its comma in CMMI, and split as
         # maths it read `rrd(\textsc{Greedy} ${}_{\mathrm{spc}},$ ...`.
-        if (any(x.is_math and (x.text or "").strip() not in (",", ".", ";", ":")
-                for x in line.glyphs)
+        if ((any(x.is_math and (x.text or "").strip() not in (",", ".", ";", ":")
+                 for x in line.glyphs) or _cm_maths_marks(line.glyphs))
                 and all(abs(x.matrix[1]) > abs(x.matrix[0]) for x in line.glyphs)):
             back = {}
             ups = []
@@ -869,6 +921,8 @@ def _spans(line: "LineNode") -> list[Span]:
             if abs(_lim.baseline - _op.baseline) > _win:
                 continue
             mathish.add(id(_lim))
+
+    mathish |= _cm_maths_marks(ordered)
 
     def _ismath(g) -> bool:
         return (g.is_math or id(g) in mathish) and id(g) not in textish
