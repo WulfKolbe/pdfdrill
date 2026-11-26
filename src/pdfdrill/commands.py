@@ -570,6 +570,27 @@ def cmd_glyphscan(pdf: Path, force: bool = False, no_dict: bool = False,
                   "dictionary": bool(refs), "math": bool(math),
                   "orchestrator": "pdfdrill.gd3"}
     target = Path(_gr_lines_target(pdf))
+    n_pages = len(doc.get("pages") or [])
+    n_lines = sum(len(p.get("lines") or []) for p in doc.get("pages") or [])
+    with_text = sum(1 for p in doc.get("pages") or []
+                    for l in (p.get("lines") or []) if (l.get("text") or "").strip())
+    # BOXES WITHOUT WORDS ARE NOT A READING. Without a dictionary the
+    # compiled-in fonts cannot read a scan, and gd3 returns its line geometry
+    # with no text. That was written as the page's lines.json -- on the B8
+    # gate, lib:17bb8765932c p30: 126 lines, 0 characters, judged 1.000 as
+    # "ours", while the teacher reading beside it held the text (gd3-learn had
+    # rejected the dictionary: label rate 0.117). Nothing is written then, and
+    # whatever reading was there stays.
+    if n_lines and not with_text:
+        sc.set_evidence("glyphscan_lines", 0)
+        sc.set_evidence("glyphscan_dictionary", bool(refs))
+        sc.save()
+        return ("\n".join(out) + ("\n" if out else "") +
+                f"glyphscan read {n_lines} line boxes on {n_pages} page(s) of "
+                f"{pdf.name} and NO LINE CARRIES TEXT: the compiled-in fonts "
+                f"cannot read this scan without its dictionary. Nothing was "
+                f"written; {target.name} is "
+                + ("unchanged." if target.exists() else "still absent."))
     # A READING THAT COST MONEY IS PARKED, NOT CLOBBERED — the convention three
     # other call sites already follow. One lines.json per document means the
     # lane that runs last owns the name; it does not mean a paid reading may
@@ -582,10 +603,6 @@ def cmd_glyphscan(pdf: Path, force: bool = False, no_dict: bool = False,
                    f"{bak.name}.")
     target.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
 
-    n_pages = len(doc.get("pages") or [])
-    n_lines = sum(len(p.get("lines") or []) for p in doc.get("pages") or [])
-    with_text = sum(1 for p in doc.get("pages") or []
-                    for l in (p.get("lines") or []) if (l.get("text") or "").strip())
     sc.set_evidence("glyphscan_lines", n_lines)
     sc.set_evidence("glyphscan_dictionary", bool(refs))
     sc.save()

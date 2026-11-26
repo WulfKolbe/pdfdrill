@@ -175,3 +175,27 @@ def test_it_does_not_buy_a_reading_to_learn_from(monkeypatch, tmp_path):
     assert "1,7,13" in out
     assert "PAID" in out and "pdfdrill mathpix" in out
     assert "local host" in out
+
+
+def test_boxes_without_words_are_not_written_as_the_reading(monkeypatch, tmp_path):
+    """B8 gate, lib:17bb8765932c p30: gd3-learn rejected the dictionary
+    (label rate 0.117), the compiled-in fonts returned 126 line boxes with no
+    text, and that was written as the page's lines.json -- judged 1.000 as
+    "ours" while the teacher beside it held the text. Nothing is written now,
+    and the reading that was there stays."""
+    pdf = tmp_path / "scan.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    monkeypatch.setattr(GD3, "available", lambda: True)
+    monkeypatch.setattr(PROBES, "ensure", lambda p, sc: None)
+    sc = C.Sidecar(pdf)
+    sc.set_evidence("text_layer", False)
+    sc.set_evidence("pages", 3)
+    sc.save()
+    empty = {"pages": [{"page": 1, "lines": [{"text": "", "type": "text"}] * 3}]}
+    monkeypatch.setattr(GD3, "lines", lambda *a, **k: json.loads(json.dumps(empty)))
+    target = Path(C._gr_lines_target(pdf))
+    target.write_text('{"pages": [{"page": 1, "lines": [{"text": "a reading"}]}]}')
+    before = target.read_text()
+    out = C.cmd_glyphscan(pdf, no_dict=True)
+    assert "NO LINE CARRIES TEXT" in out and "Nothing was written" in out, out
+    assert target.read_text() == before
