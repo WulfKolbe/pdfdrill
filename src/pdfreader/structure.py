@@ -503,6 +503,31 @@ def _weave_underscores(triples, unders, depth: int) -> str | None:
     return "".join(parts)
 
 
+def _level(g: GlyphNode) -> float:
+    r"""The height a script is judged against: the base's baseline, except
+    for an operator that HANGS from its reference point.
+
+    A display `\sum` from CMEX is drawn below the point TeX places it at:
+    on lib:1a36bfe66b9c p154 its ink runs 549.0-563.0 with the reference at
+    563.0, the TOP. Limits far above or below come out right against either
+    height; a mark between the axis and the top does not. That page's
+    `\sum'_{n \equiv d(v)}` has its prime at 561.5, which against 563.0 is
+    "below", joined the subscript, and the display was refused (3 of the
+    board's early refusals, B2c). Against the ink's middle, 556.0, it is the
+    superscript MathPix reads.
+    """
+    # Only the DISPLAY size. A text-size `\sum` hangs the same way, but its
+    # scripts are set beside it as an ordinary atom's are: 1805.01788 p3's
+    # `\sum_m` (txexs `summationtext.1`, ink 478.8-486.7) has its `m` at
+    # 483.9, above the ink's middle and a subscript all the same; measured,
+    # the unrestricted rule turned 12 accepted `\sum_{m}` into `\sum^{m}`.
+    k = g.ink
+    if ("display" in (g.glyphname or "") and g.tex.kind == "bigop" and k is not None
+            and abs(k[3] - g.baseline) <= 0.05 * g.size and k[1] < g.baseline):
+        return 0.5 * (k[1] + k[3])
+    return g.baseline
+
+
 def _attach_scripts(glyphs: list[GlyphNode]):
     """Split a row into (main glyph, superscripts, subscripts) triples.
 
@@ -817,7 +842,7 @@ def _attach_scripts(glyphs: list[GlyphNode]):
         sup, sub = [], []
         for j in claimed.get(i, []):
             g = glyphs[j]
-            (sup if g.baseline > glyphs[i].baseline + LEVEL_TOL * size
+            (sup if g.baseline > _level(glyphs[i]) + LEVEL_TOL * size
              else sub).append(g)
         last_at = None                   # the list the previous script joined
         last_sz = None
@@ -865,7 +890,7 @@ def _attach_scripts(glyphs: list[GlyphNode]):
             # +0.02, were never affected: only a script after a RAISED
             # delimiter is.
             _ref = (base_line if glyphs[i].tex.kind == "delimiter"
-                    else glyphs[i].baseline)
+                    else _level(glyphs[i]))
             if g.baseline > _ref + LEVEL_TOL * size:
                 sup.append(g); last_at, last_sz = sup, g.size
             elif g.baseline < _ref - LEVEL_TOL * size:
@@ -1784,7 +1809,20 @@ def to_tex(glyphs: list[GlyphNode], rules: list[RuleNode] | None = None,
             # under -- `\lim` spans [183.3,199.6] while
             # `\phi^0_0 \rightarrow -\infty` runs [175.1,207.8].
             marks = sup + sub
-            if marks and min(g.rect[0] for g in marks) < base.rect[2] - 0.1:
+            # A LIMIT UNDER AND A MARK BESIDE: `\sideset{}{'}\sum_{...}`.
+            # lib:1a36bfe66b9c p154 sets the prime of a restricted sum at the
+            # operator's upper RIGHT while its condition is centred under it;
+            # `\limits` alone put the prime on top (the judge's one unpaired
+            # glyph of that page, 47 px left of and 24 px above the print's).
+            if (sub and sup and base.tex.kind == "bigop"
+                    and min(g.rect[0] for g in sub) < base.rect[2] - 0.1
+                    and min(g.rect[0] for g in sup) >= base.rect[2] - 0.1):
+                s_up = to_tex(sup, [], depth + 1)
+                if s_up is None:
+                    return None
+                part = rf"\sideset{{}}{{^{{{s_up}}}}}{part}\limits"
+                sup = []
+            elif marks and min(g.rect[0] for g in marks) < base.rect[2] - 0.1:
                 part += r"\limits"
         bases.append(base if base is not None else (sup or sub)[0])
         if sub:
