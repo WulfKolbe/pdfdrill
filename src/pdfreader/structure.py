@@ -1137,6 +1137,103 @@ def _merge_accents(glyphs: list[GlyphNode],
     return out
 
 
+#: A small capital is set at about 0.7-0.85 of its word's capital, on the SAME
+#: baseline. Measured on 0864 p4: 7.17 pt after an 8.97 pt capital, 0.80.
+SMALL_CAPS_RATIO = (0.6, 0.9)
+
+
+def _merge_small_caps(glyphs: list[GlyphNode]) -> list[GlyphNode]:
+    r"""A capital followed by SMALLER capitals on its own baseline, in the same
+    face, is one small-capital word: `\textsc{Opus}`. (B2; see the commit.)"""
+    from pdfreader.project_mmd import _is_bold
+    from pdfreader.texmap import is_italic
+
+    def cap(g: GlyphNode) -> bool:
+        return (g.family not in MATH_FAMILIES and not is_italic(g.fontname)
+                and len(g.text) == 1 and g.text.isascii() and g.text.isupper())
+
+    def face(g: GlyphNode) -> str:
+        return (g.fontname or "").split("+")[-1]
+
+    lo, hi = SMALL_CAPS_RATIO
+    out: list[GlyphNode] = []
+    i = 0
+    while i < len(glyphs):
+        g = glyphs[i]
+        if not cap(g):
+            out.append(g)
+            i += 1
+            continue
+        run: list[GlyphNode] = []
+        j = i + 1
+        while j < len(glyphs):
+            n = glyphs[j]
+            last = run[-1] if run else g
+            if (not cap(n) or face(n) != face(g)
+                    or not (lo * g.size <= n.size <= hi * g.size)
+                    or (run and abs(n.size - run[0].size) > 0.05 * run[0].size)
+                    or abs(n.baseline - g.baseline) > 0.05 * g.size
+                    or n.rect[0] - last.rect[2] > 0.28 * g.size):
+                break
+            run.append(n)
+            j += 1
+        if not run:
+            out.append(g)
+            i += 1
+            continue
+        word = g.text + "".join(x.text.lower() for x in run)
+        body = rf"\textsc{{{word}}}"
+        if _is_bold(g.fontname):
+            body = rf"\textbf{{{body}}}"
+        members = [g] + run
+        rect = (g.rect[0], min(x.rect[1] for x in members),
+                run[-1].rect[2], max(x.rect[3] for x in members))
+        out.append(GlyphNode(
+            id=g.id, page=g.page, rect=rect, text=g.text + "".join(x.text for x in run),
+            cid=-1, glyphname=None, fontname=g.fontname, family=g.family,
+            size=g.size, tex=TexToken(rf"\text{{{body}}}", "atom", "amsmath", "corpus"),
+            matrix=g.matrix, upright=True,
+            stream=min((x.stream for x in members if x.stream >= 0), default=-1)))
+        i = j
+        # ITS SCRIPT, IN THE PAGE'S TEXT FONT, IS TEXT. inkdrill-80 counted the
+        # judge's findings for this word: OPUS matched the page exactly and the
+        # +27 were exactly the subscripts `spc` and `mon`, which the print sets
+        # in its TEXT face and `\mathrm{...}` sets in Computer Modern (a
+        # `\usepackage{times}` reading leaves maths in CM). The run must follow
+        # the word directly, be upright text letters smaller than its capital,
+        # and sit off the word's baseline — the shape of a script and nothing
+        # else; `_attach_scripts` still decides that it is one.
+        k = i
+        script: list[GlyphNode] = []
+        while k < len(glyphs):
+            n = glyphs[k]
+            prev = script[-1] if script else run[-1]
+            if (n.family not in ("text", "text-cm") or is_italic(n.fontname)
+                    or len(n.text) != 1 or not n.text.isascii()
+                    or not n.text.isalpha()
+                    or n.size >= SCRIPT_SIZE_RATIO * g.size
+                    or abs(n.baseline - g.baseline) < 0.05 * g.size
+                    or (script and abs(n.baseline - script[0].baseline) > 0.05 * g.size)
+                    or n.rect[0] - prev.rect[2] > 0.28 * g.size):
+                break
+            script.append(n)
+            k += 1
+        if script:
+            txt = "".join(x.text for x in script)
+            cmd = "textbf" if _is_bold(script[0].fontname) else "text"
+            srect = (script[0].rect[0], min(x.rect[1] for x in script),
+                     script[-1].rect[2], max(x.rect[3] for x in script))
+            out.append(GlyphNode(
+                id=script[0].id, page=script[0].page, rect=srect, text=txt,
+                cid=-1, glyphname=None, fontname=script[0].fontname,
+                family=script[0].family, size=script[0].size,
+                tex=TexToken(rf"\{cmd}{{{txt}}}", "atom", "amsmath", "corpus"),
+                matrix=script[0].matrix, upright=True,
+                stream=min((x.stream for x in script if x.stream >= 0), default=-1)))
+            i = k
+    return out
+
+
 def _merge_operator_runs(glyphs: list[GlyphNode]) -> list[GlyphNode]:
     """Collapse runs of upright letters into one operator token.
 
@@ -1531,6 +1628,7 @@ def to_tex(glyphs: list[GlyphNode], rules: list[RuleNode] | None = None,
     glyphs = _merge_mapsto(glyphs)
     glyphs = _merge_negations(glyphs)
     glyphs = _merge_accents(glyphs, depth)
+    glyphs = _merge_small_caps(glyphs)
     glyphs = _merge_operator_runs(glyphs)
     if any(g.tex.kind == "fragment" for g in glyphs):
         return None
