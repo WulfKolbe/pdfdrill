@@ -262,6 +262,16 @@ def current_path(pdf) -> "Path":
     return p
 
 
+#: [moves, left]: the last automatic filing's (src, dst) moves, and the
+#: same-stem files it left where they were because pdfdrill did not write them.
+_LAST_FILING: list = [[], []]
+
+
+def last_filing():
+    """(moves, left) of the last `ensure_doc_folder` that moved anything."""
+    return _LAST_FILING[0], _LAST_FILING[1]
+
+
 def ensure_doc_folder(pdf):
     """Give a loose PDF its own folder before anything writes beside it.
 
@@ -320,8 +330,16 @@ def ensure_doc_folder(pdf):
     if target.exists() and not target.is_dir():
         return pdf                       # a FILE of that name: leave well alone
     try:
-        from .relocate import apply_relocation
-        apply_relocation(p, p.parent)
+        from .relocate import apply_relocation, LAST_MOVES
+        # P11 — ONLY WHAT PDFDRILL WROTE. The planner takes every `X.*`
+        # sibling for `relocate`, which a user asks for; filed automatically,
+        # it moved a session's `lib_3f.out` beside `lib_3f.pdf`, and would
+        # have moved an owner's `X.tex`. Foreign siblings stay, and are named.
+        apply_relocation(p, p.parent, owned_only=True)
+        import glob as _g
+        _LAST_FILING[:] = [list(LAST_MOVES),
+                           sorted(x for x in p.parent.glob(_g.escape(p.stem) + ".*")
+                                  if x.is_file())]
     except Exception:                                        # noqa: BLE001
         return pdf                       # never fail a command over tidiness
     # A Path, not a str: the handlers take `.stem`/`.parent` off this value,

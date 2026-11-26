@@ -51,7 +51,35 @@ def legacy_remnants(pdf: Path) -> bool:
             or (d / f"{pdf.name}.drill").is_dir())
 
 
-def plan_relocation(pdf: str | Path, library: str | Path) -> list[tuple[Path, Path]]:
+#: The sibling suffixes ONLY pdfdrill writes beside a document: its readings,
+#: caches, inspector and the e-print it downloaded. P11 — the automatic filing
+#: (`doclock.ensure_doc_folder`) moves these and nothing else. Names an OWNER
+#: writes too (`X.tex` beside the `X.pdf` it makes, `X.md`, `X.log`, `X.bib`,
+#: `X.txt`, a script's `X.out`) are never moved without being asked: one of
+#: them moved is lost work, one left behind is a projection rebuilt.
+PDFDRILL_SUFFIXES = (
+    ".lines.json", ".glyphs.md", ".glyphs.tex", ".mathpix.bak.json",
+    ".lines.mathpix.bak.json", ".mathpix.lines.json", ".drill.json",
+    ".tiddlers.json", ".yolo.tsv", ".labels.json", ".struct.md",
+    ".profile.json", ".equations.json", ".eqglyphs.json", ".chars.json",
+    ".chars.bak.json", ".incomplete", ".scan.png", ".inspect.html",
+    ".docmodel.json", ".docpack", ".tex.zip", ".tgz", ".llm.txt",
+    ".ingest.json",
+)
+
+#: The owner's INPUTS that a build reads beside the PDF: `X.bib`
+#: (`_load_bib_sidecar`) and `X.md`. pdfdrill does not write them, so the
+#: automatic filing never moves them; it COPIES them into the new folder, so
+#: the owner's file stays where it was and the build still finds its input.
+OWNER_INPUTS = (".bib", ".md")
+
+#: (src, dst) of every move the last `apply_relocation` made, and every copy.
+LAST_MOVES: list = []
+LAST_COPIES: list = []
+
+
+def plan_relocation(pdf: str | Path, library: str | Path,
+                    owned_only: bool = False) -> list[tuple[Path, Path]]:
     """The ordered (src, dst) moves that migrate `pdf` into `<library>/<stem>/`.
 
     Empty when the doc is already self-contained (its parent IS `<library>/<stem>`).
@@ -84,17 +112,33 @@ def plan_relocation(pdf: str | Path, library: str | Path) -> list[tuple[Path, Pa
     for sib in sorted(d.glob(_glob.escape(stem) + ".*")):
         if sib in handled or sib.is_dir():
             continue
+        if owned_only and not sib.name.endswith(PDFDRILL_SUFFIXES):
+            continue                                    # not ours: it stays (P11)
         moves.append((sib, target / sib.name))          # X.* data siblings
     return moves
 
 
-def apply_relocation(pdf: str | Path, library: str | Path) -> tuple[int, int]:
+def apply_relocation(pdf: str | Path, library: str | Path,
+                     owned_only: bool = False) -> tuple[int, int]:
     """Execute the plan with shutil.move. Returns (moved, skipped). A destination
     that already exists is SKIPPED (never overwritten) — collision-safe and
-    idempotent. Empties the old blob dir afterwards."""
-    plan = plan_relocation(pdf, library)
+    idempotent. Empties the old blob dir afterwards. Every move made is in
+    `LAST_MOVES`."""
+    LAST_MOVES.clear()
+    LAST_COPIES.clear()
+    plan = plan_relocation(pdf, library, owned_only=owned_only)
     if not plan:
         return (0, 0)
+    if owned_only:
+        _p = Path(pdf).resolve()
+        _target = Path(library).resolve() / _p.stem
+        for ext in OWNER_INPUTS:
+            src = _p.parent / f"{_p.stem}{ext}"
+            dst = _target / src.name
+            if src.is_file() and not dst.exists():
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(str(src), str(dst))
+                LAST_COPIES.append((src, dst))
     moved = skipped = 0
     for src, dst in plan:
         if not src.exists():
@@ -104,6 +148,7 @@ def apply_relocation(pdf: str | Path, library: str | Path) -> tuple[int, int]:
             continue
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(src), str(dst))
+        LAST_MOVES.append((src, dst))
         moved += 1
     # remove the now-empty legacy blob dir if we drained it
     blob = Path(pdf).resolve().parent / f"{Path(pdf).name}.drill"

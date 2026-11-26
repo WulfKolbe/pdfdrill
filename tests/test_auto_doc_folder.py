@@ -59,9 +59,14 @@ def test_the_siblings_travel_with_it(tmp_path):
     (tmp_path / "doc.bib").write_text("@article{x,title={T}}")
     (tmp_path / "doc.md").write_text("# t")
     ensure_doc_folder(p)
-    for name in ("doc.pdf", "doc.lines.json", "doc.bib", "doc.md"):
+    for name in ("doc.pdf", "doc.lines.json"):
         assert (tmp_path / "doc" / name).is_file(), name
         assert not (tmp_path / name).exists(), name
+    # P11: the owner's inputs are COPIED, never moved -- the build finds them,
+    # and the original stays where the owner put it
+    for name in ("doc.bib", "doc.md"):
+        assert (tmp_path / "doc" / name).is_file(), name
+        assert (tmp_path / name).is_file(), name
 
 
 def test_an_already_self_contained_document_is_a_no_op(tmp_path):

@@ -2722,6 +2722,17 @@ def _do_drill(args):
             filed_note = (f"note: filed {_was.name} into its own folder — "
                           f"{pdf.parent}{os.sep} — because another PDF shares "
                           f"its directory. Use that path from now on.")
+            # P11 — EVERY MOVE, and what was left where it was.
+            _moves, _left = ensure_doc_folder.__globals__["last_filing"]()
+            if _moves:
+                filed_note += "\n  moved: " + ", ".join(m[0].name for m in _moves)
+            from .relocate import LAST_COPIES as _copies
+            if _copies:
+                filed_note += ("\n  copied (your inputs, originals left in place): "
+                               + ", ".join(c[0].name for c in _copies))
+            if _left:
+                filed_note += ("\n  left in place (not written by pdfdrill): "
+                               + ", ".join(x.name for x in _left))
             _emit(filed_note)
     except Exception:                                        # noqa: BLE001
         pass
