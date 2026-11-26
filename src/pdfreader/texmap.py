@@ -1273,6 +1273,16 @@ def project(family: str, glyphname: str | None,
         # nothing does.
         cmd = _ESINT_CID.get(cid)
         return (TexToken(cmd, "bigop", "esint", "corpus") if cmd else UNKNOWN)
+    # A MATHABX GLYPH IS ITS CODE, NOT ITS NAME. `TeX-matha12` reports
+    # StandardEncoding names for what it draws (`names_untrusted`), and
+    # `mathabx_name` was asked only when there was NO name, so on
+    # lib:c9daf79960c3 p68 slot 20 arrived as `guillemotright` and slot 221 as
+    # `Yacute`, both answered UNKNOWN, and their displays were refused (6 of
+    # the board's 41 early refusals, B2c). The package's own table outranks
+    # the fallback name whenever it knows the code.
+    abx = mathabx_name(fontname, cid)
+    if abx:
+        return TexToken("\\" + abx, "atom", "mathabx", "corpus")
     tok = _project_name(family, glyphname, cid, fontname)
     if tok.latex is None and glyphname and "." in glyphname:
         base = glyphname.split(".", 1)[0]
