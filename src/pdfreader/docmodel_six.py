@@ -595,7 +595,11 @@ def _spans(line: "LineNode") -> list[Span]:
         # upright (`_to_upright`) and split like any line; each span keeps
         # its upright glyphs (the structure pass works on them) and the
         # page's own rectangle. A stamp has no maths font and is untouched.
-        if (any(x.is_math for x in line.glyphs)
+        # Punctuation in a maths font is not maths content: 0864 p4's legend
+        # `rrd(GREEDY_spc, GREEDY)` has only its comma in CMMI, and split as
+        # maths it read `rrd(\textsc{Greedy} ${}_{\mathrm{spc}},$ ...`.
+        if (any(x.is_math and (x.text or "").strip() not in (",", ".", ";", ":")
+                for x in line.glyphs)
                 and all(abs(x.matrix[1]) > abs(x.matrix[0]) for x in line.glyphs)):
             back = {}
             ups = []
