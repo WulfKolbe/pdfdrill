@@ -2122,7 +2122,12 @@ def _rule_role(node: RuleNode, glyphs: list[GlyphNode],
         """
         if not baselines:
             return False
-        want = max(set(baselines), key=baselines.count)
+        # THE NEAREST baseline, not the most frequent (B9): 6d90 p174's
+        # `\frac12` in an exponent has its `1` 0.9 pt above the bar and two
+        # letters of the text line above at 7.6 pt, in the same window; the
+        # mode picked the text line, which runs past the bar, and the bar
+        # became an overline (`_{\overline{2}}^{1}`).
+        want = min(set(baselines), key=lambda b: abs(b - mid))
 
         def _belongs_to_another_bar(g, cx) -> bool:
             """Is this glyph a NEIGHBOURING FRACTION's part, not this line?
@@ -5169,6 +5174,19 @@ def build(path: str, pages: Iterable[int] | None = None, *,
             host = None
             host_d = 2.0 * span_pt
             mid = 0.5 * (r.rect[1] + r.rect[3])
+            # B9 — A ROW THAT ALREADY RUNS PAST THE BAR ON BOTH SIDES IS ITS
+            # OWN HOST. 6d90 p174's `\frac12` sits in an exponent: merging its
+            # numerator's row and denominator's row already gave the whole
+            # line, and the host search then took the line ABOVE (7.6 pt
+            # away) and joined two lines of prose.
+            # The test is on FULL-SIZE glyphs just BELOW the bar (it sits on
+            # the axis, above its line's baseline): a numerator row's scripts
+            # reach past the bar too and are not a host (lib:1a36bfe66b9c p154).
+            _row = [g for g in groups[up] if g.size >= 0.9 * span_pt
+                    and 0 < mid - g.baseline <= 0.8 * span_pt]
+            if (any(g.rect[2] < r.rect[0] - 1 for g in _row)
+                    and any(g.rect[0] > r.rect[2] + 1 for g in _row)):
+                continue
             for i, grp in enumerate(groups):
                 if not grp or i == up:
                     continue
