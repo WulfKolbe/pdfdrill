@@ -3983,6 +3983,16 @@ def _merge_operator_names(glyphs: list["GlyphNode"]) -> list["GlyphNode"]:
                         and nxt.rect[0] - run[-1].rect[2]
                         <= 0.12 * run[0].size):
                     continue
+                # A TEXT HYPHEN after it makes it a WORD: 2103.01507 p117
+                # breaks "sup-ported" at the line end, and the `sup` was read
+                # as `$\sup\text{-}$` (P6). A maths `\sup` is followed by a
+                # maths minus, not by the text font's hyphen.
+                if (nxt is not None and nxt.family in ("text", "text-cm")
+                        and (nxt.text in ("-", "\u2010")
+                             or nxt.glyphname == "hyphen")
+                        and nxt.rect[0] - run[-1].rect[2]
+                        <= 0.12 * run[0].size):
+                    break
                 best = (j, cmd, run)
         if best:
             j, cmd, run = best
