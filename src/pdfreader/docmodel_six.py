@@ -1705,6 +1705,29 @@ def _off_row_band(grp: list, rules: list, span_pt: float) -> bool:
     return True
 
 
+def _stream_base_beside(g, base, rules: list, span_pt: float) -> bool:
+    r"""Does the glyph the stream emitted before `g` stand BESIDE it?
+
+    The stream pass gives a band's glyph to the row of its predecessor
+    outside the band, and checked only that the row was near in HEIGHT. On
+    0864 p4 the caption line `difference between methods G{REEDY}_spc`
+    (8.97 pt on a 10 pt page) passes `_off_row_band` whole (781), its
+    full-size letters are stopped by `_script_beside_its_base` -- and its
+    small capitals went to their predecessor outside the row: the END of the
+    caption line above, 120 pt to their right. The reading printed `G and G`
+    on one line and `REEDY_spc REEDY` on the other (judge 0.0381 -> 0.0156
+    with this, unpaired glyphs 56/55 -> 5/5).
+
+    A FRACTION'S PART IS EXEMPT: a producer emits a whole numerator after
+    the `=`, so its predecessor stands far off by construction, and the bar
+    is the evidence (lib:3fe71b4ef018 p328: 0.0178 -> 0.0237 without this).
+    """
+    if _off_row_by_rule(g, rules, span_pt):
+        return True
+    gap = max(base.rect[0] - g.rect[2], g.rect[0] - base.rect[2])
+    return gap <= 2.0 * span_pt
+
+
 def _script_beside_its_base(g, dest: list, rules: list,
                             span_pt: float) -> bool:
     r"""Is `g` off the row of `dest` — a script beside its base, or a part the
@@ -5351,6 +5374,12 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                     db = (sum(x.baseline for x in groups[dest])
                           / len(groups[dest]))
                     if abs(db - g.baseline) > 2.0 * span_pt:
+                        continue
+                    # ...and ACROSS the page: see `_stream_base_beside`.
+                    base = next((x for x in groups[dest]
+                                 if x.stream == _idx[k][0]), None)
+                    if base is not None and not _stream_base_beside(
+                            g, base, rules, span_pt):
                         continue
                     # AND NOT ACROSS A FIGURE PANEL'S GUTTER (T-0156).
                     #
