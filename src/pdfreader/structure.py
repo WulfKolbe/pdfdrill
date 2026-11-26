@@ -1414,9 +1414,19 @@ def _merge_overlines(glyphs: list[GlyphNode],
 
     used: set[int] = set()
     consumed: set[int] = set()
-    wrapped: dict[int, tuple[str, list[int]]] = {}
+    wrapped: dict[int, tuple[str, list[int], int]] = {}
+    # THE RULES UNDER A BAR GO DOWN WITH ITS GLYPHS. The body was built with
+    # no rules at all, so a fraction inside a root -- lib:6d90e8d27b8b p174,
+    # `\sqrt[3]{3c - \frac{3}{4}t^4}` -- lost its bar: the digits were taken
+    # into the root, the bar stayed at this level with nothing above or below
+    # it, and the span was refused (3 of the board's early refusals, B2c).
+    below: dict[int, list[RuleNode]] = {}
+    roots: dict[int, list[int]] = {}
     for bi, r in enumerate(bars):
         mid = 0.5 * (r.rect[1] + r.rect[3])
+        below[bi] = [q for q in rules if q is not r and q.role == "fraction"
+                     and 0.5 * (q.rect[1] + q.rect[3]) < mid
+                     and r.rect[0] - 1 <= q.rect[0] and q.rect[2] <= r.rect[2] + 1]
         under = [i for i, g in enumerate(glyphs)
                  if i not in consumed and g.baseline < mid
                  and r.rect[0] - 1 <= 0.5 * (g.rect[0] + g.rect[2])
@@ -1444,14 +1454,24 @@ def _merge_overlines(glyphs: list[GlyphNode],
             sign = i
             break
         if sign is not None:
+            # ITS INDEX: a smaller glyph centred over the SIGN itself, not
+            # over the bar (6d90 p174's `\sqrt[3]{...}` came out `=^{3}
+            # \sqrt{...}`: the 3 was left to hang on the glyph before it).
+            sg = glyphs[sign]
+            idx = [i for i, g in enumerate(glyphs)
+                   if i not in consumed and i != sign and i not in under
+                   and g.size <= 0.7 * sg.size
+                   and sg.rect[0] <= 0.5 * (g.rect[0] + g.rect[2]) <= sg.rect[2]]
             consumed.add(sign)
             consumed.update(under)
+            consumed.update(idx)
             used.add(bi)
-            wrapped[min([sign] + under)] = (r"\sqrt", sorted(under))
+            roots[min([sign] + under + idx)] = sorted(idx)
+            wrapped[min([sign] + under + idx)] = (r"\sqrt", sorted(under), bi)
             continue
         consumed.update(under)
         used.add(bi)
-        wrapped[min(under)] = (r"\overline", sorted(under))
+        wrapped[min(under)] = (r"\overline", sorted(under), bi)
 
     if not wrapped:
         return glyphs, set()
@@ -1459,10 +1479,15 @@ def _merge_overlines(glyphs: list[GlyphNode],
     out: list[GlyphNode] = []
     for i, g in enumerate(glyphs):
         if i in wrapped:
-            cmd, idxs = wrapped[i]
-            inner = to_tex([glyphs[k] for k in idxs], [], depth + 1)
+            cmd, idxs, bi = wrapped[i]
+            inner = to_tex([glyphs[k] for k in idxs], below[bi], depth + 1)
             if inner is None:
                 return glyphs, set()
+            if roots.get(i):
+                deg = to_tex([glyphs[k] for k in roots[i]], [], depth + 1)
+                if deg is None:
+                    return glyphs, set()
+                cmd = rf"\sqrt[{deg}]"
             base = glyphs[idxs[0]]
             out.append(GlyphNode(
                 id=base.id, page=base.page,
@@ -1480,7 +1505,8 @@ def _merge_overlines(glyphs: list[GlyphNode],
         if i in consumed:
             continue
         out.append(g)
-    return out, {id(bars[b]) for b in used}
+    return out, ({id(bars[b]) for b in used}
+                 | {id(q) for b in used for q in below[b]})
 
 
 def _merge_underlines(glyphs: list[GlyphNode],
