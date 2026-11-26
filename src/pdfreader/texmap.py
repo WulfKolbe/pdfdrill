@@ -354,7 +354,14 @@ _SMALLCAPS_NAME = re.compile(r"smallcap|small-cap|\bsc\d*$|-sc\b|csc\d*\b",
 _LIBERTINE_ITALIC = re.compile(r"linlibertinet?b?i\d*$", re.I)
 _LIBERTINE_BOLD = re.compile(r"linlibertinet?bi?\d*$", re.I)
 _CM_SANS_ITALIC = re.compile(r"sf(ti|sl)\d*", re.I)
-_CM_SANS_BOLD = re.compile(r"sf(bx|b)\d*", re.I)
+_CM_SANS_BOLD = re.compile(r"sf(bx|b|sx)\d*", re.I)
+
+#: B12 -- A SANS-SERIF FACE. lib:6d90e8d27b8b p174 sets its running head in
+#: cm-super sans (SFSS0900, the page number SFSX0900); read as plain text it
+#: was set in the body's serif and every glyph of it was flagged on ink.
+_SANS_NAME = re.compile(
+    r"sfs[sxio]\d|\bcmss|lmsans|helvetica|nimbussan|arial|heros|"
+    r"dejavusans(?!mono)|sourcesans|opensans|firasans|verdana", re.I)
 
 #: A SUBSET TAG WITH NO `+`. Producers are supposed to write `ABCDEF+Name`,
 #: and `split("+")[-1]` handles that. Some write the six letters with no
@@ -412,6 +419,12 @@ _BOLD_NAME = re.compile(
 )
 
 
+def is_sans_serif(fontname: str) -> bool:
+    """True if this font is a sans-serif face (not a typewriter)."""
+    return (not is_monospace(fontname)
+            and any(_SANS_NAME.search(b) for b in _faces(fontname)))
+
+
 def is_bold(fontname: str) -> bool:
     """True if this font is a bold face."""
     return any(rx.search(b) for b in _faces(fontname)
@@ -439,6 +452,7 @@ def emphasis_for(fontnames, glyphnames=(), has_lowercase: bool = True) -> list:
         return []
     out = []
     for test, cmd in ((is_monospace, r"\texttt"),
+                      (is_sans_serif, r"\textsf"),
                       (is_bold, r"\textbf"),
                       (is_italic, r"\textit")):
         if all(test(f) for f in faces):
@@ -462,7 +476,8 @@ def emphasis_for(fontnames, glyphnames=(), has_lowercase: bool = True) -> list:
     sc_by_name = any(".sc" in (n or "") for n in glyphnames)
     if all(is_small_caps(f) for f in faces) or (sc_by_name
                                                 and not has_lowercase):
-        out.insert(1 if out and out[0] == r"\texttt" else 0, r"\textsc")
+        out.insert(1 if out and out[0] in (r"\texttt", r"\textsf") else 0,
+                   r"\textsc")
     return out
 
 
@@ -522,7 +537,8 @@ def unwrap_emphasis(text: str) -> str:
     i = 0
     n = len(text)
     while i < n:
-        for cmd in (r"\textbf{", r"\textit{", r"\texttt{", r"\textsc{"):
+        for cmd in (r"\textbf{", r"\textit{", r"\texttt{", r"\textsc{",
+                    r"\textsf{"):
             if text.startswith(cmd, i):
                 opened.append(depth)
                 depth += 1
