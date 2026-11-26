@@ -1370,7 +1370,7 @@ def _merge_operator_runs(glyphs: list[GlyphNode]) -> list[GlyphNode]:
     own script.
     """
     from pdfreader.project_mmd import _is_bold
-    from pdfreader.texmap import is_italic
+    from pdfreader.texmap import family_of, is_italic
 
     def upright(g: GlyphNode) -> bool:
         if g.family in MATH_FAMILIES:
@@ -1404,13 +1404,22 @@ def _merge_operator_runs(glyphs: list[GlyphNode]) -> list[GlyphNode]:
             continue
         name = "".join(x.text for x in run)
         cmd = "mathbf" if _is_bold(g.fontname) else "mathrm"
+        # IN THE PAGE'S OWN TEXT FACE. `\mathrm` and `\mathbf` set Computer
+        # Modern whatever the document's text font is; a run the page set in
+        # a non-CM text face (0864 p4's `\bar{f}_{spc}`, Times) is `\text`,
+        # which takes the document's face. Every `\mathrm{spc}` on that page
+        # was flagged on ink, every `\text{spc}` beside it was not (B12).
+        tex = rf"\{cmd}{{{name}}}"
+        if (g.family == "text"
+                and family_of((g.fontname or "").rsplit("+", 1)[-1]) == "text"):
+            tex = (rf"\text{{\textbf{{{name}}}}}" if cmd == "mathbf"
+                   else rf"\text{{{name}}}")
         rect = (run[0].rect[0], min(x.rect[1] for x in run),
                 run[-1].rect[2], max(x.rect[3] for x in run))
         out.append(GlyphNode(
             id=run[0].id, page=run[0].page, rect=rect, text=name,
             cid=-1, glyphname=None, fontname=g.fontname, family=g.family,
-            size=g.size, tex=TexToken(rf"\{cmd}{{{name}}}", "atom", None,
-                                      "corpus"),
+            size=g.size, tex=TexToken(tex, "atom", None, "corpus"),
             matrix=run[0].matrix, upright=True,
             stream=min((x.stream for x in run if x.stream >= 0), default=-1)))
         i = j
