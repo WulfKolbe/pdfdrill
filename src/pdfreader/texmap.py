@@ -1280,6 +1280,20 @@ def project(family: str, glyphname: str | None,
             alt = _project_name(family, base, cid, fontname)
             if alt.latex is not None:
                 return alt
+    # A MATHTIME SLOT NAME IS A CODE POSITION, here as in the spelling.
+    # `docmodel_six._spell_glyph` reads MTPro2's control-character slot names
+    # (`SI` = 15, `NUL` = 0, `c141` = 141) through `mtpro2_glyph_name` since
+    # T-0163, so the TEXT of lib:3c16fac66fdd p370's list bullets became `•` —
+    # while their TeX token was still asked of the slot name, answered
+    # UNKNOWN, and every bullet line was offered to `to_tex` as a one-glyph
+    # maths span and refused (12 of the board's 41 early refusals, B2c). One
+    # rule for both layers: the slot's Computer Modern name, then its token.
+    if tok.latex is None and glyphname and fontname:
+        cm = mtpro2_glyph_name(fontname, glyphname, cid)
+        if cm and cm != glyphname:
+            alt = _project_name(family, cm, cid, fontname)
+            if alt.latex is not None:
+                return alt
     return tok
 
 
