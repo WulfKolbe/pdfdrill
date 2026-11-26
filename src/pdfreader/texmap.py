@@ -762,7 +762,12 @@ _AMS = {
     "trianglesolid": r"\blacktriangle", "circlesolid": r"\bullet",
     "lessmuch": r"\lll", "greatermuch": r"\ggg",
     "curlyless": r"\prec", "curlygreater": r"\succ",
-    "planckover2pi": r"\hbar", "planckover2pi1": r"\hbar",
+    # MSBM "7D `planckover2pi` is the SLASHED h, `\hslash` (amssymb.sty:
+    # \DeclareMathSymbol{\hslash}{\mathord}{AMSb}{"7D}); "7E `planckover2pi1`
+    # is the barred `\hbar`. Read as `\hbar`, lib:3fe71b4ef018 p328's six
+    # slashed h (rendered from the page: a stroke through the ascender) were
+    # each a glyph finding inside its formula regions (B11).
+    "planckover2pi": r"\hslash", "planckover2pi1": r"\hbar",
     "square": r"\square", "angle": r"\angle",
     "emptyset": r"\varnothing", "approxequal": r"\approx",
     "circleasterisk": r"\circledast",
@@ -2340,7 +2345,7 @@ _GLYPH_BASE = {
 _GLYPH_BASE.update({
     # AMS symbol fonts
     "greaterorequalslant": "⩾",      # MSAM10, 8 — \geqslant
-    "planckover2pi": "ℏ",            # MSBM10, 7 — \hbar
+    "planckover2pi": "ℏ",            # MSBM10, 7 — \hslash
     # a second name for a bar already in the table as `vextenddouble`
     "bardbl": "‖",                   # 8 — \Vert
     # the `text` companions of `display` entries already present

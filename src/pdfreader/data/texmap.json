@@ -1,6 +1,6 @@
 {
 "format": "pdfdrill-texmap/1",
-"texmap_sha256": "117202d4f3bd6ed145eb11d4dca187ec6a05f8f354375b0e9b4183de6fc177d6",
+"texmap_sha256": "2faeda87eb7c2b9dfea64b2332724fa78100a300f5df640a509b974758e8257b",
 "maths_chars": {
 " ": " ",
 "¬": "\\neg",
@@ -886,7 +886,7 @@ null
 "amssymb"
 ],
 "planckover2pi": [
-"\\hbar",
+"\\hslash",
 "atom",
 "amssymb"
 ],
@@ -4278,7 +4278,7 @@ null
 null
 ],
 "planckover2pi": [
-"\\hbar",
+"\\hslash",
 "atom",
 null
 ],
