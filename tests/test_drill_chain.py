@@ -78,7 +78,11 @@ def test_the_geometry_pass_is_asked_for_the_detector(tmp_path, monkeypatch):
     pdf = _pdf(tmp_path)
     ran: list = []
     _stub_probes(monkeypatch, ran)
-    monkeypatch.setattr(R, "route_for_sidecar", lambda sc: _free())
+    # A lane whose ONLY geometry is pixels: `source` has no text layer of its
+    # own (LANES.md lane 2: "`geometry --layout` supplies the boxes"). This
+    # test used the born-digital lane, which is the one case where the pass
+    # re-finds what the page already states — see the test after next.
+    monkeypatch.setattr(R, "route_for_sidecar", lambda sc: _free("source"))
     monkeypatch.setattr(C.Sidecar, "facts", property(lambda self: {"MODEL_BUILT"}))
     monkeypatch.setattr(CLI, "_layout_candidates", lambda p: (23, ""))
     CLI._do_drill([str(pdf)])
@@ -103,6 +107,32 @@ def test_the_geometry_pass_is_named_and_skipped_when_nothing_is_unplaced(
     assert not any(k.get("layout") is True for k in geom), geom
     assert "geometry --layout" in out and "Not run" in out
     assert "already carries a region" in out
+
+
+def test_a_born_digital_page_is_not_re_read_from_pixels(tmp_path, monkeypatch):
+    """The owner, 2026-11-26, after waiting minutes on two 8-page arXiv papers
+    whose source was available: "Pdfdrill should … decide … but not … such
+    slow path!!!!"
+
+    On a maths paper the candidate count is never 0 — a display formula's
+    printed form is not its text, so every formula of a model built from the
+    author's LaTeX is a candidate (85 on 1404.4714v1). The detector then
+    re-found from 400 dpi pixels what the glyph reader had read from the PDF's
+    own text layer: measured through `drill`, cold, 61 s of 120 s and 57 s of
+    83 s — 51 % and 69 % of the run. On the born-digital lane the pass is
+    named, with the command, and not run."""
+    pdf = _pdf(tmp_path)
+    ran: list = []
+    _stub_probes(monkeypatch, ran)
+    monkeypatch.setattr(R, "route_for_sidecar", lambda sc: _free("born_digital"))
+    monkeypatch.setattr(C.Sidecar, "facts", property(lambda self: {"MODEL_BUILT"}))
+    monkeypatch.setattr(CLI, "_layout_candidates", lambda p: (85, ""))
+    out = CLI._do_drill([str(pdf)])
+    geom = [k for n, k in (x for x in ran if isinstance(x, tuple))]
+    assert not any(k.get("layout") is True for k in geom), geom
+    assert "geometry --layout" in out and "Not run" in out
+    assert "own text layer" in out
+    assert "pdfdrill geometry --layout" in out       # the way to run it anyway
 
 
 def test_a_paid_lane_is_named_and_not_run(tmp_path, monkeypatch):

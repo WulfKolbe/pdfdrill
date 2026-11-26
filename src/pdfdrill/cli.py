@@ -2980,6 +2980,27 @@ def _do_drill(args):
         # `layoutgeom.candidate_count` is that question, asked for the price of
         # a walk over the model instead of a 400 dpi render per page.
         want, why = _layout_candidates(pdf)
+        # A BORN-DIGITAL PAGE HAS ALREADY STATED ITS GEOMETRY. The candidate
+        # count asks whether the text match placed every object, and on a
+        # maths paper it never can: a display formula's printed form is not
+        # its text, so every formula of a model built from the author's LaTeX
+        # is a "candidate" — 85 of them (56 formulas) on 1404.4714v1. The pass
+        # then re-finds from 400 dpi pixels, with a torch detector on the CPU,
+        # what the glyph reader read from the PDF's own text layer a minute
+        # earlier. Measured through `drill`, cold, on the owner's two 8-page
+        # arXiv papers of 2026-11-26: 61 s of 120 s and 57 s of 83 s — 51 % and
+        # 69 % of the run, on the papers whose source was available.
+        #
+        # So on that lane the pass is NAMED, not run, the way a paid lane is.
+        # Where pixels are the only geometry — `source` (no text layer of its
+        # own; LANES.md: "`geometry --layout` supplies the boxes"), an OCR
+        # underlay, every scan lane — the rule above is unchanged.
+        if (want and getattr(dec, "lane", "") == "born_digital"
+                and not getattr(dec, "underlay", False)):
+            want, why = 0, (
+                f"this PDF carries its own text layer, and the glyph reader "
+                f"has already placed every printed glyph; the detector would "
+                f"re-find {want} object(s) from pixels that the page states.")
         if want:
             tail.append(("geometry --layout",
                          _timed("geometry --layout",
