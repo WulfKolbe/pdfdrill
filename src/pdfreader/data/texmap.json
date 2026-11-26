@@ -1,6 +1,6 @@
 {
 "format": "pdfdrill-texmap/1",
-"texmap_sha256": "a9df91f01977f9bcdb651633595bce961ffad4045e8663b6c6fa9a645a3b7d28",
+"texmap_sha256": "117202d4f3bd6ed145eb11d4dca187ec6a05f8f354375b0e9b4183de6fc177d6",
 "maths_chars": {
 " ": " ",
 "¬": "\\neg",
@@ -994,6 +994,318 @@ null
 "\\triangle",
 "atom",
 "amssymb"
+]
+},
+"bbold": {
+"A": [
+"\\mathbb{A}",
+"atom",
+"bbold"
+],
+"B": [
+"\\mathbb{B}",
+"atom",
+"bbold"
+],
+"C": [
+"\\mathbb{C}",
+"atom",
+"bbold"
+],
+"D": [
+"\\mathbb{D}",
+"atom",
+"bbold"
+],
+"E": [
+"\\mathbb{E}",
+"atom",
+"bbold"
+],
+"F": [
+"\\mathbb{F}",
+"atom",
+"bbold"
+],
+"G": [
+"\\mathbb{G}",
+"atom",
+"bbold"
+],
+"H": [
+"\\mathbb{H}",
+"atom",
+"bbold"
+],
+"I": [
+"\\mathbb{I}",
+"atom",
+"bbold"
+],
+"J": [
+"\\mathbb{J}",
+"atom",
+"bbold"
+],
+"K": [
+"\\mathbb{K}",
+"atom",
+"bbold"
+],
+"L": [
+"\\mathbb{L}",
+"atom",
+"bbold"
+],
+"M": [
+"\\mathbb{M}",
+"atom",
+"bbold"
+],
+"N": [
+"\\mathbb{N}",
+"atom",
+"bbold"
+],
+"O": [
+"\\mathbb{O}",
+"atom",
+"bbold"
+],
+"P": [
+"\\mathbb{P}",
+"atom",
+"bbold"
+],
+"Q": [
+"\\mathbb{Q}",
+"atom",
+"bbold"
+],
+"R": [
+"\\mathbb{R}",
+"atom",
+"bbold"
+],
+"S": [
+"\\mathbb{S}",
+"atom",
+"bbold"
+],
+"T": [
+"\\mathbb{T}",
+"atom",
+"bbold"
+],
+"U": [
+"\\mathbb{U}",
+"atom",
+"bbold"
+],
+"V": [
+"\\mathbb{V}",
+"atom",
+"bbold"
+],
+"W": [
+"\\mathbb{W}",
+"atom",
+"bbold"
+],
+"X": [
+"\\mathbb{X}",
+"atom",
+"bbold"
+],
+"Y": [
+"\\mathbb{Y}",
+"atom",
+"bbold"
+],
+"Z": [
+"\\mathbb{Z}",
+"atom",
+"bbold"
+],
+"a": [
+"\\mathbb{a}",
+"atom",
+"bbold"
+],
+"b": [
+"\\mathbb{b}",
+"atom",
+"bbold"
+],
+"c": [
+"\\mathbb{c}",
+"atom",
+"bbold"
+],
+"d": [
+"\\mathbb{d}",
+"atom",
+"bbold"
+],
+"e": [
+"\\mathbb{e}",
+"atom",
+"bbold"
+],
+"eight": [
+"\\mathbb{8}",
+"atom",
+"bbold"
+],
+"f": [
+"\\mathbb{f}",
+"atom",
+"bbold"
+],
+"five": [
+"\\mathbb{5}",
+"atom",
+"bbold"
+],
+"four": [
+"\\mathbb{4}",
+"atom",
+"bbold"
+],
+"g": [
+"\\mathbb{g}",
+"atom",
+"bbold"
+],
+"h": [
+"\\mathbb{h}",
+"atom",
+"bbold"
+],
+"i": [
+"\\mathbb{i}",
+"atom",
+"bbold"
+],
+"j": [
+"\\mathbb{j}",
+"atom",
+"bbold"
+],
+"k": [
+"\\mathbb{k}",
+"atom",
+"bbold"
+],
+"l": [
+"\\mathbb{l}",
+"atom",
+"bbold"
+],
+"m": [
+"\\mathbb{m}",
+"atom",
+"bbold"
+],
+"n": [
+"\\mathbb{n}",
+"atom",
+"bbold"
+],
+"nine": [
+"\\mathbb{9}",
+"atom",
+"bbold"
+],
+"o": [
+"\\mathbb{o}",
+"atom",
+"bbold"
+],
+"one": [
+"\\mathbb{1}",
+"atom",
+"bbold"
+],
+"p": [
+"\\mathbb{p}",
+"atom",
+"bbold"
+],
+"q": [
+"\\mathbb{q}",
+"atom",
+"bbold"
+],
+"r": [
+"\\mathbb{r}",
+"atom",
+"bbold"
+],
+"s": [
+"\\mathbb{s}",
+"atom",
+"bbold"
+],
+"seven": [
+"\\mathbb{7}",
+"atom",
+"bbold"
+],
+"six": [
+"\\mathbb{6}",
+"atom",
+"bbold"
+],
+"t": [
+"\\mathbb{t}",
+"atom",
+"bbold"
+],
+"three": [
+"\\mathbb{3}",
+"atom",
+"bbold"
+],
+"two": [
+"\\mathbb{2}",
+"atom",
+"bbold"
+],
+"u": [
+"\\mathbb{u}",
+"atom",
+"bbold"
+],
+"v": [
+"\\mathbb{v}",
+"atom",
+"bbold"
+],
+"w": [
+"\\mathbb{w}",
+"atom",
+"bbold"
+],
+"x": [
+"\\mathbb{x}",
+"atom",
+"bbold"
+],
+"y": [
+"\\mathbb{y}",
+"atom",
+"bbold"
+],
+"z": [
+"\\mathbb{z}",
+"atom",
+"bbold"
+],
+"zero": [
+"\\mathbb{0}",
+"atom",
+"bbold"
 ]
 },
 "doublestroke": {
@@ -7211,6 +7523,13 @@ null
 "doublestroke",
 [
 "dsrom"
+]
+],
+[
+"bbold\\d*",
+"bbold",
+[
+"bbold"
 ]
 ],
 [
@@ -15268,7 +15587,7 @@ null
 "bblcvbkqrwkfadvp49e": "text",
 "bbm": "text",
 "bbmycyrtsfylxhgtcteusm": "script",
-"bbold": "text",
+"bbold": "bbold",
 "bbqjtjhelvetica": "text",
 "bbtbxwcorbel-bold": "text",
 "bbywksmndbdrrldgjreufm": "fraktur",
@@ -19099,7 +19418,7 @@ null
 "lmyypwwrxprfhgbtcxcourier": "text",
 "lngdcdqrfdrftimesnewromanps-italicmt": "text",
 "lngpmvcmbsy": "math-symbol",
-"lnmrvrqtdyhwbbold": "text",
+"lnmrvrqtdyhwbbold": "bbold",
 "lnrjnqblex": "math-extension",
 "lnrnjhtimes-romansmallcaps": "text",
 "logo": "text",
@@ -20453,7 +20772,7 @@ null
 "pgfxccfdrwqvtimesltstd-bold": "text",
 "pglfgqfngxlpvvqdhlbwyhqfmlckngmsbm": "ams-symbol",
 "pglgbccorbel-bold": "text",
-"pglnbwvnxxnsbbold": "text",
+"pglnbwvnxxnsbbold": "bbold",
 "pgmytnqyhtwhadvotab62ddd": "text",
 "pgvrblgtxkmsrbnsqsmtmi": "math-italic",
 "phcjqssqqdylxqvhywmsbm": "ams-symbol",
@@ -21076,7 +21395,7 @@ null
 "scalasanspro-cond": "text",
 "sccbxstimes-roman": "text",
 "scdhwgbbpwcrklqgpymtex": "math-extension",
-"scdkxjmhssxpbbold": "text",
+"scdkxjmhssxpbbold": "bbold",
 "scfvqytydqgqgqkdyxvsghsrldjrqltimes-bold": "text",
 "scglpmtgpgsdnpgyqnadvpsmp": "text",
 "sclkkmgcgcylynfcrgsxmphkrnhsjgtimes-roman": "text",
@@ -21086,7 +21405,7 @@ null
 "scsyrxtimes-italic": "text",
 "scvygnwfqsnkgmrppdngkwfpqvvkrqmtmi": "math-italic",
 "sdjlslgblxgccmtcsfmsam": "ams-symbol",
-"sdkdwrbjvcrfbbold": "text",
+"sdkdwrbjvcrfbbold": "bbold",
 "sdkgnfmdktrbhwtlchmtmi": "math-italic",
 "sdsssqtimes-bold": "text",
 "sdsybktimes-bold": "text",
@@ -21724,7 +22043,7 @@ null
 "tex-artmr10~ef": "text",
 "tex-artmr10~efa": "text",
 "tex-bass": "text",
-"tex-bbold": "text",
+"tex-bbold": "bbold",
 "tex-bcgvsm": "text",
 "tex-bcgvsm~105d": "text",
 "tex-bicighm": "text",

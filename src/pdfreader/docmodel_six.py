@@ -58,7 +58,7 @@ MATH_FAMILIES = frozenset(
     # no LaTeX -- so the eighth `\mathds{1}` of wzlxjtu-026, the one sitting
     # in an inline formula rather than a display, was dropped with no trace.
     {"math-italic", "math-symbol", "math-extension", "ams-symbol",
-     "fraktur", "script", "doublestroke"}
+     "fraktur", "script", "doublestroke", "bbold"}
 )
 
 #: 889 — RELATION SYMBOLS LIVE IN THE ROMAN FONT, and that is where three
@@ -6393,7 +6393,8 @@ def to_lines_json(pages: list[PageNode],
                             "height": max(1, round((ln.rect[3] - ln.rect[1]) * k)),
                         },
                         "text": _as_display(
-                            " ".join(span_reading_text(sp) for sp in ln.spans),
+                            _join_faces(" ".join(span_reading_text(sp)
+                                                 for sp in ln.spans)),
                             _mp_type(_line_type(p, i, ln)[0])),
                         # 844 — MathPix puts `text_display` on EVERY line and
                         # `inlinectx.load_spans` reads `text_display or text`
@@ -6403,7 +6404,8 @@ def to_lines_json(pages: list[PageNode],
                         # — emitting it is what makes that true rather than
                         # something a reader has to know.
                         "text_display": _as_display(
-                            " ".join(span_reading_text(sp) for sp in ln.spans),
+                            _join_faces(" ".join(span_reading_text(sp)
+                                                 for sp in ln.spans)),
                             _mp_type(_line_type(p, i, ln)[0])),
                         "complete": all(
                             sp.kind == "text" or span_latex(sp) is not None
@@ -7376,6 +7378,126 @@ def _as_display(text: str, line_type: str) -> str:
     return "\\[\n%s\n\\]" % inner
 
 
+#: `\textit{a} \textit{b}` -> `\textit{a b}`: the same wrapper chain on both
+#: sides of one space, with no brace inside either body.
+_SAME_FACE = _re.compile(
+    r"((?:\\text(?:bf|it|tt|sc)\{)+)([^{}$]*)(\}+) \1([^{}$]*)\3")
+
+
+def _join_faces(text: str) -> str:
+    r"""Neighbouring words in the same face, under ONE wrapper.
+
+    Spans are words, so a bold run came out `\textbf{Definition}
+    \textbf{37.1.}` and an italic phrase `\textit{metric,} \textit{or}`
+    (4859 p1287, P6): the right faces, set word by word, where the author
+    wrote one `\emph{...}`. Joined only across a single space and only when
+    the whole wrapper chain is the same on both sides.
+    """
+    if "\\text" not in text:
+        return text
+    while True:
+        new = _SAME_FACE.sub(
+            lambda m: m.group(1) + m.group(2) + " " + m.group(4) + m.group(3),
+            text, count=1)
+        if new == text:
+            return text
+        text = new
+
+
+def _small_caps_word(live: list) -> str | None:
+    r"""`\textsc{Greedy}` for a word set as a capital and smaller capitals.
+
+    0864 p4 writes its method names GREEDY and OPUS as faked small caps: a
+    capital at 8.97 pt, then capitals at 7.17 pt (0.80) on the same baseline
+    in the same face. Read as text they were `GREEDY`, full-size capitals,
+    and once the face was right (bold on both sides) every one of them was a
+    glyph finding. `structure._merge_small_caps` does the same inside maths.
+    Trailing punctuation at text size stays outside the wrapper.
+    """
+    from pdfreader.structure import SMALL_CAPS_RATIO
+    letters = live
+    tail = []
+    while letters and not letters[-1].text.isalpha():
+        tail.insert(0, letters[-1])
+        letters = letters[:-1]
+    if len(letters) < 2:
+        return None
+    head, rest = letters[0], letters[1:]
+    if not (len(head.text) == 1 and head.text.isupper()):
+        return None
+    lo, hi = SMALL_CAPS_RATIO
+    face = (head.fontname or "").split("+")[-1]
+    for g in rest:
+        if not (len(g.text) == 1 and g.text.isupper() and g.text.isascii()
+                and (g.fontname or "").split("+")[-1] == face
+                and lo * head.size <= g.size <= hi * head.size
+                and abs(g.baseline - head.baseline) <= 0.05 * head.size):
+            return None
+    if abs(rest[0].size - rest[-1].size) > 0.05 * rest[0].size:
+        return None
+    word = head.text + "".join(g.text.lower() for g in rest)
+    body = texmap.wrap_emphasis(r"\textsc{%s}" % word, {head.fontname},
+                                [head.glyphname], True)
+    return body + "".join(g.text for g in tail)
+
+
+def _faced_text(glyphs: list, wg: float = 0.0) -> str:
+    """Text of a run of glyphs with each run of one face wrapped (P6)."""
+    _live = [g for g in glyphs if (g.text or "").strip()]
+    _lower = any((g.text or "").islower() and ".sc" not in (g.glyphname or "")
+                 for g in _live)
+    # ONE WRAPPER PER RUN OF ONE FACE, not one per span or none. A span
+    # is a word with its punctuation, and the face must agree across all
+    # of it: 4859 p1287's `distance,` is CMTI12 with a CMR12 comma, so it
+    # got no italic at all while the page sets `metric, or distance` in
+    # italic. Each run now gets its own: `\textit{distance},`.
+    def _face(g):
+        return tuple(texmap.emphasis_for({g.fontname}, [g.glyphname], _lower))
+    runs: list[list] = []
+    cur = None                      # the face of the current run
+    for g in glyphs:
+        live_g = bool((g.text or "").strip())
+        if not runs:
+            runs.append([g])
+            cur = _face(g) if live_g else None
+        elif not live_g:
+            runs[-1].append(g)
+        elif cur is None or _face(g) == cur:
+            runs[-1].append(g)
+            cur = _face(g)
+        else:
+            runs.append([g])
+            cur = _face(g)
+    whole = texmap.wrap_emphasis(
+        _run_text(glyphs, word_gap=wg), {g.fontname for g in _live},
+        [g.glyphname for g in _live], _lower)
+    # Runs only where the span as a whole gets NO wrapper. A small-caps
+    # word is a capital and smaller capitals, and judged alone the capital
+    # is not small caps: split, 1805 p3's heading read `D\textsc{efinition}`.
+    if len(runs) == 1 or texmap.emphasis_for(
+            {g.fontname for g in _live}, [g.glyphname for g in _live], _lower):
+        return whole
+    wg = wg or _word_gap(glyphs)
+    out = ""
+    for k, r in enumerate(runs):
+        live = [g for g in r if (g.text or "").strip()]
+        raw = _run_text(r, word_gap=wg)
+        body = raw.strip()
+        # punctuation alone keeps no face (`6.5\textit{.}`), and the
+        # spaces around a run stay outside its braces
+        if any(ch.isalnum() for ch in body):
+            body = texmap.wrap_emphasis(
+                body, {g.fontname for g in live},
+                [g.glyphname for g in live], _lower)
+        lead = raw[:len(raw) - len(raw.lstrip())]
+        tail = raw[len(raw.rstrip()):]
+        piece = lead + body + tail
+        if k and r[0].rect[0] - runs[k - 1][-1].rect[2] > wg:
+            out += " "
+        out += piece
+    return out
+
+
 def span_reading_text(sp: Span) -> str:
     """One span as the READING's text: prose, `$maths$`, or the characters the
     page carries when the maths cannot be typed.
@@ -7403,19 +7525,33 @@ def span_reading_text(sp: Span) -> str:
     reading is for; `to_markdown` keeps the explicit marker.
     """
     if sp.kind == "text":
-        # T-0156 — AND THE FACE THE PAGE SET IT IN. The reading's `text`
-        # already carries LaTeX for maths (`$...$` below), and the judge sets
-        # each line from THIS field (`judge.py:1269`), taking only the font
-        # family from the page — so a wrapper that reaches only the `.tex`
-        # projection cannot move `style_rate`. Same rule as the projection:
-        # every face in the span must agree (`texmap.emphasis_for`).
-        _live = [g for g in sp.glyphs if (g.text or "").strip()]
-        return texmap.wrap_emphasis(
-            _run_text(sp.glyphs),
-            {g.fontname for g in _live},
-            [g.glyphname for g in _live],
-            any((g.text or "").islower() and ".sc" not in (g.glyphname or "")
-                for g in _live))
+        # T-0156 — AND THE FACE THE PAGE SET IT IN; see `_faced_text`.
+        # A FAKED SMALL-CAPS WORD is found word by word (`_small_caps_word`):
+        # 0864 p4 sets GREEDY inside a sentence, one text span for the line.
+        wg = _word_gap(sp.glyphs)
+        words: list[list] = []
+        for g in sp.glyphs:
+            if words and g.rect[0] - words[-1][-1].rect[2] <= wg:
+                words[-1].append(g)
+            else:
+                words.append([g])
+        sc = [_small_caps_word([g for g in w if (g.text or "").strip()])
+              for w in words]
+        if not any(sc):
+            return _faced_text(sp.glyphs, wg)
+        parts: list[str] = []
+        plain: list = []
+        for w, scw in zip(words, sc):
+            if scw is None:
+                plain.extend(w)
+                continue
+            if plain:
+                parts.append(_faced_text(plain, wg))
+                plain = []
+            parts.append(scw)
+        if plain:
+            parts.append(_faced_text(plain, wg))
+        return " ".join(x for x in parts if x)
     tex = span_latex(sp)
     if tex is not None:
         return f"${tex}$"

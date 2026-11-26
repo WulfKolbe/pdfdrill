@@ -133,6 +133,11 @@ FAMILY_RULES = [
     # carries A-Z and no digits, so `\mathbb{1}` -- which is what MathPix
     # emits here -- has nothing to set. The font names its own package.
     (re.compile(r"dsrom\d*|doublestroke\w*", re.I), "doublestroke"),
+    # BBOLD: the `bbold` package's blackboard face, lowercase included. As
+    # `text` its glyphs sat in prose spans and its name, containing BOLD, set
+    # them `\textbf{k}` -- 2103.01507 p118's `\mathbb{k}`, the ground field
+    # (P6). The judge already loads `bbold` for it.
+    (re.compile(r"bbold\d*", re.I), "bbold"),
     (re.compile(r"CMR\d*|CMBX\d*|CMTI\d*|CMSL\d*|CMTT\d*", re.I), "text-cm"),
 ]
 
@@ -1351,6 +1356,13 @@ def _project_name(family: str, glyphname: str | None,
         return _math_symbol(glyphname)
     if family == "math-extension":
         return _math_extension(glyphname)
+    if family == "bbold":
+        if len(glyphname) == 1 and glyphname.isalnum():
+            return TexToken(rf"\mathbb{{{glyphname}}}", "atom", "bbold", "corpus")
+        ch = _DOUBLESTROKE_CHAR.get(glyphname)
+        if ch:
+            return TexToken(rf"\mathbb{{{ch}}}", "atom", "bbold", "corpus")
+        return UNKNOWN
     if family == "doublestroke":
         ch = _DOUBLESTROKE_CHAR.get(glyphname)
         if ch is None and len(glyphname) == 1 and glyphname.isalnum():
