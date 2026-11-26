@@ -61,6 +61,19 @@ from typing import Iterable, Optional, Sequence
 from . import pagemd
 from .pagemd import Item
 
+#: What is whitened before the read, and out of the ink the lines are found
+#: in: PICTURES. `yololayout.figure_boxes` defaults to figures AND tables,
+#: because its other callers want both, and both call sites here took the
+#: default. Every reason `yololayout.whiten` gives is about a picture — "the
+#: model … invent[s] axis labels and tick values", "no figure strokes to hand to
+#: a passing text line" — and a TABLE IS TEXT. MEASURED on a board scan
+#: (lib:9027b2a8b957 p2, an invoice-type page): 97.5 % of the table area's ink
+#: and 58 % of the page's was erased before the model saw it, the model then
+#: transcribed about 15 of the page's ~100 printed lines, the assembler spread
+#: those 15 over ~100 ink rows (a 5-word line 6 px tall), and `gd3-learn`
+#: labelled 0 of 1934 units from it.
+_PICTURE_CLASSES = ("figure",)
+
 #: The reader's name in the artefact. `_TYPED_GEOMETRY_SOURCES` admits it:
 #: these readings carry MathPix's line types in PAGE PIXELS, which is the pair
 #: of properties that gate asks about.
@@ -1066,7 +1079,9 @@ def assemble_page(md: str, png: Optional[Path], page_no: int, *,
     gray = inkbox.load_gray(Path(png))
     h, w = gray.shape
     dets = list(dets or ())
-    figures = yololayout.figure_boxes(dets) if dets else []
+    # PICTURES, NOT TABLES — see `_PICTURE_CLASSES`.
+    figures = (yololayout.figure_boxes(dets, classes=_PICTURE_CLASSES)
+               if dets else [])
     comps = inkbox.components(_whiten_array(gray, figures))
     lh = inkbox.median_height(comps)
     comps = [b for b in comps
@@ -1694,7 +1709,8 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
 
     read_from: dict[int, Path] = {}
     for n in sorted(printed):
-        figs = _yolo.figure_boxes(dets[n]) if dets.get(n) else []
+        figs = (_yolo.figure_boxes(dets[n], classes=_PICTURE_CLASSES)
+                if dets.get(n) else [])
         if not figs:
             read_from[n] = printed[n]
             continue
