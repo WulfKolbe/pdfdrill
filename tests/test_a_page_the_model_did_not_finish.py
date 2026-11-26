@@ -17,6 +17,8 @@ needs no interpretation; `periodic_tail` catches a loop that stopped by itself.
 Neither identifies a loop by its CONTENT — a list of looping fragments
 (`\quad`, a dot leader, a dash) is a list to maintain — but by its SHAPE.
 """
+import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -144,6 +146,52 @@ def test_a_page_the_model_finished_loses_nothing(tmp_path, monkeypatch):
     got = _one_page(tmp_path, [{"text": "a whole page", "finish_reason": "stop",
                                 "usage": {}}], monkeypatch)
     assert got["lost"] == [] and got["markdown"] == "a whole page"
+
+
+def test_a_page_that_cannot_be_read_does_not_lose_the_document(tmp_path, monkeypatch):
+    """THE SAME LESSON ONE LEVEL UP, measured on the same board slice: every
+    part of its page 2 came back `HTTP 500 prediction aborted, token repeat
+    limit reached`, `read_page` raised, and page 1 — already read — and page 3
+    — never attempted — were lost with it. Thirteen minutes for nothing.
+
+    A page that cannot be read is a HOLE the reading declares, not the end of
+    the document. This runs `fetch_gemma`'s OWN loop over a real three-page
+    PDF: a test that re-implements the loop can pass while the loop is broken.
+    """
+    pytest.importorskip("numpy")
+    pypdf = pytest.importorskip("pypdf")
+    if shutil.which("gs") is None:
+        pytest.skip("no ghostscript: this exercises the real renderer")
+    pdf = tmp_path / "three.pdf"
+    w = pypdf.PdfWriter()
+    for _ in range(3):
+        w.add_blank_page(width=200, height=300)
+    with open(pdf, "wb") as fh:
+        w.write(fh)
+
+    seen = []
+
+    def fake_run(task, image=None, text=None, **kw):
+        n = int(Path(str(image)).stem.split(".")[0].split("-")[-1])
+        seen.append(n)
+        if n == 2:
+            raise RuntimeError("localhost HTTP 500: prediction aborted, "
+                               "token repeat limit reached")
+        return {"text": f"page {n} read", "finish_reason": "stop",
+                "usage": {}, "provider": "ollama"}
+
+    from pdfdrill import vision_router
+    monkeypatch.setattr(vision_router, "run", fake_run)
+    monkeypatch.setattr(vision_router, "cost_of", lambda task: ("ollama", "free"))
+    res = GR.fetch_gemma(pdf, blob_dir=tmp_path / "sidecar", layout=False,
+                         strips=1)
+    assert sorted(set(seen)) == [1, 2, 3], \
+        "the pages after the refused one must still be read"
+    assert set(res["incomplete"]) == {2}
+    doc = json.loads(Path(res["files"]["lines.json"]).read_text(encoding="utf-8"))
+    assert "2" in (doc["ocr"].get("incomplete") or {}), \
+        "the reading must declare the hole"
+    assert len(doc["pages"]) == 3
 
 
 def test_the_mark_is_written_beside_the_markdown_so_a_resume_sees_it(tmp_path):

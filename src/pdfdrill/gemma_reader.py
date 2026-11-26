@@ -1751,8 +1751,21 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
             if mark.is_file():
                 lost[n] = mark.read_text(encoding="utf-8").strip()
         else:
-            got = read_page(read_from[n], work / "strips", blob_dir=blob_dir,
-                            run_id=run_id, strips=strips)
+            try:
+                got = read_page(read_from[n], work / "strips", blob_dir=blob_dir,
+                                run_id=run_id, strips=strips)
+            except ReadRefused as e:
+                # A PAGE THAT CANNOT BE READ HAS NOT REFUSED THE DOCUMENT —
+                # the same lesson as the chunk, one level up, and measured on
+                # the same board slice: every part of ITS page 2 came back
+                # `HTTP 500 prediction aborted, token repeat limit reached`,
+                # so page 1 (already read) and page 3 (never attempted) were
+                # lost with it. 13 minutes for nothing.
+                lost[n] = _short(e, 300)
+                mark.write_text(lost[n] + "\n", encoding="utf-8")
+                md_path.write_text("", encoding="utf-8")
+                quads.append((n, "", printed[n], dets.get(n) or []))
+                continue
             md = got["markdown"]
             md_path.write_text(md, encoding="utf-8")
             if got.get("lost"):
@@ -1765,6 +1778,15 @@ def fetch_gemma(pdf_path: str | Path, *, pages: Optional[Sequence[int]] = None,
             usage["completion_tokens"] += got["usage"]["completion_tokens"]
             usage["pages"] += 1
         quads.append((n, md, printed[n], dets.get(n) or []))
+
+    # ...AND A DOCUMENT WITH NO PAGE AT ALL IS NOT A DOCUMENT. One unread
+    # page is a hole the reading declares; every page unread is a failure, and
+    # writing an empty lines.json would be the "complete-looking and short"
+    # output this lane keeps having to be defended against.
+    if lost and not any((md or "").strip() for _n, md, *_r in quads):
+        raise ReadRefused(
+            f"no page of {pdf_path.name} could be read: "
+            + "; ".join(f"page {n}: {why}" for n, why in sorted(lost.items())))
 
     # STAGE 4 (free): assemble on the printed pages, then back to the sheets
     # the PDF has, because `page` indexes the PDF's own pages everywhere
