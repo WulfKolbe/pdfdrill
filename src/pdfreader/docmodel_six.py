@@ -586,6 +586,37 @@ def _spans(line: "LineNode") -> list[Span]:
         # Sideways text is a stamp or a margin note, never an equation.
         # Parsing it as mathematics turns `arXiv:0805.0311v3` into LaTeX and
         # loses the one thing it is useful for: being readable.
+        #
+        # B4 — EXCEPT A SIDEWAYS LINE THAT CARRIES A MATHS FONT. A figure's
+        # rotated axis label `\hat F_0: GREEDY - OPUS` (0864 p4) is set in
+        # CMMI and CMR, and as one text span it came out `\textit{F}ˆ0: ...`,
+        # a spacing circumflex and a `0` on the baseline, which displaced the
+        # judge's setting of the rest of the line. Such a line is turned
+        # upright (`_to_upright`) and split like any line; each span keeps
+        # its upright glyphs (the structure pass works on them) and the
+        # page's own rectangle. A stamp has no maths font and is untouched.
+        if (any(x.is_math for x in line.glyphs)
+                and all(abs(x.matrix[1]) > abs(x.matrix[0]) for x in line.glyphs)):
+            back = {}
+            ups = []
+            for x in line.glyphs:
+                c = _to_upright(x)
+                back[id(c)] = x
+                ups.append(c)
+            xs = [c.rect for c in ups]
+            flat = replace(line, glyphs=ups, rotated=False,
+                           rect=(min(r[0] for r in xs), min(r[1] for r in xs),
+                                 max(r[2] for r in xs), max(r[3] for r in xs)))
+            out = []
+            for sp in _spans(flat):
+                orig = [back[id(c)] for c in sp.glyphs if id(c) in back]
+                if orig:
+                    sp = replace(sp, rect=(min(o.rect[0] for o in orig),
+                                           min(o.rect[1] for o in orig),
+                                           max(o.rect[2] for o in orig),
+                                           max(o.rect[3] for o in orig)))
+                out.append(sp)
+            return out
         g = sorted(line.glyphs, key=lambda x: x.rect[0])
         return [Span(id=f"{line.id}s0", kind="text", rect=line.rect,
                      glyphs=line.glyphs, rules=[],
@@ -3115,7 +3146,61 @@ def _dominant_size(glyphs: list["GlyphNode"]) -> float:
     return max(counts.items(), key=lambda kv: (kv[1], kv[0]))[0]
 
 
+def _type_size(o) -> float:
+    """pdfminer's type size for a glyph: `fontsize` times the matrix scale."""
+    fs = getattr(o, "fontsize", None)
+    if not fs:
+        return o.size
+    a, b = o.matrix[0], o.matrix[1]
+    return float(fs) * ((a * a + b * b) ** 0.5 or 1.0)
+
+
+def _to_upright(g: "GlyphNode") -> "GlyphNode":
+    """A copy of a sideways glyph in its own upright frame (B4 (b)).
+
+    Advancing UP the page (b > 0) the writing axis is +y and the glyph's
+    `up` is -x, so x' = y, y' = -x; advancing down, x' = -y, y' = x. The
+    copy carries a unit upright matrix at the mapped origin, so `baseline`
+    and every rule written for upright text applies unchanged.
+    """
+    x0, y0, x1, y1 = g.rect
+    e, f = g.matrix[4], g.matrix[5]
+    if g.matrix[1] > 0:
+        rect, org = (y0, -x1, y1, -x0), (f, -e)
+    else:
+        rect, org = (-y1, x0, -y0, x1), (-f, e)
+    return replace(g, rect=rect, matrix=(1, 0, 0, 1, org[0], org[1]),
+                   upright=True, ink=None)
+
+
 def _group_rotated(glyphs: list["GlyphNode"]) -> list[list["GlyphNode"]]:
+    """Sideways glyphs into lines (B4 (b)): the glyphs that advance up or down
+    the page are turned into their own upright frame and grouped by the SAME
+    line builder as upright text, so a script, a small capital and a word gap
+    mean what they mean on a horizontal line. 0864 p4's rotated legend read
+    `spc`, `\textbf{PUS}`, `mon`, `\textbf{PUS}`, `rndO` -- B2's small-caps-
+    and-subscript shape turned ninety degrees and grouped by x, which in the
+    rotated frame is the baseline LEVEL. Anything else keeps the old path.
+    """
+    vert = {1: [], -1: []}
+    rest = []
+    for g in glyphs:
+        if abs(g.matrix[1]) > abs(g.matrix[0]) and abs(g.matrix[1]) > 1e-6:
+            vert[1 if g.matrix[1] > 0 else -1].append(g)
+        else:
+            rest.append(g)
+    out = _group_rotated_axis(rest) if rest else []
+    for side in (1, -1):
+        if not vert[side]:
+            continue
+        copies = [_to_upright(g) for g in vert[side]]
+        back = {id(c): g for c, g in zip(copies, vert[side])}
+        for row in _group_lines(copies):
+            out.append([back[id(c)] for c in row])
+    return out
+
+
+def _group_rotated_axis(glyphs: list["GlyphNode"]) -> list[list["GlyphNode"]]:
     """Group sideways glyphs into runs, ordered along their own writing axis.
 
     A glyph's text matrix gives the direction it advances in: (a, b) for a
@@ -4835,7 +4920,16 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                         text=_spell_glyph(o.get_text(), gname, o.cid,
                                           o.fontname),
                         cid=o.cid, glyphname=gname,
-                        fontname=o.fontname, family=fam, size=o.size,
+                        fontname=o.fontname, family=fam,
+                        # B4 (a) — A ROTATED GLYPH'S SIZE IS ITS TYPE SIZE.
+                        # pdfminer's `size` is the box extent along the PAGE,
+                        # which for a sideways glyph is its ADVANCE: 0864 p4's
+                        # 6.97 pt axis digits came in at 3.49, so every size
+                        # rule (scripts, small caps, word gaps) misread them.
+                        # Upright glyphs keep `size` (B4 (d) is separate).
+                        size=(o.size if (abs(o.matrix[1]) < 1e-6
+                                         and abs(o.matrix[2]) < 1e-6)
+                              else _type_size(o)),
                         tex=project(fam, gname, o.cid, o.fontname), matrix=o.matrix,
                         # 778 -- A FLIPPED MATRIX IS NOT A ROTATION.
                         #
@@ -7495,33 +7589,61 @@ def _small_caps_word(live: list) -> str | None:
     in the same face. Read as text they were `GREEDY`, full-size capitals,
     and once the face was right (bold on both sides) every one of them was a
     glyph finding. `structure._merge_small_caps` does the same inside maths.
-    Trailing punctuation at text size stays outside the wrapper.
+    Letters after the small capitals that are smaller still and BELOW the
+    baseline are the word's subscript (the rotated legend's `OPUS_mon`, B4):
+    `\textsc{Opus}$_{\text{mon}}$`. Trailing punctuation stays outside.
     """
     from pdfreader.structure import SMALL_CAPS_RATIO
-    letters = live
-    tail = []
-    while letters and not letters[-1].text.isalpha():
-        tail.insert(0, letters[-1])
-        letters = letters[:-1]
-    if len(letters) < 2:
+    # it may start inside the word: `rnd(OPUS_mon` (prefix kept as it reads)
+    start = next((k for k in range(len(live) - 1)
+                  if live[k].text.isupper() and live[k + 1].text.isupper()
+                  and live[k + 1].size < 0.95 * live[k].size), None)
+    if start is None:
         return None
-    head, rest = letters[0], letters[1:]
-    if not (len(head.text) == 1 and head.text.isupper()):
+    prefix = "".join(g.text for g in live[:start])
+    if any(g.text.isupper() for g in live[:start]):
+        return None
+    live = live[start:]
+    if len(live) < 2:
+        return None
+    head = live[0]
+    if not (len(head.text) == 1 and head.text.isupper() and head.text.isascii()):
         return None
     lo, hi = SMALL_CAPS_RATIO
     face = (head.fontname or "").split("+")[-1]
-    for g in rest:
-        if not (len(g.text) == 1 and g.text.isupper() and g.text.isascii()
+    caps = []
+    i = 1
+    while i < len(live):
+        g = live[i]
+        if (len(g.text) == 1 and g.text.isupper() and g.text.isascii()
                 and (g.fontname or "").split("+")[-1] == face
                 and lo * head.size <= g.size <= hi * head.size
-                and abs(g.baseline - head.baseline) <= 0.05 * head.size):
-            return None
-    if abs(rest[0].size - rest[-1].size) > 0.05 * rest[0].size:
+                and abs(g.baseline - head.baseline) <= 0.05 * head.size
+                and (not caps or abs(g.size - caps[0].size) <= 0.05 * caps[0].size)):
+            caps.append(g)
+            i += 1
+            continue
+        break
+    if not caps:
         return None
-    word = head.text + "".join(g.text.lower() for g in rest)
+    sub = []
+    while i < len(live):
+        g = live[i]
+        if (g.text.isalpha() and g.size < 0.95 * caps[0].size
+                and head.baseline - g.baseline > 0.1 * head.size):
+            sub.append(g)
+            i += 1
+            continue
+        break
+    tail = live[i:]
+    if any(g.text.isalnum() for g in tail):
+        return None
+    word = head.text + "".join(g.text.lower() for g in caps)
     body = texmap.wrap_emphasis(r"\textsc{%s}" % word, {head.fontname},
                                 [head.glyphname], True)
-    return body + "".join(g.text for g in tail)
+    if sub:
+        body += r"$_{\text{%s}}$" % "".join(g.text for g in sub)
+    return prefix + body + "".join(g.text for g in tail)
 
 
 def _faced_text(glyphs: list, wg: float = 0.0) -> str:
@@ -7607,6 +7729,11 @@ def span_reading_text(sp: Span) -> str:
     `confidence: 0.0`. The characters are what the page shows, which is what a
     reading is for; `to_markdown` keeps the explicit marker.
     """
+    if sp.kind == "text" and sp.glyphs and not sp.glyphs[0].upright \
+            and abs(sp.glyphs[0].matrix[1]) > abs(sp.glyphs[0].matrix[0]):
+        # B4 (c): a sideways run is read in its own frame, so word gaps,
+        # faces and small capitals follow the rules of upright text.
+        sp = replace(sp, glyphs=[_to_upright(g) for g in sp.glyphs])
     if sp.kind == "text":
         # T-0156 — AND THE FACE THE PAGE SET IT IN; see `_faced_text`.
         # A FAKED SMALL-CAPS WORD is found word by word (`_small_caps_word`):
