@@ -1794,18 +1794,32 @@ def to_tex(glyphs: list[GlyphNode], rules: list[RuleNode] | None = None,
             # T-0156 — `\tfrac` where the page set one; see `_is_text_style`.
             _cmd = "tfrac" if _is_text_style(f.num, f.den, rest, size,
                                              depth) else "frac"
+            # A FRACTION IN A SCRIPT IS SCRIPT-SIZED. Its node took the ROW's
+            # size, so lib:6d90e8d27b8b p174's `e^{(\frac12 t^2 - t)}` -- a
+            # 4.8 pt fraction in a 6.72 pt exponent -- became a full-size
+            # atom off the baseline and the whole row was refused (written
+            # as characters, `ece(21t2-t)`). TeX sets a fraction's parts one
+            # step below its own level (scriptscript in a script, ratio 0.7),
+            # so the node's size is theirs / 0.7, capped at the row's; inside
+            # a script `\frac` shrinks by itself, and `\tfrac` would not.
+            _part = max((g.size for g in f.num + f.den), default=size)
+            fsize = min(size, _part / 0.7)
+            if fsize < SCRIPT_SIZE_RATIO * size:
+                _cmd = "frac"
+            else:
+                fsize = size
             row.append(
                 GlyphNode(
                     id=f.rule.id, page=f.rule.page,
-                    rect=(f.rule.rect[0], mid - size, f.rule.rect[2], mid + size),
+                    rect=(f.rule.rect[0], mid - fsize, f.rule.rect[2], mid + fsize),
                     text="", cid=-1, glyphname=None,
-                    fontname="<fraction>", family="math-extension", size=size,
+                    fontname="<fraction>", family="math-extension", size=fsize,
                     tex=TexToken(
                         rf"\{_cmd}{{{num}}}{{{den}}}", "atom",
                         "amsmath" if _cmd == "tfrac" else None, "corpus"),
                     # the bar sits on the maths axis, about a quarter of the
                     # type size above the baseline it shares with its row
-                    matrix=(size, 0, 0, size, f.rule.rect[0], mid - 0.25 * size),
+                    matrix=(fsize, 0, 0, fsize, f.rule.rect[0], mid - 0.25 * fsize),
                     # 733 — the synthesised atom keeps the EARLIEST stream
                     # index of the glyphs it replaces, so a row carrying a
                     # fraction can still be read in emission order. Without
