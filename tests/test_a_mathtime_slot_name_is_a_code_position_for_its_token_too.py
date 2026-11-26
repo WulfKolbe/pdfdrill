@@ -34,3 +34,13 @@ def test_a_mathabx_glyph_is_its_code_not_its_fallback_name():
     assert project("math-symbol", "guillemotright", 20, f).latex == r"\simeq"
     assert project("math-symbol", "Yacute", 221, f).latex == r"\relbar"
     assert project("math-symbol", "arrowright", 209, f).latex == r"\rightarrow"
+
+
+def test_a_nameless_cmsy_slot_22_is_preceq():
+    """0864 p4's first page: `\\mathcal{X} \\preceq \\mathcal{X}'` in a CMSY10
+    subset with no glyph names, the one unread glyph `drill` reported there.
+    Verified by rendering the glyph's box from the page at 500 dpi."""
+    from pdfreader.texmap import cm_glyphname
+    name = cm_glyphname("KECMJK+CMSY10", 22)
+    assert name == "precedesequal"
+    assert project("math-symbol", name, 22, "KECMJK+CMSY10").latex == r"\preceq"

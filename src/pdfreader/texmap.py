@@ -1145,6 +1145,16 @@ MANFNT = {
 }
 
 
+# CMSY slot 22, `precedesequal` (`\preceq`). The 102 documents never named
+# it, so the table above could not hold it; 0864 p4's first page sets
+# `\mathcal{X} \preceq \mathcal{X}'` in a CMSY10 subset with no names, and it
+# was the one glyph `drill` reported unread there (verdict DEGRADED, exit 4).
+# VERIFIED by rendering that glyph's box at 500 dpi out of the page, not from
+# the OMS table -- which agrees, as do the slots the corpus did name around
+# it (17 equivalence, 20 lessequal, 21 greaterequal, 24 similar, 28 lessmuch).
+CM_ENCODING["CMSY"][22] = "precedesequal"
+
+
 def cm_glyphname(fontname: str | None, cid: int) -> str | None:
     """The CM glyph name for a CID, when the font declared none."""
     if not fontname or cid < 0:
