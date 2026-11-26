@@ -7071,6 +7071,12 @@ _MATHS_EXTRA = {"µ": r"\mu", "∆": r"\Delta", "·": r"\cdot",
                 "ϕ": r"\phi", "φ": r"\varphi", "ϑ": r"\vartheta",
                 "ϱ": r"\varrho", "ς": r"\varsigma", "ϖ": r"\varpi"}
 
+#: Greek small letters that have a command (`\\omicron` does not exist).
+_GREEK_SMALL = frozenset({
+    "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta",
+    "iota", "kappa", "lambda", "mu", "nu", "xi", "pi", "rho", "sigma", "tau",
+    "upsilon", "phi", "chi", "psi", "omega"})
+
 #: Greek capitals that have a command; the others are Latin capitals in LaTeX.
 _GREEK_CAPS = {"GAMMA", "DELTA", "THETA", "LAMBDA", "XI", "PI", "SIGMA",
                "UPSILON", "PHI", "PSI", "OMEGA"}
@@ -7093,12 +7099,14 @@ def _maths_char(ch: str) -> str:
     import unicodedata
     name = unicodedata.name(ch, "")
     if name.startswith("GREEK SMALL LETTER ") and " WITH " not in name:
-        word = name.rsplit(" ", 1)[-1].lower()
-        if word == "lamda":
-            word = "lambda"
-        return "o" if word == "omicron" else "\\" + word
+        word = name[len("GREEK SMALL LETTER "):].lower().replace("lamda", "lambda")
+        if word == "omicron":
+            return "o"
+        # only the letters TeX has: `ͱ` (heta), `ͳ` (sampi) would be
+        # undefined control sequences, found by the texmap dump
+        return "\\" + word if word in _GREEK_SMALL else ch
     if name.startswith("GREEK CAPITAL LETTER ") and " WITH " not in name:
-        word = name.rsplit(" ", 1)[-1].replace("LAMDA", "LAMBDA")
+        word = name[len("GREEK CAPITAL LETTER "):].replace("LAMDA", "LAMBDA")
         if word in _GREEK_CAPS:
             return "\\" + word.capitalize()
         if word in _GREEK_AS_LATIN:
