@@ -2679,6 +2679,25 @@ def _without_edge_band(regions, em: float = 0.0) -> list:
     return out
 
 
+def _outside_figures(glyphs: list, inner: list) -> list:
+    r"""The glyphs that are not a figure's own: outside every (shrunk) figure
+    region, or in the page's dominant text face.
+
+    B11 — A SUBCAPTION IN THE BODY FACE IS PROSE. 2312.11532 p7's panel
+    regions take in their subcaption row, "(a) 20NG-NPMI.", set in the page's
+    body face (NimbusRomNo9L), and the row was removed with the chart's own
+    labels (DejaVuSerif): lost words, 40 of the page's 94 uncovered glyphs.
+    """
+    import collections as _co
+    faces = _co.Counter((g.fontname or "").split("+")[-1] for g in glyphs
+                        if g.family in ("text", "text-cm")
+                        and (g.text or "").strip())
+    body = faces.most_common(1)[0][0] if faces else None
+    return [g for g in glyphs
+            if _region_holding(g.rect, inner) is None
+            or (body is not None and (g.fontname or "").split("+")[-1] == body)]
+
+
 def _spans_two_regions(glyphs, regions) -> bool:
     r"""Is this line made ENTIRELY of figure glyphs, from two or more figures?
 
@@ -5101,8 +5120,7 @@ def build(path: str, pages: Iterable[int] | None = None, *,
             # glyph in that band survives. The regions themselves are
             # unchanged: they are the crop rectangles and the page keeps them.
             _inner = _without_edge_band(diagrams)
-            upright_glyphs = [g for g in upright_glyphs
-                              if _region_holding(g.rect, _inner) is None]
+            upright_glyphs = _outside_figures(upright_glyphs, _inner)
 
         # The CropBox when the document states one, else pdfminer's MediaBox
         # bbox. A CropBox equal to the MediaBox changes nothing.
