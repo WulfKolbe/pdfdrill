@@ -340,10 +340,17 @@ def _escape_text(t: str) -> str:
 # \widetilde" and shows an error box where the mathematics should be. A crop
 # is a worse reader experience than correct LaTeX but a far better one than a
 # broken renderer, so anything that fails this check is deferred instead.
+#
+# A COMMAND ENDS WHERE ITS NAME ENDS. Without `(?![A-Za-z])` the pattern read
+# `\textbf{` as `\text` followed by `bf`, an argument-less `\text`, so every
+# maths span with `\textbf`, `\textsc`, `\textit` or `\textrm` was cropped in
+# the Markdown while `lines.json` carried its LaTeX (B2: 0864 p4's 18
+# `\text{\textbf{\textsc{Opus}}}_{\text{spc}}`). And `\sqrt` takes its
+# index first: `\sqrt[3]{...}` (6d90 p174) is complete.
 _NEEDS_ARG = re.compile(
-    r"\\(widetilde|widehat|overline|underline|bar|hat|vec|tilde|check|dot|"
-    r"ddot|mathbb|mathbf|mathrm|mathcal|mathfrak|mathscr|sqrt|frac|text)"
-    r"\s*(?!\{)")
+    r"\\(?:(?:widetilde|widehat|overline|underline|bar|hat|vec|tilde|check|"
+    r"dot|ddot|mathbb|mathbf|mathrm|mathcal|mathfrak|mathscr|frac|text)"
+    r"(?![A-Za-z])\s*(?!\{)|sqrt(?![A-Za-z])\s*(?![{\[]))")
 
 
 def is_emittable(tex: str | None) -> bool:
