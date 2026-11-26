@@ -720,8 +720,13 @@ def _spans(line: "LineNode") -> list[Span]:
         # `... c\,dt` (Times-Italic letters) read as the three-letter run
         # "cdt", the line was not "mostly maths", and its single-letter
         # variables A, Q, N stayed prose with their bars lost (B11).
+        # ...and a word's letters share a BASELINE: a fraction's numerator
+        # and denominator letters interleave in x (1805.01788 p3: a, r, i,
+        # l, ...) and read as a six-letter "word", so the display line was not
+        # "mostly maths" and its tail `u_{i2}` became prose (P10).
         if _alpha and _prev is not None and (
-                _g.rect[0] - _prev.rect[2] < 0.12 * max(dom, 1.0)):
+                _g.rect[0] - _prev.rect[2] < 0.12 * max(dom, 1.0)
+                and abs(_g.baseline - _prev.baseline) <= 0.2 * max(dom, 1.0)):
             _cur.append(_g)
         elif _alpha:
             if _cur:
@@ -1218,10 +1223,19 @@ def _spans(line: "LineNode") -> list[Span]:
                 _rhs = (_mostly_math and 1 <= len(run) <= 3
                         and all(g.text.strip().isalnum() for g in run)
                         and _is_relation(_prv))
+                # A LETTER WITH ITS SCRIPTS: one italic letter, then only
+                # smaller glyphs. Not a prose word, whatever space sits before
+                # it -- 1805.01788 p3's `\forall u_{i1}, u_{i2}.` kept its second
+                # `u_{i2}` as prose after the comma's space (P10).
+                _scripted = (_mostly_math and len(run) >= 2
+                             and run[0].text.strip().isalpha()
+                             and len(run[0].text.strip()) == 1
+                             and is_italic(run[0].fontname)
+                             and all(g.size < 0.9 * run[0].size for g in run[1:]))
                 _l_ok = left_any and _solid(i - 1) and (left or _solo or _lhs
-                                                          or _rhs)
+                                                          or _rhs or _scripted)
                 _r_ok = right_any and _solid(i + 1) and (right or _solo or _lhs
-                                                         or _rhs)
+                                                         or _rhs or _scripted)
                 # A FUNCTION'S NAME, SPELLED OUT. 1805.01788 p3's equation
                 # (1) begins `unfairness(\rho^1, ..., \rho^m) = ...`: a
                 # ten-letter word set FLUSH against the `(` of its argument
@@ -5575,7 +5589,12 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                     continue
                 jx0 = min(g.rect[0] for g in groups[_j])
                 jx1 = max(g.rect[2] for g in groups[_j])
-                if not (jx0 - 2.0 * span_pt <= ox0 <= jx1 + 2.0 * span_pt):
+                # P10 — A ROW THAT ENDS BEFORE THE OPERATOR IS NOT ITS HOST.
+                # TeX's \abovedisplayshortskip sets a display beside a SHORT
+                # preceding line: 1805.01788 p3's "relevance, i.e.:" ends 0.7 em
+                # before the display's \sum, on the SAME baseline, and took
+                # it at distance 0. The operator's host continues past it.
+                if not (jx0 - 2.0 * span_pt <= ox0 <= jx1 + 0.5 * osz):
                     continue
                 d = abs(_bl(groups[_j]) - _bl(groups[_i]))
                 if d < host_d:
@@ -5583,6 +5602,28 @@ def build(path: str, pages: Iterable[int] | None = None, *,
             if host is not None:
                 groups[host] = groups[host] + groups[_i]
                 groups[_i] = []
+        # P10 — A ROW OF LIMITS BESIDE AN OPERATOR JOINS ITS ROW. A text-size
+        # \sum hangs, so its lower limits sit a full line below its reference:
+        # 1805.01788 p3's denominators' `l=1` (7.3 pt, 10 pt down) formed a
+        # row of their own, too far for the script fold. A row of nothing but
+        # script-size glyphs that starts right after an operator's right edge
+        # and lies within 1.5 em below it is that operator's.
+        for _i in range(len(groups)):
+            grp = groups[_i]
+            if not grp or any(g.size >= 0.85 * span_pt for g in grp):
+                continue
+            rx0 = min(g.rect[0] for g in grp)
+            rb = _bl(grp)
+            for _j in range(len(groups)):
+                if _j == _i or not groups[_j]:
+                    continue
+                ops = [o for o in groups[_j] if o.tex.kind == "bigop"
+                       and o.rect[2] - 0.2 * o.size <= rx0 <= o.rect[2] + 0.6 * o.size
+                       and 0 < o.baseline - rb <= 1.5 * o.size]
+                if ops:
+                    groups[_j] = groups[_j] + grp
+                    groups[_i] = []
+                    break
 
         # 731 — A RADICAL SIGN FOLLOWS ITS VINCULUM.
         #

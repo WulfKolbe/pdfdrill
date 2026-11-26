@@ -25,7 +25,7 @@ LIMITS, stated rather than discovered later:
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 
 from pdfreader.docmodel_six import MATH_FAMILIES, GlyphNode, RuleNode, glyph_latex
 import os as _os
@@ -53,6 +53,8 @@ class Frac:
     rule: RuleNode
     num: list
     den: list
+    num_rules: list = field(default_factory=list)   # nested bars, handed down
+    den_rules: list = field(default_factory=list)
 
 
 #: T-0156 — how much smaller than its neighbours a fraction's numerals must
@@ -411,6 +413,19 @@ def _row_size(glyphs: list[GlyphNode]) -> float:
     return max(g.size for g in glyphs) if glyphs else 0.0
 
 
+def _nested_in(r, o) -> bool:
+    r"""Is fraction bar `r` inside the numerator or denominator of the WIDER
+    bar `o`? 3fe71b4ef018 p328's (14.4.17) has a `\frac14` in each part of
+    its main fraction; taken in x order the main bar took their digits, the
+    small bars found nothing, and the display was refused (P10)."""
+    if r is o or (o.rect[2] - o.rect[0]) <= (r.rect[2] - r.rect[0]):
+        return False
+    if not (o.rect[0] - 1 <= r.rect[0] and r.rect[2] <= o.rect[2] + 1):
+        return False
+    w = max(o.rect[2] - o.rect[0], 1.0)
+    return abs(0.5 * (r.rect[1] + r.rect[3]) - 0.5 * (o.rect[1] + o.rect[3])) < 0.5 * w
+
+
 def _split_fractions(glyphs: list[GlyphNode], rules: list[RuleNode]):
     """Partition a span into fraction groups and the glyphs between them.
 
@@ -420,9 +435,13 @@ def _split_fractions(glyphs: list[GlyphNode], rules: list[RuleNode]):
     """
     fracs: list[Frac] = []
     consumed: set[int] = set()
+    bars = [r for r in rules if r.role == "fraction"]
+    nested = {id(r): o for r in bars for o in bars if _nested_in(r, o)}
     for r in sorted(rules, key=lambda r: r.rect[0]):
         if r.role not in ("fraction",):
             continue
+        if id(r) in nested:
+            continue                     # a bar inside another: handed down
         x0, x1 = r.rect[0], r.rect[2]
         mid = 0.5 * (r.rect[1] + r.rect[3])
         num, den = [], []
@@ -436,7 +455,10 @@ def _split_fractions(glyphs: list[GlyphNode], rules: list[RuleNode]):
         if not num or not den:
             continue                     # not a fraction after all; abstain
         consumed |= set(num) | set(den)
-        fracs.append(Frac(r, [glyphs[i] for i in num], [glyphs[i] for i in den]))
+        mine = [q for q in bars if nested.get(id(q)) is r]
+        fracs.append(Frac(r, [glyphs[i] for i in num], [glyphs[i] for i in den],
+                          [q for q in mine if 0.5 * (q.rect[1] + q.rect[3]) > mid],
+                          [q for q in mine if 0.5 * (q.rect[1] + q.rect[3]) < mid]))
     rest = [g for i, g in enumerate(glyphs) if i not in consumed]
     return fracs, rest
 
@@ -935,6 +957,18 @@ def _attach_scripts(glyphs: list[GlyphNode]):
                 last_at.append(g); last_sz = g.size
             else:
                 return None              # same baseline but excluded: unclear
+        # P10 — TWO SCRIPT LEVELS BESIDE ONE OPERATOR. A text-size \sum hangs
+        # from its reference point, so 1805.01788 p3's `\sum_{l=1}^{m}` had
+        # its `m` (upper right) and `l=1` (lower right) both below it: two
+        # subscripts, refused. Relative to each other the higher is `^`.
+        if (not sup and sub and glyphs[i].tex.kind == "bigop"):
+            lv = sorted({round(g.baseline, 1) for g in sub})
+            if len(lv) >= 2:
+                gmax, kmax = max((b - a, k) for k, (a, b) in enumerate(zip(lv, lv[1:])))
+                if gmax > 0.3 * glyphs[i].size:
+                    cut = lv[kmax]
+                    sup = [g for g in sub if round(g.baseline, 1) > cut]
+                    sub = [g for g in sub if round(g.baseline, 1) <= cut]
         out.append((glyphs[i], sup, sub))
 
     # 735 — A LEADING SCRIPT IS NOT A REASON TO DROP THE ROW.
@@ -1787,7 +1821,9 @@ def to_tex(glyphs: list[GlyphNode], rules: list[RuleNode] | None = None,
     # out as `1_{\beta\gamma}` -- valid LaTeX with the fraction silently gone.
     # Deferring keeps the rectangle and the reason instead.
     if any(r.role == "fraction" for r in rules) and \
-            len(fracs) != sum(1 for r in rules if r.role == "fraction"):
+            len(fracs) != sum(1 for r in rules if r.role == "fraction"
+                              and not any(_nested_in(r, o) for o in rules
+                                          if o.role == "fraction")):
         return None
 
     if fracs:
@@ -1799,8 +1835,8 @@ def to_tex(glyphs: list[GlyphNode], rules: list[RuleNode] | None = None,
         row: list[GlyphNode] = list(rest)
         size = _row_size(glyphs)
         for f in fracs:
-            num = to_tex(f.num, [], depth + 1)
-            den = to_tex(f.den, [], depth + 1)
+            num = to_tex(f.num, f.num_rules, depth + 1)
+            den = to_tex(f.den, f.den_rules, depth + 1)
             if num is None or den is None:
                 return None
             mid = 0.5 * (f.rule.rect[1] + f.rule.rect[3])
@@ -1899,7 +1935,13 @@ def to_tex(glyphs: list[GlyphNode], rules: list[RuleNode] | None = None,
                     return None
                 part = rf"\sideset{{}}{{^{{{s_up}}}}}{part}\limits"
                 sup = []
-            elif marks and min(g.rect[0] for g in marks) < base.rect[2] - 0.1:
+            # BESIDE, NOT UNDER, when the scripts only touch the operator's
+            # right edge: 1805.01788 p3's text-style `\sum_{l=1}^{m}` in a
+            # fraction has its `l` 0.1 pt left of the edge (kerned), and
+            # `\limits` set the limits above and below it -- six misplaced
+            # glyphs (P10). An under-limit overlaps the operator by far more.
+            elif marks and min(g.rect[0] for g in marks) < base.rect[2] - max(
+                    0.1, 0.25 * (base.rect[2] - base.rect[0])):
                 part += r"\limits"
         bases.append(base if base is not None else (sup or sub)[0])
         if sub:
