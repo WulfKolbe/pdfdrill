@@ -1435,6 +1435,14 @@ def _spans(line: "LineNode") -> list[Span]:
             below = any(g.rect[3] < m for g in run for m in mid)
             if above and below:
                 kind = "math"
+            # A BARRED LETTER IS MATHS, whatever its font: lib:3fe71b4ef018
+            # p328 writes `\bar{Q}` with a Times-Italic Q in prose ("an
+            # electric charge Q = -Q-bar cos delta"), and a text span drops
+            # its rules -- the bar was lost (B12). A short run (a symbol, not
+            # a word) under an overline is a maths span.
+            elif (sum(1 for g in run if (g.text or "").strip()) <= 3
+                  and any(getattr(r, "role", None) == "overline" for r in mine)):
+                kind = "math"
         if kind != "math":
             mine = []
         out.append(Span(id=f"{line.id}s{n}", kind=kind, rect=rect,
@@ -1763,10 +1771,16 @@ def _covers_as_overline(rule: "RuleNode", mid: float,
     if getattr(rule, "role", None) != "overline":
         return False
     for g in group:
-        if not (-0.10 * g.size <= mid - g.rect[3] <= 0.40 * g.size):
-            continue
         bw = rule.rect[2] - rule.rect[0]
         gw = g.rect[2] - g.rect[0]
+        # A font's box can reach far above its ink: MathTime's `rho` puts
+        # its box top 0.37 em above the bar TeX drew over its ink
+        # (lib:3fe71b4ef018 p328, B12), and `\Delta` 0.15 em. A bar about
+        # as wide as the glyph may sit that far INSIDE the box; `_rule_role`
+        # has already said overline.
+        low = 0.45 if bw <= 1.3 * gw else 0.10
+        if not (-low * g.size <= mid - g.rect[3] <= 0.40 * g.size):
+            continue
         # AN ACCENT'S BAR IS NOT CONTAINED BY ITS BASE. Containment is right
         # for `\overline{A}`, which TeX draws to the width of the box it
         # covers, and wrong for `\bar{M}`, which is drawn to the width of the
@@ -1997,6 +2011,32 @@ def _rule_role(node: RuleNode, glyphs: list[GlyphNode],
     # every existing unit test -- and then this test does not run at all.
     if page_width and (x1 - x0) >= 0.45 * page_width and (x1 - x0) >= 25.0 * size:
         return "table"
+
+    # B12 — A BAR UNDER A WIDER BAR, AS WIDE AS THE ONE GLYPH BELOW IT, IS
+    # THAT GLYPH'S OVERLINE. lib:3fe71b4ef018 p328's `1/\bar{\rho}^2`: the
+    # bar over the rho lies 4 pt under the fraction bar, so it too has the
+    # numerator above and the rho below, and was called a fraction; the
+    # display's bars came out as two fractions and the rho lost its bar.
+    for o in (others or ()):
+        if o is node:
+            continue
+        omid = 0.5 * (o.rect[1] + o.rect[3])
+        if not (0 < omid - mid <= 0.8 * size):
+            continue
+        if not (o.rect[0] <= x0 + 0.5 and o.rect[2] >= x1 - 0.5
+                and (o.rect[2] - o.rect[0]) > 1.3 * (x1 - x0)):
+            continue
+        under = [g for g in glyphs
+                 if x0 - 1 <= 0.5 * (g.rect[0] + g.rect[2]) <= x1 + 1
+                 and -1.2 * size < g.baseline - mid < 0]
+        # NOTHING BETWEEN the two bars: a nested `\frac14` under a wider bar
+        # has its own numerator there (the `1`), an overline has none.
+        between = [g for g in glyphs
+                   if x0 - 1 <= 0.5 * (g.rect[0] + g.rect[2]) <= x1 + 1
+                   and mid < g.baseline < omid]
+        if (len(under) == 1 and not between
+                and (x1 - x0) <= 1.4 * (under[0].rect[2] - under[0].rect[0])):
+            return "overline"
 
     # A VINCULUM, named by the sign it starts at. TeX begins the bar exactly
     # at the radical's right edge, and the bar lies within the sign's own box.
