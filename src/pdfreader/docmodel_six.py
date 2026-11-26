@@ -1753,6 +1753,34 @@ def _off_row_band(grp: list, rules: list, span_pt: float) -> bool:
     return True
 
 
+def _base_in_own_row(g, own: dict) -> bool:
+    r"""Is `g`'s base the larger glyph the stream set just before it, in its
+    own row?
+
+    The stream pass moves a band's smaller glyph to the row of its
+    predecessor OUTSIDE the band. On 0864 p4 a whole caption line (8.97 pt on a
+    10 pt page) is such a band, and the small capitals of its last word,
+    `O{PUS}`, went to the end of the line above -- whose last `e` stands at the
+    same right margin, so even `_stream_base_beside` let it pass -- and were
+    read interleaved with it: `PosiPtiUvSe` (P6). Walking back through the
+    stream over glyphs of `g`'s own size, inside its row, reaches the `O`:
+    larger, flush before them. That is the base, and they stay.
+    """
+    prev, s = g, g.stream - 1
+    while s in own:
+        h = own[s]
+        if abs(h.size - g.size) <= 0.05 * g.size:
+            prev, s = h, s - 1
+            continue
+        # ON ITS BASELINE: a small capital sits on the capital's line, a
+        # script does not (lib:3fe71b4ef018 p328's `M^2` stayed beside `M`
+        # without this, and its display came apart)
+        return (h.size > 1.1 * g.size
+                and abs(prev.baseline - h.baseline) <= 0.05 * h.size
+                and -0.3 * g.size <= prev.rect[0] - h.rect[2] <= 0.5 * g.size)
+    return False
+
+
 def _stream_base_beside(g, base, rules: list, span_pt: float) -> bool:
     r"""Does the glyph the stream emitted before `g` stand BESIDE it?
 
@@ -5479,7 +5507,10 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                 # names a base for EACH script, so each one is placed on its
                 # own evidence and a band can be split between rows.
                 moved = []
+                _own = {g.stream: g for g in grp}
                 for g in grp:
+                    if _base_in_own_row(g, _own):
+                        continue
                     k = _bisect.bisect_left(_keys, g.stream) - 1
                     while k >= 0 and _idx[k][1] == _i:
                         k -= 1
