@@ -232,12 +232,22 @@ commands:
   - name: self-taught
     flag: --self-taught
     type: flag
-    help: 'T-0171: no reader at all. When no dictionary is on disk, the document teaches
-      gd3 its own (`gd3-learn self`: common words where gd3''s classes and the born
-      prototypes agree; accepted at >= 800 labels and leave-one-page-out >= 0.92). The
-      model lane is never called; a teacher reading already in the sidecar is still used.
-      Refused, the compiled-in fonts read it and the refusal is remembered. Lines read with
-      that dictionary say source "self-taught".'
+    help: 'T-0171, FAILS CLOSED (audit A07): no reader and no teacher at all. Only a
+      dictionary the document teaches gd3 itself (`gd3-learn self`: common words where
+      gd3''s classes and the born prototypes agree; accepted at >= 800 labels and
+      leave-one-page-out >= 0.92), kept in its own file and marked `S self-taught`; never a
+      teacher reading on disk or a dictionary a teacher taught, never a model. Refused, no
+      dictionary: the compiled-in fonts read it, and the refusal is remembered for THIS gd3
+      (dictionaries and refusals are keyed by the PDF, the gd3 commit and its data
+      checksums). Lines read with that dictionary say source "self-taught"; the reading
+      records seconds_learn and seconds_read.'
+  - name: hybrid
+    flag: --hybrid
+    type: flag
+    help: 'what --self-taught did before audit A07: a teacher reading already in the
+      sidecar still teaches (nothing is read for it), and otherwise or when its dictionary
+      was refused `gd3-learn self` does; no model is called'
+
   typed: true
   done_when: file:{stem}.lines.json
 - name: profile
@@ -619,9 +629,15 @@ commands:
   - name: self-taught
     flag: --self-taught
     type: flag
-    help: 'on a scan, read it first with `glyphscan --self-taught` (gd3 with the dictionary
-      the document teaches itself, no model at read time); when that writes no text the
-      routed lane runs as before'
+    help: 'on a scan, read it with `glyphscan --self-taught` only (gd3 with the dictionary
+      the document teaches itself; no teacher, no model). FAILS CLOSED (audit A07): when
+      that writes no text the result is NO READING and no other lane runs'
+  - name: hybrid
+    flag: --hybrid
+    type: flag
+    help: 'on a scan, read it first with `glyphscan --hybrid` (a teacher reading on disk may
+      teach); when that writes no text the routed lane runs as before'
+
 - name: pdfinfo
   section: Introspection (fast, no extraction)
   summary: Full PdfInfo struct (title/author/dates/flags)

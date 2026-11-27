@@ -169,17 +169,79 @@ def doc_dir(blob_dir: Path) -> Path:
     return d
 
 
+_IDENTITY: dict = {}
+
+
+def identity() -> str:
+    """WHICH gd3 learned a dictionary: its commit, or -- for a tree that is
+    not a git work tree of its own, such as a `git archive` export -- the
+    sha256 of its two programs; plus the sha256 of its data checksums
+    (`data/blobmetric/SHA256SUMS`). Audit A08: a dictionary or a refusal
+    learned by one gd3 is a fact about THAT gd3, and a new one must learn
+    again rather than trust it. Cached per process and tree.
+    """
+    h = home()
+    if h is None:
+        return ""
+    if str(h) in _IDENTITY:
+        return _IDENTITY[str(h)]
+    who = version()
+    if not who:
+        dg = hashlib.sha256()
+        for part in (Path(h) / "build" / "gd3", Path(h) / "tools" / "gd3-learn"):
+            try:
+                with open(part, "rb") as fh:
+                    for chunk in iter(lambda: fh.read(1 << 20), b""):
+                        dg.update(chunk)
+            except OSError:
+                dg.update(b"-")
+        who = "x" + dg.hexdigest()[:12]
+    try:
+        sums = (Path(h) / "data" / "blobmetric" / "SHA256SUMS").read_bytes()
+    except OSError:
+        sums = b""
+    out = hashlib.sha256(f"{who}|".encode() + sums).hexdigest()[:12]
+    _IDENTITY[str(h)] = out
+    return out
+
+
+def _key(pdf: Path) -> str:
+    """The PDF's sha256 and the identity of the gd3 that learns (A08)."""
+    who = identity()
+    return f"{sha256(pdf)}.{who}" if who else sha256(pdf)
+
+
 def trees_path(blob_dir: Path, pdf: Path) -> Path:
-    return doc_dir(blob_dir) / f"{sha256(pdf)}.trees"
+    return doc_dir(blob_dir) / f"{_key(pdf)}.trees"
 
 
 def rejected_path(blob_dir: Path, pdf: Path) -> Path:
-    return doc_dir(blob_dir) / f"{sha256(pdf)}.rejected"
+    return doc_dir(blob_dir) / f"{_key(pdf)}.rejected"
+
+
+def self_trees_path(blob_dir: Path, pdf: Path) -> Path:
+    """A dictionary the document taught ITSELF (T-0171), kept apart from one
+    a teacher taught, so `--self-taught` can never pick up the other kind."""
+    return doc_dir(blob_dir) / f"{_key(pdf)}.self.trees"
 
 
 def self_refused_path(blob_dir: Path, pdf: Path) -> Path:
     """Where a refused SELF-TAUGHT dictionary is remembered (T-0171)."""
-    return doc_dir(blob_dir) / f"{sha256(pdf)}.self-refused"
+    return doc_dir(blob_dir) / f"{_key(pdf)}.self-refused"
+
+
+def is_self_taught(trees: Path) -> bool:
+    """Does this dictionary mark itself `S self-taught` (gd3-learn self)?"""
+    try:
+        with open(trees, "r", encoding="utf-8", errors="replace") as fh:
+            for line in fh:                 # the header precedes the records
+                if line.startswith("R "):
+                    return False
+                if line.strip() == "S self-taught":
+                    return True
+        return False
+    except OSError:
+        return False
 
 
 def reading_path(blob_dir: Path, pdf: Path) -> Path:

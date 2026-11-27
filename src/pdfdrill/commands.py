@@ -429,7 +429,7 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
 @_writes("glyphscan")
 def cmd_glyphscan(pdf: Path, force: bool = False, no_dict: bool = False,
                   math: bool = False, pages: str = "",
-                  self_taught: bool = False) -> str:
+                  self_taught: bool = False, hybrid: bool = False) -> str:
     """Read a SCAN's words from its pixels with GLYPHDRILL3 — free, no GPU.
 
     THE LANE THIS FILLS. A scan with no text layer and no author's source had,
@@ -485,13 +485,26 @@ def cmd_glyphscan(pdf: Path, force: bool = False, no_dict: bool = False,
         rejected.unlink(missing_ok=True)
         self_refused.unlink(missing_ok=True)
 
-    if self_taught and not no_dict and not trees.is_file():
-        # T-0171 -- A DICTIONARY WITHOUT A READER. Nothing on this path calls
-        # the model lane: a teacher reading ALREADY on disk is still used
-        # (nothing is read for it), and otherwise -- or when that teacher's
-        # dictionary was refused -- `gd3-learn self` teaches the document by
-        # its own common words. Refused, the compiled-in fonts read it, as
-        # they do today, and the refusal is remembered.
+    t_learn = time.monotonic()
+    strict_refs = None
+    if self_taught:
+        # T-0171 / audit A07 -- `--self-taught` FAILS CLOSED. Only a
+        # dictionary the document taught ITSELF is read with, kept in its
+        # own file and marked `S self-taught` by gd3-learn; never a teacher
+        # reading on disk, never a dictionary a teacher taught, never a
+        # model. Refused, there is no dictionary: the compiled-in fonts read
+        # it, and a reading with no text is not written (B8).
+        strict = _gd3.self_trees_path(sc.blob_dir, pdf)
+        if force:
+            strict.unlink(missing_ok=True)
+        out.extend(_strict_self_dictionary(pdf, strict, self_refused, no_dict))
+        if (not no_dict and strict.is_file() and _gd3.is_self_taught(strict)):
+            strict_refs = strict
+    elif hybrid and not no_dict and not trees.is_file():
+        # T-0171 `--hybrid`: what `--self-taught` did before A07. A teacher
+        # reading ALREADY on disk is still used (nothing is read for it),
+        # and otherwise -- or when that teacher's dictionary was refused --
+        # `gd3-learn self` teaches the document. Nothing calls the model.
         out.extend(_self_taught_dictionary(pdf, sc, trees, rejected,
                                            self_refused))
     elif no_dict:
@@ -565,7 +578,11 @@ def cmd_glyphscan(pdf: Path, force: bool = False, no_dict: bool = False,
             elif state == "failed":
                 return "\n".join(out) + "\nglyphscan stopped: gd3-learn failed."
 
-    refs = trees if trees.is_file() and not no_dict else None
+    secs_learn = time.monotonic() - t_learn
+    if self_taught:
+        refs = strict_refs
+    else:
+        refs = trees if trees.is_file() and not no_dict else None
     t0 = time.monotonic()
     try:
         doc = _gd3.lines(pdf, refs=refs, pages=pages or None,
@@ -578,8 +595,17 @@ def cmd_glyphscan(pdf: Path, force: bool = False, no_dict: bool = False,
     # `source` is gd3's own ("glyphdrill3"); this says WHICH gd3 and whether it
     # had the document's dictionary, because a reading nobody can attribute
     # cannot be compared with itself later.
-    doc["gd3"] = {"version": _gd3.version(), "refs": refs.name if refs else "",
+    doc["gd3"] = {"version": _gd3.version(), "identity": _gd3.identity(),
+                  "refs": refs.name if refs else "",
                   "dictionary": bool(refs), "math": bool(math),
+                  "self_taught": bool(refs) and _gd3.is_self_taught(refs),
+                  "mode": ("self-taught" if self_taught else
+                           "hybrid" if hybrid else "teacher"),
+                  # A23 -- the cold learning cost (once per document; 0 when
+                  # the dictionary or the refusal was already on disk) apart
+                  # from the reading, which is paid per page.
+                  "seconds_learn": round(secs_learn, 2),
+                  "seconds_read": round(secs, 2),
                   "orchestrator": "pdfdrill.gd3"}
     target = Path(_gr_lines_target(pdf))
     n_pages = len(doc.get("pages") or [])
@@ -623,13 +649,50 @@ def cmd_glyphscan(pdf: Path, force: bool = False, no_dict: bool = False,
                + (" and this document's dictionary" if refs
                   else " and the compiled-in fonts")
                + f": {n_lines} lines, {with_text} with text "
-                 f"-> {target.name} ({secs / max(1, n_pages):.1f} s/page).")
+                 f"-> {target.name} ({secs / max(1, n_pages):.1f} s/page)."
+               + (f" Learning {secs_learn:.1f} s (once per document), "
+                  f"reading {secs:.1f} s." if (self_taught or hybrid) else ""))
     if not with_text:
         out.append("  NO LINE CARRIES TEXT. That is what the compiled-in fonts "
                    "do on a scan they cannot read: the boxes are right and the "
                    "words are absent. A dictionary is what changes it.")
     out.append("Next: build the unified model from lines.json (pdfdrill model).")
     return "\n".join(out)
+
+
+def _strict_self_dictionary(pdf: Path, strict: Path, self_refused: Path,
+                            no_dict: bool) -> list:
+    """`glyphscan --self-taught`'s dictionary, failing closed (audit A07):
+    only `gd3-learn self`, only a dictionary marked `S self-taught`."""
+    from . import gd3 as _gd3
+    if no_dict:
+        return ["--no-dict: the compiled-in fonts, no document dictionary."]
+    if strict.is_file():
+        if _gd3.is_self_taught(strict):
+            return [f"dictionary: {strict.name} (taught by the document "
+                    f"itself, before; this gd3)."]
+        strict.unlink(missing_ok=True)
+    if self_refused.is_file():
+        return [f"--self-taught: this document's own dictionary was refused "
+                f"before by this gd3 "
+                f"({self_refused.read_text(encoding='utf-8').strip()}) — no "
+                f"dictionary; the compiled-in fonts read it. --force tries "
+                f"again."]
+    state, msg = _gd3.learn_self(pdf, strict)
+    if state == "learned" and not _gd3.is_self_taught(strict):
+        strict.unlink(missing_ok=True)
+        return [f"--self-taught: gd3-learn wrote a dictionary NOT marked "
+                f"self-taught ({msg}) — not used; no dictionary."]
+    if state == "learned":
+        return [f"--self-taught: dictionary taught by the document itself, "
+                f"no reader called ({_gd3.tidy(msg, strict) or 'accepted'}); "
+                f"its lines say source \"self-taught\"."]
+    if state == "rejected":
+        self_refused.write_text(msg + "\n", encoding="utf-8")
+        return [f"--self-taught: refused by gd3-learn ({msg}) — no dictionary; "
+                f"the compiled-in fonts read it, and this is remembered."]
+    return [f"--self-taught: gd3-learn self failed ({msg}) — no dictionary; "
+            f"the compiled-in fonts read it."]
 
 
 def _self_taught_dictionary(pdf: Path, sc, trees: Path, rejected: Path,

@@ -1011,10 +1011,16 @@ def _do_glyphscan(args):
     dictionary (T-0157/B8). Free: no key, no GPU."""
     from .commands import cmd_glyphscan
     pages, args = _opt(args, "--pages")
+    if "--self-taught" in args and "--hybrid" in args:
+        raise ValueError("`pdfdrill glyphscan`: --self-taught and --hybrid are "
+                         "exclusive. --self-taught uses only a dictionary the "
+                         "document taught itself; --hybrid also lets a "
+                         "teacher reading on disk teach.")
     return cmd_glyphscan(_pdf(args), force="--force" in args,
                          no_dict="--no-dict" in args, math="--math" in args,
                          pages=pages or "",
-                         self_taught="--self-taught" in args)
+                         self_taught="--self-taught" in args,
+                         hybrid="--hybrid" in args)
 
 
 def _do_profile(args):
@@ -2693,6 +2699,7 @@ def _do_drill(args):
     full = False
     no_inspect = False
     self_taught = False
+    hybrid = False
     for a in args:
         if a == "--full":
             full = True
@@ -2700,6 +2707,8 @@ def _do_drill(args):
             no_inspect = True
         elif a == "--self-taught":
             self_taught = True
+        elif a == "--hybrid":
+            hybrid = True
         elif not a.startswith("--"):
             pdf_args.append(a)
         else:
@@ -2708,6 +2717,11 @@ def _do_drill(args):
             # never been typed.
             unknown.append(a)
     _reject_unknown_flags(unknown + pdf_args[1:])
+    if self_taught and hybrid:
+        raise ValueError("`pdfdrill drill`: --self-taught and --hybrid are "
+                         "exclusive. --self-taught reads a scan with no "
+                         "teacher and no model lane; --hybrid allows a teacher "
+                         "reading on disk and falls back to the routed lane.")
     pdf = _pdf(pdf_args[:1])
 
     # T-0153 — THE DOCUMENT IS FILED ONCE, HERE, AND `drill` FOLLOWS IT. Every
@@ -2806,7 +2820,7 @@ def _do_drill(args):
     # scan lanes; when it writes no text (no gd3, or the dictionary refused
     # and the compiled-in fonts read nothing) the lane below runs as before.
     self_read = False
-    if self_taught and dec.lane in ("gemma", "mathpix", "geometry"):
+    if (self_taught or hybrid) and dec.lane in ("gemma", "mathpix", "geometry"):
         from . import gd3 as _gd3
         from .commands import cmd_glyphscan
         if not _gd3.available():
@@ -2822,9 +2836,11 @@ def _do_drill(args):
             if _why:
                 _emit(f"[drill] reading with glyphscan --self-taught — {_why}",
                       sys.stderr)
-            g = _timed("glyphscan --self-taught",
-                       lambda: cmd_glyphscan(pdf, self_taught=True))
-            ran.append(("glyphscan --self-taught", g))
+            _flag = "--self-taught" if self_taught else "--hybrid"
+            g = _timed(f"glyphscan {_flag}",
+                       lambda: cmd_glyphscan(pdf, self_taught=self_taught,
+                                             hybrid=hybrid))
+            ran.append((f"glyphscan {_flag}", g))
             if (Sidecar(pdf).get_evidence("glyphscan_lines") or 0) > 0:
                 self_read = True
                 lane_note = (f"{pdf.name}: scan → read by gd3 with the "
@@ -2834,8 +2850,17 @@ def _do_drill(args):
                 ran.append(("model", _timed(
                     "model", lambda: cmd_model(pdf, no_source=True))))
                 ran.append(("md", _timed("md", lambda: cmd_md(pdf))))
+            elif self_taught:
+                # Audit A07 -- FAIL CLOSED: no other lane runs, because on a
+                # free lane that could be a model.
+                lane_note = (f"{pdf.name}: scan → --self-taught: NO READING "
+                             f"(no self-taught dictionary, and the compiled-in "
+                             f"fonts read no text). No other lane was run; "
+                             f"`--hybrid` allows one.")
+                lane_not_run = True
+                self_read = True          # nothing further on the lane
             else:
-                lane_note += ("\n  --self-taught gave no reading with text; "
+                lane_note += ("\n  --hybrid gave no reading with text; "
                               "the lane above runs as before.")
     if self_read:
         pass
