@@ -3214,6 +3214,48 @@ def _line_bands(path: str, pages) -> dict[int, list[float]]:
     return out
 
 
+def _pages_with_order(path: str, pages):
+    """`extract_pages`, line for line, yielding (layout, order) per page.
+
+    `order` is what `_stream_index` records for the page: (x, y, text) of
+    every glyph the interpreter draws, mapped to its first drawing position.
+    The interpreter is the same, the aggregator is pdfminer's own with the
+    same default LAParams, and `render_char` is recorded exactly as there.
+    """
+    from pdfminer.converter import PDFPageAggregator
+    from pdfminer.layout import LAParams
+    from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
+    from pdfminer.pdfpage import PDFPage
+    from pdfminer.utils import open_filename
+
+    class _Ordered(PDFPageAggregator):
+        def render_char(self, matrix, font, fontsize, scaling, rise, cid,
+                        *args, **kw):
+            w = super().render_char(matrix, font, fontsize, scaling, rise,
+                                    cid, *args, **kw)
+            try:
+                text = font.to_unichr(cid)
+                if not isinstance(text, str):
+                    raise TypeError
+            except Exception:
+                text = "(cid:%d)" % cid
+            key = (round(matrix[4], 1), round(matrix[5], 1), text)
+            if key not in self.seen:
+                self.seen[key] = self.n
+            self.n += 1
+            return w
+
+    with open_filename(path, "rb") as fp:
+        rm = PDFResourceManager(caching=True)
+        dev = _Ordered(rm, laparams=LAParams())
+        interp = PDFPageInterpreter(rm, dev)
+        for page in PDFPage.get_pages(fp, pages, maxpages=0, password="",
+                                      caching=True):
+            dev.seen, dev.n = {}, 0
+            interp.process_page(page)
+            yield dev.get_result(), dev.seen
+
+
 def _stream_index(path: str, pages) -> dict[int, dict[tuple, int]]:
     """Content-stream position for every glyph, keyed by page and position.
 
@@ -5084,7 +5126,7 @@ def build(path: str, pages: Iterable[int] | None = None, *,
     """
     out: list[PageNode] = []
     links_by_page = _page_links(path, pages)
-    stream_by_page = _stream_index(path, pages)
+    stream_by_page = None          # from the build's own pass, or below
     # The producer's own line structure, where the stream states it.
     line_bands_by_page = _line_bands(path, pages)
     # Which fonts are monospace IN THIS DOCUMENT, measured from advance
@@ -5125,14 +5167,24 @@ def build(path: str, pages: Iterable[int] | None = None, *,
     except TypeError:
         _n = 0
     if 0 < _n <= _ONE_PASS_MAX_PAGES:
+        # ...and the content-stream ORDER from the same interpretation:
+        # `_stream_index` ran a third pass only to record, at `render_char`,
+        # what `_pages_with_order` records there too.
         try:
-            _pre = list(extract_pages(path, page_numbers=pages))
+            _pairs = list(_pages_with_order(path, pages))
+            _pre = [lay for lay, _ in _pairs]
+            _want = None if pages is None else set(pages)
+            stream_by_page = {
+                ((sorted(_want)[i] + 1) if _want is not None else i + 1): seen
+                for i, (_, seen) in enumerate(_pairs)}
         except Exception:                                    # noqa: BLE001
             _pre = None
+            stream_by_page = None
     if _pre is not None:
         set_measured_monospace(measure_monospace(_layout_samples(_pre)))
         _pages_iter = iter(_pre)
     else:
+        stream_by_page = _stream_index(path, pages)
         set_measured_monospace(measure_monospace(_advance_samples(path, pages)))
         _pages_iter = extract_pages(path, page_numbers=pages)
     while True:
