@@ -3143,6 +3143,21 @@ def _diagram_regions(glyphs: list["GlyphNode"],
     return out
 
 
+#: The longest document whose layouts the build holds in memory at once.
+_ONE_PASS_MAX_PAGES = 60
+
+
+def _layout_samples(layouts):
+    """`_advance_samples`' records, from layouts the build already has."""
+    for layout in layouts:
+        items: list = []
+        for e in layout:
+            _walk(e, items)
+        for obj in items:
+            if isinstance(obj, LTChar):
+                yield (obj.fontname, obj.adv, obj.size, obj.get_text())
+
+
 def _advance_samples(path: str, pages):
     """(font, advance, size, text) for every glyph, for width measurement."""
     try:
@@ -5075,7 +5090,6 @@ def build(path: str, pages: Iterable[int] | None = None, *,
     # Which fonts are monospace IN THIS DOCUMENT, measured from advance
     # widths. Names are unreliable: a publisher's subset can be called
     # anything, and this journal sets its listings in a proportional face.
-    set_measured_monospace(measure_monospace(_advance_samples(path, pages)))
     # ONE BAD PAGE MUST NOT COST THE DOCUMENT.
     #
     # `extract_pages` is a generator, so an exception raised inside it ends the
@@ -5093,7 +5107,34 @@ def build(path: str, pages: Iterable[int] | None = None, *,
     # A document that dies on page 1 still yields nothing — honestly.
     read_error = None
     _crop = _cropboxes(path)
-    _pages_iter = extract_pages(path, page_numbers=pages)
+    # SPEED (EXACT) -- ONE PDFMINER PASS FOR THE MONOSPACE MEASUREMENT AND
+    # THE BUILD. `_advance_samples` interpreted every page a second time
+    # (laparams=None) only to collect (font, advance, size, text) per glyph,
+    # and the measurement must be installed before the first page is read.
+    # The build's own layouts carry the same glyphs -- the sample multisets
+    # are equal on all 24 born board extracts -- and `measure_monospace`
+    # does not depend on their order. So a document of up to
+    # `_ONE_PASS_MAX_PAGES` pages is interpreted once, its samples taken
+    # from those layouts, and the same layouts are then processed. A read
+    # error while doing so takes the old route unchanged (with the partial
+    # read described above), and a longer document keeps it too, so memory
+    # stays bounded.
+    _pre = None
+    try:
+        _n = len(list(pages)) if pages is not None else len(_crop)
+    except TypeError:
+        _n = 0
+    if 0 < _n <= _ONE_PASS_MAX_PAGES:
+        try:
+            _pre = list(extract_pages(path, page_numbers=pages))
+        except Exception:                                    # noqa: BLE001
+            _pre = None
+    if _pre is not None:
+        set_measured_monospace(measure_monospace(_layout_samples(_pre)))
+        _pages_iter = iter(_pre)
+    else:
+        set_measured_monospace(measure_monospace(_advance_samples(path, pages)))
+        _pages_iter = extract_pages(path, page_numbers=pages)
     while True:
         try:
             idx_layout = next(_pages_iter, None)
