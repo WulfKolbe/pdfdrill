@@ -6810,10 +6810,10 @@ def to_lines_json(pages: list[PageNode],
                         "conversion_output": False,
                         "confidence": 1.0 if all(
                             sp.kind == "text" or span_latex(sp) is not None
-                            for sp in ln.spans) else 0.0,
+                            for sp in sps) else 0.0,
                         "confidence_rate": 1.0,
                         "cnt": _contour(ln.rect, p, k),
-                        "gaps": [gp for sp in ln.spans
+                        "gaps": [gp for sp in sps
                                  for gp in span_gaps(sp)],
                         "region": {
                             "top_left_x": round((ln.rect[0] - p.rect[0]) * k),
@@ -6822,9 +6822,7 @@ def to_lines_json(pages: list[PageNode],
                             "height": max(1, round((ln.rect[3] - ln.rect[1]) * k)),
                         },
                         "text": _display_by_operator(ln, _as_display(
-                            _join_faces(" ".join(span_reading_text(sp)
-                                                 for sp in ln.spans)),
-                            _mp_type(_line_type(p, i, ln)[0]))),
+                            rtext, _mp_type(_line_type(p, i, ln)[0]))),
                         # 844 — MathPix puts `text_display` on EVERY line and
                         # `inlinectx.load_spans` reads `text_display or text`
                         # (676 review B3). We emitted none, so a consumer that
@@ -6833,12 +6831,10 @@ def to_lines_json(pages: list[PageNode],
                         # — emitting it is what makes that true rather than
                         # something a reader has to know.
                         "text_display": _display_by_operator(ln, _as_display(
-                            _join_faces(" ".join(span_reading_text(sp)
-                                                 for sp in ln.spans)),
-                            _mp_type(_line_type(p, i, ln)[0]))),
+                            rtext, _mp_type(_line_type(p, i, ln)[0]))),
                         "complete": all(
                             sp.kind == "text" or span_latex(sp) is not None
-                            for sp in ln.spans
+                            for sp in sps
                         ),
                         "rules": [
                             {"role": r.role,
@@ -6860,6 +6856,11 @@ def to_lines_json(pages: list[PageNode],
                         "_i": i,
                     }
                     for i, ln in enumerate(p.lines)
+                    # SPEED (EXACT): `ln.spans` recomputes `_spans` on every
+                    # read, and this record read it five times; once is enough.
+                    for sps in (ln.spans,)
+                    for rtext in (_join_faces(" ".join(span_reading_text(sp)
+                                                       for sp in sps)),)
                 ],
             }
             for p in pages
