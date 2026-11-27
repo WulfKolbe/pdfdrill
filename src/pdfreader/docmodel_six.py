@@ -5130,6 +5130,13 @@ def build(path: str, pages: Iterable[int] | None = None, *,
     `ink=True` also measures each glyph's real outline extent and sets
     `GlyphNode.ink` (893). None follows `INK_REGIONS` / `PDFDRILL_INK_REGIONS`.
     """
+    # Audit A20 -- `pages` is read many times below (counted, tested for
+    # membership, indexed as `list(pages)[idx]`), so a generator was spent by
+    # the first read. Once, here: a tuple, in DOCUMENT order without repeats,
+    # because pdfminer yields the pages in document order and the index below
+    # maps them back by position. A range or a sorted list is unchanged.
+    if pages is not None:
+        pages = tuple(sorted(set(int(p) for p in pages)))
     out: list[PageNode] = []
     links_by_page = _page_links(path, pages)
     stream_by_page = None          # from the build's own pass, or below
