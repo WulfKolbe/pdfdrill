@@ -34,6 +34,7 @@ CONFIDENCE
 """
 from __future__ import annotations
 
+import functools
 import re
 
 _CM_SUBSET = re.compile(r"^[A-Z]{6}\+")
@@ -309,6 +310,13 @@ def set_measured_monospace(names) -> None:
     """Install the measured set for the document being read."""
     _MEASURED_MONO.clear()
     _MEASURED_MONO.update(names)
+    _MONO_ANSWERS.clear()          # the two answers that read the set
+
+
+#: SPEED (EXACT) -- `is_monospace` and `is_sans_serif` per font name, valid
+#: for the measured set installed last; `set_measured_monospace` clears it.
+#: 754 k regex searches for 72 board pages, 3.5 of 92 profiled seconds.
+_MONO_ANSWERS: dict = {}
 
 
 def is_monospace(fontname: str) -> bool:
@@ -318,10 +326,13 @@ def is_monospace(fontname: str) -> bool:
     right for TeX's own families and wrong for anything subset by a
     publisher's toolchain.
     """
-    base = fontname.split("+")[-1]
-    if base in _MEASURED_MONO:
-        return True
-    return bool(_MONO_NAME.search(base))
+    key = ("mono", fontname)
+    got = _MONO_ANSWERS.get(key)
+    if got is None:
+        base = fontname.split("+")[-1]
+        got = base in _MEASURED_MONO or bool(_MONO_NAME.search(base))
+        _MONO_ANSWERS[key] = got
+    return got
 
 
 #: T-0156 — SMALL CAPS, AND A NOTE ON THE FACES THIS DOES *NOT* ADD.
@@ -389,12 +400,14 @@ def _faces(fontname: str) -> tuple:
     return (base,) if stripped == base else (base, stripped)
 
 
+@functools.lru_cache(maxsize=None)
 def is_italic(fontname: str) -> bool:
     """True if this font is an italic or slanted face."""
     return any(rx.search(b) for b in _faces(fontname)
                for rx in (_ITALIC_NAME, _LIBERTINE_ITALIC, _CM_SANS_ITALIC))
 
 
+@functools.lru_cache(maxsize=None)
 def is_small_caps(fontname: str) -> bool:
     """True if this font is a small-caps face. See `_SMALLCAPS_NAME`."""
     return any(_SMALLCAPS_NAME.search(b) for b in _faces(fontname))
@@ -428,10 +441,16 @@ _BOLD_NAME = re.compile(
 
 def is_sans_serif(fontname: str) -> bool:
     """True if this font is a sans-serif face (not a typewriter)."""
-    return (not is_monospace(fontname)
-            and any(_SANS_NAME.search(b) for b in _faces(fontname)))
+    key = ("sans", fontname)
+    got = _MONO_ANSWERS.get(key)
+    if got is None:
+        got = (not is_monospace(fontname)
+               and any(_SANS_NAME.search(b) for b in _faces(fontname)))
+        _MONO_ANSWERS[key] = got
+    return got
 
 
+@functools.lru_cache(maxsize=None)
 def is_bold(fontname: str) -> bool:
     """True if this font is a bold face."""
     return any(rx.search(b) for b in _faces(fontname)
@@ -568,6 +587,7 @@ def unwrap_emphasis(text: str) -> str:
     return "".join(out)
 
 
+@functools.lru_cache(maxsize=None)
 def family_of(fontname: str) -> str:
     base = fontname.split("+")[-1]
     for rx, label in FAMILY_RULES:
