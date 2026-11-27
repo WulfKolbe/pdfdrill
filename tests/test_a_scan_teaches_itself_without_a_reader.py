@@ -269,3 +269,14 @@ def test_drill_self_taught_with_no_text_runs_no_other_lane(monkeypatch, tmp_path
 def test_drill_hybrid_falls_back_to_the_routed_lane(monkeypatch, tmp_path):
     out, ran = _drill_with(monkeypatch, tmp_path, "--hybrid")
     assert "glyphscan self=False hybrid=True" in ran and "cmd_gemmaocr" in ran, ran
+
+
+def test_a_reading_with_no_text_still_reports_its_seconds(monkeypatch, tmp_path):
+    """A23 where nothing is written: a refused scan whose compiled-in reading
+    has no text (17bb) still says what learning and reading cost."""
+    pdf, sc, seen = _scan(tmp_path, monkeypatch)
+    monkeypatch.setattr(GD3, "learn_self", lambda p, out: ("rejected", "refused: labels <= 434"))
+    empty = {"pages": [{"page": 1, "lines": [{"text": "", "type": "text"}] * 3}]}
+    monkeypatch.setattr(GD3, "lines", lambda *a, **k: json.loads(json.dumps(empty)))
+    out = C.cmd_glyphscan(pdf, self_taught=True)
+    assert "NO LINE CARRIES TEXT" in out and "Learning" in out and "reading" in out, out

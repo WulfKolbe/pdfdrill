@@ -628,7 +628,9 @@ def cmd_glyphscan(pdf: Path, force: bool = False, no_dict: bool = False,
                 f"{pdf.name} and NO LINE CARRIES TEXT: the compiled-in fonts "
                 f"cannot read this scan without its dictionary. Nothing was "
                 f"written; {target.name} is "
-                + ("unchanged." if target.exists() else "still absent."))
+                + ("unchanged." if target.exists() else "still absent.")
+                + (f" Learning {secs_learn:.1f} s, reading {secs:.1f} s."
+                   if (self_taught or hybrid) else ""))
     # A READING THAT COST MONEY IS PARKED, NOT CLOBBERED — the convention three
     # other call sites already follow. One lines.json per document means the
     # lane that runs last owns the name; it does not mean a paid reading may
