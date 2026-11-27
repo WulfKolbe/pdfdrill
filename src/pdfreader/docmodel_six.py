@@ -191,6 +191,29 @@ PX_PER_PT = 250.0 / 72.0
 
 
 # --------------------------------------------------------------------- nodes
+#: SPEED (EXACT) -- `LineNode.spans` per line, ONLY inside `spans_memo()`.
+#: `_spans` reads the line and its glyphs, and both are changed while the
+#: model is built (and by `absorb_equation_numbers`), so the memo is never
+#: global: it is opened by read-only phases -- `to_lines_json`, and the
+#: projections once their own mutating passes have run -- and dropped when
+#: they end. An entry keeps its line alive, so an id cannot be reused while
+#: the memo lives, and every read returns a fresh list.
+_SPANS_MEMO: list = []
+
+
+class spans_memo:
+    """`with spans_memo():` -- a read-only phase; nothing in it may change a
+    line or a glyph. Nested phases share the outer memo."""
+
+    def __enter__(self):
+        _SPANS_MEMO.append(_SPANS_MEMO[-1] if _SPANS_MEMO else {})
+        return self
+
+    def __exit__(self, *exc):
+        _SPANS_MEMO.pop()
+        return False
+
+
 #: `GlyphNode.is_math` by (family, glyphname, text).
 _IS_MATH: dict = {}
 
@@ -1689,7 +1712,13 @@ class LineNode:
 
     @property
     def spans(self) -> list[Span]:
-        return _spans(self)
+        memo = _SPANS_MEMO[-1] if _SPANS_MEMO else None
+        if memo is None:
+            return _spans(self)
+        hit = memo.get(id(self))
+        if hit is None or hit[0] is not self:
+            hit = memo[id(self)] = (self, _spans(self))
+        return list(hit[1])
 
     @property
     def flat(self) -> bool:
@@ -6849,6 +6878,18 @@ def _column_reading_order(pages: list[PageNode]) -> list[PageNode]:
     return out
 
 
+def _in_spans_memo(fn):
+    """Run `fn` as a read-only phase (see `spans_memo`)."""
+    import functools as _ft
+
+    @_ft.wraps(fn)
+    def inner(*a, **k):
+        with spans_memo():
+            return fn(*a, **k)
+    return inner
+
+
+@_in_spans_memo
 def to_lines_json(pages: list[PageNode],
                   px_per_pt: float = PX_PER_PT,
                   doc_id: str = "pdfdrill") -> dict:

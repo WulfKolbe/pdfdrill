@@ -18276,6 +18276,18 @@ def _glyph_projections(pdf: Path, pages, key: str) -> str:
     and `latex` (projections of the Document, a different artefact) write.
     """
     from pdfreader import project_mmd as _mmd
+    from pdfreader import docmodel_six as _dm6
+    # SPEED (EXACT): the projections' mutating passes once, then the Markdown,
+    # the crop list and the LaTeX as ONE read-only phase, so each line's spans
+    # are computed once for all three (`docmodel_six.spans_memo`).
+    for _p in pages:
+        _mmd.absorb_equation_numbers(_p)
+        _mmd.mark_display_continuations(_p)
+    with _dm6.spans_memo():
+        return _glyph_projections_body(pdf, pages, key, _mmd)
+
+
+def _glyph_projections_body(pdf, pages, key, _mmd):
     out = []
     stem = pdf.with_suffix("")
     try:

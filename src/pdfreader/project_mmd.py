@@ -1409,6 +1409,28 @@ def mark_display_continuations(page: PageNode) -> int:
     return n
 
 
+def _projection_phase(fn):
+    """SPEED (EXACT): a projection's own mutating passes first, then the rest
+    of it as a read-only phase with spans memoised (`docmodel.spans_memo`).
+    `absorb_equation_numbers` joins equation-number lines into their hosts and
+    `mark_display_continuations` sets `forced_display`, which `_spans` does
+    not read; both run here before the memo opens, and the projection's own
+    call of them inside it changes nothing (absorbing is idempotent -- the
+    joined tag lines are gone -- as `to_markdown` then `to_latex` already
+    relied on)."""
+    import functools as _ft
+
+    @_ft.wraps(fn)
+    def inner(pages, *a, **k):
+        for _p in pages:
+            absorb_equation_numbers(_p)
+            mark_display_continuations(_p)
+        with docmodel.spans_memo():
+            return fn(pages, *a, **k)
+    return inner
+
+
+@_projection_phase
 def to_markdown(pages: list[PageNode], doc_id: str = "pdfdrill",
                 base: str = "http://localhost:8000",
                 px_per_pt: float = DEFAULT_PX_PER_PT,
@@ -2242,6 +2264,7 @@ def _flush_eq(out: list, rows: list) -> None:
     rows.clear()
 
 
+@_projection_phase
 def to_latex(pages: list[PageNode], doc_id: str = "pdfdrill",
              base: str = "http://localhost:8000",
              px_per_pt: float = DEFAULT_PX_PER_PT,
