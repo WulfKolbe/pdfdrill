@@ -992,6 +992,33 @@ def _bold_math_glyph(name: str, fontname: str | None) -> "TexToken | None":
     return None
 
 
+#: B13 -- a BOLD maths italic: TeX's `cmmib`, MathTime's `MTMIB`/`MTMBI`.
+_BOLD_MATH_ITALIC = re.compile(r"cmmib\d*|mtmib|mtmbi", re.I)
+_BOLDABLE = re.compile(r"[A-Za-z]|\\(?:alpha|beta|gamma|delta|epsilon|varepsilon|"
+                       r"zeta|eta|theta|vartheta|iota|kappa|lambda|mu|nu|xi|pi|"
+                       r"varpi|rho|varrho|sigma|varsigma|tau|upsilon|phi|varphi|"
+                       r"chi|psi|omega)")
+
+
+def _bold_math_italic(tok: "TexToken", fontname: str | None) -> "TexToken | None":
+    r"""A letter from a bold maths italic is `\boldsymbol{...}`.
+
+    lib:c57ac038ae5f p293 sets its vectors `r_k`, `p_k`, `x_k` in MathTime's
+    MTMIB; read as plain `r` they were 90 style findings, and the narrower
+    `r` moved each `r_k^T`'s subscript a point to the left, where the judge
+    no longer paired it (B13). `oldsymbol` (amsmath's bm-free form), not
+    `\mathbf`: the letter stays italic, as the page has it.
+    """
+    if tok.latex is None or not fontname:
+        return None
+    if not any(_BOLD_MATH_ITALIC.search(b) for b in _faces(fontname)):
+        return None
+    if not _BOLDABLE.fullmatch(tok.latex):
+        return None
+    return TexToken(rf"\boldsymbol{{{tok.latex}}}", tok.kind, "amsmath",
+                    tok.confidence)
+
+
 def _text_glyph(name: str) -> TexToken:
     """A text font's contribution to a formula.
 
@@ -1372,7 +1399,8 @@ def _project_name(family: str, glyphname: str | None,
                             "corpus")
         return UNKNOWN
     if family == "math-italic":
-        return _math_italic(glyphname)
+        tok = _math_italic(glyphname)
+        return _bold_math_italic(tok, fontname) or tok
     if family == "math-symbol":
         return _math_symbol(glyphname)
     if family == "math-extension":
