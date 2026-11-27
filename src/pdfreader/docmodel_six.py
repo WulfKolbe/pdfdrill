@@ -1759,7 +1759,13 @@ def _walk(obj, out: list) -> None:
 #: How far above its row's baseline TeX sets each big operator, in ems.
 #: Measured; see `key` in the row grouper. An operator built from letters --
 #: `\cos`, `\max` -- is not raised at all.
-_BIGOP_RAISE = {"summationdisplay": 0.95, "integraldisplay": 1.36}
+#: B14 -- THE TEXT CUT IS RAISED TOO: TeX centres every CMEX operator on the
+#: maths axis, and CMEX hangs the glyph from its reference point.
+#: lib:5a5c76391c9c p4's inline `\sum_{i=1}^n` (CMEX10 `summationtext`) sits
+#: at 256.3 over its row's 248.8, 0.753 em; read unraised, the sum and its
+#: `n` went into the prose line above and left `{}_{i=1}` behind.
+_BIGOP_RAISE = {"summationdisplay": 0.95, "integraldisplay": 1.36,
+                "summationtext": 0.75}
 
 
 #: The stems a `largesymbols` font uses for its operators. A name built on

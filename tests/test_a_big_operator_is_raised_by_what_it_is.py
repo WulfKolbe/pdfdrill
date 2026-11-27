@@ -72,7 +72,10 @@ def test_a_named_display_operator_keeps_its_measured_raise():
 
 
 def test_a_named_text_operator_is_not_raised():
-    assert dm._bigop_raise("summationtext") == 0.0
+    # B14: the text-cut SUM is raised after all, measured 0.753 em on
+    # lib:5a5c76391c9c p4 (TeX centres every CMEX operator on the axis); see
+    # test_an_inline_sum_stays_in_its_row. The text integral is unmeasured.
+    assert dm._bigop_raise("summationtext") == 0.75
     assert dm._bigop_raise("integraltext") == 0.0
 
 
