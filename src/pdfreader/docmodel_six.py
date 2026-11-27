@@ -2094,6 +2094,24 @@ def _rule_role(node: RuleNode, glyphs: list[GlyphNode],
     if page_width and (x1 - x0) >= 0.45 * page_width and (x1 - x0) >= 25.0 * size:
         return "table"
 
+    # B13 — A BAR PRESSED AGAINST A WIDER RULE IS PART OF A RULED TABLE.
+    # 1511.08771 p2709's header `su_7 \supset so_7(S)` sits between the
+    # table's full-width rules, with a short rule under its first column
+    # 1.3 pt below the second full-width one. Read as a fraction bar it made
+    # the header a numerator over the first row's `138600 =`, and the two
+    # rows became one line. A fraction's numerator sits directly above its
+    # bar; a rule within 0.2 em that spans this one and is three times as
+    # wide leaves no room for one.
+    for o in (others or ()):
+        if o is node:
+            continue
+        omid = 0.5 * (o.rect[1] + o.rect[3])
+        if (abs(omid - mid) <= 0.2 * size
+                and abs(o.rect[3] - o.rect[1]) < 0.2 * size
+                and o.rect[0] <= x0 + 0.5 and o.rect[2] >= x1 - 0.5
+                and (o.rect[2] - o.rect[0]) >= 3.0 * (x1 - x0)):
+            return "table"
+
     # B12 — A BAR UNDER A WIDER BAR, AS WIDE AS THE ONE GLYPH BELOW IT, IS
     # THAT GLYPH'S OVERLINE. lib:3fe71b4ef018 p328's `1/\bar{\rho}^2`: the
     # bar over the rho lies 4 pt under the fraction bar, so it too has the
