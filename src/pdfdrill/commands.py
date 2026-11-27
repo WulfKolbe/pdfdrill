@@ -19578,7 +19578,18 @@ def cmd_status(pdf: Path, html: bool = False) -> str:
     try:
         from . import ocr_router as _r
         _d = _r.route_for_sidecar(sc)
-        if _d.lane != "unknown" or not sc.has(MODEL_BUILT):
+        _gs = sc.get_evidence("glyphscan_lines") or 0
+        if _gs and Path(_gr_lines_target(pdf)).exists():
+            # T-0171 -- A SCAN gd3 HAS READ is not advised the geometry lane:
+            # `gemmaocr --geometry-only` would write boxes without words over
+            # a reading that has them (`drill --self-taught` on US6100897A
+            # p18 ended with exactly that advice).
+            parts.append(f"\nLane [free]: scan → read by gd3 (`glyphscan`"
+                         + (", its own dictionary"
+                            if sc.get_evidence("glyphscan_dictionary") else "")
+                         + f"), {_gs} lines in "
+                         f"{Path(_gr_lines_target(pdf)).name}")
+        elif _d.lane != "unknown" or not sc.has(MODEL_BUILT):
             parts.append(f"\nLane [{_d.cost}]: "
                          f"{_r._LANE_LABEL.get(_d.lane, _d.lane)} — "
                          f"{_d.command}")

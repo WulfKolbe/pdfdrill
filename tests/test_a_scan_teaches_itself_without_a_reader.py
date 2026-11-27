@@ -124,3 +124,18 @@ def test_without_the_flag_nothing_changes(monkeypatch, tmp_path):
     monkeypatch.setattr(VR, "cost_of", lambda task: ("makora", "metered"))
     out = C.cmd_glyphscan(pdf)
     assert "NO FREE READER" in out
+
+
+def test_status_does_not_advise_boxes_over_a_gd3_reading(monkeypatch, tmp_path):
+    """`drill --self-taught` on US6100897A p18 read 210 lines with text and
+    then ended with `Lane [free]: ... gemmaocr --geometry-only`, advice that
+    would write boxes without words over that reading."""
+    pdf, sc, seen = _scan(tmp_path, monkeypatch)
+    sc = C.Sidecar(pdf)
+    sc.set_evidence("glyphscan_lines", 210)
+    sc.set_evidence("glyphscan_dictionary", True)
+    sc.add_fact(C.SIZE_KNOWN)
+    sc.save()
+    Path(C._gr_lines_target(pdf)).write_text('{"pages": [{"page": 1, "lines": [{"text": "x"}]}]}')
+    out = C.cmd_status(pdf)
+    assert "read by gd3" in out and "geometry-only" not in out, out
