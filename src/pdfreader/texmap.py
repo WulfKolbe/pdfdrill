@@ -982,6 +982,12 @@ _DOUBLESTROKE_CHAR = {
 _BOLD_CM = re.compile(r"CM(BX|B)\d*$", re.I)
 
 
+#: Glyph names of the digits.
+_DIGIT_NAMES = {"zero": "0", "one": "1", "two": "2", "three": "3",
+                "four": "4", "five": "5", "six": "6", "seven": "7",
+                "eight": "8", "nine": "9"}
+
+
 def _bold_math_glyph(name: str, fontname: str | None) -> "TexToken | None":
     r"""A letter of the BOLD TEXT FONT, used as a maths symbol.
 
@@ -1008,6 +1014,9 @@ def _bold_math_glyph(name: str, fontname: str | None) -> "TexToken | None":
         return None
     if not _BOLD_CM.match(_CM_SUBSET.sub("", fontname)):
         return None
+    # J10 -- a digit arrives by its glyph NAME (`one`), and was refused
+    # here: 1511 p2709's bold table numbers came out plain inside maths.
+    name = _DIGIT_NAMES.get(name, name)
     if len(name) == 1 and (name.isalpha() or name.isdigit()):
         return TexToken(rf"\mathbf{{{name}}}", "atom", None, "corpus")
     if name in _UPPER_GREEK:

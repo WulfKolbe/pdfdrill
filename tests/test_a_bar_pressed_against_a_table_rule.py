@@ -23,7 +23,11 @@ def _tup(v):
     return tuple(v) if isinstance(v, list) else v
 
 
-def test_the_short_rule_under_the_header_is_a_table_rule():
+def test_the_short_rule_under_the_header_is_the_numbers_overline():
+    """J10: the bar is exactly as wide as the bold `138600` under it (x
+    87.7..125.4 against 87.7..125.2), so it is that number's overline,
+    `\\overline{\\mathbf{138600}}`, not a table rule. What B13 needed, that it
+    is NOT a fraction bar joining the header to the row, still holds."""
     d = json.loads(FIX.read_text())["bar"]
     rule = dm.RuleNode(**{k: _tup(v) for k, v in d["rule"].items()})
     others = [dm.RuleNode(**{k: _tup(v) for k, v in r.items()}) for r in d["others"]]
@@ -32,4 +36,4 @@ def test_the_short_rule_under_the_header_is_a_table_rule():
         g = {k: _tup(v) for k, v in g.items()}
         g["tex"] = TexToken(*g["tex"])
         glyphs.append(dm.GlyphNode(**g))
-    assert dm._rule_role(rule, glyphs, d["size"], others, d["page_width"]) == "table"
+    assert dm._rule_role(rule, glyphs, d["size"], others, d["page_width"]) == "overline"

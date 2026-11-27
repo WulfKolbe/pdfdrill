@@ -1525,6 +1525,14 @@ def _spans(line: "LineNode") -> list[Span]:
             elif (sum(1 for g in run if (g.text or "").strip()) <= 3
                   and any(getattr(r, "role", None) == "overline" for r in mine)):
                 kind = "math"
+            # J9 -- and a run that lies wholly under ONE overline: 1511
+            # p2709's `\overline{\mathbf{138600}}`, eight bold numbers whose
+            # bars every reader dropped.
+            elif any(getattr(r, "role", None) == "overline"
+                     and all(r.rect[0] - 1.0 <= g.rect[0] and g.rect[2] <= r.rect[2] + 1.0
+                             for g in run if (g.text or "").strip())
+                     for r in mine):
+                kind = "math"
         if kind != "math":
             mine = []
         out.append(Span(id=f"{line.id}s{n}", kind=kind, rect=rect,
@@ -2057,6 +2065,27 @@ def _off_row_by_rule(g, rules: list, span_pt: float) -> bool:
 _PLAIN_OPERAND_EM = 4.0
 
 
+def _overlines_a_run(node: "RuleNode", glyphs, size: float) -> bool:
+    """Is this bar exactly as wide as the run of glyphs directly under it?
+
+    TeX draws `\\overline{138600}` to the box of what it covers: the bar's
+    ends meet the run's within a point, and its top sits a little above the
+    run's. Nothing else on a page is laid out like that.
+    """
+    x0, y0, x1, y1 = node.rect
+    mid = 0.5 * (y0 + y1)
+    under = [g for g in glyphs
+             if x0 - 1.0 <= 0.5 * (g.rect[0] + g.rect[2]) <= x1 + 1.0
+             and 0 < mid - g.baseline < 1.2 * size and (g.text or "").strip()]
+    if len(under) < 2:
+        return False
+    gx0 = min(g.rect[0] for g in under)
+    gx1 = max(g.rect[2] for g in under)
+    top = max(g.rect[3] for g in under)
+    return (abs(gx0 - x0) <= 1.0 and abs(gx1 - x1) <= 1.0
+            and -0.6 * size <= mid - top <= 0.6 * size)
+
+
 def _rule_role(node: RuleNode, glyphs: list[GlyphNode],
                size: float = 10.0, others: "list[RuleNode]" = (),
                page_width: "float | None" = None) -> str:
@@ -2116,6 +2145,12 @@ def _rule_role(node: RuleNode, glyphs: list[GlyphNode],
                 and abs(o.rect[3] - o.rect[1]) < 0.2 * size
                 and o.rect[0] <= x0 + 0.5 and o.rect[2] >= x1 - 0.5
                 and (o.rect[2] - o.rect[0]) >= 3.0 * (x1 - x0)):
+            # J9 -- UNLESS IT IS AS WIDE AS THE RUN UNDER IT: 1511's bar
+            # over the bold `138600` is that number's overline, drawn
+            # 1.3 pt under the table rule (its x 87.7..125.4 is the run's
+            # 87.7..125.2 exactly).
+            if _overlines_a_run(node, glyphs, size):
+                return "overline"
             return "table"
 
     # B12 — A BAR UNDER A WIDER BAR, AS WIDE AS THE ONE GLYPH BELOW IT, IS
@@ -6166,6 +6201,14 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                 # anything, and this asks `_rule_role` to have said overline
                 # first.
                 if _covers_as_overline(r, mid, group):
+                    mine.append(r)
+                    continue
+                # J10 -- an overline exactly as wide as this row's run is
+                # this row's, however high the run reaches: 1511's
+                # `\overline{138600'}` lifts its bar over the prime, 8.8 pt
+                # above the baseline, past the window below.
+                if (getattr(r, "role", None) == "overline"
+                        and _overlines_a_run(r, group, span_pt)):
                     mine.append(r)
                     continue
                 # A bar BELOW the baseline cannot belong to this line: an
