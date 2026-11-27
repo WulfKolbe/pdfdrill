@@ -25,10 +25,29 @@ from typing import Optional
 
 
 def load_manifest() -> dict:
-    """The canonical command manifest (bundled copy, else the repo's .claude/)."""
-    from . import skill_cmd
+    """The canonical command manifest (bundled copy, else the repo's .claude/).
+
+    SPEED (EXACT): parsed once per process and file version, with PyYAML's C
+    parser where it is built. The pure-Python `safe_load` of the 174 KB
+    manifest took about a second on EVERY invocation, and a single command
+    loaded it more than once. `CSafeLoader` is the C parser under the same
+    SafeConstructor and resolver, so the data is the same; the test holds
+    it to that. A deep copy is returned, because callers may edit theirs.
+    """
+    import copy
     import yaml
-    return yaml.safe_load((skill_cmd._skill_dir() / "commands.yaml").read_text())
+    from . import skill_cmd
+    path = skill_cmd._skill_dir() / "commands.yaml"
+    st = path.stat()
+    key = (str(path), st.st_size, st.st_mtime_ns)
+    if _MANIFEST.get("key") != key:
+        loader = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+        _MANIFEST["key"] = key
+        _MANIFEST["data"] = yaml.load(path.read_text(), Loader=loader)
+    return copy.deepcopy(_MANIFEST["data"])
+
+
+_MANIFEST: dict = {}
 
 
 def load_graph(manifest: dict) -> tuple[dict[str, list[str]], dict[str, str]]:
