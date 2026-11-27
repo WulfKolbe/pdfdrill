@@ -622,6 +622,33 @@ def _cm_maths_marks(glyphs) -> set:
     return marks
 
 
+def _has_prose_word(glyphs) -> bool:
+    r"""Does this line OPEN with a word: two or more non-maths letters set
+    close together, which is not an operator name (`sin`, `log`, `det`)?
+
+    B13 -- lib:c57ac038ae5f p293's "By (13.5) we have Q(x_k + alpha p_k) =
+    ... + 1/2 alpha^2 p_k^T A p_k, where r_k :=" has a fraction and is mostly
+    maths by count, so the fraction rule kept it whole as one maths span and
+    the prose came out `\mathrm{By} (13.5) \mathrm{we} \mathrm{have} ...`.
+    A line that begins like a sentence is prose with maths in it; the
+    fraction pass further down still joins the runs its bar touches.
+    Only the OPENING word: lib:6d90e8d27b8b p174's displays carry words too
+    (`\int x\,dx = \int -t\,dt, also ...`) and are displays.
+    """
+    ops = {o.lstrip("\\") for o in texmap.OPERATOR_NAMES}
+    order = [g for g in sorted(glyphs, key=lambda g: g.rect[0])
+             if (g.text or "").strip()]
+    word = []
+    for g in order:
+        if (not g.is_math and len(g.text) == 1 and g.text.isalpha()
+                and (not word or g.rect[0] - word[-1].rect[2] < 0.12 * max(g.size, 1.0))):
+            word.append(g)
+            continue
+        break
+    w = "".join(x.text for x in word)
+    return len(w) >= 2 and w not in ops
+
+
 def _spans(line: "LineNode") -> list[Span]:
     """Split a line into alternating text and maths runs, in x-order.
 
@@ -697,7 +724,8 @@ def _spans(line: "LineNode") -> list[Span]:
         mathy = sum(1 for g in line.glyphs if g.is_math)
         letters = sum(1 for g in line.glyphs
                       if not g.is_math and g.text.strip().isalpha())
-        if mathy >= 0.25 * len(line.glyphs) and letters <= 0.35 * len(line.glyphs):
+        if (mathy >= 0.25 * len(line.glyphs) and letters <= 0.35 * len(line.glyphs)
+                and not _has_prose_word(line.glyphs)):
             whole = sorted(line.glyphs, key=lambda g: g.rect[0])
             return [Span(id=f"{line.id}s0", kind="math", rect=line.rect,
                          glyphs=whole, rules=list(line.rules),

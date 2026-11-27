@@ -1,6 +1,6 @@
 {
 "format": "pdfdrill-texmap/1",
-"texmap_sha256": "76923e531f4ab346d134e652e63c45fd350b329db01d5fb2d995cde1bf3fe16f",
+"texmap_sha256": "bb7134594233505d0832f4d0aeccb0aca7b7ef4ece947818eb8bf3c8eb84a596",
 "maths_chars": {
 " ": " ",
 "¬": "\\neg",
@@ -7530,6 +7530,18 @@ null
 "bbold",
 [
 "bbold"
+]
+],
+[
+"times|nimbus(?:rom|san)|helvetica|arial|palatino",
+"text",
+[
+"arial",
+"helvetica",
+"nimbusrom",
+"nimbussan",
+"palatino",
+"times"
 ]
 ],
 [
@@ -18417,7 +18429,7 @@ null
 "helvetica~86b": "text",
 "helvetica~88c": "text",
 "helvetica~88f": "text",
-"hffcmryvygwvtimes-roman": "text-cm",
+"hffcmryvygwvtimes-roman": "text",
 "hffxplyfhlmxsktfywtimes-bold": "text",
 "hfhhxrkqxcjxpllvltagaramondpro-bold": "text",
 "hfrpxkgwrwwrarialmt-bold": "text",
@@ -18859,7 +18871,7 @@ null
 "khvrblwswmhgfmxfmntimes-roman": "text",
 "khvxrdfsfwjdsxvsqdmsbm": "ams-symbol",
 "khyfbftimes-italic": "text",
-"khynqgqtwvrydgsfcmtimes-italic": "text-cm",
+"khynqgqtwvrydgsfcmtimes-italic": "text",
 "kievit-bold": "text",
 "kievit-book": "text",
 "kingsoftsign cid": "text",
@@ -19788,7 +19800,7 @@ null
 "mggchqhelvetica": "text",
 "mggryswdgxbnhpshfwtimes-bold": "text",
 "mghgbwsfsbsmjrmnrpmsbm": "ams-symbol",
-"mgjjygbfrcbxfhscmrkfsdlkbwsfmxtimes-roman": "text-cm",
+"mgjjygbfrcbxfhscmrkfsdlkbwsfmxtimes-roman": "text",
 "mgnqrpprtxyhcourier-bold": "text",
 "mgqgqbcbclhjdppqdlmarvosym": "text",
 "mgqhrgjhgcrhtimes-roman": "text",
@@ -20414,7 +20426,7 @@ null
 "npttnhhelvetica": "text",
 "npxsups-italic": "text",
 "npxsups-regular": "text",
-"nqhqfsnpqfdwwwxpqpqcmrxkgswkcfhelvetica": "text-cm",
+"nqhqfsnpqfdwwwxpqpqcmrxkgswkcfhelvetica": "text",
 "nqhvwstjhrywadvtt5843c": "text",
 "nqjvmytbpgsvsrjnkcmtsyn": "math-symbol",
 "nqqbmsknnjqdadvp4c4e": "text",
@@ -21593,7 +21605,7 @@ null
 "smyriad-condensedsemibold": "text",
 "smyriad-italic": "text",
 "smyszw": "text",
-"snbcmrhelvetica": "text-cm",
+"snbcmrhelvetica": "text",
 "snfnrgwchpljbksyqfcalibri-lightitalic": "text",
 "sngcbjhfngyjkmvxlladvttec": "text",
 "snnfjlyspftnadvot8c36279f.bi": "text",
@@ -30532,7 +30544,7 @@ null
 "wcdkvlsvktxyutopiastd-boldit": "text",
 "wcgjxbmtsyn": "math-symbol",
 "wcjnkhfhtybmplcmgyadvgtimes-r": "text",
-"wcmrjmhelvetica": "text-cm",
+"wcmrjmhelvetica": "text",
 "wctrfgmrdyygltykqrcsnqjbqfrbwrmsbm": "ams-symbol",
 "wcxvmvmtex": "math-extension",
 "wdfnfltnfmnnmbsnlwfwvxyhrtrtxctimes-italic": "text",

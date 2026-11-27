@@ -138,6 +138,13 @@ FAMILY_RULES = [
     # them `\textbf{k}` -- 2103.01507 p118's `\mathbb{k}`, the ground field
     # (P6). The judge already loads `bbold` for it.
     (re.compile(r"bbold\d*", re.I), "bbold"),
+    # B13 -- A NAMED TEXT FACE IS NOT COMPUTER MODERN because its subset tag
+    # spells `cmr`. Some producers glue the six-letter tag on with no `+`:
+    # lib:c57ac038ae5f's body font is `HffcmrYvygwvTimes-Roman`, which the
+    # unanchored CM rule below took for CM, so every prose glyph was
+    # `text-cm` and a line of prose went whole into maths ("$\mathrm{By}
+    # (13.5) \mathrm{we} \mathrm{have} ...$"). Six stems in the library.
+    (re.compile(r"times|nimbus(?:rom|san)|helvetica|arial|palatino", re.I), "text"),
     (re.compile(r"CMR\d*|CMBX\d*|CMTI\d*|CMSL\d*|CMTT\d*", re.I), "text-cm"),
 ]
 
