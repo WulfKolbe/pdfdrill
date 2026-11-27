@@ -191,6 +191,10 @@ PX_PER_PT = 250.0 / 72.0
 
 
 # --------------------------------------------------------------------- nodes
+#: `GlyphNode.is_math` by (family, glyphname, text).
+_IS_MATH: dict = {}
+
+
 @dataclass
 class GlyphNode:
     id: str
@@ -234,13 +238,23 @@ class GlyphNode:
     def is_math(self) -> bool:
         # A Greek letter is mathematics whatever font carries it: TeX puts
         # uppercase Greek in the ROMAN font, so going by font alone left
-        # `\Gamma^{+}` and `\Phi` sitting in prose spans.
-        return (self.family in MATH_FAMILIES
+        # `\Gamma^{+}` and `\Phi` sitting in prose spans. 889 -- and a
+        # RELATION, wherever it is set. See MATH_RELATIONS.
+        #
+        # SPEED (EXACT): 2.1 M reads on 12 board pages. The answer depends on
+        # these three fields and frozen sets only, and the fields can change
+        # (`family`, `text` are reassigned during the build), so the memo is
+        # keyed by their values, never by the glyph.
+        k = (self.family, self.glyphname, self.text)
+        v = _IS_MATH.get(k)
+        if v is None:
+            v = _IS_MATH[k] = (
+                self.family in MATH_FAMILIES
                 or greek_latex(self.glyphname) is not None
-                # 889 — and a RELATION, wherever it is set. See MATH_RELATIONS.
                 or (self.text or "").strip() in MATH_RELATIONS
                 or str(self.glyphname or "").strip().lower()
                 in MATH_RELATION_NAMES)
+        return v
 
     @property
     def baseline(self) -> float:
@@ -4897,10 +4911,25 @@ def _group_lines(glyphs: list[GlyphNode],
     # Fold a SCRIPT row into the row it belongs to: clearly smaller, close by,
     # and overlapping it horizontally. Anything else is a text block in its
     # own right, however small -- a 9pt code listing beside 10.9pt prose.
+    # SPEED (EXACT): a glyph's key once per call, and each row's size, mean
+    # key and x extent once per pass, not once per row pair. The expressions
+    # are the same, so every value is bit-identical. Keyed by id: every
+    # glyph stays alive in `rows` for the whole call.
+    _kmemo: dict = {}
+
+    def _kof(g) -> float:
+        v = _kmemo.get(id(g))
+        if v is None:
+            v = _kmemo[id(g)] = key(g)
+        return v
+
     changed = True
     while changed:
         changed = False
-        rows.sort(key=lambda r: -sum(key(x) for x in r) / len(r))
+        rows.sort(key=lambda r: -sum(_kof(x) for x in r) / len(r))
+        _stats = [(max(x.size for x in r), sum(_kof(x) for x in r) / len(r),
+                   min(x.rect[0] for x in r), max(x.rect[2] for x in r))
+                  for r in rows]
         for i, r in enumerate(rows):
             # A SCRIPT row is short. A whole line is not a script, however
             # much smaller it is than its neighbour: a listing set beside a
@@ -4925,22 +4954,17 @@ def _group_lines(glyphs: list[GlyphNode],
             # base it was emitted beside.
             if len(r) > 6:
                 continue
-            s_size = max(x.size for x in r)
-            s_key = sum(key(x) for x in r) / len(r)
-            rx0 = min(x.rect[0] for x in r)
-            rx1 = max(x.rect[2] for x in r)
+            s_size, s_key, rx0, rx1 = _stats[i]
             best, best_d = None, None
             for j, other in enumerate(rows):
                 if i == j:
                     continue
-                o_size = max(x.size for x in other)
+                o_size, o_key, ox0, ox1 = _stats[j]
                 if s_size >= 0.85 * o_size:
                     continue                  # not a script: a block
-                d = abs(sum(key(x) for x in other) / len(other) - s_key)
+                d = abs(o_key - s_key)
                 if d > 0.75 * o_size:
                     continue
-                ox0 = min(x.rect[0] for x in other)
-                ox1 = max(x.rect[2] for x in other)
                 if rx1 < ox0 - o_size or rx0 > ox1 + o_size:
                     continue                  # nowhere near it horizontally
                 if best_d is None or d < best_d:
