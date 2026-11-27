@@ -7971,6 +7971,10 @@ def _faced_text(glyphs: list, wg: float = 0.0) -> str:
 
 
 #: `$A$ also $B$`: two maths spans with one or two short words between.
+#: A short name in text italic -- `\textit{DCG}@\textit{k}` -- then one
+#: maths span and nothing else.
+_NAMED_THEN_MATHS = _re.compile(
+    r"^((?:\\textit\{[A-Za-z]{1,8}\}|[@:])+)\s*\$([^$]+)\$$")
 _MATHS_WORDS_MATHS = _re.compile(
     r"^\$([^$]+)\$((?: \\?[A-Za-zÄÖÜäöüß]{1,12}){1,2}) \$([^$]+)\$$")
 
@@ -8007,6 +8011,15 @@ def _display_by_operator(ln, text: str) -> str:
         return text
     if not any(_display_cut(g) for g in ln.glyphs):
         return text
+    m = _NAMED_THEN_MATHS.match(text.strip())
+    if m:
+        # B14 -- 1805.01788 p3's `DCG@k(r) = \sum_{i=1}^k \frac{...}{...}`:
+        # the name is set in TEXT italic, so the line read as prose with an
+        # inline formula, and the display-cut sum and its fraction were set
+        # at text size. A short name before one maths span is the display's
+        # own left-hand side, in maths italic as `\mathit`.
+        head = _re.sub(r"\\textit\{([^{}]*)\}", r"\\mathit{\1}", m.group(1)).strip()
+        return "\\[\n%s %s\n\\]" % (head, m.group(2).strip())
     m = _MATHS_WORDS_MATHS.match(text.strip())
     if not m:
         return text
