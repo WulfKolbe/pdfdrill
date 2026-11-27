@@ -6870,6 +6870,7 @@ def to_lines_json(pages: list[PageNode],
     _add_table_containers(out, pages, k)
     _split_runin_headings(out, pages, k)
     _split_equation_numbers(out, pages, k)
+    _box_framed_displays(out, pages, k)
     _split_qed_symbols(out, pages, k)
     _mark_generated_text(out)
     return out
@@ -6879,6 +6880,76 @@ def to_lines_json(pages: list[PageNode],
 #: character. On sigma26-075 every one of the 20 is `squaresolid` carrying
 #: U+25A0; a name is available here because the vendored pdfminer exposes it
 #: (R2), and a name survives a font whose encoding gives the character wrong.
+def _align_at_relation(body: str) -> str:
+    """`body` with `&` before its first top-level `=` (or `:=`), for `aligned`."""
+    depth = 0
+    for i, ch in enumerate(body):
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+        elif ch == "=" and depth == 0:
+            j = i - 1 if i and body[i - 1] == ":" else i
+            return body[:j] + "&" + body[j:]
+    return "&" + body
+
+
+def _box_framed_displays(out: dict, pages: list["PageNode"], k: float) -> None:
+    r"""Displays inside one drawn frame are one boxed display.
+
+    B13 -- lib:c57ac038ae5f p293 frames its four-line algorithm (13.9),
+    `p_k = r_k, ...` to `r_{k+1} = r_k - alpha_k t_k`, in a ruled box.
+    `listings.frames` already finds the rectangle; read as four displays the
+    box was lost and the judge counted its rules missing. When every line
+    inside a frame is a display, they become one
+    `\[oxed{egin{aligned} ... \end{aligned}}\]`, each row aligned at its
+    first relation, a `	ag` moved outside the box.
+    """
+    _tag = _re.compile(r"\\tag\{[^{}]*\}")
+    for po, pn in zip(out.get("pages", []), pages):
+        for (fx0, fy0, fx1, fy1) in getattr(pn, "frames", None) or []:
+            left = (fx0 - pn.rect[0]) * k - 2
+            right = (fx1 - pn.rect[0]) * k + 2
+            top = (pn.rect[3] - fy1) * k - 2
+            bottom = (pn.rect[3] - fy0) * k + 2
+            inside = []
+            for n, rec in enumerate(po["lines"]):
+                r = rec.get("region") or {}
+                if rec.get("type") == "column" or "top_left_x" not in r:
+                    continue
+                cx = r["top_left_x"] + 0.5 * r["width"]
+                cy = r["top_left_y"] + 0.5 * r["height"]
+                if left <= cx <= right and top <= cy <= bottom:
+                    inside.append(n)
+            if len(inside) < 2:
+                continue
+            recs = [po["lines"][n] for n in inside]
+            if not all(rc.get("type") == "math"
+                       and (rc.get("text") or "").startswith("\\[") for rc in recs):
+                continue
+            rows, tags = [], []
+            for rc in recs:
+                body = rc["text"].strip()[2:-2].strip()
+                tags += _tag.findall(body)
+                body = _tag.sub("", body).strip()
+                rows.append(_align_at_relation(body))
+            text = ("\\[\n\\boxed{\\begin{aligned}" + " \\\\ ".join(rows)
+                    + "\\end{aligned}}" + (" " + tags[0] if tags else "") + "\n\\]")
+            first = recs[0]
+            xs0 = min(rc["region"]["top_left_x"] for rc in recs)
+            ys0 = min(rc["region"]["top_left_y"] for rc in recs)
+            xs1 = max(rc["region"]["top_left_x"] + rc["region"]["width"] for rc in recs)
+            ys1 = max(rc["region"]["top_left_y"] + rc["region"]["height"] for rc in recs)
+            first["region"] = {"top_left_x": xs0, "top_left_y": ys0,
+                               "width": xs1 - xs0, "height": ys1 - ys0}
+            first["text"] = first["text_display"] = text
+            first["complete"] = all(rc.get("complete", True) for rc in recs)
+            first["rules"] = [x for rc in recs for x in rc.get("rules", [])]
+            first["cnt"] = [[xs0, ys0], [xs1, ys0], [xs1, ys1], [xs0, ys1]]
+            drop = set(inside[1:])
+            po["lines"] = [rc for n, rc in enumerate(po["lines"]) if n not in drop]
+
+
 _QED_GLYPHS = frozenset({"squaresolid", "square", "blacksquare", "qedsymbol",
                          "openbox", "filledbox", "blacksquarelarge"})
 _QED_CHARS = frozenset("■□∎◻◼⬛⬜")
