@@ -203,7 +203,8 @@ commands:
     `glyphdrill3_home` in `pdfdrill config` — there is no default path, because a tool
     found at a guessed location makes a lane''s availability an accident of the machine.'
   slow: 'the five pages are minutes on a local model; `gd3` itself is about 1 s/page
-    (measured 0.8 s/page over a 3-page extract)'
+    (measured 0.8 s/page over a 3-page extract); with --self-taught no model runs, and
+    `gd3-learn self` adds one band pass per sampled page (not yet measured)'
   positionals:
   - name: pdf
     type: pdf
@@ -228,6 +229,15 @@ commands:
     flag: --pages
     type: pages
     help: N | N-M | all (default all)
+  - name: self-taught
+    flag: --self-taught
+    type: flag
+    help: 'T-0171: no reader at all. When no dictionary is on disk, the document teaches
+      gd3 its own (`gd3-learn self`: common words where gd3''s classes and the born
+      prototypes agree; accepted at >= 800 labels and leave-one-page-out >= 0.92). The
+      model lane is never called; a teacher reading already in the sidecar is still used.
+      Refused, the compiled-in fonts read it and the refusal is remembered. Lines read with
+      that dictionary say source "self-taught".'
   typed: true
   done_when: file:{stem}.lines.json
 - name: profile
@@ -606,6 +616,12 @@ commands:
     flag: --no-inspect
     type: flag
     help: stop before building the inspector
+  - name: self-taught
+    flag: --self-taught
+    type: flag
+    help: 'on a scan, read it first with `glyphscan --self-taught` (gd3 with the dictionary
+      the document teaches itself, no model at read time); when that writes no text the
+      routed lane runs as before'
 - name: pdfinfo
   section: Introspection (fast, no extraction)
   summary: Full PdfInfo struct (title/author/dates/flags)

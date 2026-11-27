@@ -1013,7 +1013,8 @@ def _do_glyphscan(args):
     pages, args = _opt(args, "--pages")
     return cmd_glyphscan(_pdf(args), force="--force" in args,
                          no_dict="--no-dict" in args, math="--math" in args,
-                         pages=pages or "")
+                         pages=pages or "",
+                         self_taught="--self-taught" in args)
 
 
 def _do_profile(args):
@@ -2691,11 +2692,14 @@ def _do_drill(args):
     unknown: list[str] = []
     full = False
     no_inspect = False
+    self_taught = False
     for a in args:
         if a == "--full":
             full = True
         elif a == "--no-inspect":
             no_inspect = True
+        elif a == "--self-taught":
+            self_taught = True
         elif not a.startswith("--"):
             pdf_args.append(a)
         else:
@@ -2797,7 +2801,45 @@ def _do_drill(args):
     # Phase 3 — the reading, and only a FREE one. `model` takes the
     # born-digital and source lanes itself; the paid lanes it names.
     lane_not_run = False
-    if dec.lane == "geometry" and dec.cost == "none":
+    # T-0171 -- `--self-taught`: a SCAN read by gd3 with the dictionary the
+    # document teaches itself, and no model at read time. Tried first on the
+    # scan lanes; when it writes no text (no gd3, or the dictionary refused
+    # and the compiled-in fonts read nothing) the lane below runs as before.
+    self_read = False
+    if self_taught and dec.lane in ("gemma", "mathpix", "geometry"):
+        from . import gd3 as _gd3
+        from .commands import cmd_glyphscan
+        if not _gd3.available():
+            lane_note += (f"\n  --self-taught: not run, {_gd3.why_unavailable()}")
+        else:
+            _sc = Sidecar(pdf)
+            _sc.set_evidence("glyphscan_lines", None)
+            _sc.save()
+            # The reading itself, so it cannot be left out; its cost is said
+            # before it starts, as for glyphlines.
+            from . import planner as _plg
+            _why = _plg._slow_note("glyphscan")
+            if _why:
+                _emit(f"[drill] reading with glyphscan --self-taught — {_why}",
+                      sys.stderr)
+            g = _timed("glyphscan --self-taught",
+                       lambda: cmd_glyphscan(pdf, self_taught=True))
+            ran.append(("glyphscan --self-taught", g))
+            if (Sidecar(pdf).get_evidence("glyphscan_lines") or 0) > 0:
+                self_read = True
+                lane_note = (f"{pdf.name}: scan → read by gd3 with the "
+                             f"document's own dictionary [free] — "
+                             f"`glyphscan --self-taught`, no model called at "
+                             f"read time.")
+                ran.append(("model", _timed(
+                    "model", lambda: cmd_model(pdf, no_source=True))))
+                ran.append(("md", _timed("md", lambda: cmd_md(pdf))))
+            else:
+                lane_note += ("\n  --self-taught gave no reading with text; "
+                              "the lane above runs as before.")
+    if self_read:
+        pass
+    elif dec.lane == "geometry" and dec.cost == "none":
         # `cost="none"` ON THE GEOMETRY LANE MEANS THERE IS NO LANE. The lane
         # is named because it is the one that WOULD read this document, not
         # because this install can run it (the ink half, NumPy, is missing).

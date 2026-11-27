@@ -177,6 +177,11 @@ def rejected_path(blob_dir: Path, pdf: Path) -> Path:
     return doc_dir(blob_dir) / f"{sha256(pdf)}.rejected"
 
 
+def self_refused_path(blob_dir: Path, pdf: Path) -> Path:
+    """Where a refused SELF-TAUGHT dictionary is remembered (T-0171)."""
+    return doc_dir(blob_dir) / f"{sha256(pdf)}.self-refused"
+
+
 def reading_path(blob_dir: Path, pdf: Path) -> Path:
     """The TEACHER reading: five of this document's pages, in the sidecar.
 
@@ -250,6 +255,39 @@ def learn(pdf: Path, reading: Path, out: Path) -> tuple:
     if res.returncode == 3:
         return "rejected", msg
     return "failed", msg or f"gd3-learn exit {res.returncode}"
+
+
+def learn_self(pdf: Path, out: Path) -> tuple:
+    """(state, message): the document's dictionary taught by ITSELF (T-0171).
+
+    `gd3-learn self PDF -o OUT` reads no teacher and touches no network: its
+    labels are units inside the language's common words where gd3's classes
+    and the born NN prototypes agree, and it writes the dictionary only when
+    its own gate passes (>= 800 self-labels, leave-one-page-out >= 0.92, on
+    deterministic learning). Exit 0 written; 3 refused ("refused: labels N,
+    LOO X"), nothing written; anything else a failure. The dictionary marks
+    itself, and the lines gd3 reads with it say `"source": "self-taught"`.
+    """
+    tool = learn_tool()
+    if tool is None:
+        return "failed", why_unavailable()
+    part = out.with_suffix(".part")
+    try:
+        res = subprocess.run([str(tool), "self", str(pdf), "-o", str(part)],
+                             capture_output=True, text=True, timeout=TIMEOUT,
+                             env=_env())
+    except (OSError, subprocess.SubprocessError) as e:
+        part.unlink(missing_ok=True)
+        return "failed", str(e)
+    note = ((res.stderr or "") + (res.stdout or "")).strip().splitlines()
+    msg = note[-1] if note else ""
+    if res.returncode == 0 and part.is_file():
+        part.replace(out)
+        return "learned", msg
+    part.unlink(missing_ok=True)
+    if res.returncode == 3:
+        return "rejected", msg
+    return "failed", msg or f"gd3-learn self exit {res.returncode}"
 
 
 def lines(pdf: Path, *, refs: "Path | None" = None, image_base: str = "",

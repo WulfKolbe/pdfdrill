@@ -428,7 +428,8 @@ def cmd_gemmaocr(pdf: Path, force: bool = False, strips: int = 6,
 
 @_writes("glyphscan")
 def cmd_glyphscan(pdf: Path, force: bool = False, no_dict: bool = False,
-                  math: bool = False, pages: str = "") -> str:
+                  math: bool = False, pages: str = "",
+                  self_taught: bool = False) -> str:
     """Read a SCAN's words from its pixels with GLYPHDRILL3 — free, no GPU.
 
     THE LANE THIS FILLS. A scan with no text layer and no author's source had,
@@ -477,12 +478,23 @@ def cmd_glyphscan(pdf: Path, force: bool = False, no_dict: bool = False,
 
     trees = _gd3.trees_path(sc.blob_dir, pdf)
     rejected = _gd3.rejected_path(sc.blob_dir, pdf)
+    self_refused = _gd3.self_refused_path(sc.blob_dir, pdf)
     out: list[str] = []
     if force:
         trees.unlink(missing_ok=True)
         rejected.unlink(missing_ok=True)
+        self_refused.unlink(missing_ok=True)
 
-    if no_dict:
+    if self_taught and not no_dict and not trees.is_file():
+        # T-0171 -- A DICTIONARY WITHOUT A READER. Nothing on this path calls
+        # the model lane: a teacher reading ALREADY on disk is still used
+        # (nothing is read for it), and otherwise -- or when that teacher's
+        # dictionary was refused -- `gd3-learn self` teaches the document by
+        # its own common words. Refused, the compiled-in fonts read it, as
+        # they do today, and the refusal is remembered.
+        out.extend(_self_taught_dictionary(pdf, sc, trees, rejected,
+                                           self_refused))
+    elif no_dict:
         out.append("--no-dict: the compiled-in fonts, no document dictionary.")
     elif rejected.is_file():
         out.append(f"this document's dictionary was REJECTED before "
@@ -618,6 +630,46 @@ def cmd_glyphscan(pdf: Path, force: bool = False, no_dict: bool = False,
                    "words are absent. A dictionary is what changes it.")
     out.append("Next: build the unified model from lines.json (pdfdrill model).")
     return "\n".join(out)
+
+
+def _self_taught_dictionary(pdf: Path, sc, trees: Path, rejected: Path,
+                            self_refused: Path) -> list:
+    """`glyphscan --self-taught`'s dictionary: report lines; writes `trees`
+    when a dictionary is accepted. Never calls a reader (T-0171)."""
+    from . import gd3 as _gd3
+    out: list[str] = []
+    teacher = _gd3.reading_path(sc.blob_dir, pdf)
+    if _is_a_reading(teacher) and not rejected.is_file():
+        out.append(f"teacher: {teacher.name} in {teacher.parent.name}/, read by "
+                   f"{_lines_source(teacher) or 'an unnamed reader'} — nothing "
+                   f"re-read.")
+        state, msg = _gd3.learn(pdf, teacher, trees)
+        out.append(f"  gd3-learn: {_gd3.tidy(msg, trees) or state}")
+        if state == "learned":
+            return out
+        if state == "rejected":
+            rejected.write_text(msg + "\n", encoding="utf-8")
+    elif rejected.is_file():
+        out.append(f"the teacher's dictionary was REJECTED before "
+                   f"({rejected.name}).")
+    if self_refused.is_file():
+        out.append(f"--self-taught: this document's own dictionary was refused "
+                   f"before ({self_refused.read_text(encoding='utf-8').strip()}) "
+                   f"— the compiled-in fonts read it. --force tries again.")
+        return out
+    state, msg = _gd3.learn_self(pdf, trees)
+    if state == "learned":
+        out.append(f"--self-taught: dictionary taught by the document itself, "
+                   f"no reader called ({_gd3.tidy(msg, trees) or 'accepted'}); "
+                   f"its lines say source \"self-taught\".")
+    elif state == "rejected":
+        self_refused.write_text(msg + "\n", encoding="utf-8")
+        out.append(f"--self-taught: refused by gd3-learn ({msg}) — the "
+                   f"compiled-in fonts read it, and this is remembered.")
+    else:
+        out.append(f"--self-taught: gd3-learn self failed ({msg}) — the "
+                   f"compiled-in fonts read it.")
+    return out
 
 
 def _gr_lines_target(pdf: Path) -> str:
