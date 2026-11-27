@@ -1013,8 +1013,14 @@ def _spans(line: "LineNode") -> list[Span]:
                 # 1805.01788 p3 the `1` of `\sum_{j=1}^m` (7.3 pt) touches
                 # the `r` (9 pt) of `r_i^j`, and read as a word-neighbour it
                 # left `r` in a text span with its scripts in another.
+                # A WORD'S NEIGHBOUR IS A LETTER OR DIGIT. 0864 p4's
+                # "(OPUS_mon)" has an opening bracket against the small-caps
+                # O, and counted as a word-neighbour it left the O in prose
+                # and the PUS and its subscript in maths, so the small-caps
+                # merge never saw the word (B16).
                 in_word = (base.family == "text" and j > 0
                            and ordered[j - 1].family == "text"
+                           and (ordered[j - 1].text or "").strip()[-1:].isalnum()
                            and ordered[j - 1].size >= 0.92 * base.size
                            and base.rect[0] - ordered[j - 1].rect[2]
                            < 0.2 * max(base.size, ordered[j - 1].size, 1.0))
