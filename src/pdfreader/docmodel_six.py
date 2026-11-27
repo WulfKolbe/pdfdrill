@@ -6203,8 +6203,7 @@ def build(path: str, pages: Iterable[int] | None = None, *,
             # base that precedes it, and sorting by position is what loses
             # that. The stream index is the evidence; x is the fallback for a
             # page where some glyph lacks one.
-            if all(getattr(g, "stream", None) is not None for g in group):
-                group = sorted(group, key=lambda g: g.stream)
+            group = _row_order(group)
             #: An accent and the letter under it are ONE character, and this
             #: is the first point where they are adjacent in the order TeX
             #: emitted them -- which is what the pass needs, since TeX draws
@@ -7984,6 +7983,80 @@ def _small_caps_word(live: list) -> str | None:
     return prefix + body + "".join(g.text for g in tail)
 
 
+def _row_order(group: list) -> list:
+    """The order of one row's glyphs: the order the PDF drew them in, which
+    is TeX's reading order (see the caller), unless the row has a gap no
+    expression has.
+
+    B14 -- lib:69bc5c71b881 p16's footer draws its page number "16" (x 583)
+    before "CATF - Superhot Rock Energy" (x 20), and stream order read
+    "16CATF". A gap of more than 10 em between neighbours in x makes the
+    row two pieces, and x orders them.
+    """
+    xs = sorted(group, key=lambda g: g.rect[0])
+    if any(b.rect[0] - a.rect[2] > 10.0 * max(a.size, b.size, 1.0)
+           for a, b in zip(xs, xs[1:])):
+        return xs
+    if all(getattr(g, "stream", None) is not None for g in group):
+        return sorted(group, key=lambda g: g.stream)
+    return group
+
+
+def _text_with_superscripts(glyphs: list, wg: float = 0.0) -> str:
+    r"""`_faced_text`, with a raised small run as `\textsuperscript{...}`.
+
+    B14 -- lib:69bc5c71b881 p16's "Eavor-Loop(TM)" sets its TM at 5.54 pt,
+    3.7 pt above the 9.5 pt line; read flat it sat 0.57 of a size too low.
+    A run of letters or digits at most 0.75 of the line's size whose
+    baseline is at least 0.2 em above the line's is a superscript.
+    """
+    live_all = [g for g in glyphs if (g.text or "").strip()]
+    if not live_all:
+        return _faced_text(glyphs, wg)
+    dom = max(g.size for g in live_all)
+    full = [g for g in live_all if g.size >= 0.9 * dom]
+    votes: dict = {}
+    for g in full:
+        votes[round(g.baseline, 1)] = votes.get(round(g.baseline, 1), 0) + 1
+    base = max(votes.items(), key=lambda kv: kv[1])[0] if votes else None
+
+    def kind(g) -> str:
+        if (base is not None and (g.text or "").strip().isalnum()
+                and g.size <= 0.75 * dom and g.baseline >= base + 0.2 * dom):
+            return "sup"
+        return "text"
+
+    kinds = [kind(g) if (g.text or "").strip() else None for g in glyphs]
+    if "sup" not in kinds:
+        return _faced_text(glyphs, wg)
+    wg = wg or _word_gap(glyphs)
+    groups: list = []
+    for g, k in zip(glyphs, kinds):
+        if k is None and groups:
+            groups[-1][1].append(g)
+            continue
+        k = k or "text"
+        if groups and groups[-1][0] == k and (
+                k == "text" or g.rect[0] - groups[-1][1][-1].rect[2] <= wg):
+            groups[-1][1].append(g)
+        else:
+            groups.append([k, [g]])
+    out = ""
+    for n, (k, gs) in enumerate(groups):
+        live = [g for g in gs if (g.text or "").strip()]
+        if k == "sup":
+            piece = "\\textsuperscript{" + _faced_text(gs, wg).strip() + "}"
+        else:
+            piece = _faced_text(gs, wg).strip()
+        if not piece:
+            continue
+        prev_live = [g for g in groups[n - 1][1] if (g.text or "").strip()] if n else []
+        if out and prev_live and live and live[0].rect[0] - prev_live[-1].rect[2] > wg:
+            out += " "
+        out += piece
+    return out
+
+
 def _faced_text(glyphs: list, wg: float = 0.0) -> str:
     """Text of a run of glyphs with each run of one face wrapped (P6)."""
     _live = [g for g in glyphs if (g.text or "").strip()]
@@ -8144,7 +8217,7 @@ def span_reading_text(sp: Span) -> str:
         sc = [_small_caps_word([g for g in w if (g.text or "").strip()])
               for w in words]
         if not any(sc):
-            return _faced_text(sp.glyphs, wg)
+            return _text_with_superscripts(sp.glyphs, wg)
         parts: list[str] = []
         plain: list = []
         for w, scw in zip(words, sc):
