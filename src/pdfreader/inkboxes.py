@@ -84,6 +84,19 @@ def _program(font):
     if hasattr(font, "_inkboxes_program"):
         return font._inkboxes_program
     desc = resolve1(_spec_of(font).get("FontDescriptor")) or {}
+    # SPEED (EXACT) -- ONE PARSE PER DOCUMENT, NOT PER PAGE. `ink_boxes` runs a
+    # fresh resource manager for every page, so the font objects, and the
+    # program cached on them, lived one page: 43 Type 1 parses for 12 board
+    # pages, 19 of 141 profiled seconds. The program is the FontFile stream,
+    # and within one document its object number names it; `_DOC_PROGRAMS`
+    # holds one document's programs at a time (keyed by path, size and
+    # mtime), so no id from another PDF can ever reach it.
+    ref = desc.get("FontFile3") if desc.get("FontFile3") is not None else desc.get("FontFile")
+    key = (getattr(ref, "objid", None), getattr(ref, "genno", None))
+    if key[0] is not None and key in _DOC_PROGRAMS["progs"]:
+        res = _DOC_PROGRAMS["progs"][key]
+        font._inkboxes_program = res
+        return res
     res = None
     if desc.get("FontFile3") is not None:                    # CFF / Type 1C
         from fontTools.cffLib import CFFFontSet
@@ -126,8 +139,37 @@ def _program(font):
         # exist — which is also why R3 had to keep the font dictionary.
         enc = t.font.get("Encoding")
         res = (bounds, fm, enc if isinstance(enc, list) else None)
+    if res is not None:
+        # SPEED (EXACT) -- a glyph's bounds once per program, not once per
+        # occurrence: 14,875 charstring draws for 33,809 glyphs.
+        _raw, _memo = res[0], {}
+
+        def bounds(n, _raw=_raw, _memo=_memo):
+            if n not in _memo:
+                _memo[n] = _raw(n)
+            return _memo[n]
+        res = (bounds, res[1], res[2])
+    if key[0] is not None:
+        _DOC_PROGRAMS["progs"][key] = res
     font._inkboxes_program = res
     return res
+
+
+#: The parsed font programs of the document `ink_boxes` last read.
+_DOC_PROGRAMS: dict = {"doc": None, "progs": {}}
+
+
+def _enter_document(pdf) -> None:
+    """Start a new program cache unless `pdf` is the same file as last time."""
+    import os
+    try:
+        st = os.stat(pdf)
+        doc = (os.path.realpath(pdf), st.st_size, st.st_mtime_ns)
+    except OSError:
+        doc = None
+    if doc is None or doc != _DOC_PROGRAMS["doc"]:
+        _DOC_PROGRAMS["doc"] = doc
+        _DOC_PROGRAMS["progs"] = {}
 
 
 def _spec_of(font):
@@ -246,6 +288,7 @@ def ink_boxes(pdf, page_no: int) -> list:
             })
             return adv
 
+    _enter_document(pdf)
     rm = PDFResourceManager()
     dev = _Recorder(rm)
     with open(pdf, "rb") as fh:
