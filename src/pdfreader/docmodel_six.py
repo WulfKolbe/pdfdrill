@@ -2240,6 +2240,9 @@ def _off_row_by_rule(g, rules: list, span_pt: float) -> bool:
 #: fractions over digits and upright letters reach 2.0 em, and the table and
 #: footnote rules misread as fractions start at 6.2 em.
 _PLAIN_OPERAND_EM = 4.0
+#: A wider bar may still be a fraction when its operands are text-italic
+#: maths with no words (lib:7e9f02b4f39f p287, 6 em), up to this width.
+_ITALIC_OPERAND_EM = 8.0
 
 
 def _overlines_a_run(node: "RuleNode", glyphs, size: float) -> bool:
@@ -2480,7 +2483,44 @@ def _rule_role(node: RuleNode, glyphs: list[GlyphNode],
                       and -window < g.baseline - mid < 0)
     if ((x1 - x0) / max(size, 1.0) > _PLAIN_OPERAND_EM
             and not (_above_math and _below_math)):
-        return "separator"
+        # MATHS IN A TEXT ITALIC IS MATHS. A MathTime-style page sets its
+        # Latin variables in the text italic, so `is_math` sees only the
+        # operators: lib:7e9f02b4f39f p287's `\frac{-a^2+b^2+c^2}{2bc}` (6 em)
+        # had `2bc` below its bar, none of it `is_math`, and the bar became
+        # a separator. A side that holds an italic letter or a digit and no
+        # WORD (three touching letters) is an operand; a table row or a
+        # footnote, which the separator rule is for, always has words.
+        def _operand(side):
+            gs = sorted((g for g in glyphs
+                         if x0 - 1 <= 0.5 * (g.rect[0] + g.rect[2]) <= x1 + 1
+                         and 0 < side * (g.baseline - mid) < window),
+                        key=lambda g: g.rect[0])
+            if not gs:
+                return False
+            run = best = 0
+            prev = None
+            for g in gs:
+                t = (g.text or "").strip()
+                if len(t) == 1 and t.isalpha():
+                    touch = (prev is not None and (prev.text or "").strip().isalpha()
+                             and g.rect[0] - prev.rect[2] < 0.1 * max(g.size, 1.0))
+                    run = run + 1 if touch else 1
+                else:
+                    run = 0
+                best = max(best, run)
+                prev = g
+            return best < 3 and any(
+                g.is_math or (g.text or "").strip().isdigit()
+                or (len((g.text or "").strip()) == 1
+                    and (g.text or "").strip().isalpha()
+                    and texmap.is_italic(g.fontname)) for g in gs)
+        # Only for a bar of operand width: 0864 p4's set-cover table has
+        # rows of single letters and digits (`10 a a a a b`) under 11.7 em
+        # rules, which are separators; 7e9f's bars are 6 em.
+        _short = (x1 - x0) / max(size, 1.0) <= _ITALIC_OPERAND_EM
+        if not ((_above_math or (_short and _operand(1)))
+                and (_below_math or (_short and _operand(-1)))):
+            return "separator"
 
     # A frame rule is not a fraction bar. The border of a code listing runs
     # the width of the text block with code above and below it, which is
@@ -6094,6 +6134,9 @@ def build(path: str, pages: Iterable[int] | None = None, *,
         # them -- otherwise numerator and denominator never meet and no `\frac`
         # can ever be built.
         rule_line: dict[int, int] = {}
+        # A glyph of the row each bar was given to, so the bar can follow it
+        # when a later pass merges that row into another (see the remap).
+        rule_anchor: dict[int, object] = {}
         for r in rules:
             if r.role != "fraction":
                 continue
@@ -6112,6 +6155,7 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                 k = up if up is not None else dn
                 if _row_holds_both_sides_of(groups[k], r):
                     rule_line[id(r)] = k
+                    rule_anchor[id(r)] = groups[k][0]
                 continue
             if up is None or dn is None or up == dn:
                 continue
@@ -6124,6 +6168,7 @@ def build(path: str, pages: Iterable[int] | None = None, *,
             groups[up] = groups[up] + groups[dn]
             groups[dn] = []
             rule_line[id(r)] = up
+            rule_anchor[id(r)] = groups[up][0]
 
             # The fraction now has its two halves, but it still has to rejoin
             # the expression it sits INSIDE. The host row has no glyph under
@@ -6857,6 +6902,18 @@ def build(path: str, pages: Iterable[int] | None = None, *,
 
         _folded = _fold_fence_stacks(groups, span_pt)
         rule_line = {k: _folded.get(v, v) for k, v in rule_line.items()}
+        # A BAR FOLLOWS ITS ROW. The passes between the bar assignment and
+        # here merge rows (the rejoin sweep empties the row it takes in), and
+        # a bar given to an emptied row was dropped by the remap below.
+        # lib:7e9f02b4f39f p287 lost `\frac{\alpha}{2}` and
+        # `\frac{1-\cos\alpha}{1+\cos\alpha}` this way.
+        if any(not groups[v] for v in rule_line.values() if v < len(groups)):
+            _where = {id(g): i for i, grp in enumerate(groups) for g in grp}
+            for k, v in list(rule_line.items()):
+                if v < len(groups) and not groups[v] and k in rule_anchor:
+                    w = _where.get(id(rule_anchor[k]))
+                    if w is not None:
+                        rule_line[k] = w
         keep = [i for i, g in enumerate(groups) if g]
         remap = {old: new for new, old in enumerate(keep)}
         groups = [groups[i] for i in keep]
