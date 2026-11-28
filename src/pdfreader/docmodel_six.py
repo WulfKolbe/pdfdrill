@@ -1883,6 +1883,9 @@ class PageNode:
     #: on the font, and the only one that separates a listing from the
     #: caption above it. `listings.frames` assembles them from the rules.
     frames: list = field(default_factory=list)
+    #: Where the second text column starts, as `_column_edge` measured it
+    #: for the row grouper; None on a one-column page.
+    column_edge: "float | None" = None
 
 
 # ------------------------------------------------------------------ U2 / U3
@@ -3892,8 +3895,18 @@ def _column_edge(rows: list[list["GlyphNode"]], rect: Rect) -> float | None:
     # and 43 on one page -- and taking the most frequent picked the RIGHT
     # column as "first", after which no second mode could exist and the page
     # fell back to reading across the gutter.
-    strongest = max(edges.values())
-    strong = [k for k, n in edges.items() if n >= 0.5 * strongest]
+    # ...AND A COLUMN'S ROWS NEED NOT START IN ONE BIN, OR BE THE MAJORITY
+    # (user report, arxiv.2209.02970): p8's left column starts at 60..108
+    # (indented code) against 47 rows at 300; p17's left column holds 14
+    # rows beside a figure (14 against 58). Each took the RIGHT column as
+    # "first" and read across the gutter. A bin's votes include its two
+    # neighbours, and the first column is the leftmost holding a fifth of
+    # the strongest (at least 3 rows); the second must still lie past the
+    # middle with its own votes, so a single-column page is not split.
+    def _nb(k):
+        return edges.get(k - 12, 0) + edges.get(k, 0) + edges.get(k + 12, 0)
+    strongest = max(_nb(k) for k in edges)
+    strong = [k for k in edges if _nb(k) >= max(3, 0.2 * strongest)]
     first = min(strong)
     ordered = sorted(((k, n) for k, n in edges.items() if k > first),
                      key=lambda kv: kv[0])
@@ -3950,9 +3963,42 @@ def _column_edge(rows: list[list["GlyphNode"]], rect: Rect) -> float | None:
     # own note says a real page's two columns carry 43 rows and 43; half the
     # first column's own mode is the weakest form of that statement.
     need = max(2, 0.5 * edges.get(first, 0))
+    # A SECOND COLUMN NEED NOT BE AS LONG AS THE FIRST, AND ITS LEFT EDGE NEED
+    # NOT FALL IN ONE 12 pt BIN (user report, arxiv.2209.02970). Page 9 has
+    # a figure over most of the right column: 4 rows start at x 300 against
+    # 34 at x 60, so "half the first column" refused the edge and the rows
+    # ran across the gutter. Page 15 (Chinese) starts its right-column rows
+    # at 300..348: 31 votes split over five bins, none reaching half of 35.
+    # So a candidate's votes include its two neighbouring bins, and `need`
+    # is measured against the rows that REACH the page's right half at all.
+    reach = sum(1 for r in rows if len(r) > 8
+                and max(g.rect[2] for g in r) > mid)
+    need_old = need
+    need = min(need, max(3, 0.5 * reach))
+
+    def _votes(k):
+        return edges.get(k - 12, 0) + edges.get(k, 0) + edges.get(k + 12, 0)
+    # A GUTTER IS EMPTY. On a two-column page almost no row runs through it
+    # (full-width figures and captions); on a single-column page every prose
+    # row does. Relaxed as above, the vote alone split lib:6d90e8d27b8b
+    # p174's single-column displays at an aligned position, so a candidate
+    # that more rows run THROUGH than start or break at is no gutter.
+    def _through(k):
+        n_ = 0
+        for r in rows:
+            if len(r) <= 8:
+                continue
+            for g in r:
+                if g.rect[0] < k - 1.0 and g.rect[2] > k - 6.0:
+                    n_ += 1
+                    break
+        return n_
+    # A candidate the old single-bin vote admitted is admitted as before;
+    # one only the relaxed vote admits must also pass the empty-gutter test.
     cands = [k for k, n in ordered
              if k > first + 0.25 * (rect[2] - rect[0]) and k > mid * 0.9
-             and n >= need]
+             and (n >= need_old
+                  or (_votes(k) >= need and _through(k) < _votes(k)))]
     if cands:
         k = min(cands, key=lambda k: abs(k - target))
         gl = [g for r in rows if r for g in r]
@@ -5095,8 +5141,20 @@ def _split_at_columns(rows: list[list["GlyphNode"]],
         # GAPS IN THE SAME ROW: running text has word spaces that are all much
         # of a muchness; a row spanning a gutter has one gap that is plainly
         # not a word space.
-        inner = sorted(x for x in (row[i + 1].rect[0] - row[i].rect[2]
-                                   for i in range(len(row) - 1)) if x > 0.2)
+        # CJK TEXT HAS NO WORD SPACES, so on a row that is largely CJK the
+        # candidate gap is left out of what is "typical": arxiv.2209.02970
+        # p14's `• Randeng-...-Chinese 练策略...` had two gaps, the bullet's
+        # 5.0 and the gutter's 21.6, whose median IS the gutter, so it could
+        # never be 1.6x itself and the row was not cut. Only there: a table
+        # row's few large gaps are its cells, and leaving the candidate out
+        # cut lib:d68e0271bd4d p334's rows (board, glyph 1 -> 4).
+        _cjk = sum(1 for g in row if any(
+            "\u3000" <= ch <= "\u9fff" or "\uff00" <= ch <= "\uffef"
+            for ch in (g.text or "")))
+        _skip = best_i if _cjk >= 0.3 * len(row) else None
+        inner = sorted(x for j, x in enumerate(
+            row[i + 1].rect[0] - row[i].rect[2] for i in range(len(row) - 1))
+            if x > 0.2 and j + 1 != _skip)
         typical = inner[len(inner) // 2] if inner else 0.0
         size = _dominant_size(row) or 10.0
         if best_gap >= 0.45 * size and (typical <= 0.0
@@ -5839,6 +5897,7 @@ def build(path: str, pages: Iterable[int] | None = None, *,
         # opposite sides of a gutter.
         _gutter = (_column_edge(groups, layout.bbox)
                    if layout.bbox is not None else None)
+        page.column_edge = _gutter
         # AND THE FIGURE PANELS' OWN GUTTERS ARE THE SAME KIND OF EVIDENCE.
         # `_split_at_panel_gutters` cuts a row at one of these; without the
         # veto below, the rejoin sweep closed the cut again, because its

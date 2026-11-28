@@ -3275,6 +3275,24 @@ def column_membership(page: PageNode) -> dict:
     cols = columns(page)
     if not cols:
         return {}
+    # THE GROUPER'S OWN COLUMN EDGE (user report, arxiv.2209.02970 p10).
+    # `columns()` cuts at a jump of 8 type sizes in the sorted line starts,
+    # and centred formulas, indented code or a large heading fill that jump:
+    # page 10's two columns became one container 0.76 of the page wide while
+    # every row was split correctly at x 300.7. Where the build measured an
+    # edge, the containers use it.
+    # Only where the page BEHAVES as two columns at that edge: at least five
+    # lines wholly on each side and few running through it. The grouper's
+    # edge is harmless on a one-column page (no row is cut where none
+    # crosses), but a container drawn from it there would be invented.
+    edge = getattr(page, "column_edge", None)
+    if len(cols) == 1 and edge is not None:
+        _ls = [ln for ln in page.lines if ln.glyphs and not ln.rotated]
+        _left = sum(1 for ln in _ls if ln.rect[2] <= edge)
+        _right = sum(1 for ln in _ls if ln.rect[0] >= edge)
+        _thru = len(_ls) - _left - _right
+        if _left >= 5 and _right >= 5 and _thru <= 0.2 * len(_ls):
+            cols = [(cols[0][0], edge), (edge, cols[0][1])]
     out: dict = {}
     for i, ln in enumerate(page.lines):
         if not ln.glyphs:
