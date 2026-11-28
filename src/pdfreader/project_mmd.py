@@ -929,7 +929,10 @@ def _link_target(link) -> str | None:
         return None
     if link.uri:
         return link.uri
-    if link.dest:
+    # An explicit destination ([page, x, y], docmodel_six._dest_text) is a
+    # place on a page, not an anchor the Markdown has: `#[null, 152, 460]`
+    # (lib:3c16fac66fdd p370) linked to nothing. Only a NAMED one is.
+    if link.dest and not link.dest.startswith("["):
         return "#" + link.dest
     return None
 

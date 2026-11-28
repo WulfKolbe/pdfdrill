@@ -3591,6 +3591,50 @@ def _stream_index(path: str, pages) -> dict[int, dict[tuple, int]]:
     return out
 
 
+def _dest_text(dest, pmap) -> str | None:
+    r"""A link's destination as text: the name, or `[page, x, y]` as JSON.
+
+    The `dest` of lines.json used to be `str()` of pdfminer's object: an
+    explicit destination came out as `[<PDFObjRef:33>, /'XYZ', 152, 460,
+    None]` (lib:3c16fac66fdd p370) and a name destination as `/'sec.2'`.
+    Neither is a destination anyone can follow. Now, as pdfread writes it
+    (T-0174, contracts/pdfread-records.md): a string or name is itself; an
+    array is [page 1-based or null, x, y], x and y only for /XYZ, numbers
+    integral where they are (152.0 and 152 are the same position).
+    """
+    import json as _json
+    from pdfminer.psparser import PSLiteral
+    from pdfminer.pdftypes import PDFObjRef
+    if dest is None:
+        return None
+    if isinstance(dest, bytes):
+        return dest.decode("latin1")
+    if isinstance(dest, PSLiteral):
+        n = dest.name
+        return n.decode("latin1") if isinstance(n, bytes) else str(n)
+    if isinstance(dest, str):
+        return dest
+    if not isinstance(dest, (list, tuple)) or not dest:
+        return None
+
+    def num(v):
+        v = resolve1(v)
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            return None
+        return int(v) if float(v).is_integer() else float(v)
+
+    first = dest[0]
+    if isinstance(first, int) and not isinstance(first, bool):
+        pno = first + 1
+    else:
+        pno = (pmap or {}).get(getattr(first, "objid", None))
+    kind = resolve1(dest[1]) if len(dest) > 1 else None
+    xyz = (len(dest) >= 4 and isinstance(kind, PSLiteral)
+           and kind.name == "XYZ")
+    x, y = (num(dest[2]), num(dest[3])) if xyz else (None, None)
+    return _json.dumps([pno, x, y])
+
+
 def _page_links(path: str, pages: "range | None") -> dict[int, list[LinkNode]]:
     """Link annotations per page number, 1-based.
 
@@ -3601,10 +3645,14 @@ def _page_links(path: str, pages: "range | None") -> dict[int, list[LinkNode]]:
     try:
         with open(path, "rb") as fh:
             doc = PDFDocument(PDFParser(fh))
+            _pmap = None
             for i, page in enumerate(PDFPage.create_pages(doc)):
                 if pages is not None and i not in pages:
                     continue
                 raw = resolve1(page.annots) if page.annots else None
+                if raw and _pmap is None:
+                    _pmap = {pg.pageid: k + 1 for k, pg in
+                             enumerate(PDFPage.create_pages(doc))}
                 if not raw:
                     continue
                 found: list[LinkNode] = []
@@ -3617,15 +3665,14 @@ def _page_links(path: str, pages: "range | None") -> dict[int, list[LinkNode]]:
                         rect = [float(v) for v in resolve1(a.get("Rect"))]
                         act = resolve1(a.get("A")) or {}
                         uri = act.get("URI")
-                        dest = a.get("Dest") or act.get("D")
+                        dest = _dest_text(resolve1(a.get("Dest") or act.get("D")),
+                                          _pmap)
                         found.append(LinkNode(
                             rect=(min(rect[0], rect[2]), min(rect[1], rect[3]),
                                   max(rect[0], rect[2]), max(rect[1], rect[3])),
                             uri=uri.decode("latin1") if isinstance(uri, bytes)
                             else uri,
-                            dest=dest.decode("latin1")
-                            if isinstance(dest, bytes) else
-                            (str(dest) if dest is not None else None)))
+                            dest=dest))
                     except (TypeError, ValueError, AttributeError):
                         continue
                 if found:
@@ -5551,10 +5598,28 @@ def build(path: str, pages: Iterable[int] | None = None, *,
     if pages is not None:
         pages = tuple(sorted(set(int(p) for p in pages)))
     out: list[PageNode] = []
-    links_by_page = _page_links(path, pages)
+    _ink_now = ((INK_REGIONS if ink is None else ink)
+                and not INK_ESTIMATED_ONLY)
+    # T-0174: PDFDRILL_READER=pdfread takes the build's reads -- links, line
+    # bands, crop boxes and the one pass -- from pdfread's records
+    # (pdfread_source); pdfminer stays the default and the twin.
+    _rd = None
+    from pdfreader import pdfread_source as _prs
+    if _prs.wanted():
+        try:
+            _rd = _prs.read(path, pages, _ink_now)
+        except Exception as _e:                              # noqa: BLE001
+            import sys as _sys
+            print(f"pdfdrill: PDFDRILL_READER=pdfread failed ({_e}); "
+                  f"reading with pdfminer", file=_sys.stderr)
+            _rd = None
+    globals()["LAST_READER"] = "pdfread" if _rd is not None else "pdfminer"
+    links_by_page = (_rd["links"] if _rd is not None
+                     else _page_links(path, pages))
     stream_by_page = None          # from the build's own pass, or below
     # The producer's own line structure, where the stream states it.
-    line_bands_by_page = _line_bands(path, pages)
+    line_bands_by_page = (_rd["bands"] if _rd is not None
+                          else _line_bands(path, pages))
     # Which fonts are monospace IN THIS DOCUMENT, measured from advance
     # widths. Names are unreliable: a publisher's subset can be called
     # anything, and this journal sets its listings in a proportional face.
@@ -5574,7 +5639,7 @@ def build(path: str, pages: Iterable[int] | None = None, *,
     # page 400 now yields 399 pages and says so, instead of yielding nothing.
     # A document that dies on page 1 still yields nothing — honestly.
     read_error = None
-    _crop = _cropboxes(path)
+    _crop = _rd["crop"] if _rd is not None else _cropboxes(path)
     # SPEED (EXACT) -- ONE PDFMINER PASS FOR THE MONOSPACE MEASUREMENT AND
     # THE BUILD. `_advance_samples` interpreted every page a second time
     # (laparams=None) only to collect (font, advance, size, text) per glyph,
@@ -5598,9 +5663,8 @@ def build(path: str, pages: Iterable[int] | None = None, *,
         # `_stream_index` ran a third pass only to record, at `render_char`,
         # what `_pages_with_order` records there too.
         try:
-            _ink_now = ((INK_REGIONS if ink is None else ink)
-                        and not INK_ESTIMATED_ONLY)
-            _pairs = list(_pages_with_order(path, pages, ink=_ink_now))
+            _pairs = (_rd["pairs"] if _rd is not None else
+                      list(_pages_with_order(path, pages, ink=_ink_now)))
             _pre = [t[0] for t in _pairs]
             _want = None if pages is None else set(pages)
             _pno = [((sorted(_want)[i] + 1) if _want is not None else i + 1)
