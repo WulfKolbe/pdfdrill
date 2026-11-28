@@ -8960,6 +8960,23 @@ def _faced_text(glyphs: list, wg: float = 0.0) -> str:
                 [g.glyphname for g in live], _lower)
         lead = raw[:len(raw) - len(raw.lstrip())]
         tail = raw[len(raw.rstrip()):]
+        # NO ITALIC CORRECTION WHERE THE PAGE SHOWS NONE. `\textsl{..}` and
+        # `\textit{..}` add the last letter's italic correction unless the
+        # next character is `.` or `,`. lib:d68e0271bd4d p334 sets CMSL8 `l`
+        # (advance end 359.315) and then CMSY7 `>` at 359.18: no correction,
+        # and `\textsl{CMel}$\rangle..$` put the `>` 0.39 pt right of the
+        # page's (inkdrill, board 124). Where the next run starts no later
+        # than this run's last advance (+0.02 em), `\nocorr` says so.
+        if (not tail and k + 1 < len(runs) and live
+                and body.endswith("}")
+                and any(c in ("\\textsl", "\\textit") for c in texmap.emphasis_for(
+                    {g.fontname for g in live}, [g.glyphname for g in live],
+                    _lower))):
+            nxt = [g for g in runs[k + 1] if (g.text or "").strip()]
+            if (nxt and (nxt[0].text or "")[:1] not in ".,"
+                    and nxt[0].rect[0] - live[-1].rect[2]
+                    <= 0.02 * max(live[-1].size, 1.0)):
+                body = body[:-1] + "\\nocorr}"
         piece = lead + body + tail
         if k and r[0].rect[0] - runs[k - 1][-1].rect[2] > wg:
             out += " "
