@@ -7887,8 +7887,8 @@ def _needs_maths(t: str) -> bool:
 
 #: Commands that are legal in text mode, so they are not wrapped.
 _TEXT_COMMANDS = frozenset({chr(92) + n for n in
-                            ("textbf", "textit", "emph", "texttt", "textsc",
-                             "textsf",
+                            ("textbf", "textit", "textsl", "emph", "texttt",
+                             "textsc", "textsf",
                              "ldots", "dots", "%", "&", "_", "#", "$")})
 
 
@@ -8243,9 +8243,11 @@ def _as_display(text: str, line_type: str) -> str:
 
 
 #: `\textit{a} \textit{b}` -> `\textit{a b}`: the same wrapper chain on both
-#: sides of one space, with no brace inside either body.
+#: sides of one space, with no brace inside either body. `\textsl` too: a
+#: slanted roman (CMSL) is its own face, and 4859 p1287's running head would
+#: otherwise read `\textsl{CHAPTER} \textsl{37.} \textsl{TOPOLOGY}`.
 _SAME_FACE = _re.compile(
-    r"((?:\\text(?:bf|it|tt|sc|sf)\{)+)([^{}$]*)(\}+) \1([^{}$]*)\3")
+    r"((?:\\text(?:bf|it|sl|tt|sc|sf)\{)+)([^{}$]*)(\}+) \1([^{}$]*)\3")
 
 
 def _join_faces(text: str) -> str:

@@ -407,6 +407,17 @@ def is_italic(fontname: str) -> bool:
                for rx in (_ITALIC_NAME, _LIBERTINE_ITALIC, _CM_SANS_ITALIC))
 
 
+#: Computer Modern's and the EC fonts' slanted ROMAN faces: `\textsl`.
+#: (`cmssi`, the sans "italic", is slanted already and stays `\textit`.)
+_SLANTED_NAME = re.compile(r"\bcm(sl|bxsl|sltt)\d|\bsf(sl|bl|st)\d", re.I)
+
+
+@functools.lru_cache(maxsize=None)
+def is_slanted(fontname: str) -> bool:
+    """True if this font is a slanted roman (CM `cmsl`, EC `sfsl`), not an italic."""
+    return any(_SLANTED_NAME.search(b) for b in _faces(fontname))
+
+
 @functools.lru_cache(maxsize=None)
 def is_small_caps(fontname: str) -> bool:
     """True if this font is a small-caps face. See `_SMALLCAPS_NAME`."""
@@ -482,6 +493,11 @@ def emphasis_for(fontnames, glyphnames=(), has_lowercase: bool = True) -> list:
                       (is_bold, r"\textbf"),
                       (is_italic, r"\textit")):
         if all(test(f) for f in faces):
+            # SLANTED ROMAN IS NOT ITALIC. CMSL8 on lib:d68e0271bd4d p334
+            # (`CMel`, `OMel`) was written `\textit`, which sets CMTI's
+            # cursive shapes; the page has upright roman letters sheared.
+            if cmd == r"\textit" and all(is_slanted(f) for f in faces):
+                cmd = r"\textsl"
             out.append(cmd)
     #: SMALL CAPS, which a font may carry in its NAME or in its glyph names.
     #:
@@ -563,8 +579,8 @@ def unwrap_emphasis(text: str) -> str:
     i = 0
     n = len(text)
     while i < n:
-        for cmd in (r"\textbf{", r"\textit{", r"\texttt{", r"\textsc{",
-                    r"\textsf{"):
+        for cmd in (r"\textbf{", r"\textit{", r"\textsl{", r"\texttt{",
+                    r"\textsc{", r"\textsf{"):
             if text.startswith(cmd, i):
                 opened.append(depth)
                 depth += 1

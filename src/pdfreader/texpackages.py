@@ -395,7 +395,7 @@ _STRUCTURE = {
     "index", "footnote", "caption", "item", "title", "author", "date",
     "maketitle", "tableofcontents", "newpage", "clearpage", "pagebreak",
     "hfill", "vfill", "hspace", "vspace", "centering", "raggedright",
-    "textbf", "textit", "texttt", "textsc", "textrm", "textsf", "emph",
+    "textbf", "textit", "textsl", "texttt", "textsc", "textrm", "textsf", "emph",
     "bf", "it",
     "tt", "rm", "sf", "sl", "sc", "TeX", "LaTeX", "textwidth", "linewidth",
     "columnwidth", "textheight", "small", "large", "Large", "LARGE", "huge",

@@ -56,3 +56,19 @@ def test_a_faked_small_caps_word_is_textsc():
 def test_bbold_is_blackboard_maths_not_bold_text():
     assert T.family_of("ScdkxjMhssxpBBOLD7") == "bbold"
     assert T.project("bbold", "k", -1, "X+BBOLD10").latex == r"\mathbb{k}"
+
+
+def test_slanted_words_in_one_face_share_one_wrapper():
+    from pdfreader import docmodel_six as _d
+    assert (_d._join_faces(r"1288 \textsl{CHAPTER} \textsl{37.} \textsl{TOPOLOGY}")
+            == r"1288 \textsl{CHAPTER 37. TOPOLOGY}")
+    assert _d._join_faces(r"\textit{a} \textsl{b}") == r"\textit{a} \textsl{b}"
+
+
+def test_a_slanted_roman_is_textsl_not_textit():
+    # lib:d68e0271bd4d p334: `CMel` in CMSL8, upright roman letters sheared
+    from pdfreader import texmap as _t
+    assert _t.emphasis_for({"ABCDEF+CMSL8"}) == [r"\textsl"]
+    assert _t.emphasis_for({"CMBXSL10"}) == [r"\textbf", r"\textsl"]
+    assert _t.emphasis_for({"CMTI10"}) == [r"\textit"]
+    assert _t.unwrap_emphasis(r"\textsl{CMel}") == "CMel"

@@ -52,8 +52,8 @@ PRESERVE_PREFIXES = {
 #: Nothing is lost: the model's own emphasis comes from `fontspans`, which
 #: reads the glyph layer directly, and the reading on disk keeps the
 #: wrappers for the judge and for the LaTeX projection.
-_FACE_WRAPPERS = ("\\textbf{", "\\textit{", "\\texttt{", "\\textsc{",
-                  "\\textsf{")
+_FACE_WRAPPERS = ("\\textbf{", "\\textit{", "\\textsl{", "\\texttt{",
+                  "\\textsc{", "\\textsf{")
 
 
 def strip_face_wrappers(text: str) -> str:
