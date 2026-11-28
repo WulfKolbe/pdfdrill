@@ -192,3 +192,21 @@ def test_an_italic_log_is_letters_not_the_operator():
     assert [g.text for g in roman] == [r"\log"]
     italic = docmodel._merge_operator_names([it("l", 0, 2), it("o", 2, 6), it("g", 6, 10)])
     assert [g.text for g in italic] == ["l", "o", "g"]
+
+
+def test_an_ocr_layer_page_is_recognised():
+    # board 116: BH1 p113 (invisible text) and lib:025faeafae2f p153 (visible
+    # Courier under a full-page image) are OCR layers; a born page is not
+    from pdfminer.layout import LTImage
+
+    def image(x0, y0, x1, y1):
+        im = LTImage.__new__(LTImage)
+        im.x0, im.y0, im.x1, im.y1 = x0, y0, x1, y1
+        return im
+    glyphs = [_g("a", 0, 5)]
+    page = (0.0, 0.0, 600.0, 800.0)
+    assert docmodel._ocr_layer_page(glyphs, 1, [], page)
+    scan = image(0, 0, 600, 790)
+    assert docmodel._ocr_layer_page(glyphs, 0, [scan], page)
+    assert not docmodel._ocr_layer_page(glyphs, 0, [image(100, 100, 300, 300)], page)
+    assert not docmodel._ocr_layer_page([], 0, [scan], page)

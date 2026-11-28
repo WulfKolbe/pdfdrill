@@ -4944,6 +4944,26 @@ def _split_at_columns(rows: list[list["GlyphNode"]],
     return out
 
 
+def _ocr_layer_page(glyphs, invisible: int, items, bbox) -> bool:
+    """Is this page's text an OCR layer: all invisible, or under one page image?
+
+    The board's own test (`board_run.page_kind`): a scan whose image covers the
+    page, with a text layer over or under it. lib:025faeafae2f p153 draws its
+    OCR text VISIBLY in Courier beneath a full-page image, so invisibility
+    alone misses it.
+    """
+    if not glyphs:
+        return False
+    if invisible == len(glyphs):
+        return True
+    if not bbox:
+        return False
+    area = max((bbox[2] - bbox[0]) * (bbox[3] - bbox[1]), 1.0)
+    return any(isinstance(o, LTImage)
+               and (o.x1 - o.x0) * (o.y1 - o.y0) >= 0.85 * area
+               for o in items)
+
+
 def _group_lines(glyphs: list[GlyphNode],
                  tol_factor: float = 0.45,
                  rect: Rect | None = None,
@@ -5573,7 +5593,13 @@ def build(path: str, pages: Iterable[int] | None = None, *,
         )
         # A column layout must not have its rows read across the gutter; the
         # split happens inside the grouper, before scripts are folded.
-        upright_glyphs = _merge_operator_names(upright_glyphs)
+        # AN OCR LAYER'S LETTERS ARE NOT TYPESET MATHS. The operator merge
+        # trusts roman letters spelling `det` to be TeX's `\det`; on an OCR
+        # layer they are any word's letters -- BH1 p113 read "gebildet" as
+        # `gebil $\det$` (board 116).
+        ocr_page = _ocr_layer_page(glyphs, invisible, items, layout.bbox)
+        if not ocr_page:
+            upright_glyphs = _merge_operator_names(upright_glyphs)
         upright_glyphs = _merge_enclosures(upright_glyphs)
         upright_glyphs = _merge_extenders(upright_glyphs)
         _bar_by_its_pair(upright_glyphs)
