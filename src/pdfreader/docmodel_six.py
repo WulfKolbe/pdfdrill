@@ -1885,6 +1885,16 @@ def _bigop_raise(glyphname: str | None, latex: str | None = None,
     # big set operators -- are cut on the same design size as the summation.
     if name.endswith("display"):
         return 0.95
+    # THE TEXT CUT IS HUNG LIKE THE SUM'S. CMEX gives every text-size
+    # operator but the integrals the same height and depth, so TeX's axis
+    # centring raises them all alike: lib:b21e554b9232 p201's inline
+    # `\ker a \bigcap \ker b` (`intersectiontext`) sits 8.18 pt over its
+    # row at 10.91 pt, 0.750 em -- the summation's 0.753 -- and read
+    # unraised it went into the line above (board 117).
+    if name.endswith("text") and not name.startswith(("integral",
+                                                        "contintegral")):
+        if any(name.startswith(stem) for stem in _BIGOP_STEMS):
+            return _BIGOP_RAISE["summationtext"]
     if any(name.startswith(stem) for stem in _BIGOP_STEMS):
         return 0.0                    # the name says `text`: not raised
     # The name carries no size class. Ask the font's own table, where the
