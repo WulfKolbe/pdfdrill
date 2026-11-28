@@ -1876,6 +1876,7 @@ class TestLogLikeOperatorNames:
         for ch in text:
             n = g(None, family="text", size=size, baseline=baseline, x=x,
                   text=ch)
+            n.fontname = "TEST+CMR10"     # an operator name is set in roman
             n.rect = (x, baseline, x + w, baseline + size)
             out.append(n)
             x += w
@@ -1942,6 +1943,7 @@ class TestOperatorRunsAreGroupedByLine:
         for ch in text:
             n = g(None, family="text", size=size, baseline=baseline, x=x,
                   text=ch)
+            n.fontname = "TEST+CMR10"     # an operator name is set in roman
             n.rect = (x, baseline, x + w, baseline + size)
             out.append(n)
             x += w

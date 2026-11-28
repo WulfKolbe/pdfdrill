@@ -4493,6 +4493,13 @@ def _merge_operator_names(glyphs: list["GlyphNode"]) -> list["GlyphNode"]:
             # letter's x and the grid then counts two cells of gap.
             if any(is_monospace(g.fontname) for g in run):
                 break
+            # UPRIGHT, as the docstring says and the code never checked. TeX
+            # sets `\log` in roman; an ITALIC `log` is letters the author
+            # typed. 1805.01788 p3 (board 115) sets its DCG denominator's
+            # `log_2` in LinLibertineI, and read as `\log` the roman l, o, g
+            # differed from the page's italic ones: its last inexact formula.
+            if any(texmap.is_italic(g.fontname) for g in run):
+                break
             size = run[0].size
             if any(abs(g.size - size) > 0.1
                    or abs(g.baseline - run[0].baseline) > 0.1 for g in run):

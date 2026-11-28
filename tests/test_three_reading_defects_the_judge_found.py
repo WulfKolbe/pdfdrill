@@ -180,3 +180,15 @@ def test_an_untypeable_maths_span_is_one_maths_group():
     assert out.startswith("$") and out.endswith("$"), out
     assert out.count("$") == 2, out
     assert r"\bigl[" in out and r"\bigr]" in out
+
+
+def test_an_italic_log_is_letters_not_the_operator():
+    # 1805.01788 p3 (board 115): `log_2` set in LinLibertineI, not roman
+    def it(t, x0, x1):
+        g = _g(t, x0, x1)
+        g.fontname = "GMLQBI+LinLibertineI"
+        return g
+    roman = docmodel._merge_operator_names([_g("l", 0, 2), _g("o", 2, 6), _g("g", 6, 10)])
+    assert [g.text for g in roman] == [r"\log"]
+    italic = docmodel._merge_operator_names([it("l", 0, 2), it("o", 2, 6), it("g", 6, 10)])
+    assert [g.text for g in italic] == ["l", "o", "g"]
