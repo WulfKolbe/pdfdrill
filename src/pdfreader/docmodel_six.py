@@ -8442,6 +8442,19 @@ def _maths_char(ch: str) -> str:
     return ch
 
 
+_GREEK_VARIANT_CMDS = frozenset((
+    r"\phi", r"\varphi", r"\epsilon", r"\varepsilon", r"\theta",
+    r"\vartheta", r"\rho", r"\varrho", r"\pi", r"\varpi", r"\sigma",
+    r"\varsigma"))
+
+
+#: CM's names for the variant pairs. A glyph named otherwise (MT2MIT's
+#: `SI`) says nothing about its shape, and its Unicode value stands.
+_GREEK_VARIANT_NAMES = frozenset(
+    n + v for n in ("phi", "epsilon", "theta", "rho", "pi", "sigma")
+    for v in ("", "1"))
+
+
 _MATHS_GREEK_STYLES = ("SANS-SERIF BOLD ITALIC ", "SANS-SERIF BOLD ",
                        "BOLD ITALIC ", "BOLD ", "ITALIC ")
 
@@ -8602,7 +8615,19 @@ def _run_text_raw(glyphs: list[GlyphNode], word_gap: float = 0.0,
         # `⊕`, `−`, `α`, `∗` into `$...$` -- 17 of the 17 non-ASCII
         # characters left in the maths of the 24 born board pages.
         if maths_mode and not t.isascii():
-            t = _maths_chars(t)
+            # ONE RULE FOR BOTH PATHS. In a TeX maths-italic font the GLYPH
+            # says which of a variant pair it is (CM's names: `phi` is the
+            # straight \phi, `phi1` the loopy \varphi), and `to_tex` reads
+            # it that way; the Unicode value need not agree. p328's MTMI
+            # (re-encoded by /Differences, code 28 named `phi`, ink 0.661 em
+            # tall: the straight form) has ToUnicode U+03C6, so the text path
+            # wrote \varphi where the display wrote \phi.
+            lat = g.tex.latex if g.tex else None
+            if (g.family == "math-italic" and lat in _GREEK_VARIANT_CMDS
+                    and (g.glyphname or "") in _GREEK_VARIANT_NAMES):
+                t = lat
+            else:
+                t = _maths_chars(t)
         # A COMMAND MUST END. `_merge_operator_names` collapses the upright
         # letters of `\lg` into one glyph whose text IS the command, and the
         # letters that follow it are a separate run -- so concatenating them
