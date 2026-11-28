@@ -593,6 +593,7 @@ class Span:
     glyphs: list[GlyphNode] = field(default_factory=list)
     rules: list[RuleNode] = field(default_factory=list)
     line_size: float = 0.0       # dominant type size of the containing line
+    ocr: bool = False            # the line is an OCR layer's (see LineNode.ocr)
     word_gap: float = 0.0        # word-space width, measured on the whole line
 
     @property
@@ -687,6 +688,15 @@ def _has_prose_word(glyphs) -> bool:
 
 
 def _spans(line: "LineNode") -> list[Span]:
+    """`_spans_of`, each span carrying its line's OCR flag."""
+    out = _spans_of(line)
+    if getattr(line, "ocr", False):
+        for sp in out:
+            sp.ocr = True
+    return out
+
+
+def _spans_of(line: "LineNode") -> list[Span]:
     """Split a line into alternating text and maths runs, in x-order.
 
     Digits and common operators between two maths runs belong to the maths:
@@ -1688,6 +1698,9 @@ class LineNode:
     rules: list[RuleNode] = field(default_factory=list)
     merged: int = 0              # fragments collapsed into delimiters
     rotated: bool = False        # sideways text: a stamp, a margin note
+    #: The page's text is an OCR layer (`_ocr_layer_page`): its glyph sizes
+    #: and baselines are the engine's word fits, not typesetting.
+    ocr: bool = False
 
     @property
     def stream(self) -> int:
@@ -6630,6 +6643,7 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                     rect=(gx0, gy0, gx1, gy1),
                     type="formula" if is_math else "text",
                     glyphs=group, rules=mine, merged=dropped,
+                    ocr=ocr_page,
                 )
             )
         for group in rotated_groups:
@@ -8704,6 +8718,11 @@ def span_reading_text(sp: Span) -> str:
         sc = [_small_caps_word([g for g in w if (g.text or "").strip()])
               for w in words]
         if not any(sc):
+            # AN OCR WORD'S SIZE IS THE ENGINE'S FIT TO ITS WIDTH, and its
+            # baseline scatters: lib:025faeafae2f p153 came out
+            # `\textsuperscript{\texttt{first}}` for an ordinary word.
+            if getattr(sp, "ocr", False):
+                return _faced_text(sp.glyphs, wg)
             return _text_with_superscripts(sp.glyphs, wg)
         parts: list[str] = []
         plain: list = []

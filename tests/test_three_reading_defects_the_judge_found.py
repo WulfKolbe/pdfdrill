@@ -237,3 +237,17 @@ def test_poppler_lines_are_taken_only_where_ocr_words_scatter():
     steady = [_ocr(c, 100 + 6 * i, 700) for i, c in enumerate("steadyline")]
     assert docmodel._group_by_poppler_lines(steady, box, 792.0) is None
     assert docmodel._group_by_poppler_lines(jitter, [], 792.0) is None
+
+
+def test_an_ocr_word_is_never_a_text_superscript():
+    # lib:025faeafae2f p153 (board 116): a smaller, raised OCR word read as
+    # `\textsuperscript{first}`; on a typeset page the same shape is a TM
+    words = [_ocr(c, 10 + 6 * i, 700, size=9.5) for i, c in enumerate("then")]
+    raised = [_ocr(c, 40 + 4 * i, 703, size=6.0) for i, c in enumerate("first")]
+    line = docmodel.LineNode(id="l", page=1, rect=(10, 698, 70, 712), type="text",
+                             glyphs=words + raised)
+    assert "textsuperscript" in docmodel._text_with_superscripts(words + raised)
+    line.ocr = True
+    spans = docmodel._spans(line)
+    assert all(sp.ocr for sp in spans)
+    assert "textsuperscript" not in "".join(docmodel.span_reading_text(sp) for sp in spans)
