@@ -49,3 +49,24 @@ def test_a_true_superscript_has_no_twin_above_it():
     base = [_g("x", 10, 100, size=10.0, family="math-italic", font="CMMI10")]
     sup = _g("2", 16, 104, size=7.0, family="text-cm", font="CMR7")
     assert not docmodel._stacked_twin(sup, base)
+
+
+def test_a_tick_and_a_legend_on_one_baseline_are_two_labels():
+    # board 114, 2312.11532 p7 panel (a): `0.1` (7.33 pt) and `k=5`
+    # (5.86 pt), 0.34 pt apart in baseline and 110 pt apart in x
+    tick = [_g(c, 78.5 + 2.4 * i, 710.72, size=7.33) for i, c in enumerate("0.1")]
+    legend = [_g(c, 201.4 + 3.5 * i, 711.06) for i, c in enumerate("k=5")]
+    region = [(60.0, 600.0, 220.0, 740.0)]
+    rows = docmodel._split_figure_labels([tick + legend], region)
+    assert sorted("".join(g.text for g in r) for r in rows) == ["0.1", "k=5"]
+    # outside a figure, and at one size, nothing is cut
+    assert len(docmodel._split_figure_labels([tick + legend], [])) == 1
+    same = [_g(c, 201.4 + 3.5 * i, 710.72, size=7.33) for i, c in enumerate("k=5")]
+    assert len(docmodel._split_figure_labels([tick + same], region)) == 1
+
+
+def test_a_script_stays_with_its_base_inside_a_figure():
+    u1 = [_g("u", 10, 700, size=9.0), _g("1", 15.4, 698, size=6.3)]
+    u2 = [_g("u", 40, 700, size=9.0), _g("2", 45.4, 698, size=6.3)]
+    rows = docmodel._split_figure_labels([u1 + u2], [(0.0, 600.0, 200.0, 740.0)])
+    assert len(rows) == 1

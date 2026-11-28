@@ -3914,6 +3914,53 @@ def _panel_barriers(diagrams: list[Rect]) -> "_PanelBarriers":
                           max(r[3] for r in rects))
 
 
+def _split_figure_labels(rows: list[list["GlyphNode"]],
+                         diagrams: list[Rect]) -> list[list["GlyphNode"]]:
+    r"""Cut a row inside a figure where a wide gap also changes the type size.
+
+    Board 114, 2312.11532 p7 panel (a): the y-tick `0.1` (7.33 pt) and the
+    legend's `k=5` (5.86 pt) stand 0.34 pt apart in baseline and 110 pt
+    apart in x, so the row grouper made them ONE row and the judge set the
+    legend at the tick's size -- the page's last 3 glyph findings. Two labels
+    of a chart, not one line. The size change is what tells them apart: a
+    caption running under the panels keeps one size across its gaps.
+    """
+    if not diagrams:
+        return rows
+    out: list[list[GlyphNode]] = []
+    for row in rows:
+        if len(row) < 2:
+            out.append(row)
+            continue
+        ordered = sorted(row, key=lambda g: g.rect[0])
+        # the row's LABELS first: runs cut at every wide gap (scripts stay
+        # with their base, whose size is the run's)
+        size = max(g.size for g in ordered)
+        runs, cur = [], [ordered[0]]
+        for prev, g in zip(ordered, ordered[1:]):
+            if g.rect[0] - prev.rect[2] >= 1.5 * size:
+                runs.append(cur)
+                cur = [g]
+            else:
+                cur.append(g)
+        runs.append(cur)
+        parts = [runs[0]]
+        for run in runs[1:]:
+            a = max(x.size for x in parts[-1])
+            b = max(x.size for x in run)
+            left = max(parts[-1], key=lambda x: x.rect[2])
+            mid = (0.5 * (left.rect[2] + run[0].rect[0]),
+                   0.5 * (left.baseline + run[0].baseline))
+            if (min(a, b) < 0.9 * max(a, b)
+                    and any(x0 <= mid[0] <= x1 and y0 <= mid[1] <= y1
+                            for x0, y0, x1, y1 in diagrams)):
+                parts.append(run)
+            else:
+                parts[-1] = parts[-1] + run
+        out.extend(parts)
+    return out
+
+
 def _split_at_panel_gutters(rows: list[list["GlyphNode"]],
                             diagrams: list[Rect]) -> list[list["GlyphNode"]]:
     r"""Cut a row that reads across the gutter BETWEEN two figure panels.
@@ -5529,6 +5576,7 @@ def build(path: str, pages: Iterable[int] | None = None, *,
         # The page's own figure geometry is a barrier: three charts side by
         # side must not have their labels read across (T-0156).
         groups = _split_at_panel_gutters(groups, diagrams)
+        groups = _split_figure_labels(groups, diagrams)
         # THE GUTTER IS EVIDENCE, AND IT OUTRANKS EVERY MERGE BELOW.
         #
         # `_group_lines` separates the columns and hands back rows that each
