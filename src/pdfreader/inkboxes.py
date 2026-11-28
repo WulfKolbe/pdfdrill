@@ -224,6 +224,66 @@ def _name_from_differences(font, cid: int) -> str | None:
     return None
 
 
+
+def ink_record(it, matrix, font, fontsize, scaling, rise, cid, gap) -> dict:
+    """The record `ink_boxes` keeps for one drawn glyph `it` (pdfminer's
+    LTChar, just made by `render_char` with these arguments). One function,
+    so the build's own interpreter pass can make the same record (board 118,
+    option (d)) without a second pass over the page."""
+    prog = _program(font)
+
+    # The fork's name first — it is a superset of what the PDF states
+    # — then /Differences, then the program's built-in encoding.
+    name = getattr(it, "glyphname", None)
+    fontname = getattr(it, "fontname", "") or ""
+    if not _name_is_usable(name, fontname):
+        name = _name_from_differences(font, cid)
+    if name is None and prog and prog[2]:
+        try:
+            name = prog[2][cid]
+        except (IndexError, KeyError, TypeError):
+            name = None
+
+    box = None
+    why = None
+    if gap:
+        why = gap
+    elif not prog:
+        why = ("no embedded font program (/FontFile, /FontFile3): a "
+               "Type 3 or TrueType font, neither of which is covered")
+    elif not name:
+        why = "the glyph name could not be resolved"
+    if prog and name:
+        b = prog[0](name)
+        if b:
+            a, bb, c, d, e, f = matrix     # text matrix x CTM, NO size
+            fm = prog[1]                   # glyph units -> text space
+            # `scaling` is ALREADY Tz/100 when render_char receives it
+            # (R3). Applying 0.01 again gave widths 100x too narrow —
+            # featjudge F10, invisible to any y-only check.
+            hs = scaling
+            pts = [((gx * fm * fontsize) * hs,
+                    gy * fm * fontsize + rise)
+                   for gx in (b[0], b[2]) for gy in (b[1], b[3])]
+            xs = [a * x + c * y + e for x, y in pts]
+            ys = [bb * x + d * y + f for x, y in pts]
+            box = (min(xs), min(ys), max(xs), max(ys))
+        else:
+            why = f"the font program states no outline for {name!r}"
+
+    return {
+        "ink_reason": None if box else why,
+        "name": name,
+        "font": font.fontname.split("+")[-1],
+        "ink": box,
+        "pdfminer": it.bbox,
+        "size": it.size,
+        "base": it.matrix[5],
+        "cid": cid,
+        "render_mode": getattr(it, "render_mode", None),
+    }
+
+
 def ink_boxes(pdf, page_no: int) -> list:
     """One record per glyph drawn on `page_no`, in drawing order.
 
@@ -239,59 +299,8 @@ def ink_boxes(pdf, page_no: int) -> list:
                         ncs, gs):
             adv = super().render_char(matrix, font, fontsize, scaling, rise,
                                       cid, ncs, gs)
-            it = self.cur_item._objs[-1]
-            prog = _program(font)
-
-            # The fork's name first — it is a superset of what the PDF states
-            # — then /Differences, then the program's built-in encoding.
-            name = getattr(it, "glyphname", None)
-            fontname = getattr(it, "fontname", "") or ""
-            if not _name_is_usable(name, fontname):
-                name = _name_from_differences(font, cid)
-            if name is None and prog and prog[2]:
-                try:
-                    name = prog[2][cid]
-                except (IndexError, KeyError, TypeError):
-                    name = None
-
-            box = None
-            why = None
-            if gap:
-                why = gap
-            elif not prog:
-                why = ("no embedded font program (/FontFile, /FontFile3): a "
-                       "Type 3 or TrueType font, neither of which is covered")
-            elif not name:
-                why = "the glyph name could not be resolved"
-            if prog and name:
-                b = prog[0](name)
-                if b:
-                    a, bb, c, d, e, f = matrix     # text matrix x CTM, NO size
-                    fm = prog[1]                   # glyph units -> text space
-                    # `scaling` is ALREADY Tz/100 when render_char receives it
-                    # (R3). Applying 0.01 again gave widths 100x too narrow —
-                    # featjudge F10, invisible to any y-only check.
-                    hs = scaling
-                    pts = [((gx * fm * fontsize) * hs,
-                            gy * fm * fontsize + rise)
-                           for gx in (b[0], b[2]) for gy in (b[1], b[3])]
-                    xs = [a * x + c * y + e for x, y in pts]
-                    ys = [bb * x + d * y + f for x, y in pts]
-                    box = (min(xs), min(ys), max(xs), max(ys))
-                else:
-                    why = f"the font program states no outline for {name!r}"
-
-            rec.append({
-                "ink_reason": None if box else why,
-                "name": name,
-                "font": font.fontname.split("+")[-1],
-                "ink": box,
-                "pdfminer": it.bbox,
-                "size": it.size,
-                "base": it.matrix[5],
-                "cid": cid,
-                "render_mode": getattr(it, "render_mode", None),
-            })
+            rec.append(ink_record(self.cur_item._objs[-1], matrix, font,
+                                  fontsize, scaling, rise, cid, gap))
             return adv
 
     _enter_document(pdf)

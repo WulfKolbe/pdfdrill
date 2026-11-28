@@ -187,8 +187,11 @@ def test_an_absent_box_says_why_it_is_absent():
     """
     from pdfreader import inkboxes
     import inspect
-    src = inspect.getsource(inkboxes.ink_boxes)
+    # the record is made in `ink_record` (board 118: one function for
+    # `ink_boxes` and the build's own pass), and `ink_boxes` uses it
+    src = inspect.getsource(inkboxes.ink_record)
     assert '"ink_reason"' in src
+    assert "ink_record(" in inspect.getsource(inkboxes.ink_boxes)
     # every record carries the key, so a consumer can rely on it existing
     recs = _run(T1)
     assert all("ink_reason" in r or r.get("ink") for r in recs) or True

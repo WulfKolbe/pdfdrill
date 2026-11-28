@@ -3425,7 +3425,7 @@ def _line_bands(path: str, pages) -> dict[int, list[float]]:
     return out
 
 
-def _pages_with_order(path: str, pages):
+def _pages_with_order(path: str, pages, ink: bool = False):
     """`extract_pages`, line for line, yielding (layout, order) per page.
 
     `order` is what `_stream_index` records for the page: (x, y, text) of
@@ -3454,17 +3454,37 @@ def _pages_with_order(path: str, pages):
             if key not in self.seen:
                 self.seen[key] = self.n
             self.n += 1
+            # SPEED (EXACT), board 118 option (d): the record `ink_boxes`
+            # makes, made here in the same render_char, so the ink needs no
+            # second pass over the page. Any failure drops this page's
+            # records and `attach_ink` runs its own pass as before.
+            if self.recs is not None:
+                try:
+                    self.recs.append(self.ib.ink_record(
+                        self.cur_item._objs[-1], matrix, font, fontsize,
+                        scaling, rise, cid, self.gap))
+                except Exception:                            # noqa: BLE001
+                    self.recs = None
             return w
 
     with open_filename(path, "rb") as fp:
         rm = PDFResourceManager(caching=True)
         dev = _Ordered(rm, laparams=LAParams())
         interp = PDFPageInterpreter(rm, dev)
+        dev.recs, dev.ib, dev.gap = None, None, None
+        if ink:
+            from pdfreader import inkboxes as _ib
+            _ib._enter_document(path)
+            dev.ib, dev.gap = _ib, _ib.build_gap()
         for page in PDFPage.get_pages(fp, pages, maxpages=0, password="",
                                       caching=True):
             dev.seen, dev.n = {}, 0
+            dev.recs = [] if ink else None
             interp.process_page(page)
-            yield dev.get_result(), dev.seen
+            if ink:
+                yield dev.get_result(), dev.seen, dev.recs
+            else:
+                yield dev.get_result(), dev.seen
 
 
 def _stream_index(path: str, pages) -> dict[int, dict[tuple, int]]:
@@ -5482,6 +5502,7 @@ def build(path: str, pages: Iterable[int] | None = None, *,
     # read described above), and a longer document keeps it too, so memory
     # stays bounded.
     _pre = None
+    ink_recs_by_page: dict = {}
     try:
         _n = len(list(pages)) if pages is not None else len(_crop)
     except TypeError:
@@ -5491,12 +5512,16 @@ def build(path: str, pages: Iterable[int] | None = None, *,
         # `_stream_index` ran a third pass only to record, at `render_char`,
         # what `_pages_with_order` records there too.
         try:
-            _pairs = list(_pages_with_order(path, pages))
-            _pre = [lay for lay, _ in _pairs]
+            _ink_now = ((INK_REGIONS if ink is None else ink)
+                        and not INK_ESTIMATED_ONLY)
+            _pairs = list(_pages_with_order(path, pages, ink=_ink_now))
+            _pre = [t[0] for t in _pairs]
             _want = None if pages is None else set(pages)
-            stream_by_page = {
-                ((sorted(_want)[i] + 1) if _want is not None else i + 1): seen
-                for i, (_, seen) in enumerate(_pairs)}
+            _pno = [((sorted(_want)[i] + 1) if _want is not None else i + 1)
+                    for i in range(len(_pairs))]
+            stream_by_page = {_pno[i]: t[1] for i, t in enumerate(_pairs)}
+            if _ink_now:
+                ink_recs_by_page = {_pno[i]: t[2] for i, t in enumerate(_pairs)}
         except Exception:                                    # noqa: BLE001
             _pre = None
             stream_by_page = None
@@ -6861,7 +6886,7 @@ def build(path: str, pages: Iterable[int] | None = None, *,
             if INK_ESTIMATED_ONLY and not _page_has_estimated_box(p):
                 continue
             try:
-                attach_ink(path, p)
+                attach_ink(path, p, recs=ink_recs_by_page.get(p.page))
                 # B3 — AND THE LINE BOXES ARE REBUILT ON THE MEASUREMENT.
                 # `attach_ink` runs LAST so a failure costs the measurement
                 # and never the document — which means every line box was
@@ -7011,7 +7036,7 @@ def _page_has_estimated_box(page: "PageNode") -> bool:
     return any(g.rect_estimated for ln in page.lines for g in ln.glyphs)
 
 
-def attach_ink(path: str, page: "PageNode") -> dict:
+def attach_ink(path: str, page: "PageNode", recs: "list | None" = None) -> dict:
     r"""Set `GlyphNode.ink` on every glyph of `page` that can be measured.
 
     893 — THE JOIN IS ON EVIDENCE, NOT ON ORDER. psred left this exact
@@ -7037,7 +7062,10 @@ def attach_ink(path: str, page: "PageNode") -> dict:
                 round(box[3], 2), (font or "").split("+")[-1], round(size, 2))
 
     try:
-        recs = _ib.ink_boxes(path, page.page)
+        # the build's own pass made them (board 118 option (d)); otherwise
+        # interpret the page again
+        if recs is None:
+            recs = _ib.ink_boxes(path, page.page)
     except Exception as e:                                   # noqa: BLE001
         rep = {"measured": 0, "glyphs": 0, "why": f"{type(e).__name__}: {e}"}
         LAST_INK_REPORT[page.page] = rep
