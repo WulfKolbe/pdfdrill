@@ -689,10 +689,83 @@ def _has_prose_word(glyphs) -> bool:
 
 def _spans(line: "LineNode") -> list[Span]:
     """`_spans_of`, each span carrying its line's OCR flag."""
-    out = _spans_of(line)
+    out = _text_punct_out_of_cm_maths(_spans_of(line), line)
     if getattr(line, "ocr", False):
         for sp in out:
             sp.ocr = True
+    return out
+
+
+def _join_span_texts(sps) -> str:
+    r"""The spans' reading texts, one space between them -- except where a
+    closing bracket or punctuation, or an opening bracket, TOUCHES the
+    neighbouring span (within 0.25 em): `$\theta$.`, not `$\theta$ .`."""
+    out = ""
+    prev = None
+    for sp in sps:
+        t = span_reading_text(sp)
+        if not t:
+            continue
+        if out:
+            glued = False
+            if prev is not None and prev.glyphs and sp.glyphs:
+                gap = (min(g.rect[0] for g in sp.glyphs)
+                       - max(g.rect[2] for g in prev.glyphs))
+                size = max(max(g.size for g in sp.glyphs), 1.0)
+                glued = gap < 0.25 * size and (
+                    t.lstrip()[:1] in ",.;:)]" or out.rstrip()[-1:] in "([")
+            out = out.rstrip() + t.lstrip() if glued else out + " " + t
+        else:
+            out = t
+        prev = sp
+    return out
+
+
+#: Brackets and punctuation that a text face may set beside CM maths.
+_TEXT_PUNCT = frozenset("()[],.;:")
+_CM_MATHS = ("CMMI", "CMSY", "CMEX", "LMMATH", "LMSY", "LMEX")
+
+
+def _text_punct_out_of_cm_maths(spans: list, line) -> list:
+    r"""A maths span gives up the text face's brackets and punctuation.
+
+    Board 117, 0864 p4: the page sets its maths in Computer Modern and its
+    prose in NimbusRomNo9L, and `$\alpha<1$),` and `(\opus_{mon})` have
+    Nimbus brackets OUTSIDE the author's maths. Absorption took them in
+    (`$\alpha < 1),$`), the judge set CMR's `(`/`)` and they were 3 of the
+    page's glyph findings. On a PAGE whose maths is CM, a bracket or comma in
+    a non-CM text face is never the maths' own: CM maths takes its brackets
+    from CMR (family `text-cm`). The span is split around it.
+    """
+    if not any(sp.kind == "math" for sp in spans):
+        return spans
+    if not getattr(line, "cm_maths", False):
+        return spans
+
+    def peel(g) -> bool:
+        return g.family == "text" and (g.text or "").strip() in _TEXT_PUNCT
+
+    out: list = []
+    for sp in spans:
+        if sp.kind != "math" or not any(peel(g) for g in sp.glyphs):
+            out.append(sp)
+            continue
+        cur, kind = [], None
+        pieces: list = []
+        for g in sorted(sp.glyphs, key=lambda x: x.rect[0]):
+            k = "text" if peel(g) else "math"
+            if cur and k != kind:
+                pieces.append((kind, cur))
+                cur = []
+            cur.append(g)
+            kind = k
+        if cur:
+            pieces.append((kind, cur))
+        for n, (k, gs) in enumerate(pieces):
+            rect = (min(g.rect[0] for g in gs), min(g.rect[1] for g in gs),
+                    max(g.rect[2] for g in gs), max(g.rect[3] for g in gs))
+            out.append(replace(sp, id=f"{sp.id}p{n}", kind=k, rect=rect,
+                               glyphs=gs, rules=(sp.rules if k == "math" else [])))
     return out
 
 
@@ -1701,6 +1774,9 @@ class LineNode:
     #: The page's text is an OCR layer (`_ocr_layer_page`): its glyph sizes
     #: and baselines are the engine's word fits, not typesetting.
     ocr: bool = False
+    #: The page sets its maths in Computer Modern / Latin Modern (a CMMI,
+    #: CMSY, CMEX or LMMath glyph anywhere on it).
+    cm_maths: bool = False
 
     @property
     def stream(self) -> int:
@@ -5695,6 +5771,10 @@ def build(path: str, pages: Iterable[int] | None = None, *,
         # layer they are any word's letters -- BH1 p113 read "gebildet" as
         # `gebil $\det$` (board 116).
         ocr_page = _ocr_layer_page(glyphs, invisible, items, layout.bbox)
+        cm_maths_page = any(
+            g.family.startswith("math")
+            and (g.fontname or "").split("+")[-1].upper().startswith(_CM_MATHS)
+            for g in glyphs)
         if not ocr_page:
             upright_glyphs = _merge_operator_names(upright_glyphs)
         upright_glyphs = _merge_enclosures(upright_glyphs)
@@ -6653,7 +6733,7 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                     rect=(gx0, gy0, gx1, gy1),
                     type="formula" if is_math else "text",
                     glyphs=group, rules=mine, merged=dropped,
-                    ocr=ocr_page,
+                    ocr=ocr_page, cm_maths=cm_maths_page,
                 )
             )
         for group in rotated_groups:
@@ -7308,8 +7388,7 @@ def to_lines_json(pages: list[PageNode],
                     # SPEED (EXACT): `ln.spans` recomputes `_spans` on every
                     # read, and this record read it five times; once is enough.
                     for sps in (ln.spans,)
-                    for rtext in (_join_faces(" ".join(span_reading_text(sp)
-                                                       for sp in sps)),)
+                    for rtext in (_join_faces(_join_span_texts(sps)),)
                 ],
             }
             for p in pages
@@ -7351,7 +7430,7 @@ def _box_framed_displays(out: dict, pages: list["PageNode"], k: float) -> None:
     `listings.frames` already finds the rectangle; read as four displays the
     box was lost and the judge counted its rules missing. When every line
     inside a frame is a display, they become one
-    `\[oxed{egin{aligned} ... \end{aligned}}\]`, each row aligned at its
+    `\[\boxed{\begin{aligned} ... \end{aligned}}\]`, each row aligned at its
     first relation, a `	ag` moved outside the box.
     """
     _tag = _re.compile(r"\\tag\{[^{}]*\}")

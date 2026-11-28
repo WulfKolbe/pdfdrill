@@ -251,3 +251,29 @@ def test_an_ocr_word_is_never_a_text_superscript():
     spans = docmodel._spans(line)
     assert all(sp.ocr for sp in spans)
     assert "textsuperscript" not in "".join(docmodel.span_reading_text(sp) for sp in spans)
+
+
+def test_a_text_cut_big_operator_is_raised_like_the_sum():
+    # lib:b21e554b9232 p201 (board 117): inline `\bigcap`, 0.750 em
+    assert docmodel._bigop_raise("intersectiontext") == docmodel._bigop_raise("summationtext")
+    assert docmodel._bigop_raise("uniontext") == 0.75
+    assert docmodel._bigop_raise("integraltext") == 0.0
+
+
+def test_text_face_brackets_leave_cm_maths():
+    # 0864 p4 (board 117): `$\alpha<1$),` with Nimbus `)` and `,`
+    a = _g("α", 0, 6, family="math-italic")
+    a.fontname = "QRZTCD+CMMI10"
+    lt = _g("<", 7, 13, family="math-italic")
+    lt.fontname = "QRZTCD+CMMI10"
+    one = _g("1", 14, 19, family="text-cm")
+    paren = _g(")", 19, 22, family="text")
+    paren.fontname = "QJPAJY+NimbusRomNo9L-Regu"
+    sp = docmodel.Span(id="s", kind="math", rect=(0, 100, 22, 110), glyphs=[a, lt, one, paren])
+    line = docmodel.LineNode(id="l", page=1, rect=(0, 100, 22, 110), type="text",
+                             glyphs=[a, lt, one, paren])
+    assert docmodel._text_punct_out_of_cm_maths([sp], line) == [sp]   # not a CM page
+    line.cm_maths = True
+    got = docmodel._text_punct_out_of_cm_maths([sp], line)
+    assert [s.kind for s in got] == ["math", "text"]
+    assert [g.text for g in got[1].glyphs] == [")"]
