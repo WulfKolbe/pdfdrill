@@ -32,6 +32,14 @@ def parses(monkeypatch):
         n["count"] += 1
         return orig(self, *a, **k)
     monkeypatch.setattr(T1.T1Font, "parse", counting)
+    # the lean reader (board 118, option (a)) reads a Type 1 program without
+    # T1Font.parse; a program read either way is one parse
+    lean = IB._t1_program
+
+    def counting_lean(data):
+        n["count"] += 1
+        return lean(data)
+    monkeypatch.setattr(IB, "_t1_program", counting_lean)
     return n
 
 

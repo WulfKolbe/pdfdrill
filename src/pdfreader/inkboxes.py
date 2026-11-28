@@ -120,12 +120,17 @@ def _program(font):
         from fontTools.t1Lib import T1Font
         _fast_eexec()
         data = resolve1(desc["FontFile"]).get_data()
-        t = T1Font.__new__(T1Font)
-        t.data = data
-        t.encoding = "ascii"
-        t.parse()
-        cs = t.font["CharStrings"]
-        fm = t.font["FontMatrix"][0]
+        lean = _t1_program(data)
+        if lean is not None:
+            cs, fmat, lean_enc = lean
+            fm = fmat[0]
+        else:
+            t = T1Font.__new__(T1Font)
+            t.data = data
+            t.encoding = "ascii"
+            t.parse()
+            cs = t.font["CharStrings"]
+            fm = t.font["FontMatrix"][0]
 
         def bounds(n, _cs=cs):
             if n not in _cs:
@@ -138,7 +143,7 @@ def _program(font):
         # THE PROGRAM'S BUILT-IN ENCODING. pdfTeX's CM fonts carry no
         # /Encoding in the PDF at all, so this is the only place the names
         # exist — which is also why R3 had to keep the font dictionary.
-        enc = t.font.get("Encoding")
+        enc = lean_enc if lean is not None else t.font.get("Encoding")
         res = (bounds, fm, enc if isinstance(enc, list) else None)
     if res is not None:
         # SPEED (EXACT) -- a glyph's bounds once per program, not once per
@@ -330,3 +335,89 @@ def _fast_eexec() -> None:
     if _EEXEC_ORIGINAL is None:
         _EEXEC_ORIGINAL = eexec.decrypt
         eexec.decrypt = _eexec_decrypt
+
+
+def _t1_program(data: bytes):
+    r"""A Type 1 program's CharStrings, FontMatrix and Encoding, read lean.
+
+    SPEED (EXACT), board 118's ink_boxes, option (a): fontTools' T1Font.parse
+    runs the whole program through psLib (1805.01788 p3: 14 programs, 0.97 s
+    of its 5.9 s). This reads the cleartext for FontMatrix and the built-in
+    Encoding, decrypts the eexec section, and slices Subrs and CharStrings by
+    their RD lengths; the bounds still come from fontTools' own T1CharString
+    and BoundsPen. Identical to the full parse on every board-118 program
+    (3,857 glyph bounds, 94 matrices and encodings), and held to it by a test.
+
+    Returns (charstrings, fontmatrix, encoding) or None when the program does
+    not have the expected shape; the caller then takes fontTools' full parse.
+    """
+    import re
+    from fontTools.misc.psCharStrings import T1CharString
+    k = data.find(b"eexec")
+    if k < 0:
+        return None
+    clear, enc = data[:k], data[k + 5:]
+    i = 0
+    while i < len(enc) and enc[i:i + 1] in (b"\r", b"\n", b" ", b"\t"):
+        i += 1
+    enc = enc[i:]
+    if enc[:4] and all(c in b"0123456789abcdefABCDEF" for c in enc[:4]):
+        return None                       # hex eexec: leave it to fontTools
+    m = re.search(rb"/FontMatrix\s*[\[{]\s*([^\]}]*)[\]}]", clear)
+    if not m:
+        return None
+    try:
+        fm = [float(x) if (b"." in x or b"e" in x.lower()) else int(x)
+              for x in m.group(1).split()]
+    except ValueError:
+        return None
+    if re.search(rb"/Encoding\s+StandardEncoding\s+def", clear):
+        from fontTools.encodings.StandardEncoding import StandardEncoding
+        encoding = list(StandardEncoding)
+    elif re.search(rb"/Encoding\s+\d+\s+array", clear):
+        encoding = [".notdef"] * 256
+        for e in re.finditer(rb"dup\s+(\d+)\s*/(\S+)\s+put", clear):
+            encoding[int(e.group(1))] = e.group(2).decode("latin-1")
+    else:
+        return None
+    plain = _eexec_decrypt(enc, 55665)[0][4:]
+    m = re.search(rb"/lenIV\s+(-?\d+)", plain)
+    leniv = int(m.group(1)) if m else 4
+    cs_at = plain.find(b"/CharStrings")
+    if cs_at < 0:
+        return None
+
+    def body(raw):
+        return _eexec_decrypt(raw, 4330)[0][leniv:] if leniv >= 0 else raw
+
+    subrs = []
+    s_at = plain.find(b"/Subrs")
+    if 0 <= s_at < cs_at:
+        n = re.match(rb"/Subrs\s+(\d+)", plain[s_at:])
+        if not n:
+            return None
+        subrs = [None] * int(n.group(1))
+        pat = re.compile(rb"dup\s+(\d+)\s+(\d+)\s+(?:RD|-\|) ")
+        pos = s_at
+        while True:
+            e = pat.search(plain, pos, cs_at)
+            if not e:
+                break
+            idx, ln, st = int(e.group(1)), int(e.group(2)), e.end()
+            if idx >= len(subrs):
+                return None
+            subrs[idx] = T1CharString(body(plain[st:st + ln]))
+            pos = st + ln
+    charstrings = {}
+    pat = re.compile(rb"/(\S+)\s+(\d+)\s+(?:RD|-\|) ")
+    pos = cs_at + len(b"/CharStrings")
+    while True:
+        e = pat.search(plain, pos)
+        if not e:
+            break
+        name, ln, st = e.group(1).decode("latin-1"), int(e.group(2)), e.end()
+        charstrings[name] = T1CharString(body(plain[st:st + ln]), subrs=subrs)
+        pos = st + ln
+    if not charstrings:
+        return None
+    return charstrings, fm, encoding
