@@ -6,8 +6,8 @@ variables in Times-Italic, family `text`. Two rules of `_spans_of`
 
 - one italic letter directly before a maths run that starts with a
   relation is its left-hand side, in prose too: `$P = -Q\sin\delta$`;
-- up to three italic letters that END a maths line are inside it
-  (`... c\,dt`), but not in the middle of one.
+- up to three italic letters on a maths line are inside it (`c\,dt`,
+  `ds^2`); an italic word of four letters is not.
 """
 import sys
 from pathlib import Path
@@ -110,10 +110,19 @@ def test_italic_letters_ending_a_maths_line_are_inside_it():
     assert not any("\\textit{dt}" in t for _k, t in spans)
 
 
-def test_italic_letters_in_the_middle_of_a_maths_line_are_not_taken():
+def test_italic_letters_in_the_middle_of_a_maths_line_are_taken_too():
+    # first limited to the line's end (5574c793) while the display reader
+    # refused p328's displays; with its two structure fixes they read whole
     head, x = _display_head()
     ds, x = _word("ds", x + 1.66, font=ITALIC, w=4.4)
     tail = [_g("+", x + 2.2, 7.8, SYM, "math-symbol", "+"),
-            _g("δ", x + 12.2, 4.3, MI, "math-italic", "\\delta")]
+            _g("\u03b4", x + 12.2, 4.3, MI, "math-italic", "\\delta")]
     spans = _texts(head + ds + tail)
-    assert any(k == "text" and "ds" in t for k, t in spans), spans
+    assert all(k == "math" for k, _t in spans), spans
+
+
+def test_an_italic_word_on_a_maths_line_stays_text():
+    head, x = _display_head()
+    w, x = _word("then", x + 3.0, font=ITALIC, w=4.4)
+    spans = _texts(head + w)
+    assert any(k == "text" and "then" in t for k, t in spans), spans

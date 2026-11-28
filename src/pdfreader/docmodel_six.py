@@ -1390,18 +1390,16 @@ def _spans_of(line: "LineNode") -> list[Span]:
                 # italic (Times-Italic, MathTime Greek): `... c\,dt` and
                 # `ds^2 = ...` left `dt`, `ds` outside the display, since a
                 # thin space is not "tight" and _solo took one letter only.
-                # Up to three italic letters END a maths line as variables
-                # (the trailing differential). Not in the middle: absorbing
-                # `ds`, `dt`, `dr` of p1 L22 made the whole line one display,
-                # which the display reader refused, and its flat fallback
-                # lost the `\frac{r^{2}}{\Delta}` the pieces had.
-                _solo = (_mostly_math and run[0].text.strip().isalpha()
-                         and is_italic(run[0].fontname)
-                         and (len(run) == 1
-                              or (len(run) <= 3 and i == len(runs) - 1
-                                  and all(g.text.strip().isalpha()
-                                          and is_italic(g.fontname)
-                                          for g in run))))
+                # Up to three italic letters on a maths line are variables
+                # (`ds`, `dt`, `c\,dt`). This was first limited to the line's
+                # last run, because absorbing p1 L22's `ds`, `dt`, `dr` made
+                # the line one display that the display reader refused; with
+                # the two structure fixes (a delimiter pair around a centred
+                # fraction bar is not an array; an overline stops at a
+                # fraction bar beneath it) that display reads whole.
+                _solo = (_mostly_math and 1 <= len(run) <= 3
+                         and all(g.text.strip().isalpha()
+                                 and is_italic(g.fontname) for g in run))
                 # 889 — A NAME FOLLOWED BY A RELATION IS A LEFT-HAND SIDE.
                 #
                 # `_solo` requires an ITALIC single letter, so the upright

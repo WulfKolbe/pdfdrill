@@ -173,7 +173,8 @@ def _matrix_env(entry_size: float, row_size: float) -> str:
     return "smallmatrix" if entry_size < _TFRAC_NUMERAL * row_size else "array"
 
 
-def _merge_stacked_delimiters(glyphs: list[GlyphNode], depth: int):
+def _merge_stacked_delimiters(glyphs: list[GlyphNode], depth: int,
+                               rules=()):
     r"""A sized delimiter pair holding stacked rows is an ARRAY.
 
     `lib:c57ac038ae5f` p293 sets `t_0 = 3[1 / -1/2]` as `1` OVER `-1/2` inside
@@ -188,8 +189,17 @@ def _merge_stacked_delimiters(glyphs: list[GlyphNode], depth: int):
     is left as it was, so the caller still sees the delimiters and the glyphs
     and can fall back. A half-built array would be `\begin{array}` with a
     missing row — valid LaTeX saying something else.
+
+    A PAIR AROUND A FRACTION IS NOT AN ARRAY. lib:3fe71b4ef018 p328 sets
+    `\Bigl(\frac{r_\circ}{r}\Bigr)^4`: numerator and denominator are two
+    stacked rows inside the pair, so they were taken for an array, the
+    fraction's bar found no glyphs, and `to_tex` deferred the whole display.
+    A fraction rule between the two delimiters at the pair's own centre (the
+    maths axis, within 0.2 em of the opener's ink centre) says the rows are
+    a fraction; the pair is left alone and `_split_fractions` builds it.
     """
     gs = sorted(glyphs, key=lambda g: g.rect[0])
+    bars = [r for r in (rules or ()) if r.role == "fraction"]
     size = _row_size(gs)
     #: The row's own baseline, by the vote `split_terms` uses: only the
     #: full-size glyphs, because a script cannot outvote its base.
@@ -232,6 +242,13 @@ def _merge_stacked_delimiters(glyphs: list[GlyphNode], depth: int):
                 continue
             j, closer = k, c
             break
+        if j is not None and bars:
+            _ink = getattr(g, "ink", None) or g.rect
+            _mid = 0.5 * (_ink[1] + _ink[3])
+            if any(gs[i].rect[2] - 1 <= b.rect[0] and b.rect[2] <= gs[j].rect[0] + 1
+                   and abs(0.5 * (b.rect[1] + b.rect[3]) - _mid) <= 0.2 * size
+                   for b in bars):
+                j = None
         rows = (_stacked_rows(gs[i + 1:j], size, row_baseline)
                 if j is not None else None)
         if not rows:
@@ -1585,8 +1602,21 @@ def _merge_overlines(glyphs: list[GlyphNode],
         below[bi] = [q for q in rules if q is not r and q.role == "fraction"
                      and 0.5 * (q.rect[1] + q.rect[3]) < mid
                      and r.rect[0] - 1 <= q.rect[0] and q.rect[2] <= r.rect[2] + 1]
+        # A FRACTION BAR BETWEEN THE OVERLINE AND A GLYPH ENDS THE OVERLINE'S
+        # REACH. lib:3fe71b4ef018 p328 sets `\frac{\bar\Delta}{\bar\rho^2}`:
+        # the bar over the numerator took the denominator's rho and 2 too,
+        # and the group refused. A fraction rule under this bar that is NOT
+        # inside its x-range (that case, \overline{\frac..}, is `below`)
+        # but overlaps it cuts off every glyph beneath it.
+        _cut = [0.5 * (q.rect[1] + q.rect[3]) for q in rules
+                if q is not r and q.role == "fraction"
+                and q not in below[bi]
+                and 0.5 * (q.rect[1] + q.rect[3]) < mid
+                and q.rect[0] < r.rect[2] and r.rect[0] < q.rect[2]]
+        _floor = max(_cut) if _cut else None
         under = [i for i, g in enumerate(glyphs)
                  if i not in consumed and g.baseline < mid
+                 and (_floor is None or g.baseline > _floor)
                  and r.rect[0] - 1 <= 0.5 * (g.rect[0] + g.rect[2])
                  <= r.rect[2] + 1]
         if not under:
@@ -1852,7 +1882,7 @@ def to_tex(glyphs: list[GlyphNode], rules: list[RuleNode] | None = None,
     # T-0154 — a delimiter pair holding stacked rows becomes one array
     # atom before anything else reads the row, so its entries are never
     # walked in x order and interleaved.
-    glyphs = _merge_stacked_delimiters(glyphs, depth)
+    glyphs = _merge_stacked_delimiters(glyphs, depth, rules)
 
     fracs, rest = _split_fractions(glyphs, rules)
 
