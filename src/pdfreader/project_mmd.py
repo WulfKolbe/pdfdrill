@@ -450,6 +450,11 @@ def has_content(tex: str | None) -> bool:
 
 
 _EQ_TAG = re.compile(r"^\(\s*[0-9]+(?:\.[0-9]+)*\s*[a-zA-Z]?\s*\)$")
+#: Every non-space character `_EQ_TAG` can match; its `\s` is exactly
+#: `str.isspace()` (checked over all of Unicode). A glyph text holding any
+#: other character can never be part of an equation tag.
+_TAG_CHARS = frozenset("()0123456789.abcdefghijklmnopqrstuvwxyz"
+                       "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 
 def equation_number(line, right: float, left: float | None = None) -> list:
@@ -495,7 +500,19 @@ def equation_number(line, right: float, left: float | None = None) -> list:
                     and gs[i + 1].rect[0] - gs[i].rect[2] >= 3.0 * size):
                 return head
             break
+    # SPEED (EXACT): the suffix only grows as i falls, and `_EQ_TAG` admits
+    # one `(`, one `)` and nothing outside `_TAG_CHARS`. Once the suffix holds
+    # a second bracket or a foreign character no longer suffix can match, so
+    # the walk stops there instead of re-joining every suffix (the join was
+    # 4.3 M generator steps on 1805.01788 p3's three pages, board 118).
+    opens = closes = 0
     for i in range(len(gs) - 1, 0, -1):
+        t = gs[i].text
+        opens += t.count("(")
+        closes += t.count(")")
+        if opens > 1 or closes > 1 or not all(
+                c in _TAG_CHARS or c.isspace() for c in t):
+            break
         run = gs[i:]
         if not _EQ_TAG.match("".join(g.text for g in run).strip()):
             continue
