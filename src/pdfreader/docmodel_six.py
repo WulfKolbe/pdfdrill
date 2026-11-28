@@ -2487,9 +2487,9 @@ def _rule_role(node: RuleNode, glyphs: list[GlyphNode],
         # Latin variables in the text italic, so `is_math` sees only the
         # operators: lib:7e9f02b4f39f p287's `\frac{-a^2+b^2+c^2}{2bc}` (6 em)
         # had `2bc` below its bar, none of it `is_math`, and the bar became
-        # a separator. A side that holds an italic letter or a digit and no
-        # WORD (three touching letters) is an operand; a table row or a
-        # footnote, which the separator rule is for, always has words.
+        # a separator. A side that holds an italic letter and no WORD (three
+        # touching letters) is an operand; a table row or a footnote, which
+        # the separator rule is for, has words or numbers only.
         def _operand(side):
             gs = sorted((g for g in glyphs
                          if x0 - 1 <= 0.5 * (g.rect[0] + g.rect[2]) <= x1 + 1
@@ -2509,11 +2509,12 @@ def _rule_role(node: RuleNode, glyphs: list[GlyphNode],
                     run = 0
                 best = max(best, run)
                 prev = g
+            # an italic LETTER, not digits alone: a table of numbers under
+            # 6 em cell rules (lib:4333fb33b38b p51) has no words either
             return best < 3 and any(
-                g.is_math or (g.text or "").strip().isdigit()
-                or (len((g.text or "").strip()) == 1
-                    and (g.text or "").strip().isalpha()
-                    and texmap.is_italic(g.fontname)) for g in gs)
+                len((g.text or "").strip()) == 1
+                and (g.text or "").strip().isalpha()
+                and texmap.is_italic(g.fontname) for g in gs)
         # Only for a bar of operand width: 0864 p4's set-cover table has
         # rows of single letters and digits (`10 a a a a b`) under 11.7 em
         # rules, which are separators; 7e9f's bars are 6 em.
@@ -8176,7 +8177,16 @@ def _split_runin_headings(out: dict, pages: list["PageNode"], k: float) -> None:
             # The heading is not the prose: neither carries the other's pieces.
             for key in ("gaps", "rules", "deferred_glyphs"):
                 head.pop(key, None)
-            rec["text"] = _run_text(rest_gl, wg).strip()
+            # THE REST IS READ AS A LINE, spans and maths, not as plain
+            # glyph text: lib:24ebb7777b90 p263's `Example 3.1.7 Let $T :
+            # \mathbb{R}^2 \rightarrow ...$` came out `Let T : $\mathbb{R}$2
+            # → ...` once its bold run-in head was split off (held-out draw;
+            # inkdrill-11).
+            import dataclasses as _dc
+            _rest_ln = _dc.replace(
+                ln, glyphs=list(rest_gl),
+                rules=[r for r in ln.rules if r.rect[2] >= rx0 - 1])
+            rec["text"] = _join_faces(_join_span_texts(_rest_ln.spans)).strip()
             rec["region"] = {"top_left_x": round(rx0 * k), "top_left_y": top_y,
                              "width": max(1, round((ln.rect[2] - rx0) * k)),
                              "height": height}

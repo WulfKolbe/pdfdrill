@@ -69,3 +69,12 @@ def test_a_6_em_rule_with_words_stays_a_separator():
     up = _seq("the", 101.0, 304.0, gap=0.0)
     dn = _seq("2bc", 110.0, 291.0, gap=0.0)
     assert _role(bar, up + dn) == "separator"
+
+
+def test_a_table_rule_over_numbers_stays_a_separator():
+    # lib:4333fb33b38b p51 (held-out): 63 pt cell rules between rows of
+    # numbers; digits alone are not an operand
+    bar = _bar(119.2, 182.4, 191.2)
+    up = _seq("0.85", 125.0, 195.0, gap=0.5)
+    dn = _seq("12.4", 125.0, 182.0, gap=0.5)
+    assert _role(bar, up + dn) == "separator"
