@@ -5043,80 +5043,6 @@ def _split_at_columns(rows: list[list["GlyphNode"]],
     return out
 
 
-def _poppler_lines(path: str, pno: int) -> list:
-    """Poppler's text lines on one page, as (x0, top, x1, bottom) in points
-    from the MediaBox's top-left (`pdftotext -bbox-layout`). [] on failure."""
-    import re as _re2
-    import subprocess
-    try:
-        x = subprocess.run(["pdftotext", "-f", str(pno), "-l", str(pno),
-                            "-bbox-layout", str(path), "-"],
-                           capture_output=True, text=True, timeout=120).stdout
-    except Exception:                                        # noqa: BLE001
-        return []
-    out = []
-    for m in _re2.finditer(r'<line xMin="([-\d.]+)" yMin="([-\d.]+)" '
-                           r'xMax="([-\d.]+)" yMax="([-\d.]+)">', x):
-        out.append(tuple(float(v) for v in m.groups()))
-    return out
-
-
-def _group_by_poppler_lines(glyphs, boxes, top: float, **kw):
-    """Glyphs grouped by poppler's lines, on a page whose OCR words scatter.
-
-    None -- keep `_group_lines` -- when poppler gave no lines or when the
-    scatter is small. Board 116, three OCR-layer pages, judge 8efc31e scan
-    route: taken whole, poppler's lines fixed lib:025faeafae2f p153 (word
-    baselines scatter 0.33 em median within a line; 0.4218 -> 0.2894) and
-    cost BH1 p113 (0.15 em) and BH3 p91 (0.10 em), whose OCR writes
-    subscripts at full size on their own baseline: on one line they set in
-    the wrong place. Three ways of mixing the two groupings line by line
-    each lost a page, so the choice is the page's.
-    """
-    if not boxes:
-        return None
-    rows: dict = {}
-    left = []
-    for g in glyphs:
-        cx = 0.5 * (g.rect[0] + g.rect[2])
-        cy = top - 0.5 * (g.rect[1] + g.rect[3])
-        hit = [i for i, (x0, y0, x1, y1) in enumerate(boxes)
-               if x0 - 0.5 <= cx <= x1 + 0.5 and y0 - 0.5 <= cy <= y1 + 0.5]
-        if not hit:
-            left.append(g)
-            continue
-        # overlapping boxes: the one whose middle is nearest
-        i = min(hit, key=lambda k: abs(0.5 * (boxes[k][1] + boxes[k][3]) - cy))
-        rows.setdefault(i, []).append(g)
-    if _baseline_scatter(rows.values()) < _OCR_SCATTER_EM:
-        return None
-    out = [sorted(r, key=lambda g: g.rect[0]) for _, r in sorted(rows.items())]
-    if left:
-        out += _group_lines(left, **kw)
-    return out
-
-
-#: Poppler's lines are taken on a page whose words scatter more than this
-#: (75th percentile over lines of the baselines' spread, in em). Measured on
-#: the judged pages of board 116: 025f 0.293, BH1 0.209, BH3 0.135 (medians
-#: 0.224 / 0.157 / 0.103 sit too close to cut). A cut fitted to three pages.
-_OCR_SCATTER_EM = 0.25
-
-
-def _baseline_scatter(rows) -> float:
-    """75th percentile over lines (of 3+ glyphs) of max-min baseline, in em."""
-    import statistics
-    spread = []
-    for r in rows:
-        if len(r) < 3:
-            continue
-        size = statistics.median(g.size for g in r) or 1.0
-        b = [g.baseline for g in r]
-        spread.append((max(b) - min(b)) / size)
-    spread.sort()
-    return spread[3 * len(spread) // 4] if spread else 0.0
-
-
 def _ocr_layer_page(glyphs, invisible: int, items, bbox) -> bool:
     """Is this page's text an OCR layer: all invisible, or under one page image?
 
@@ -5780,21 +5706,13 @@ def build(path: str, pages: Iterable[int] | None = None, *,
         upright_glyphs = _merge_enclosures(upright_glyphs)
         upright_glyphs = _merge_extenders(upright_glyphs)
         _bar_by_its_pair(upright_glyphs)
-        # AN OCR LAYER'S LINES ARE POPPLER'S. Its engine places word by word
-        # and the baselines of one printed line scatter (0.15 em median on
-        # BH1 p113, 0.8 em at p90 on lib:025faeafae2f p153), so the baseline
-        # grouper split each printed line into two interleaved ones. No one
-        # tolerance served both pages (board 116: 0.45 em helped 025f and
-        # merged BH1's script rows). Poppler's TextOutputDev groups by word
-        # boxes; its lines are taken and the glyphs inside are read as ever.
-        groups = None
-        if ocr_page and layout.bbox is not None:
-            groups = _group_by_poppler_lines(
-                upright_glyphs, _poppler_lines(path, pno), layout.bbox[3],
-                rect=layout.bbox, line_bands=line_bands_by_page.get(pno))
-        if groups is None:
-            groups = _group_lines(upright_glyphs, rect=layout.bbox,
-                                  line_bands=line_bands_by_page.get(pno))
+        # AN OCR LAYER'S LINES WERE TRIED AS POPPLER'S (8c686d7b) AND
+        # REVERTED: held out (inkdrill-11's draws, 6 OCR pages) neither a
+        # per-page scatter cut nor a per-line rule beat this grouping --
+        # board 118. The OCR flag still turns off the operator merge and the
+        # text superscripts.
+        groups = _group_lines(upright_glyphs, rect=layout.bbox,
+                              line_bands=line_bands_by_page.get(pno))
         groups = _split_local_columns(groups, layout.bbox)
         # The page's own figure geometry is a barrier: three charts side by
         # side must not have their labels read across (T-0156).

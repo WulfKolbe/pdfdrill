@@ -227,18 +227,6 @@ def _ocr(t, x0, base, size=7.2):
     return g
 
 
-def test_poppler_lines_are_taken_only_where_ocr_words_scatter():
-    # lib:025faeafae2f p153: one printed line, words 0.33 em apart in baseline
-    jitter = [_ocr(c, 100 + 6 * i, 700 + (2.4 if i % 2 else 0)) for i, c in enumerate("thefirstshall")]
-    box = [(90.0, 792 - 712.0, 200.0, 792 - 695.0)]
-    rows = docmodel._group_by_poppler_lines(jitter * 1, box * 1, 792.0)
-    assert rows is not None and len(rows) == 1
-    # BH3 p91: a steady line keeps the baseline grouper's rows (None)
-    steady = [_ocr(c, 100 + 6 * i, 700) for i, c in enumerate("steadyline")]
-    assert docmodel._group_by_poppler_lines(steady, box, 792.0) is None
-    assert docmodel._group_by_poppler_lines(jitter, [], 792.0) is None
-
-
 def test_an_ocr_word_is_never_a_text_superscript():
     # lib:025faeafae2f p153 (board 116): a smaller, raised OCR word read as
     # `\textsuperscript{first}`; on a typeset page the same shape is a TM
