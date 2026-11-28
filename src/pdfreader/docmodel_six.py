@@ -5574,6 +5574,19 @@ LAST_READ_ERROR: "tuple | None" = None
 LAST_READ_TRACEBACK: "str | None" = None
 
 
+def _row_holds_both_sides_of(row, bar) -> bool:
+    """Does this row hold glyphs above AND below the bar, within its x-range?
+
+    Then the row is the bar's merged numerator and denominator, and the bar
+    belongs to it (lib:7e9f02b4f39f p287, the third fraction of one line).
+    """
+    mid = 0.5 * (bar.rect[1] + bar.rect[3])
+    inside = [g for g in row
+              if g.rect[0] >= bar.rect[0] - 2 and g.rect[2] <= bar.rect[2] + 2]
+    return (any(g.baseline > mid for g in inside)
+            and any(g.baseline < mid for g in inside))
+
+
 def _crop_in_layout_frame(crop, media, rotate=0) -> tuple:
     r"""The CropBox in the frame the glyphs are in: from the MediaBox origin.
 
@@ -6085,6 +6098,21 @@ def build(path: str, pages: Iterable[int] | None = None, *,
             if r.role != "fraction":
                 continue
             up, dn = _near_rows(r)
+            if (up is None) != (dn is None):
+                # THE ROWS ARE ALREADY ONE: an earlier bar of the same
+                # display merged this numerator and denominator into one
+                # row, so `_near_rows` finds that row on one side only (its
+                # mean baseline within the bar's x-range lies above or below
+                # the bar). If that row holds glyphs both above and below the
+                # bar there, the bar is its own. Skipped, it met the general
+                # test, which drops a rule below the row's baseline.
+                # lib:7e9f02b4f39f p287 (held-out draw): the third of three
+                # fractions on one line lost its bar and the display
+                # flattened to `22\cos\sin22((tt))`.
+                k = up if up is not None else dn
+                if _row_holds_both_sides_of(groups[k], r):
+                    rule_line[id(r)] = k
+                continue
             if up is None or dn is None or up == dn:
                 continue
             #: A ROW THAT ALREADY STRADDLES THE BAR IS A FINISHED FRACTION.
