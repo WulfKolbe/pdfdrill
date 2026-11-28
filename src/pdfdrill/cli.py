@@ -1003,7 +1003,13 @@ def _do_fonts(args):
 def _do_glyphlines(args):
     """`glyphlines` — a TYPED lines.json read with pdf2mmd's glyph model."""
     from .commands import cmd_glyphlines
-    return cmd_glyphlines(_pdf(args), force="--force" in args)
+    only, args = _opt(args, "--only")
+    if only not in (None, "lines"):
+        raise ValueError(f"`pdfdrill glyphlines --only {only}`: the only "
+                         "choice is `lines` (lines.json alone, without the "
+                         ".glyphs.md and .glyphs.tex projections).")
+    return cmd_glyphlines(_pdf(args), force="--force" in args,
+                          only_lines=only == "lines")
 
 
 def _do_glyphscan(args):

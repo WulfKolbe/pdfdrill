@@ -163,6 +163,15 @@ commands:
     flag: --force
     type: bool
     help: re-read, replacing an existing lines.json (including MathPix's)
+  - name: only
+    flag: --only
+    type: enum
+    choices:
+    - lines
+    help: >-
+      `--only lines` writes <stem>.lines.json alone, without the reader's own
+      .glyphs.md and .glyphs.tex (the board's loop reads lines.json only);
+      the lines.json is byte-identical to the default's
   typed: true
   # T-0153: done when the reading on disk is THIS reader's (`source` starts
   # `pdfminer-docmodel`), which is the test `cmd_glyphlines` uses itself. The

@@ -18137,7 +18137,8 @@ def cmd_profile(pdf: Path, json_only: bool = False) -> str:
 #: document is megabytes, and a pipe that large is the one failure mode a
 #: tool boundary adds over an import.
 @_writes("glyphlines")
-def cmd_glyphlines(pdf: Path, force: bool = False) -> str:
+def cmd_glyphlines(pdf: Path, force: bool = False,
+                   only_lines: bool = False) -> str:
     """Read the PDF with our glyph reader and write a TYPED lines.json.
 
     The model every projection is built on comes from a lines.json, and what
@@ -18243,7 +18244,10 @@ def cmd_glyphlines(pdf: Path, force: bool = False) -> str:
     for pg in data["pages"]:
         for ln in pg["lines"]:
             counts[ln["type"]] = counts.get(ln["type"], 0) + 1
-    proj = _glyph_projections(pdf, pages, key)
+    # `--only lines` (board 122): the board's loop is PDF -> lines.json ->
+    # render -> judge, and the .md / .tex projections are not in it; they
+    # are written after lines.json, which is therefore the same either way.
+    proj = ("" if only_lines else _glyph_projections(pdf, pages, key))
     sc.set_evidence("glyphlines", {"lines": n_lines, "types": counts})
     sc.save()
     shape = ", ".join(f"{k} {v}" for k, v in
