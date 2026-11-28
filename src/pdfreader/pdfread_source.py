@@ -20,7 +20,7 @@ is replaced, and that is the reader's cost.
 
 Selected by PDFDRILL_READER=pdfread; the binary is $PDFREAD or `pdfread` on
 PATH. pdfminer stays the default and the twin. Tested against pdf2mmd3
-1096c28 (TESTED_WITH).
+bed59ed (TESTED_WITH).
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ import os
 import shutil
 import subprocess
 
-TESTED_WITH = "1096c28"
+TESTED_WITH = "bed59ed"
 _NO_OUTLINE = "the font program states no outline for this name"
 
 
@@ -46,6 +46,38 @@ def binary() -> str | None:
     if os.sep in b:
         return b if os.access(b, os.X_OK) else None
     return shutil.which(b)
+
+
+_IDENT: dict = {}
+
+
+def identity() -> str:
+    """`pdfread bin:<sha256, 12>` of the binary that would run.
+
+    pdfread states no version of its own, and a commit cannot be read off a
+    binary; its content can. Cached per (path, mtime, size).
+    """
+    import hashlib
+    exe = binary()
+    if exe is None:
+        return "pdfread missing"
+    st = os.stat(exe)
+    key = (exe, st.st_mtime_ns, st.st_size)
+    if key not in _IDENT:
+        h = hashlib.sha256()
+        with open(exe, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 20), b""):
+                h.update(chunk)
+        _IDENT[key] = "pdfread bin:" + h.hexdigest()[:12]
+    return _IDENT[key]
+
+
+def pdfminer_identity() -> str:
+    try:
+        import pdfminer
+        return "pdfminer " + str(pdfminer.__version__)
+    except Exception:                                        # noqa: BLE001
+        return "pdfminer"
 
 
 def _runs(pages):

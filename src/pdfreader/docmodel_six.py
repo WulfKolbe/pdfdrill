@@ -1886,6 +1886,11 @@ class PageNode:
     #: Where the second text column starts, as `_column_edge` measured it
     #: for the row grouper; None on a one-column page.
     column_edge: "float | None" = None
+    #: Which reader the build took its records from (T-0174):
+    #: `pdfminer <version>` or `pdfread bin:<sha>`; and whether
+    #: PDFDRILL_READER=pdfread was asked for and failed.
+    reader: str = ""
+    reader_fallback: bool = False
 
 
 # ------------------------------------------------------------------ U2 / U3
@@ -5614,6 +5619,9 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                   f"reading with pdfminer", file=_sys.stderr)
             _rd = None
     globals()["LAST_READER"] = "pdfread" if _rd is not None else "pdfminer"
+    _reader = (_prs.identity() if _rd is not None
+               else _prs.pdfminer_identity())
+    _reader_fallback = _prs.wanted() and _rd is None
     links_by_page = (_rd["links"] if _rd is not None
                      else _page_links(path, pages))
     stream_by_page = None          # from the build's own pass, or below
@@ -5937,6 +5945,7 @@ def build(path: str, pages: Iterable[int] | None = None, *,
             links=links_by_page.get(pno, []),
             fills=fills,
             invisible=bool(glyphs) and invisible == len(glyphs),
+            reader=_reader, reader_fallback=_reader_fallback,
         )
         # A column layout must not have its rows read across the gutter; the
         # split happens inside the grouper, before scripts are folded.
@@ -7504,6 +7513,10 @@ def to_lines_json(pages: list[PageNode],
         # construction. The per-page key stays: a merged reading can carry pages
         # from two readers, and that is the only place that can say so.
         "source": "pdfminer-docmodel",
+        # T-0174: the reader the records came from, and whether pdfread was
+        # asked for and fell back. The board shows it per row.
+        "reader": next((p.reader for p in pages if p.reader), ""),
+        "reader_fallback": any(p.reader_fallback for p in pages),
         "pages": [
             {
                 # MathPix's own page keys first, so a consumer written
