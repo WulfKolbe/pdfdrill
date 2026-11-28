@@ -290,3 +290,33 @@ def test_a_script_size_glyph_on_the_baseline_is_scriptstyle():
     # a real superscript, 0.4 em up, stays a superscript
     k2 = glyph("k", 247.8, 252.2, 245.9, 7.97, "Y+LMMathItalic8-Regular", "math-italic", "k")
     assert structure.to_tex([arrow, k2], []) == r"\rightarrow^{k}"
+
+
+def test_an_upright_bold_letter_in_maths_is_mathbf():
+    # lib:c9daf79960c3 p68 (board 117): `\underline{Map}_{\mathbf Z}`
+    z = _g("Z", 0, 6, family="text-cm")
+    z.fontname = "CMIKWJ+LMRoman8-Bold"
+    assert docmodel.glyph_latex(z) == r"\mathbf{Z}"
+    m = _g("M", 0, 6, family="text-cm")
+    m.fontname = "ZWUQRK+LMRoman12-Regular"
+    assert docmodel.glyph_latex(m) == r"\mathrm{M}"
+
+
+def test_a_rule_hanging_under_a_fitting_word_is_an_underline():
+    # lib:c9daf79960c3 p68: the rule 3.72 pt under `Map`, the next line's
+    # baseline 12.17 pt below it
+    word = [_g(c, x0, x0 + w, baseline=317.73, size=12.0)
+            for c, x0, w in (("M", 336.3, 10.7), ("a", 347.0, 5.8), ("p", 352.8, 6.5))]
+    # the line runs on either side of the word, as it does on the page
+    word += [_g(c, x0, x0 + 6, baseline=317.73, size=12.0)
+             for c, x0 in (("A", 310.0), ("y", 320.0), ("(", 365.8), ("M", 370.4))]
+    for g in word:
+        g.matrix = (12.0, 0, 0, 12.0, g.rect[0], 317.73)
+    below = [_g(c, x0, x0 + 6, baseline=301.84, size=12.0) for c, x0 in (("e", 340.0), ("M", 346.0))]
+    for g in below:
+        g.matrix = (12.0, 0, 0, 12.0, g.rect[0], 301.84)
+    rule = docmodel.RuleNode(id="r", page=1, rect=(336.26, 314.01, 359.34, 314.01))
+    assert docmodel._rule_role(rule, word + below, 12.0) == "underline"
+    # the same rule 1.2 em over its word is not an underline
+    high = docmodel.RuleNode(id="h", page=1, rect=(336.26, 303.3, 359.34, 303.3))
+    assert docmodel._rule_role(high, word, 12.0) != "underline"

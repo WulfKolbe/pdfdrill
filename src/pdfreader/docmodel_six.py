@@ -557,6 +557,11 @@ def glyph_latex(g: "GlyphNode") -> str | None:
         # italic font rather than from the maths font.
         if is_italic(g.fontname):
             return t
+        # A BOLD upright letter is `\mathbf`: lib:c9daf79960c3 p68's
+        # `\underline{Map}_{\mathbf Z}` sets its Z in LMRoman8-Bold, and as
+        # `\mathrm{Z}` it was a style finding (board 117).
+        if texmap.is_bold(g.fontname):
+            return rf"\mathbf{{{t}}}"
         return rf"\mathrm{{{t}}}"
     return None
 
@@ -2234,6 +2239,12 @@ def _overlines_a_run(node: "RuleNode", glyphs, size: float) -> bool:
             and -0.6 * size <= mid - top <= 0.6 * size)
 
 
+#: An underline sits at most this far (em) below its argument's baseline;
+#: an overline at most OVER_REACH above the baseline of what it covers.
+UNDER_DEPTH = 0.4
+OVER_REACH = 0.9
+
+
 def _rule_role(node: RuleNode, glyphs: list[GlyphNode],
                size: float = 10.0, others: "list[RuleNode]" = (),
                page_width: "float | None" = None) -> str:
@@ -2624,6 +2635,23 @@ def _rule_role(node: RuleNode, glyphs: list[GlyphNode],
             covered += g.rect[2] - g.rect[0]
         return covered >= 0.45 * bar_w
 
+    def _bar_ends_free(baselines: list[float]) -> bool:
+        """No glyph on the argument's baseline touches either end of the bar
+        from outside (within 0.1 em): the bar does not cut a word."""
+        if not baselines:
+            return False
+        want = max(set(baselines), key=baselines.count)
+        gap = 0.1 * max(size, 1.0)
+        for g in glyphs:
+            if abs(g.baseline - want) > 0.1 * max(size, 1.0):
+                continue
+            cx = 0.5 * (g.rect[0] + g.rect[2])
+            if cx < x0 and g.rect[2] > x0 - gap:
+                return False
+            if cx > x1 and g.rect[0] < x1 + gap:
+                return False
+        return True
+
     def _fits_the_bar(baselines: list[float]) -> bool:
         r"""Is the ink on this baseline the thing the rule is DRAWN TO?
 
@@ -2701,6 +2729,23 @@ def _rule_role(node: RuleNode, glyphs: list[GlyphNode],
     below_row = _is_own_row(below_b)
     if above and (below_row or below_b):
         return "fraction"
+    # AN UNDERLINE HANGS JUST BELOW ITS ARGUMENT (board 117). lib:c9daf79960c3
+    # p68 sets `\underline{Map}_{\mathbf Z}`: the rule is 3.72 pt (0.31 em)
+    # under `Map`'s baseline and drawn to its width, and 12.17 pt (1.01 em)
+    # over the next line's baseline -- above where an overline sits over
+    # capitals -- so the overline test below took it for a bar over THAT
+    # line. Ink above that fits the bar within UNDER_DEPTH, with the nearest
+    # ink below farther than OVER_REACH, is the underlined argument.
+    if not above and above_b and _fits_the_bar(above_b):
+        _up = min(above_b) - mid
+        _down = (mid - max(below_b)) if below_b else float("inf")
+        # A ZERO-HEIGHT rule is a stroked line (pdfminer gives a stroke no
+        # thickness; c9da's is 0.398 pt wide). It is an underline only where
+        # it does not cut a word: the board's three zero-height non-underlines
+        # sit under `te` mid-word (twice) and under a byline's interleaved rows.
+        if (_up <= UNDER_DEPTH * size and _down > OVER_REACH * size
+                and ((y1 - y0) > 0 or _bar_ends_free(above_b))):
+            return "underline"
     if _sits_under(below_b) and not above:
         return "overline"
     #: T-0162 — INK ABOVE AND NOTHING BELOW HAD NO BRANCH AT ALL, so every
@@ -6634,6 +6679,14 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                 # overline goes above what it covers. Two such rules from the
                 # line below were being attached here and deferred a span
                 # that carried no accent.
+                # An UNDERLINE hangs below the baseline by its argument's
+                # depth -- 3.72 pt under lib:c9daf79960c3 p68's `Map` -- so
+                # the window below does not reach it (board 117).
+                if (getattr(r, "role", None) == "underline"
+                        and base - UNDER_DEPTH * span_pt <= mid < base
+                        and r.rect[0] >= gx0 - 6 and r.rect[2] <= gx1 + 6):
+                    mine.append(r)
+                    continue
                 if mid < base - 0.15 * span_pt:
                     continue
                 # Widening this window to the line's own extent was tried

@@ -186,17 +186,26 @@ def test_a_vertical_rule_is_not_an_underline():
     assert _rule_role(_rule(BAR_X, BAR_Y, 0.4, h=11.0), glyphs) == "separator"
 
 
-def test_a_rule_with_no_thickness_is_not_an_underline():
+def test_a_rule_with_no_thickness_is_not_an_underline_inside_a_word():
     r"""Found by checking what this branch newly claimed on the board, not by
     a test: three of its four new classifications have h=0.00 and none of them
     is an `\underline` --- a 3.09 em zero-height rule under two interleaved
     rows of a byline, and a 0.60 em zero-height rule under `te` mid-word,
     twice. The three verified cases are 0.48 pt thick.
 
-    A rule with no thickness was not drawn as a line. This reader already
-    knows that shape: the underscore branch's own note says `took_*` reaches
-    the model as a 3.14 pt ZERO-HEIGHT rule. No threshold is involved."""
+    REVISED (board 117): "a rule with no thickness was not drawn as a line"
+    is not so. pdfminer gives a STROKED line no thickness, and
+    lib:c9daf79960c3 p68's `\underline{Map}` is one (a 0.398 pt stroke, 0 pt
+    tall). What the false cases share is that the bar cuts a word: a glyph on
+    the argument's baseline touches an end of it. So a zero-height rule under
+    letters that run on past it is not an underline; the same rule under a
+    free-standing argument is."""
+    base = BASE_ABOVE
+    word = [_g(x, base, w, text=t, name=t, font="Times-Roman", family="text")
+            for x, w, t in ((227.6, 3.5, "w"), (231.1, 3.5, "r"),
+                            (234.6, 2.8, "t"), (237.4, 2.3, "e"),
+                            (239.7, 3.5, "s"))]
+    assert _rule_role(_rule(234.6, BAR_Y, 5.1, h=0.0), word) != "underline"
+    # ...and the verified one keeps its answer, thick or stroked
     g = _p1_rule1_glyphs()
-    assert _rule_role(_rule(BAR_X, BAR_Y, BAR_W, h=0.0), g) != "underline"
-    # ...and the real one, which has thickness, still is
     assert _rule_role(_rule(BAR_X, BAR_Y, BAR_W, h=0.48), g) == "underline"
