@@ -8357,6 +8357,7 @@ _TEXT_COMMANDS = frozenset({chr(92) + n for n in
 #: Characters `texmap.unicode_latex` leaves as they are, with the command
 #: contracts/reading.md §7 names for them. A prime is a superscript.
 _MATHS_EXTRA = {"µ": r"\mu", "∆": r"\Delta", "·": r"\cdot",
+                "‖": r"\Vert", "⋮": r"\vdots", "⋱": r"\ddots",
                 "′": r"^{\prime}", "″": r"^{\prime\prime}",
                 "∗": r"\ast", "ε": r"\varepsilon", "ϵ": r"\epsilon",
                 "ϕ": r"\phi", "φ": r"\varphi", "ϑ": r"\vartheta",
@@ -8403,10 +8404,81 @@ def _maths_char(ch: str) -> str:
         if word in _GREEK_AS_LATIN:
             return _GREEK_AS_LATIN[word]
         return ch
+    if 0x1D6A8 <= ord(ch) <= 0x1D7C9:
+        return _maths_greek(ch, name)
+    # U+2118 is NAMED "SCRIPT CAPITAL P" and is the Weierstrass \wp
+    if (name.startswith("SCRIPT CAPITAL ") and len(name) == 16
+            and ch != "\u2118"):
+        return "\\mathcal{%s}" % name[-1]          # ℋ ℐ ℒ ℛ ℬ ℰ ℱ ℳ
     tex = texmap.unicode_latex(f"uni{ord(ch):04X}")
     if tex and tex.isascii():
         return tex
     return ch
+
+
+_MATHS_GREEK_STYLES = ("SANS-SERIF BOLD ITALIC ", "SANS-SERIF BOLD ",
+                       "BOLD ITALIC ", "BOLD ", "ITALIC ")
+
+
+def _maths_greek(ch: str, name: str) -> str:
+    r"""A character of the Mathematical Greek block (U+1D6A8-1D7C9).
+
+    The glyph-name table gave this block `\Alpha`, `\Beta` (commands LaTeX
+    does not have) and dropped the bold. Each character is now its plain
+    Greek letter, read the way `_maths_char` reads it (ε -> \varepsilon,
+    ϵ -> \epsilon, φ -> \varphi, ϕ -> \phi, Α -> A), with the style of
+    its name (the owner's comparison with mathml2latex, 2026-11-28):
+
+      italic       a letter as is (TeX's maths is italic); a capital Greek
+                   command \mathit{\Gamma}; a small one as is
+      bold         \mathbf{A}, \mathbf{\Gamma}; small Greek, \nabla,
+                   \partial: \boldsymbol{..} (\mathbf has no small Greek)
+      bold italic  \boldsymbol{..} throughout
+      sans-serif bold (italic): as bold (italic); LaTeX's standard fonts
+                   have no sans Greek
+
+    The kappa symbol is \\varkappa (amssymb, as the table had it), the
+    capital theta symbol the capital \\Theta; a base letter with no command
+    leaves the character as it is.
+    """
+    import unicodedata
+    rest = name[len("MATHEMATICAL "):]
+    style = next((st for st in _MATHS_GREEK_STYLES if rest.startswith(st)), "")
+    rest = rest[len(style):]
+    if rest == "NABLA":
+        base = "\u2207"
+    elif rest == "PARTIAL DIFFERENTIAL":
+        base = "\u2202"
+    else:
+        if rest.startswith("CAPITAL ") and not rest.endswith(" SYMBOL"):
+            uname = "GREEK CAPITAL LETTER " + rest[len("CAPITAL "):]
+        elif rest.startswith("SMALL "):
+            uname = "GREEK SMALL LETTER " + rest[len("SMALL "):]
+        elif rest == "EPSILON SYMBOL":
+            uname = "GREEK LUNATE EPSILON SYMBOL"
+        elif rest == "CAPITAL THETA SYMBOL":
+            uname = "GREEK CAPITAL LETTER THETA"     # the nearest TeX has
+        else:
+            uname = "GREEK " + rest                  # THETA SYMBOL, ...
+        try:
+            base = unicodedata.lookup(uname)
+        except KeyError:
+            return ch
+    tex = "\\varkappa" if rest == "KAPPA SYMBOL" else _maths_char(base)
+    if tex == base:                                  # no command for it
+        return ch
+    bold = "BOLD" in style
+    italic = "ITALIC" in style
+    letter = tex.isascii() and tex.isalpha() and len(tex) == 1
+    capital_cmd = tex.startswith("\\") and tex[1:2].isupper()
+    if bold and italic:
+        return "\\boldsymbol{%s}" % tex
+    if bold:
+        return ("\\mathbf{%s}" % tex if letter or capital_cmd
+                else "\\boldsymbol{%s}" % tex)
+    if italic and capital_cmd:
+        return "\\mathit{%s}" % tex
+    return tex
 
 
 def _maths_chars(t: str) -> str:
