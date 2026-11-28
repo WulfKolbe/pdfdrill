@@ -72,6 +72,24 @@ def _name_is_usable(name: str | None, fontname: str | None) -> bool:
     return not _PSEUDO.match(name)
 
 
+def _cff_top(data: bytes):
+    r"""The first Top DICT of a CFF program, with the spec's default charset.
+
+    A Top DICT WITHOUT `charset` HAS THE DEFAULT ONE: offset 0, the ISOAdobe
+    charset (Adobe TN 5176, Table 9). fontTools has no default for it and
+    raises AttributeError('charset') on `CharStrings`, so a page lost its
+    in-pass ink and fell back: lib:6d90e8d27b8b p174's Type1C Times-Roman and
+    Times-Italic state none. pdfread (T-0174) applies the default.
+    """
+    from fontTools.cffLib import CFFFontSet
+    cff = CFFFontSet()
+    cff.decompile(io.BytesIO(data), None)
+    top = cff[cff.fontNames[0]]
+    if "charset" not in top.rawDict and "ROS" not in top.rawDict:
+        top.rawDict["charset"] = 0
+    return top
+
+
 def _program(font):
     """(bounds(name), font_matrix_scale, code->name) for the embedded program.
 
@@ -99,10 +117,7 @@ def _program(font):
         return res
     res = None
     if desc.get("FontFile3") is not None:                    # CFF / Type 1C
-        from fontTools.cffLib import CFFFontSet
-        cff = CFFFontSet()
-        cff.decompile(io.BytesIO(resolve1(desc["FontFile3"]).get_data()), None)
-        top = cff[cff.fontNames[0]]
+        top = _cff_top(resolve1(desc["FontFile3"]).get_data())
         cs = top.CharStrings
         fm = getattr(top, "FontMatrix", [0.001])[0]
 
