@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import functools
 import re
+import unicodedata
 
 _CM_SUBSET = re.compile(r"^[A-Z]{6}\+")
 _CM_BASE = re.compile(r"\d+$")
@@ -297,7 +298,14 @@ def measure_monospace(samples) -> set[str]:
         chars.setdefault(key, set()).add(text)
     out: set[str] = set()
     for key, vals in ratios.items():
-        letters = {c for c in chars.get(key, ()) if c.isalpha()}
+        # CASED letters only: a CJK ideograph is `isalpha()` and every one
+        # advances by the same em by design, so arxiv.2209.02970's CJK
+        # subfonts (gbsnu4e ...) measured "monospace" and their runs came
+        # out in \texttt (user report, 2026-11-28). Ideographs are Lo.
+        letters = {c for c in chars.get(key, ())
+                   if c.isalpha()
+                   and all(unicodedata.category(ch) in ("Lu", "Ll", "Lt")
+                           for ch in c)}
         if len(vals) < 100 or len(letters) < 10:
             continue
         top = max(set(vals), key=vals.count)
