@@ -118,6 +118,28 @@ def tokenize(data: bytes):
         if c == b"[":
             depth, j = 0, i
             while j < n:
+                if data[j : j + 1] == b"(":
+                    # A STRING INSIDE THE ARRAY is skipped whole, with its
+                    # escapes and nesting, as the string branch reads it: a
+                    # bracket in it is text, not the array's end.
+                    # `[(is)4.5(s)-396.9([)]TJ` (arxiv.0704.0808 p5) ran on
+                    # to a later `]` and lost ET, Q, BT, Tf, Tm and a TJ;
+                    # line_starts was wrong on 140 pages of 24 library
+                    # documents (glyphdrill4-72, against pdfread).
+                    k, sd, esc = j + 1, 1, False
+                    while k < n and sd:
+                        ch = data[k : k + 1]
+                        if esc:
+                            esc = False
+                        elif ch == b"\\":
+                            esc = True
+                        elif ch == b"(":
+                            sd += 1
+                        elif ch == b")":
+                            sd -= 1
+                        k += 1
+                    j = k
+                    continue
                 if data[j : j + 1] == b"[":
                     depth += 1
                 elif data[j : j + 1] == b"]":
