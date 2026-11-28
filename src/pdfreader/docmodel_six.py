@@ -3470,10 +3470,32 @@ def _pages_with_order(path: str, pages, ink: bool = False):
                     self.recs = None
             return w
 
+    class _TrInterp(PDFPageInterpreter):
+        r"""pdfminer, with the text RENDER MODE carried into a form XObject.
+
+        The PDF reference has a form run in the graphics state current at its
+        `Do`, text state included; pdfminer starts every form with a fresh
+        one. lib:025faeafae2f p153 sets `3 Tr` and draws its whole OCR layer
+        through one form, so pdfminer reported it visible (render mode 0)
+        where mutool reports 780 `ignore_text` (T-0174, pdfread). Only Tr is
+        carried: the rest of the text state is reset as before.
+        """
+        _inherit_tr = None
+
+        def subinterp(self):
+            child = super().subinterp()
+            child._inherit_tr = self.textstate.render
+            return child
+
+        def init_state(self, ctm):
+            super().init_state(ctm)
+            if self._inherit_tr is not None:
+                self.textstate.render = self._inherit_tr
+
     with open_filename(path, "rb") as fp:
         rm = PDFResourceManager(caching=True)
         dev = _Ordered(rm, laparams=LAParams())
-        interp = PDFPageInterpreter(rm, dev)
+        interp = _TrInterp(rm, dev)
         dev.recs, dev.ib, dev.gap = None, None, None
         if ink:
             from pdfreader import inkboxes as _ib
