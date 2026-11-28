@@ -453,6 +453,13 @@ _BOLD_NAME = re.compile(
     r"\bnimbusromno9l-medi|"
     # A truncated `-Bold`, as some producers write it (`NimbusSan-Bol`).
     r"-bol\b|"
+    # DEMI IS A BOLD WEIGHT. URW Gothic L, Avant Garde, Bookman, Lucida,
+    # Franklin Gothic, Optima, Neutra ... name it `Demi` or `DemiBold`; all
+    # 37 such stems in texmap.json are the family's bold. lib:24ebb7777b90
+    # p263 (held-out draw, inkdrill-11): URWGothicL-Demi headings read plain,
+    # 67 style findings. Anchored on the suffix, so `academica` is not.
+    # Subset names carry digits after the weight (`URWGothicL-Demi3`).
+    r"demi(bold|italic|ita|obli|sc|cd|cond)*\d*(\b|$)|"
     r"(^|[^a-z])(bd|blk)\d*$",
     re.I,
 )
