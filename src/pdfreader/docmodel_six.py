@@ -8080,6 +8080,12 @@ def _glyph_text(g: GlyphNode) -> str:
     #: this module imports `re` nowhere at the top level.
     if not (t.startswith("(cid:") and t.endswith(")") and t[5:-1].isdigit()):
         return t
+    # A TEXT FONT'S CONTROL CODE IS WHITESPACE. BH1 p113's OCR layer writes
+    # tabs -- code 9 in its WinAnsi Times -- which pdfminer reports as
+    # `(cid:9)` and this wrote as U+FFFD, 10 times on the judged page (board
+    # 116). pdftotext reads them as the whitespace they are.
+    if t[5:-1] in ("9", "10", "13") and fam in ("text", "text-cm"):
+        return " "
     return g.tex.latex or UNKNOWN_GLYPH_CHAR
 
 

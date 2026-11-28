@@ -277,3 +277,11 @@ def test_text_face_brackets_leave_cm_maths():
     got = docmodel._text_punct_out_of_cm_maths([sp], line)
     assert [s.kind for s in got] == ["math", "text"]
     assert [g.text for g in got[1].glyphs] == [")"]
+
+
+def test_a_text_fonts_tab_is_whitespace():
+    # BH1 p113 (board 116): the OCR layer's tabs came out U+FFFD
+    tab = _g("(cid:9)", 0, 3)
+    assert docmodel._glyph_text(tab) == " "
+    sym = _g("(cid:9)", 0, 3, family="math-symbol")
+    assert docmodel._glyph_text(sym) != " "
