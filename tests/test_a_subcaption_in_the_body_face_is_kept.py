@@ -7,6 +7,10 @@ region stays when it is in the page's dominant text face.
 Judge (pin ed6eb5d) 2312 p7: 0.0283 -> 0.0162, uncovered page glyphs 94 -> 54.
 The glyphs and regions are the page's own (a sample: the caption's `(`, `a`,
 `N`, chart labels `k=5`, and prose for the body face).
+
+Board 113 (judge a4cac49): the chart labels inside a region are now KEPT as
+well -- they were all 54 remaining unpaired glyphs of that page, 0.0162 ->
+0.0015 with them read. See test_a_charts_labels_stay_in_the_reading.py.
 """
 import json
 import sys
@@ -24,7 +28,7 @@ def _tup(v):
     return tuple(v) if isinstance(v, list) else v
 
 
-def test_the_subcaption_stays_and_the_chart_labels_go():
+def test_the_subcaption_stays_and_the_chart_labels_stay():
     d = json.loads(FIX.read_text())
     glyphs = []
     for g in d["glyphs"] if "glyphs" in d else d["g"]:
@@ -38,4 +42,4 @@ def test_the_subcaption_stays_and_the_chart_labels_go():
     chart = [g for g in glyphs if "DejaVu" in g.fontname
              and dm._region_holding(g.rect, inner) is not None]
     assert cap and all(g in kept for g in cap)
-    assert chart and not any(g in kept for g in chart)
+    assert chart and all(g in kept for g in chart)

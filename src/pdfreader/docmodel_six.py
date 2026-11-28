@@ -2939,7 +2939,39 @@ def _outside_figures(glyphs: list, inner: list) -> list:
     body = faces.most_common(1)[0][0] if faces else None
     return [g for g in glyphs
             if _region_holding(g.rect, inner) is None
-            or (body is not None and (g.fontname or "").split("+")[-1] == body)]
+            or (body is not None and (g.fontname or "").split("+")[-1] == body)
+            or _figure_label_glyph(g)]
+
+
+def _stacked_twin(g, row) -> bool:
+    """Does `row` hold a glyph of g's size and face straight above or below it?"""
+    face = (g.fontname or "").split("+")[-1]
+    for x in row:
+        if (abs(x.size - g.size) <= 0.05 * g.size
+                and (x.fontname or "").split("+")[-1] == face
+                and x.rect[0] < g.rect[2] and g.rect[0] < x.rect[2]
+                and abs(x.baseline - g.baseline) >= 0.5 * g.size):
+            return True
+    return False
+
+
+def _figure_label_glyph(g) -> bool:
+    r"""A figure's own LABEL glyph: a letter, digit or label sign in a text face.
+
+    Board 113, 2312.11532 p7: the page's three diagram regions each take in
+    two stacked charts, so the upper chart's x-axis ticks (`200 300`) and
+    every legend (`k=5` `k=3` `k=1`) sat in a region's interior, away from
+    the edge band, in DejaVuSerif -- a text face, but not the body face. All
+    54 of the page's unpaired original glyphs, its whole residual. What the
+    filter is FOR -- arrowheads and marks a drawing stamps as glyphs -- comes
+    from symbol and maths fonts, which this leaves to the region.
+    """
+    t = g.text or ""
+    return (g.family in ("text", "text-cm") and len(t) == 1
+            and (t.isalnum() or t in _LABEL_SIGNS))
+
+
+_LABEL_SIGNS = frozenset("=.,:;+-()%/")
 
 
 def _spans_two_regions(glyphs, regions) -> bool:
@@ -6166,6 +6198,17 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                                      max(_dx1, g.rect[2]),
                                      g.rect[1], g.rect[3],
                                      reach=2.0 * max(g.size, span_pt)):
+                        continue
+                    # AND NOT UNDER ITS OWN TWIN INSIDE A FIGURE. A chart's
+                    # legend is a STACK of label rows of one size and face.
+                    # On 2312.11532 p7 (board 113) panel (a)'s y-tick `0.1`
+                    # shares a baseline with the legend's `k=5`, so that row
+                    # holds a 7.33 pt glyph, the 5.86 pt `k=3` row below reads
+                    # as its scripts, and the line came out `0.1 kk==53`. A
+                    # script does not sit straight under a glyph of its own
+                    # size and face; a second label row does.
+                    if (diagrams and _in_diagram(g)
+                            and _stacked_twin(g, groups[dest])):
                         continue
                     moved.append((dest, g))
                 if not moved:
