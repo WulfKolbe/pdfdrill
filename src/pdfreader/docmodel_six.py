@@ -4944,6 +4944,80 @@ def _split_at_columns(rows: list[list["GlyphNode"]],
     return out
 
 
+def _poppler_lines(path: str, pno: int) -> list:
+    """Poppler's text lines on one page, as (x0, top, x1, bottom) in points
+    from the MediaBox's top-left (`pdftotext -bbox-layout`). [] on failure."""
+    import re as _re2
+    import subprocess
+    try:
+        x = subprocess.run(["pdftotext", "-f", str(pno), "-l", str(pno),
+                            "-bbox-layout", str(path), "-"],
+                           capture_output=True, text=True, timeout=120).stdout
+    except Exception:                                        # noqa: BLE001
+        return []
+    out = []
+    for m in _re2.finditer(r'<line xMin="([-\d.]+)" yMin="([-\d.]+)" '
+                           r'xMax="([-\d.]+)" yMax="([-\d.]+)">', x):
+        out.append(tuple(float(v) for v in m.groups()))
+    return out
+
+
+def _group_by_poppler_lines(glyphs, boxes, top: float, **kw):
+    """Glyphs grouped by poppler's lines, on a page whose OCR words scatter.
+
+    None -- keep `_group_lines` -- when poppler gave no lines or when the
+    scatter is small. Board 116, three OCR-layer pages, judge 8efc31e scan
+    route: taken whole, poppler's lines fixed lib:025faeafae2f p153 (word
+    baselines scatter 0.33 em median within a line; 0.4218 -> 0.2894) and
+    cost BH1 p113 (0.15 em) and BH3 p91 (0.10 em), whose OCR writes
+    subscripts at full size on their own baseline: on one line they set in
+    the wrong place. Three ways of mixing the two groupings line by line
+    each lost a page, so the choice is the page's.
+    """
+    if not boxes:
+        return None
+    rows: dict = {}
+    left = []
+    for g in glyphs:
+        cx = 0.5 * (g.rect[0] + g.rect[2])
+        cy = top - 0.5 * (g.rect[1] + g.rect[3])
+        hit = [i for i, (x0, y0, x1, y1) in enumerate(boxes)
+               if x0 - 0.5 <= cx <= x1 + 0.5 and y0 - 0.5 <= cy <= y1 + 0.5]
+        if not hit:
+            left.append(g)
+            continue
+        # overlapping boxes: the one whose middle is nearest
+        i = min(hit, key=lambda k: abs(0.5 * (boxes[k][1] + boxes[k][3]) - cy))
+        rows.setdefault(i, []).append(g)
+    if _baseline_scatter(rows.values()) < _OCR_SCATTER_EM:
+        return None
+    out = [sorted(r, key=lambda g: g.rect[0]) for _, r in sorted(rows.items())]
+    if left:
+        out += _group_lines(left, **kw)
+    return out
+
+
+#: Poppler's lines are taken on a page whose words scatter more than this
+#: (75th percentile over lines of the baselines' spread, in em). Measured on
+#: the judged pages of board 116: 025f 0.293, BH1 0.209, BH3 0.135 (medians
+#: 0.224 / 0.157 / 0.103 sit too close to cut). A cut fitted to three pages.
+_OCR_SCATTER_EM = 0.25
+
+
+def _baseline_scatter(rows) -> float:
+    """75th percentile over lines (of 3+ glyphs) of max-min baseline, in em."""
+    import statistics
+    spread = []
+    for r in rows:
+        if len(r) < 3:
+            continue
+        size = statistics.median(g.size for g in r) or 1.0
+        b = [g.baseline for g in r]
+        spread.append((max(b) - min(b)) / size)
+    spread.sort()
+    return spread[3 * len(spread) // 4] if spread else 0.0
+
+
 def _ocr_layer_page(glyphs, invisible: int, items, bbox) -> bool:
     """Is this page's text an OCR layer: all invisible, or under one page image?
 
@@ -5603,8 +5677,21 @@ def build(path: str, pages: Iterable[int] | None = None, *,
         upright_glyphs = _merge_enclosures(upright_glyphs)
         upright_glyphs = _merge_extenders(upright_glyphs)
         _bar_by_its_pair(upright_glyphs)
-        groups = _group_lines(upright_glyphs, rect=layout.bbox,
-                              line_bands=line_bands_by_page.get(pno))
+        # AN OCR LAYER'S LINES ARE POPPLER'S. Its engine places word by word
+        # and the baselines of one printed line scatter (0.15 em median on
+        # BH1 p113, 0.8 em at p90 on lib:025faeafae2f p153), so the baseline
+        # grouper split each printed line into two interleaved ones. No one
+        # tolerance served both pages (board 116: 0.45 em helped 025f and
+        # merged BH1's script rows). Poppler's TextOutputDev groups by word
+        # boxes; its lines are taken and the glyphs inside are read as ever.
+        groups = None
+        if ocr_page and layout.bbox is not None:
+            groups = _group_by_poppler_lines(
+                upright_glyphs, _poppler_lines(path, pno), layout.bbox[3],
+                rect=layout.bbox, line_bands=line_bands_by_page.get(pno))
+        if groups is None:
+            groups = _group_lines(upright_glyphs, rect=layout.bbox,
+                                  line_bands=line_bands_by_page.get(pno))
         groups = _split_local_columns(groups, layout.bbox)
         # The page's own figure geometry is a barrier: three charts side by
         # side must not have their labels read across (T-0156).
@@ -7893,6 +7980,14 @@ def _glyph_text(g: GlyphNode) -> str:
     return g.tex.latex or UNKNOWN_GLYPH_CHAR
 
 
+#: TeX's specials as text-mode characters (`_run_text`): only the ones that
+#: change the PARSE -- a bare brace opens or closes a group, a bare `$`
+#: switches mode. `% # &` and `~` were tried too (board 116): the judge's
+#: own `latex_text` already escapes them, and `\textasciitilde{}` then set
+#: as sixteen literal glyphs on lib:69bc5c71b881 p16 (15 unpaired).
+_TEXT_ESCAPE = {"{": r"\{", "}": r"\}"}
+
+
 def _maths_symbol(g: GlyphNode) -> bool:
     """Is this glyph a maths family's delimiter that text mode sets elsewhere?
 
@@ -8017,7 +8112,14 @@ def _run_text(glyphs: list[GlyphNode], word_gap: float = 0.0,
         # answered "Missing $ inserted" -- 13 of the board's 14 lines that do
         # not compile, including every one on lib:c57ac038ae5f p293, whose
         # display was typed as prose and carries `\bigl[` in text mode.
-        if not maths_mode and _needs_maths(t):
+        # A LITERAL TeX SPECIAL IN A TEXT RUN IS ESCAPED. Written bare, an
+        # OCR layer's `{` opened a group that never closed and the judge could
+        # not set the line (BH3 p91, `{(511), ... ))`, board 116), and its `$`
+        # switched to maths mid-word (BH1 p113 `S$30`). One glyph, one
+        # character: a projected command is never a single character.
+        if not maths_mode and len(t) == 1 and t in _TEXT_ESCAPE:
+            t = _TEXT_ESCAPE[t]
+        elif not maths_mode and _needs_maths(t):
             t = "$" + t + "$"
         # A MATHS FONT'S SYMBOL IN A TEXT RUN IS STILL ITS MATHS SYMBOL.
         # `_glyph_text` keeps a correct non-ASCII character (so U+2212 is not

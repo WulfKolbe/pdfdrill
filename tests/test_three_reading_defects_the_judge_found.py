@@ -210,3 +210,30 @@ def test_an_ocr_layer_page_is_recognised():
     assert docmodel._ocr_layer_page(glyphs, 0, [scan], page)
     assert not docmodel._ocr_layer_page(glyphs, 0, [image(100, 100, 300, 300)], page)
     assert not docmodel._ocr_layer_page([], 0, [scan], page)
+
+
+def test_a_literal_brace_in_text_is_escaped():
+    # BH3 p91 (board 116): an OCR `{(511), ...))` opened a group that never
+    # closed, and the judge could not set the line
+    assert docmodel._run_text([_g("{", 0, 3), _g("a", 3, 6)]) == r"\{a"
+    assert docmodel._run_text([_g("}", 0, 3)]) == r"\}"
+    # a projected command is not a single character and is left alone
+    assert docmodel._run_text([_g(r"\{", 0, 3)]) != r"\\{"
+
+
+def _ocr(t, x0, base, size=7.2):
+    g = _g(t, x0, x0 + 0.6 * size, size=size, baseline=base)
+    g.matrix = (size, 0, 0, size, x0, base)
+    return g
+
+
+def test_poppler_lines_are_taken_only_where_ocr_words_scatter():
+    # lib:025faeafae2f p153: one printed line, words 0.33 em apart in baseline
+    jitter = [_ocr(c, 100 + 6 * i, 700 + (2.4 if i % 2 else 0)) for i, c in enumerate("thefirstshall")]
+    box = [(90.0, 792 - 712.0, 200.0, 792 - 695.0)]
+    rows = docmodel._group_by_poppler_lines(jitter * 1, box * 1, 792.0)
+    assert rows is not None and len(rows) == 1
+    # BH3 p91: a steady line keeps the baseline grouper's rows (None)
+    steady = [_ocr(c, 100 + 6 * i, 700) for i, c in enumerate("steadyline")]
+    assert docmodel._group_by_poppler_lines(steady, box, 792.0) is None
+    assert docmodel._group_by_poppler_lines(jitter, [], 792.0) is None
