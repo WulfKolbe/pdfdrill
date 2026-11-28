@@ -63,3 +63,34 @@ def test_nested_phases_share_one_memo(monkeypatch):
         with D.spans_memo():
             ln.spans
     assert n["c"] == 1
+
+
+def test_a_lines_plain_text_is_memoised_only_inside_the_phase():
+    # SPEED (EXACT), board 118's to_lines_json: classify_lines asked for the
+    # same line's plain text from four places; inside the phase it is kept
+    from pdfreader import docmodel_six as _dm
+    from pdfreader import texmap as _tm
+    g = [_dm.GlyphNode(id=f"g{i}", page=1, rect=(5.0 * i, 0, 5.0 * i + 4, 10),
+                       text=c, cid=0, glyphname=None, fontname="CMR10",
+                       family="text-cm", size=10.0, tex=_tm.UNKNOWN)
+         for i, c in enumerate("abc")]
+    calls = []
+    real = _dm._run_text_raw
+
+    def counting(*a, **k):
+        calls.append(1)
+        return real(*a, **k)
+    _dm._run_text_raw = counting
+    try:
+        with _dm.spans_memo():
+            first = _dm._run_text(g)
+            second = _dm._run_text(g)
+        assert first == second == real(g) and len(calls) == 1
+        _dm._run_text(g)
+        assert len(calls) == 2           # outside the phase: computed again
+        with _dm.spans_memo():
+            _dm._run_text(g, word_gap=3.0)
+            _dm._run_text(g, word_gap=3.0)
+        assert len(calls) == 4           # a non-default call is not kept
+    finally:
+        _dm._run_text_raw = real

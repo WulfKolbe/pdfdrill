@@ -8284,6 +8284,28 @@ def _maths_chars(t: str) -> str:
 
 def _run_text(glyphs: list[GlyphNode], word_gap: float = 0.0,
               maths_mode: bool = False) -> str:
+    """`_run_text_raw`, memoised for plain calls inside a `spans_memo` phase.
+
+    SPEED (EXACT): classify_lines asks for a line's plain text from four
+    places (heading_level, _caption_of, _footnote_lines, is_display) and
+    every one recomputed it (board 118, to_lines_json). The phase guarantees
+    no line or glyph changes, so the same list gives the same text; the list
+    itself is kept with the entry, so an id cannot be reused.
+    """
+    memo = _SPANS_MEMO[-1] if _SPANS_MEMO else None
+    if memo is None or word_gap or maths_mode:
+        return _run_text_raw(glyphs, word_gap, maths_mode)
+    key = ("run_text", id(glyphs))
+    hit = memo.get(key)
+    if hit is not None and hit[0] is glyphs and hit[1] == len(glyphs):
+        return hit[2]
+    t = _run_text_raw(glyphs)
+    memo[key] = (glyphs, len(glyphs), t)
+    return t
+
+
+def _run_text_raw(glyphs: list[GlyphNode], word_gap: float = 0.0,
+                  maths_mode: bool = False) -> str:
     """Text of a glyph run, with word breaks reconstructed from geometry.
 
     TeX and many other producers position words rather than emitting space
@@ -8749,8 +8771,18 @@ def _faced_text(glyphs: list, wg: float = 0.0) -> str:
     # of it: 4859 p1287's `distance,` is CMTI12 with a CMR12 comma, so it
     # got no italic at all while the page sets `metric, or distance` in
     # italic. Each run now gets its own: `\textit{distance},`.
+    # SPEED (EXACT): one answer per (font, glyph name) within the call; the
+    # loop below asked twice per glyph (27,921 calls on 1805.01788 p3's
+    # three pages, board 118), and nothing changes during the call.
+    _faces: dict = {}
+
     def _face(g):
-        return tuple(texmap.emphasis_for({g.fontname}, [g.glyphname], _lower))
+        k = (g.fontname, g.glyphname)
+        v = _faces.get(k)
+        if v is None:
+            v = _faces[k] = tuple(texmap.emphasis_for(
+                {g.fontname}, [g.glyphname], _lower))
+        return v
     runs: list[list] = []
     cur = None                      # the face of the current run
     for g in glyphs:
