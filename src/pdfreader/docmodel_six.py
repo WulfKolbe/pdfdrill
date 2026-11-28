@@ -4707,38 +4707,44 @@ def _merge_operator_names(glyphs: list["GlyphNode"]) -> list["GlyphNode"]:
             i += 1
             continue
         best = None
+        # a run is contiguous, same size, same baseline, all upright roman.
+        # SPEED (EXACT), board 118: each test below is of ONE glyph (or one
+        # adjacent pair) against the run's first glyph, so a run that grows
+        # by one glyph needs only that glyph and its gap checked; the walk
+        # breaks exactly where checking the whole run each time would.
+        g0 = ordered[i]
+        size = g0.size
+
+        def _letter_ok(g, g0=g0):
+            return (g.family in ("text", "text-cm") and len(g.text) == 1
+                    and g.text.isalpha()
+                    and not is_monospace(g.fontname)
+                    and not texmap.is_italic(g.fontname)
+                    and abs(g.size - g0.size) <= 0.1
+                    and abs(g.baseline - g0.baseline) <= 0.1)
         # a run is contiguous, same size, same baseline, all upright roman
+        # 781g — NOT IN A TYPEWRITER FACE. TeX sets `\min` from the
+        # ROMAN maths font; it has no way to set an operator name in
+        # a monospace one. So three typewriter letters spelling `min`
+        # are three letters of CODE, and merging them wrote a LaTeX
+        # macro into a verbatim line -- page 5 of 1804.10694v5 came
+        # back as `for(i1 in 0..\min  ((N-2)%32,32)+2)`, which is the
+        # same defect MathPix reported to us from the other side:
+        # a code line that picked up maths habits. It also corrupts
+        # the SPACING, because the merged glyph keeps the first
+        # letter's x and the grid then counts two cells of gap.
+        # UPRIGHT, as the docstring says and the code never checked. TeX
+        # sets `\log` in roman; an ITALIC `log` is letters the author
+        # typed. 1805.01788 p3 (board 115) sets its DCG denominator's
+        # `log_2` in LinLibertineI, and read as `\log` the roman l, o, g
+        # differed from the page's italic ones: its last inexact formula.
         for j in range(i + 2, min(i + 10, len(ordered)) + 1):
+            a_, b_ = ordered[j - 2], ordered[j - 1]
+            if j == i + 2 and not _letter_ok(a_):
+                break
+            if not _letter_ok(b_) or b_.rect[0] - a_.rect[2] > 0.12 * size:
+                break
             run = ordered[i:j]
-            if any(g.family not in ("text", "text-cm") or len(g.text) != 1
-                   or not g.text.isalpha() for g in run):
-                break
-            # 781g — NOT IN A TYPEWRITER FACE. TeX sets `\min` from the
-            # ROMAN maths font; it has no way to set an operator name in
-            # a monospace one. So three typewriter letters spelling `min`
-            # are three letters of CODE, and merging them wrote a LaTeX
-            # macro into a verbatim line -- page 5 of 1804.10694v5 came
-            # back as `for(i1 in 0..\min  ((N-2)%32,32)+2)`, which is the
-            # same defect MathPix reported to us from the other side:
-            # a code line that picked up maths habits. It also corrupts
-            # the SPACING, because the merged glyph keeps the first
-            # letter's x and the grid then counts two cells of gap.
-            if any(is_monospace(g.fontname) for g in run):
-                break
-            # UPRIGHT, as the docstring says and the code never checked. TeX
-            # sets `\log` in roman; an ITALIC `log` is letters the author
-            # typed. 1805.01788 p3 (board 115) sets its DCG denominator's
-            # `log_2` in LinLibertineI, and read as `\log` the roman l, o, g
-            # differed from the page's italic ones: its last inexact formula.
-            if any(texmap.is_italic(g.fontname) for g in run):
-                break
-            size = run[0].size
-            if any(abs(g.size - size) > 0.1
-                   or abs(g.baseline - run[0].baseline) > 0.1 for g in run):
-                break
-            if any(b.rect[0] - a.rect[2] > 0.12 * size
-                   for a, b in zip(run, run[1:])):
-                break
             cmd = operator_name("".join(g.text for g in run))
             if cmd:
                 # The run must END here. TeX never sets `\sup` immediately
@@ -6091,13 +6097,45 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                 _bl_memo[i] = hit = _bl(groups[i])
             return hit
 
+        # SPEED (EXACT), board 118: the pair sweep visited every row for
+        # every row (124 k `_bl_at` calls on 0864 p4), and the first test
+        # rejects any pair whose baselines are more than 0.15 span apart.
+        # The rows within reach now come from a sorted index of baselines,
+        # visited in the SAME ascending index order; after a merge (which
+        # changes row _i's baseline and empties row _j) the index and the
+        # rest of _i's candidates are rebuilt, as the memo is cleared.
+        import bisect as _bisect
+        _reach = 0.15 * span_pt
+
+        def _bl_index():
+            return sorted((_bl_at(k), k) for k in range(len(groups))
+                          if groups[k])
+
+        def _within(idx, i, after):
+            b0 = _bl_at(i)
+            slack = 1e-9 * (abs(b0) + 1.0)
+            lo = _bisect.bisect_left(idx, (b0 - _reach - slack, -1))
+            out = []
+            for bl, k in idx[lo:]:
+                if bl > b0 + _reach + slack:
+                    break
+                if k > after:
+                    out.append(k)
+            out.sort()
+            return out
+
         _changed = True
         while _changed:
             _changed = False
+            _idx = _bl_index()
             for _i in range(len(groups)):
                 if not groups[_i]:
                     continue
-                for _j in range(len(groups)):
+                _cands = _within(_idx, _i, -1)
+                _ci = 0
+                while _ci < len(_cands):
+                    _j = _cands[_ci]
+                    _ci += 1
                     if _i == _j or not groups[_j] or not groups[_i]:
                         continue
                     a, b = groups[_i], groups[_j]
@@ -6184,6 +6222,8 @@ def build(path: str, pages: Iterable[int] | None = None, *,
                     # entry was computed against the pre-merge arrangement.
                     _bl_memo.clear()
                     _changed = True
+                    _idx = _bl_index()
+                    _cands, _ci = _within(_idx, _i, _j), 0
 
         # 730 — STACKED LIMITS, by the same argument as the fraction bar.
         #
