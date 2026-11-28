@@ -273,3 +273,20 @@ def test_a_text_fonts_tab_is_whitespace():
     assert docmodel._glyph_text(tab) == " "
     sym = _g("(cid:9)", 0, 3, family="math-symbol")
     assert docmodel._glyph_text(sym) != " "
+
+
+def test_a_script_size_glyph_on_the_baseline_is_scriptstyle():
+    # lib:c9daf79960c3 p68 (board 117): an 8 pt `k` 0.61 pt off a 12 pt
+    # arrow's baseline is set on it, not raised as `^{k}`
+    from pdfreader import structure
+
+    def glyph(t, x0, x1, base, size, font, fam, latex):
+        g = _g(t, x0, x1, size=size, baseline=base, family=fam, latex=latex)
+        g.fontname, g.matrix = font, (size, 0, 0, size, x0, base)
+        return g
+    arrow = glyph("→", 236.1, 247.8, 241.06, 11.96, "X+TeX-matha12", "math-symbol", r"\rightarrow")
+    k = glyph("k", 247.8, 252.2, 241.67, 7.97, "Y+LMMathItalic8-Regular", "math-italic", "k")
+    assert structure.to_tex([arrow, k], []) == r"\rightarrow{\scriptstyle k}"
+    # a real superscript, 0.4 em up, stays a superscript
+    k2 = glyph("k", 247.8, 252.2, 245.9, 7.97, "Y+LMMathItalic8-Regular", "math-italic", "k")
+    assert structure.to_tex([arrow, k2], []) == r"\rightarrow^{k}"

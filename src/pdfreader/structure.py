@@ -46,6 +46,9 @@ SCRIPT_SIZE_RATIO = 0.92
 # starts swallowing real script levels: Gallier fell 98.7% -> 79.9% and
 # Mielke 85.6% -> 61.6%.
 LEVEL_TOL = 0.12
+#: A smaller glyph closer than this (in the row's size) to the row's baseline
+#: is set ON it, at script size, not attached as a script. See `_attach_scripts`.
+ON_BASELINE = 0.08
 
 
 @dataclass
@@ -633,6 +636,29 @@ def _attach_scripts(glyphs: list[GlyphNode]):
                 or abs(glyphs[i].baseline - base_line) <= LEVEL_TOL * size]
     if not main_idx:
         return None
+    # A SCRIPT-SIZE GLYPH ON THE BASELINE IS NOT A SCRIPT. lib:c9daf79960c3
+    # p68 sets an 8 pt `k` 0.61 pt (0.05 em) off a 12 pt arrow's baseline
+    # (board 117); read as a script it came out `\rightarrow^{k}`, set 0.54
+    # of a size too high. A TeX superscript stands ~0.3 em up and a
+    # subscript ~0.15 em down; within ON_BASELINE of the row, directly after
+    # a main glyph, the glyph is a main glyph of its own, set
+    # `{\scriptstyle ...}` (the glyph's `scriptstyle` mark).
+    # Not a subscript (it is not below the row), not the rest of a word in
+    # the base's own face (small capitals), not under an accent, and truly
+    # smaller than what it follows.
+    def _face(g):
+        return (g.fontname or "").split("+")[-1]
+    _on = [i for i, g in enumerate(glyphs)
+           if i not in main_idx and i not in bigops and i - 1 in main_idx
+           and (g.text or "").strip()
+           and base_line - 0.01 <= g.baseline < base_line + ON_BASELINE * size
+           and _face(g) != _face(glyphs[i - 1])
+           and glyphs[i - 1].tex.kind != "accent"
+           and glyphs[i - 1].size >= 1.25 * g.size]
+    if _on:
+        for i in _on:
+            object.__setattr__(glyphs[i], "scriptstyle", True)
+        main_idx = sorted(set(main_idx) | set(_on))
 
     # BINDING BY EMISSION ORDER WAS TRIED HERE AND REVERTED.
     #
@@ -1915,6 +1941,8 @@ def to_tex(glyphs: list[GlyphNode], rules: list[RuleNode] | None = None,
             lit = glyph_latex(base)
             if lit is None:
                 return None
+            if getattr(base, "scriptstyle", False):
+                lit = r"{\scriptstyle %s}" % lit
         part = lit
         # `\limits` WHEN THE PAGE PUTS THEM THERE.
         #
