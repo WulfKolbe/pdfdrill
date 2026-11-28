@@ -118,6 +118,7 @@ def _program(font):
         res = (bounds, fm, enc)
     elif desc.get("FontFile") is not None:                   # Type 1 (pdfTeX CM)
         from fontTools.t1Lib import T1Font
+        _fast_eexec()
         data = resolve1(desc["FontFile"]).get_data()
         t = T1Font.__new__(T1Font)
         t.data = data
@@ -297,3 +298,35 @@ def ink_boxes(pdf, page_no: int) -> list:
                 PDFPageInterpreter(rm, dev).process_page(page)
                 break
     return rec
+
+
+def _eexec_decrypt(cipherstring, R):
+    r"""fontTools' `eexec.decrypt`, one loop instead of a call per byte.
+
+    SPEED (EXACT): the same recurrence -- `plain = (c ^ (R >> 8)) & 0xFF`,
+    `R = ((c + R) * 52845 + 22719) & 0xFFFF` -- over the same bytes, so the
+    plaintext and the returned key are identical (tests hold it to the
+    original). fontTools spent 2.6 s of 1805.01788 p3's 22.9 s (board 118,
+    under the profiler) in 663 k `_decryptChar` calls. Anything that is not
+    bytes goes to the original.
+    """
+    if not isinstance(cipherstring, (bytes, bytearray)):
+        return _EEXEC_ORIGINAL(cipherstring, R)
+    out = bytearray(len(cipherstring))
+    r = R
+    for i, c in enumerate(cipherstring):
+        out[i] = (c ^ (r >> 8)) & 0xFF
+        r = ((c + r) * 52845 + 22719) & 0xFFFF
+    return bytes(out), int(r)
+
+
+_EEXEC_ORIGINAL = None
+
+
+def _fast_eexec() -> None:
+    """Install `_eexec_decrypt` as fontTools' `eexec.decrypt`, once."""
+    global _EEXEC_ORIGINAL
+    from fontTools.misc import eexec
+    if _EEXEC_ORIGINAL is None:
+        _EEXEC_ORIGINAL = eexec.decrypt
+        eexec.decrypt = _eexec_decrypt
