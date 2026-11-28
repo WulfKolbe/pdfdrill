@@ -5166,6 +5166,8 @@ def _group_lines(glyphs: list[GlyphNode],
     # listings merged that way -- `5 f2(x) = f(x,2)67 xVals, yVals = ...`.
     rows: list[list[GlyphNode]] = []
     row_key: list[float] = []
+    import bisect as _bisect
+    _sorted_keys: list = []          # (key, row index), sorted
     for g in sorted(glyphs, key=lambda g: (-key(g), g.rect[0])):
         k = key(g)
         # A TIGHT tolerance, and it has to be tighter than it looks. Two
@@ -5184,14 +5186,26 @@ def _group_lines(glyphs: list[GlyphNode],
         # rejoined afterwards by the fold. So this window only has to absorb
         # rounding noise, not typography.
         tol = 0.08 * max(g.size, 1.0)
+        # SPEED (EXACT): the rows within reach come from a sorted index of
+        # the keys instead of a scan of every row (960 k `abs` calls on 0864
+        # p4's three pages, board 118). Same distance expression, same
+        # choice: the nearest, the earliest row on a tie. The window is
+        # widened by a hair so a candidate at exactly `tol` is never lost to
+        # the subtraction's rounding; `d <= tol` below still decides.
         best, best_d = None, None
-        for i, rk in enumerate(row_key):
+        lo = _bisect.bisect_left(_sorted_keys, (k - tol - 1e-9 * (abs(k) + 1),))
+        for j in range(lo, len(_sorted_keys)):
+            rk, i = _sorted_keys[j]
+            if rk > k + tol + 1e-9 * (abs(k) + 1):
+                break
             d = abs(rk - k)
-            if d <= tol and (best_d is None or d < best_d):
+            if d <= tol and (best_d is None or d < best_d
+                             or (d == best_d and i < best)):
                 best, best_d = i, d
         if best is None:
             rows.append([g])
             row_key.append(k)
+            _bisect.insort(_sorted_keys, (k, len(row_key) - 1))
         else:
             rows[best].append(g)
 
@@ -5220,13 +5234,25 @@ def _group_lines(glyphs: list[GlyphNode],
             v = _kmemo[id(g)] = key(g)
         return v
 
+    # SPEED (EXACT): a row's stats are computed once and kept until the row
+    # changes; a fold re-computes only the row it extended. Same expression
+    # over the same list, so each value is bit-identical to recomputing all
+    # of them every pass (74 passes on 0864 p4, board 118).
+    _row_stats: dict = {}
+
+    def _stat(r):
+        v = _row_stats.get(id(r))
+        if v is None:
+            v = _row_stats[id(r)] = (
+                max(x.size for x in r), sum(_kof(x) for x in r) / len(r),
+                min(x.rect[0] for x in r), max(x.rect[2] for x in r))
+        return v
+
     changed = True
     while changed:
         changed = False
-        rows.sort(key=lambda r: -sum(_kof(x) for x in r) / len(r))
-        _stats = [(max(x.size for x in r), sum(_kof(x) for x in r) / len(r),
-                   min(x.rect[0] for x in r), max(x.rect[2] for x in r))
-                  for r in rows]
+        rows.sort(key=lambda r: -_stat(r)[1])
+        _stats = [_stat(r) for r in rows]
         for i, r in enumerate(rows):
             # A SCRIPT row is short. A whole line is not a script, however
             # much smaller it is than its neighbour: a listing set beside a
@@ -5268,6 +5294,8 @@ def _group_lines(glyphs: list[GlyphNode],
                     best, best_d = j, d
             if best is not None:
                 rows[best].extend(r)
+                _row_stats.pop(id(rows[best]), None)
+                _row_stats.pop(id(r), None)
                 del rows[i]
                 changed = True
                 break
