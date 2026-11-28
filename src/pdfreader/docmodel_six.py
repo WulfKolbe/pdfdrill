@@ -5574,6 +5574,27 @@ LAST_READ_ERROR: "tuple | None" = None
 LAST_READ_TRACEBACK: "str | None" = None
 
 
+def _crop_in_layout_frame(crop, media, rotate=0) -> tuple:
+    r"""The CropBox in the frame the glyphs are in: from the MediaBox origin.
+
+    pdfminer lays a page out with ctm (1, 0, 0, 1, -x0, -y0), x0 y0 the
+    MediaBox's lower left, so every glyph is relative to that corner. The
+    CropBox was taken as stated, in absolute PDF units, and every region was
+    then placed `x - crop.x0`: on a page whose MediaBox does not start at
+    0 0 that subtracted the MediaBox origin a second time. Held-out draw
+    (seeds 20261129-32): lib:477e5c4130b0 p407, MediaBox = CropBox =
+    46.63 34.58 551.20 754.58, every region 162 px left of its ink and the
+    page at residual 1.44; lib:7e9f02b4f39f p287 (origin 23.54 15.84) 1.37.
+    d68e p334, where the CropBox fix was measured, has its MediaBox at 0 0.
+    A rotated page keeps the stated box (its ctm is not a translation).
+    """
+    c = tuple(float(v) for v in crop)
+    if rotate not in (0, None) or not media or len(media) != 4:
+        return c
+    mx, my = float(media[0]), float(media[1])
+    return (c[0] - mx, c[1] - my, c[2] - mx, c[3] - my)
+
+
 def _cropboxes(path: str) -> dict:
     r"""Every page's CropBox, by page number, 1-based.
 
@@ -5597,8 +5618,8 @@ def _cropboxes(path: str) -> dict:
             for i, pg in enumerate(PDFPage.get_pages(fh), 1):
                 box = getattr(pg, "cropbox", None)
                 if box and len(box) == 4:
-                    out[i] = (float(box[0]), float(box[1]),
-                              float(box[2]), float(box[3]))
+                    out[i] = _crop_in_layout_frame(box, pg.mediabox,
+                                                   pg.rotate)
     except Exception:
         return {}
     return out

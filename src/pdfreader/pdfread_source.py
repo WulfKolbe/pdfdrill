@@ -220,8 +220,10 @@ def read(path: str, pages, ink: bool):
             page = LTPage(pageno, _page_box(r))
             stack = [page]
             seen, recs, gi = {}, ([] if ink else None), 0
+            from pdfreader.docmodel_six import _crop_in_layout_frame
             cb = r.get("cropbox") or r["mediabox"]
-            crop[pno] = tuple(float(v) for v in cb)
+            crop[pno] = _crop_in_layout_frame(cb, r["mediabox"],
+                                              r.get("rotate", 0))
             found = []
             for lk in r.get("links") or []:
                 rect = lk["rect"]
