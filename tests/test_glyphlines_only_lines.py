@@ -51,3 +51,20 @@ def test_only_takes_lines_and_nothing_else():
     from pdfdrill import cli
     with pytest.raises(ValueError, match="only choice is `lines`"):
         cli._do_glyphlines(["--only", "md", str(FIX)])
+
+
+def test_only_lines_skips_the_probes_and_the_default_runs_them(tmp_path, monkeypatch):
+    from pdfdrill import cli, probes
+    called = []
+    monkeypatch.setattr(probes, "ensure", lambda *a, **k: called.append(1))
+    monkeypatch.setattr(cli, "_SKIP_PROBES", True)
+    pdf = tmp_path / "r00.pdf"
+    shutil.copy(FIX, pdf)
+    cli._probe_on_acquire(pdf)
+    assert called == []
+    monkeypatch.setattr(cli, "_SKIP_PROBES", False)
+    pdf2 = tmp_path / "again" / "r00.pdf"
+    pdf2.parent.mkdir()
+    shutil.copy(FIX, pdf2)
+    cli._probe_on_acquire(pdf2)
+    assert called == [1]

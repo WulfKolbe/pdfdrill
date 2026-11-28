@@ -437,6 +437,10 @@ def _probe_on_acquire(p: Path) -> Path:
     # changes: `model`, `inspect`, `md` and `eqreport` go on reading an
     # ordinary lines.json. A reading we did not write is never replaced.
     fold_page_lines(p)
+    # `glyphlines --only lines` (board 122): the three probes feed the
+    # sidecar and the probe-* files, and nothing in lines.json reads them.
+    if _SKIP_PROBES:
+        return p
     try:
         if p.suffix.lower() == ".pdf" and p.is_file():
             from . import probes
@@ -469,6 +473,8 @@ def _probe_on_acquire(p: Path) -> Path:
 #: barrier contract rather than in each caller's memory. A handler that
 #: wants a flag's VALUE still reads it from `args` exactly as before.
 _DECLARED_FLAGS: "dict[str, frozenset] | None" = None
+#: Set by `glyphlines --only lines`: resolve the PDF without the probes.
+_SKIP_PROBES = False
 
 
 def _declared_flags(cmd: str) -> frozenset:
@@ -1008,6 +1014,8 @@ def _do_glyphlines(args):
         raise ValueError(f"`pdfdrill glyphlines --only {only}`: the only "
                          "choice is `lines` (lines.json alone, without the "
                          ".glyphs.md and .glyphs.tex projections).")
+    global _SKIP_PROBES
+    _SKIP_PROBES = only == "lines"
     return cmd_glyphlines(_pdf(args), force="--force" in args,
                           only_lines=only == "lines")
 
