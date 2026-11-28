@@ -7769,6 +7769,26 @@ def _glyph_text(g: GlyphNode) -> str:
     return g.tex.latex or UNKNOWN_GLYPH_CHAR
 
 
+def _maths_symbol(g: GlyphNode) -> bool:
+    """Is this glyph a maths family's delimiter that text mode sets elsewhere?
+
+    Only the delimiters. A wider rule (any maths command) was measured on the
+    24 born board pages: it moved 1511.08771 p2709's primes into `$\\prime$`
+    and re-typed its lines. In text mode utf8 LaTeX sets ⟨ ⟩ from TS1 and
+    ⌊ ⌋ ⌈ ⌉ not at all, so these are the ones that need maths mode.
+    """
+    fam = getattr(g, "family", "") or ""
+    tex = g.tex.latex if g.tex else None
+    return fam.startswith(("math", "maths", "ams")) and tex in _TEXT_UNSET_DELIMS
+
+
+#: A gap this far below zero is a kern the author set, not rounding.
+_KERN_MIN_PT = 0.1
+
+_TEXT_UNSET_DELIMS = frozenset({r"\langle", r"\rangle", r"\lfloor",
+                                r"\rfloor", r"\lceil", r"\rceil"})
+
+
 def _needs_maths(t: str) -> bool:
     """Is this token LaTeX that only works inside maths mode?"""
     return t.startswith(chr(92)) and t[1:2].isalpha() and t not in _TEXT_COMMANDS
@@ -7858,6 +7878,7 @@ def _run_text(glyphs: list[GlyphNode], word_gap: float = 0.0,
     """
     out: list[str] = []
     prev: GlyphNode | None = None
+    prev_delim = False
     threshold = word_gap or _word_gap(glyphs)
     for g in glyphs:
         if prev is not None:
@@ -7865,6 +7886,7 @@ def _run_text(glyphs: list[GlyphNode], word_gap: float = 0.0,
             if gap > threshold and not out[-1].endswith(" "):
                 out.append(" ")
         t = _glyph_text(g)
+        is_delim = False
         # A MATHS COMMAND IN A TEXT RUN NEEDS ITS MATHS MODE. The operator
         # merge marks the collapsed glyph `math-symbol` and the span around it
         # can still be text, so `\lg` landed outside `$...$` and pdflatex
@@ -7873,6 +7895,27 @@ def _run_text(glyphs: list[GlyphNode], word_gap: float = 0.0,
         # display was typed as prose and carries `\bigl[` in text mode.
         if not maths_mode and _needs_maths(t):
             t = "$" + t + "$"
+        # A MATHS FONT'S SYMBOL IN A TEXT RUN IS STILL ITS MATHS SYMBOL.
+        # `_glyph_text` keeps a correct non-ASCII character (so U+2212 is not
+        # spent as a hyphen), and in text mode pdflatex sets that character
+        # from ANOTHER font: CMSY7's ⟨ in a code-typed table row went out as
+        # U+27E8, which LaTeX's utf8 maps to TS1 `\textlangle` -- a different
+        # shape, whose ToUnicode reads U+2329. Board 113, lib:d68e0271bd4d
+        # p334, L18: all 4 glyph findings of the page.
+        elif not maths_mode and not t.isascii() and _maths_symbol(g):
+            t = "$" + g.tex.latex + "$"
+            is_delim = True
+            # Two of them set CLOSER than their advance are one maths group
+            # with the measured kern: ⟨⟨ on that page sits 1.44 pt apart
+            # against CMSY7's 3.22 pt advance, and set at full width the
+            # second bracket lands inside the first one's judging window
+            # (solid 17-42 on each; kerned, 0 on three of the four).
+            if (prev_delim and out and out[-1].endswith("$")
+                    and g.rect[0] - prev.rect[2] < -_KERN_MIN_PT):
+                k = g.rect[0] - prev.rect[2]
+                out[-1] = f"{out[-1][:-1]}\\kern{k:.2f}pt{g.tex.latex}$"
+                prev, prev_delim = g, True
+                continue
         # INSIDE MATHS A CHARACTER WITH A COMMAND IS THE COMMAND
         # (contracts/reading.md §7, owner 2026-11-25). A span that could not
         # be typed is written from its glyphs' characters, and that put
@@ -7891,6 +7934,7 @@ def _run_text(glyphs: list[GlyphNode], word_gap: float = 0.0,
                 and out[-1][-1:].isalpha()):
             out.append(" ")
         out.append(t)
+        prev_delim = is_delim
         prev = g
     return "".join(out)
 
