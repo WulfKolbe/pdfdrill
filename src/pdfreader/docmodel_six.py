@@ -1386,9 +1386,22 @@ def _spans_of(line: "LineNode") -> list[Span]:
                 # ONE letter, not a run: `and` is three, and no relaxation
                 # here can reach it. Adjacency to mathematics is still
                 # required, and the line must be a display.
-                _solo = (_mostly_math and len(run) == 1
-                         and run[0].text.strip().isalpha()
-                         and is_italic(run[0].fontname))
+                # lib:3fe71b4ef018 p328 sets its Latin variables in the TEXT
+                # italic (Times-Italic, MathTime Greek): `... c\,dt` and
+                # `ds^2 = ...` left `dt`, `ds` outside the display, since a
+                # thin space is not "tight" and _solo took one letter only.
+                # Up to three italic letters END a maths line as variables
+                # (the trailing differential). Not in the middle: absorbing
+                # `ds`, `dt`, `dr` of p1 L22 made the whole line one display,
+                # which the display reader refused, and its flat fallback
+                # lost the `\frac{r^{2}}{\Delta}` the pieces had.
+                _solo = (_mostly_math and run[0].text.strip().isalpha()
+                         and is_italic(run[0].fontname)
+                         and (len(run) == 1
+                              or (len(run) <= 3 and i == len(runs) - 1
+                                  and all(g.text.strip().isalpha()
+                                          and is_italic(g.fontname)
+                                          for g in run))))
                 # 889 — A NAME FOLLOWED BY A RELATION IS A LEFT-HAND SIDE.
                 #
                 # `_solo` requires an ITALIC single letter, so the upright
@@ -1417,8 +1430,13 @@ def _spans_of(line: "LineNode") -> list[Span]:
                 # index found an unrelated glyph and the rule silently never
                 # fired on the document it was written for.
                 _nxt = runs[i + 1][0] if i + 1 < len(runs) else None
-                _lhs = (_mostly_math and 1 <= len(run) <= 3
-                        and all(g.text.strip().isalpha() for g in run)
+                # ... and in PROSE, one italic letter before a relation is
+                # its left-hand side: `charge $Q = -\overline{Q}\cos\delta$`,
+                # not `\textit{Q} $= ...$` (same page).
+                _lhs = (((_mostly_math and 1 <= len(run) <= 3
+                          and all(g.text.strip().isalpha() for g in run))
+                         or (len(run) == 1 and run[0].text.strip().isalpha()
+                             and is_italic(run[0].fontname)))
                         and _is_relation(_nxt))
                 # 890 — AND THE RIGHT-HAND SIDE. `dA + A \wedge \star A = 0`
                 # came out `… = ` with the `0` gone: a digit is not alphabetic
@@ -8237,6 +8255,16 @@ def _word_gap(glyphs: list["GlyphNode"]) -> float:
         if b - a > best:
             best, at = b - a, 0.5 * (a + b)
     if at is None or best < 0.05 * size:
+        # ONE SPACE IN A RUN OF TOUCHING GLYPHS. The split above needs two
+        # gaps on the wide side, so `system(\textsc{Mc}-\textsc{Guire}` --
+        # thirteen gaps of 0 and one of 2.03 pt at 10 pt -- fell back to
+        # 0.22 em = 2.2 pt and lost its space (lib:3fe71b4ef018 p328, the
+        # coordinator's read of board 126). When every other gap touches
+        # and the one left is a space's width, that one is the word break.
+        if (len(gaps) >= 4 and gaps[-2] <= 0.02 * size
+                and gaps[-1] >= 0.18 * size):
+            return min(max(0.5 * (gaps[-2] + gaps[-1]), 0.08 * size),
+                       0.30 * size)
         return 0.22 * size
     return min(max(at, 0.08 * size), 0.30 * size)
 
@@ -9050,7 +9078,10 @@ def _faced_text(glyphs: list, wg: float = 0.0) -> str:
                     <= 0.02 * max(live[-1].size, 1.0)):
                 body = body[:-1] + "\\nocorr}"
         piece = lead + body + tail
-        if k and r[0].rect[0] - runs[k - 1][-1].rect[2] > wg:
+        # one space at a face change, not a second one where the run's own
+        # text already ends or begins with it (BH1 p113 `für  \textit{n}`)
+        if (k and r[0].rect[0] - runs[k - 1][-1].rect[2] > wg
+                and not out.endswith(" ") and not piece.startswith(" ")):
             out += " "
         out += piece
     return out
